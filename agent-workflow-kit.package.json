@@ -456,7 +456,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "codex",
-      "sha256": "7ff811cfdb08a6e47163f1932c1cae145cd985f4db883413e76574cf899f65c7",
+      "sha256": "842e0ab3dd43508419d4abfab271e2fc4b3160cb8e58442f1c49b83120439579",
       "mode": 420,
       "origin": "kit"
     },
@@ -1057,7 +1057,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "claude",
-      "sha256": "5dcae4288dd6328e4413b369190001c23395b125895c833e43028bb598cf4b8c",
+      "sha256": "42cdba3805ad137fe04e30cbd08a6d82fa444d0e3e5d8b74ca2c01159e3f53c4",
       "mode": 420,
       "origin": "kit"
     },
