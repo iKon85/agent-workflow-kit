@@ -1,0 +1,120 @@
+---
+name: spec-self-critique
+description: "Use AFTER writing or editing a spec (a `SPEC.md`/`PLAN.md` or any spec/design doc), BEFORE asking the user to review — runs a 12-point structural Self-Critique checklist, fixes issues inline, and emits a visible summary. Enriches each check from a project layer if one is present. Triggers right after a spec has been written."
+---
+
+# Spec Self-Critique
+
+A portable, structural self-review pass over a freshly written spec/plan. The **generic 12-point skeleton** below ships as-is; a **project layer** (if present) enriches each point with project-specific incidents, grep patterns, conventions, and extra sub-checks.
+
+## When to invoke
+
+- After a spec was written/edited (a `SPEC.md` / `PLAN.md`, or a spec/design doc), BEFORE the user-review gate.
+
+## Step 0 — Project-layer probe
+
+First, check whether a project layer exists: from the project root, look for `docs/agents/skills/spec-self-critique.md`.
+
+- **Present** → **full pass**: run the 12 generic checks AND apply the per-point enrichment that file defines (incidents, grep patterns, extra sub-checks).
+- **Absent** → **base pass**: run the 12 generic checks only, then add this one-line warning to the summary:
+  > ⚠ Kein Projekt-Layer (`docs/agents/skills/spec-self-critique.md`) gefunden — nur generische Basis-Checks gelaufen. `/setup-workflow` legt die Schicht an; sie füllt sich projektspezifisch über `/retro`.
+
+> **Routing — keep this skeleton clean.** Project-specific checks, incidents, and grep patterns belong in the project layer (`docs/agents/skills/spec-self-critique.md`), **NOT here**. `/retro` appends new project-specific lore to the project layer, never into this generic skeleton.
+
+## How to invoke
+
+Read the most recently written/edited spec in full. Walk the 12-point checklist (points 1–12; **8b/8c are sub-checks of point 8**, not main points). Per point:
+
+1. Decide: does the spec trigger this rule?
+2. If yes: run the check.
+3. If violated: fix the spec inline (Edit tool, not "TODO later").
+4. Note the correction for the summary.
+
+End with a visible summary in the chat:
+
+```
+Self-Critique abgeschlossen — <N> Korrekturen:
+- Punkt <X>: <kurze Beschreibung>
+- ...
+```
+
+or, if none were needed: `Self-Critique abgeschlossen — keine Korrekturen nötig.` (append the Step-0 layer-absent warning if it applied). THEN ask the user-review question.
+
+## The 12-point checklist
+
+**1. Placeholder scan + empirical re-check**
+Scan for `TBD` / `TODO` / "später" / "fill in details" / vague requirements → fix inline. Plus, when applicable:
+- **Cited counts** ("24 call-sites: 6 start, 8 succeed, …") → re-verify each empirically (`grep`); recon from the brainstorming phase can be stale, and wrong numbers mislead the effort estimate.
+- **Folder move / rename** → broaden the caller-audit grep (search the path-segment without a `from …`-anchor, to catch mocks, dynamic imports, type-only imports) AND require a typecheck-backstop step right after the move (path-depth breaks inside the moved files aren't found by a caller grep).
+- **Cited prior diagnosis** (issue body, investigation, memory snapshot, earlier plan) → verify each core claim empirically before finalizing. Such artifacts are hypotheses, not validated facts; drift compounds if left unchecked.
+- **Risk mitigation** → it must name a concretely checkable **output string**, not just an action ("rowCount is 2307" is checkable; "rowCount > 1000" is a claim about a claim).
+Skip only if none of these apply.
+
+**2. Internal consistency**
+Do sections contradict each other? Does the architecture match the feature description? Do numbers/orders agree between tables and prose?
+
+**3. Scope check**
+Small enough for **one** implementation plan, or must it split into sub-specs?
+
+**4. Ambiguity check**
+Could a requirement be read two ways? If so, pick one interpretation and make it explicit.
+
+**5. State transitions**
+*Trigger:* the spec mentions "Live", "SSE", "WebSocket", "Polling", "EventSource", "Realtime", "Stream", or incoming updates.
+*Check:* are all transitions played through — `idle → running → awaiting_decision → succeeded | failed` — plus `mid-flight reload`, `multi-tab parallel`, `connection-loss + reconnect`, `aborted`?
+
+**6. Convention scope**
+*Trigger:* the spec introduces a new pattern, convention, single-entry broker, wrapper, or consistency layer.
+*Check:* is it explicitly scoped — applied app-wide vs only touched surfaces? Does the spec require a follow-up item for the untouched surfaces (in the spec body, not retroactively)?
+
+**7. User walk-through**
+*Trigger:* the spec has UI stages, wizards, or multi-step user interactions.
+*Check:* are the sub-steps per UI stage walked through — what does the user see at each stage — not just the data model?
+
+**8. Project-convention check**
+*Trigger:* always.
+*How:* iterate your project's documented conventions. Default location: from the project root, `docs/conventions/*.md`. For each convention file that carries a `## Self-Critique-Check` block (format: **Trigger / Check / Korrektur**):
+1. Evaluate its Trigger against the current spec.
+2. On match: run its Check. On violation: fix the spec inline + note it.
+3. A convention with no such block → skip it non-blocking + collect a warning ("convention `<file>` is missing a `## Self-Critique-Check` block").
+No conventions directory / no blocks (e.g. a fresh project) → **soft skip** (non-blocking). Emit collected warnings at the end of the pass.
+
+**8b. Marker-wording check**
+*Trigger:* a convention mandates a header marker comment.
+*Check:* the spec's marker must be copied **verbatim** from the convention, not paraphrased. Open the convention, compare the marker block 1:1, fix inline on any drift (drift makes the convention worthless as the single source of truth).
+
+**8c. Structurally-trivial post-invariant**
+*Trigger:* the spec has aggregation functions with post-invariants.
+*Check:* for each post-invariant, can it ever fire under the current code path? Play the path through (all branches, all math ranges). If it is structurally impossible to violate under the current code, drop it or replace it with a property test (a property fires on every regression; a structurally-true post never does).
+
+**9. Primitive recon (DRY)**
+*Trigger:* the spec introduces a new UI primitive, hook, component, helper, repo function, or service — OR substantially touches (≥30 LOC) an existing file.
+*Check:* did you `grep`/`ls` for an existing primitive/helper with overlapping responsibility (including in callers/pages, not just component dirs)? If one exists → switch the spec to reuse it. If a pattern is replicated 3+× → require a helper-extraction acceptance-criterion.
+
+**10. User-action feedback**
+*Trigger:* the spec describes a user action (click, submit, import, bulk op, setup run) that triggers a ≥2-step process.
+*Check:* does the spec document, per sub-step, what the user sees on screen — progress, retry/throttle visibility (esp. external APIs or long waits), mode-switch visibility (e.g. bulk → per-item fallback), and a "why is this counter stalled" hint for per-resource paths?
+
+**11. Live-verify bug-plausibility**
+*Trigger:* the spec has a live-verify block with a bug-variant + an expected property failure.
+*Check:* play the bug-variant through — does it actually change the target property (e.g. does it break the asserted ordering/monotonicity)? Is only one direction sharp? If the variant does NOT violate the property, pick a variant that does and fix the spec inline (a wrong variant yields a passing live-verify that catches no real regression).
+
+**12. Vertical-slice completeness**
+*Trigger:* the spec/PRD has a slice/phase table or splits into multiple PRs.
+*Check:*
+- (a) each *user-facing* slice = a tracer bullet "`<user action> → <visible result>`", **not** a layer name ("config UI", "backend resolver");
+- (b) each byte-neutral/infra slice names its **omitted half** + the **closing follow-up slice** (otherwise the connecting path falls between two slices);
+- (c) the first outcome slice after ≥1 prep slice is traced against the code with a concrete value (`grep`/Read), not trusted as "config-driven".
+*Correction:* reword/split a layer-only slice; pull in a new slice for an uncovered half.
+
+**Gate home.** This skill runs **automatically as the mandatory last step of `to-prd`** (on the Draft-PRD) — the visible two-line summary is required **before** the user-review question. The **slice-completeness gate (point 12)** additionally sits in `to-issues`. The skill stays **standalone-callable** for manual spec/PLAN reviews.
+
+## Anti-patterns of this skill
+
+- **"Skipped self-critique because the spec is small"** — it runs on mini-specs too. Cost: 2–3 min; payoff: structural bugs caught in the spec phase.
+- **"Made corrections silently inline, no summary"** — the visible summary is part of acceptance. A silent pass is indistinguishable from a skipped one.
+- **"Improvised what a convention would say"** — if a convention file has no `## Self-Critique-Check` block, skip it non-blocking + collect a warning. Do not invent the rule.
+
+## Verification fixtures
+
+See `scenarios.md` in this skill dir for project-neutral fixtures (one per check) — walk them when refactoring the checklist. If a project layer is present, it may carry richer, project-specific scenarios.

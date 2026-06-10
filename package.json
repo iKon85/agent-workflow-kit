@@ -1,0 +1,30 @@
+{
+  "name": "agent-workflow-kit",
+  "version": "0.1.0",
+  "description": "Portable AI-agent workflow skills (plan → execute → land → learn) for Claude Code & Codex. npx init/update/diff/uninstall.",
+  "type": "module",
+  "bin": {
+    "agent-workflow-kit": "src/cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "files": [
+    ".claude/",
+    ".agents/",
+    "scripts/",
+    "docs/",
+    "src/",
+    "agent-workflow-kit.package.json",
+    "LICENSE",
+    "README.md",
+    "PROVENANCE.md"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0"
+  }
+}
