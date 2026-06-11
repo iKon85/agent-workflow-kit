@@ -42,7 +42,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me",
       "surface": "codex",
-      "sha256": "f6964ddc13b294e4b32564c6d8103b637f95ceb1f1dc9853fddaf29ba9fac643",
+      "sha256": "8dd614dda2cd566633e7f8821d2574d55e7ded6ee47592efd1addc0e4a1bb64f",
       "mode": 420,
       "origin": "kit"
     },
@@ -78,7 +78,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "codex",
-      "sha256": "e0c1fe2cd805fab41ad940966b8d3be552fe9d892f6c1c507eeb787784f61a25",
+      "sha256": "3bbbfb6e20d5e11c0233119395bcad1d9dbe9cba57413c5e85e2617209082535",
       "mode": 420,
       "origin": "kit"
     },
@@ -456,7 +456,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "codex",
-      "sha256": "dd9fa89c9fb2cfca294b797fe9b262f99fe9335deb67a59d82da3b17fee33ff4",
+      "sha256": "d9564701e24844ce637467a1969999d2b83a228c68e036938eb68c007d61e662",
       "mode": 420,
       "origin": "kit"
     },
@@ -571,7 +571,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me-codex",
       "surface": "claude",
-      "sha256": "e16f330fe04cbaa3cf50334cf2e33fb3a586fdb465499cae13e99d80642e3c5b",
+      "sha256": "9ac5af29a65f5ae9df2a77c8d3ca8d4ee7c71af44322ecfecdc5b974478710fa",
       "mode": 420,
       "origin": "kit"
     },
@@ -589,7 +589,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me",
       "surface": "claude",
-      "sha256": "f6964ddc13b294e4b32564c6d8103b637f95ceb1f1dc9853fddaf29ba9fac643",
+      "sha256": "8dd614dda2cd566633e7f8821d2574d55e7ded6ee47592efd1addc0e4a1bb64f",
       "mode": 420,
       "origin": "kit"
     },
@@ -625,7 +625,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs-codex",
       "surface": "claude",
-      "sha256": "9ca65927077e5239070ded2adb548304f3a2fe64bf953ff43c24b0be1b8c5405",
+      "sha256": "aa80d88b9214c0b74cc60a6e5fd5f6e5dba99c0c5d78937abf29a0038825a987",
       "mode": 420,
       "origin": "kit"
     },
@@ -661,7 +661,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "claude",
-      "sha256": "e0c1fe2cd805fab41ad940966b8d3be552fe9d892f6c1c507eeb787784f61a25",
+      "sha256": "3bbbfb6e20d5e11c0233119395bcad1d9dbe9cba57413c5e85e2617209082535",
       "mode": 420,
       "origin": "kit"
     },
@@ -1057,7 +1057,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "claude",
-      "sha256": "9cb4b328d2cdb4ef531fbe29adb92e4a2f6e448d73fdb312aa898bb358f9c2d9",
+      "sha256": "d9564701e24844ce637467a1969999d2b83a228c68e036938eb68c007d61e662",
       "mode": 420,
       "origin": "kit"
     },
@@ -1128,7 +1128,7 @@
     {
       "path": "scripts/pr-body-check.py",
       "kind": "script",
-      "sha256": "3ddbecf00ca2bed22cc6ba5e8f62e37046d72c3fd2030127e6e3571d21206e2d",
+      "sha256": "c5bbca322abe7ebafdc432473e23c7179c8eabbf18278cb0232909b79e39b2f4",
       "mode": 493,
       "origin": "kit"
     }
