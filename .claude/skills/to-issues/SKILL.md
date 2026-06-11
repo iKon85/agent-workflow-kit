@@ -95,7 +95,8 @@ WAVE=$(python3 scripts/board-sync.py next-wave)
 #    body header `**Welle $WAVE — <Thema>**`, **plan_revision:** r<N> at top (before the first
 #    heading), the FILLED Slices table (you know the cut), the full grilled PRD in a collapsible
 #    <details>, and the stale `<!-- prd: awaiting-decomposition -->` marker REMOVED. The issue
-#    TITLE stays the Draft-PRD's descriptive title (no `Welle N —` prefix — model).
+#    TITLE is rewritten to `Welle N — <Thema>` by the promote step below (step 3) — do NOT set it
+#    here; promote prepends the wave prefix (and strips any `fix:`/`feat:` prefix) idempotently.
 #    Rewrite the PRD body via skill-prose gh (body-fill is issue CONTENT, NOT a board write — the
 #    helper owns board state only; cf. test_plan_body_fill_is_not_a_board_sync_op; gh-lint allows a
 #    non-workflow-label `gh issue edit`). Content-edit FIRST so a failure stops before board mutation:
@@ -104,7 +105,7 @@ gh issue edit <prd#> --body-file /tmp/anchor.md
 # 3. set the board state (type:cluster + Wave). If THIS fails AFTER the body edit, the title/body are
 #    already rewritten → STOP, report "Board-State unvollständig (Body/Titel bereits geändert)", and
 #    re-run the idempotent promote (do not leave a silent partial state):
-python3 scripts/board-sync.py promote --issue <prd#> --wave "$WAVE"   # sets type:cluster + Wave
+python3 scripts/board-sync.py promote --issue <prd#> --wave "$WAVE"   # sets type:cluster + Wave + title `Welle N — …`
 
 # 4. create each child (dependency order), then link it under the Anker — BEFORE the §7 exit audit,
 #    so the checker sees the anchor's children (a childless type:cluster anchor mis-reads as a leaf)

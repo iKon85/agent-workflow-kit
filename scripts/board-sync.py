@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -210,6 +211,31 @@ def promote_label_args(issue: int, strip: Optional[list[str]] = None) -> list[st
     return args
 
 
+# Existing `Welle <N> — ` prefix (any number, em-dash/en-dash/hyphen separator) —
+# replaced on re-promote so the wave number never doubles up.
+_WAVE_PREFIX_RE = re.compile(r"^\s*Welle\s+\d+\s*[—–-]\s*", re.IGNORECASE)
+# Leading conventional-commit token (`fix:`, `feat(ui):`, `chore!:`) — anchors
+# don't carry these, so strip it when present. Matches only a lowercase token,
+# so prose titles like "Supabase-Residuen entfernen: …" are left intact.
+_CONVENTIONAL_PREFIX_RE = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s*")
+
+
+def wave_title(current: str, wave: int) -> str:
+    """Title for a wave anchor: `Welle <N> — <Thema>`.
+
+    Replaces any existing `Welle X — ` prefix (idempotent re-promote) and strips a
+    leading conventional-commit prefix, then re-prefixes with the given wave.
+    """
+    thema = _WAVE_PREFIX_RE.sub("", current)
+    thema = _CONVENTIONAL_PREFIX_RE.sub("", thema).strip()
+    return f"Welle {wave} — {thema}"
+
+
+def title_edit_args(issue: int, title: str) -> list[str]:
+    """The `gh issue edit` argv that sets an issue's title."""
+    return ["issue", "edit", str(issue), "--repo", REPO, "--title", title]
+
+
 # --- gh-backed helpers -------------------------------------------------------
 def _parent_of(num: int) -> Optional[int]:
     data = _gh_json(["api", "graphql", "--header", SUB_ISSUES_HEADER,
@@ -236,6 +262,12 @@ def _issue_type_labels(num: int) -> list[str]:
     out = _gh(["issue", "view", str(num), "--repo", REPO,
                "--json", "labels", "--jq", ".labels[].name"])
     return [l.strip() for l in out.splitlines() if l.strip()]
+
+
+def _issue_title(num: int) -> str:
+    """Current title of an issue."""
+    return _gh(["issue", "view", str(num), "--repo", REPO,
+                "--json", "title", "--jq", ".title"]).strip()
 
 
 def _add_and_stamp(url, wave, status, cluster, spec_path, plan_path, dry_run) -> None:
@@ -318,8 +350,11 @@ def cmd_promote(args) -> int:
     half-promote).
     """
     url = f"https://github.com/{REPO}/issues/{args.issue}"
+    rename = not args.no_rename
     if args.dry_run:
         _print_dry(promote_label_args(args.issue))
+        if rename:
+            print(f"[dry-run] gh issue edit {args.issue} --title 'Welle {args.wave} — <Thema>'")
         _add_and_stamp(url, args.wave, args.status, None, None, None, dry_run=True)
         return 0
     done: list[str] = []
@@ -328,12 +363,18 @@ def cmd_promote(args) -> int:
         _gh(promote_label_args(args.issue, strip))
         done.append("type:cluster label"
                     + (f" (stripped {', '.join(strip)})" if strip else ""))
+        if rename:
+            new_title = wave_title(_issue_title(args.issue), args.wave)
+            _gh(title_edit_args(args.issue, new_title))
+            done.append(f"title={new_title!r}")
         _add_and_stamp(url, args.wave, args.status, None, None, None, dry_run=False)
         done.append(f"Wave={args.wave}" + (f", Status={args.status}" if args.status else ""))
     except GhError as exc:
         repair = f"python3 scripts/board-sync.py promote --issue {args.issue} --wave {args.wave}"
         if args.status:
             repair += f" --status {args.status}"
+        if args.no_rename:
+            repair += " --no-rename"
         print(f"promote of #{args.issue} FAILED mid-transaction: {exc}")
         print(f"  already set: {', '.join(done) or 'nothing'}")
         print(f"  repair (idempotent): {repair}")
@@ -397,6 +438,8 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--wave", type=int, required=True,
                     help="explicit Wave (read `next-wave` first — no in-promote race)")
     pr.add_argument("--status", choices=list(STATUS_OPTIONS))
+    pr.add_argument("--no-rename", action="store_true",
+                    help="keep the title as-is (skip the `Welle <N> — ` prefix)")
     pr.add_argument("--dry-run", action="store_true")
     pr.set_defaults(func=cmd_promote)
 
