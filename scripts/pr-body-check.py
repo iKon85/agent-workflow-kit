@@ -114,10 +114,13 @@ def _part_of(body: str, n: int) -> bool:
         rf"\b{PART_OF_RE_SRC}(?::\s*|\s+)#0*{n}(?!\d)", body or "", re.IGNORECASE))
 
 
-def check_pr_body(body: str, issue: int, parent):
+def check_pr_body(body: str, issue: int, parent, is_anchor: bool = False):
     """Return a list of violation strings ([] = green).
 
     parent is the anchor issue number, or None for an atomar Leaf.
+    is_anchor: the branch issue IS itself a Wellen-Anker (type:cluster) —
+    Wave-PR-Fall: ein PR auf `feat/<anker#>-…` closed die Leaf-Issues,
+    nie den Anker selbst.
     """
     violations = []
     body = body or ""
@@ -132,6 +135,16 @@ def check_pr_body(body: str, issue: int, parent):
                 f"Anker-Slice: Body enthält ein close-Keyword auf den Anker "
                 f"#{parent} — das schließt den Wellen-Anker beim Merge verfrüht "
                 f". `Part of #{parent}` nutzen, kein closes.")
+    elif is_anchor:
+        # Wave-PR auf dem Anker-Branch selbst (Branch trägt die Anker-Nummer)
+        if not _part_of(body, issue):
+            violations.append(
+                f"Wave-PR auf Anker-Branch: Body braucht `Part of #{issue}` (fehlt).")
+        if _close_on(body, issue):
+            violations.append(
+                f"Wave-PR: Body enthält ein close-Keyword auf den Anker #{issue} "
+                f"— das schließt den Anker beim Merge. Entfernen; die "
+                f"Leaf-Issues per `closes #<leaf>` schließen.")
     else:
         # Atomar Leaf
         if not _close_on(body, issue):
@@ -177,6 +190,15 @@ def fetch_pr_body(branch: str):
     return out if rc == 0 else None
 
 
+def fetch_is_anchor(number: int) -> bool:
+    """True wenn das Issue selbst ein Wellen-Anker ist (Label type:cluster)."""
+    rc, out = _run(["gh", "issue", "view", str(number),
+                    "--json", "labels", "-q", ".labels[].name"])
+    if rc != 0:
+        return False  # fail-open in den Leaf-Pfad (bisheriges Verhalten)
+    return "type:cluster" in out.splitlines()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("--branch", help="default: current git branch")
@@ -213,8 +235,10 @@ def main() -> int:
     else:
         parent = fetch_parent(issue)
 
-    violations = check_pr_body(body, issue, parent)
-    kind = "Anker-Slice" if parent is not None else "Leaf"
+    is_anchor = fetch_is_anchor(issue) if parent is None else False
+    violations = check_pr_body(body, issue, parent, is_anchor=is_anchor)
+    kind = ("Anker-Slice" if parent is not None
+            else "Wave-PR" if is_anchor else "Leaf")
     log(f"branch={branch} issue={issue} parent={parent} kind={kind} "
         f"violations={len(violations)}")
 

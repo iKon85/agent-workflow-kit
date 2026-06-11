@@ -10,6 +10,15 @@ Ask the questions one at a time.
 
 If a question can be answered by exploring the codebase, explore the codebase instead.
 
+## Coherence is the default — the grill locks only the deltas
+
+A feature that builds on existing features inherits the existing building blocks by default, across **every** layer: the UI renders the same components, the backend calls the same services and calculations, data flows through the same paths, conventions carry over. Do not interview the user about how such a feature should look or behave where an existing counterpart exists — that is already decided. Lock only:
+
+1. **The deltas:** what is intentionally excluded, restricted, or different (navigation, filters, actions, person data, write access, …). Every delta is an explicit decision with a reason.
+2. **The consumer walk-through:** who consumes the result and what they see/get — walked through from the consumer's side, not the owner's.
+
+A parallel rebuild of something that exists — a simplified UI stand-in, a re-implemented calculation, a second data path — is a defect to surface, never a silent shortcut. (Incident: a share feature shipped rebuilt, simplified renderers across 6 pages because "looks like the page minus chrome" was treated as open design space instead of the default; half the implementation was replaced.)
+
 ## Plan-Lock — PLAN.md schreiben
 
 Sind alle Entscheidungen getroffen (Plan gelockt, vor Sign-off/Übergang) und läuft die Session in einem **Worktree** → den gelockten Plan als `PLAN.md` in den Worktree-Root schreiben (gitignored seit, reist nicht über git — Konsistenz mit CLAUDE.md „im Worktree planen"). So überlebt der gelockte Plan einen Session-Schnitt und `to-prd` findet seine Default-Quelle. Same-session-Weiterarbeit **ohne** Worktree bleibt erlaubt (Konversation = Quelle); aber bei beabsichtigtem **Session-Schnitt** vor `to-prd` ist die `PLAN.md` Pflicht. (Die `-codex`-Variante schreibt die `PLAN.md` ohnehin schon.)
