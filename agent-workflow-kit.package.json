@@ -6,7 +6,7 @@
       "kind": "skill",
       "ownerSkill": "board-to-waves",
       "surface": "codex",
-      "sha256": "55a32921024fe4acd0815bd00beba91bf27d9c0295abe69fc27d6c3e61491ad1",
+      "sha256": "37083b05b106ec7b5899b81c4f7ed2aa06644daf04a210fb52a02831c3c9a25d",
       "mode": 420,
       "origin": "kit"
     },
@@ -204,7 +204,7 @@
       "kind": "skill",
       "ownerSkill": "retro",
       "surface": "codex",
-      "sha256": "5766c8c631a5d0118933ca7faf9f8328c590f04e48e5bd5c789bdbd1566d3e41",
+      "sha256": "c07b9c6e073044ee2e2fd29df9589951e9bcf6906bd35505e01a502e0ccbaf15",
       "mode": 420,
       "origin": "kit"
     },
@@ -213,7 +213,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "839742b3f9e50104b74b251666cc2daba9abec191e3440b1aa3acc85e7520e40",
+      "sha256": "fdbe6a9764f16e310dd119940789af4e707715d998214334ea1accf1c74c4c79",
       "mode": 420,
       "origin": "kit"
     },
@@ -258,7 +258,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "500ab5ad29521bce21322317188c290e684612aea6793a895c01d85c5c009d6f",
+      "sha256": "05091a744e852f8407a423e4a9fb3416167857951addee64e16eb698340fab92",
       "mode": 420,
       "origin": "kit"
     },
@@ -357,7 +357,7 @@
       "kind": "skill",
       "ownerSkill": "tdd",
       "surface": "codex",
-      "sha256": "c3e4446e7d92c5fbe7d3396b3281087e8f4cf2539276c5eec4c4197e0efc7c21",
+      "sha256": "51dbcf6efefb05cf7ffd171bf78fbc8999e29cbb817ae282ab9b2c432ae246f3",
       "mode": 420,
       "origin": "kit"
     },
@@ -456,7 +456,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "codex",
-      "sha256": "2b48f37c302e43859c77c82ebb8ad5bb1492f44a09dbe9d5f3173e6270139727",
+      "sha256": "dd9fa89c9fb2cfca294b797fe9b262f99fe9335deb67a59d82da3b17fee33ff4",
       "mode": 420,
       "origin": "kit"
     },
@@ -490,7 +490,7 @@
       "kind": "skill",
       "ownerSkill": "board-to-waves",
       "surface": "claude",
-      "sha256": "5aaa4f4de5bf8d94e9717c89e0b0492d75cb7030d283522ea0c6bce9acd268ab",
+      "sha256": "3068cf179245411c798944424b8edf974e99514c8c2f3c1e9ebeaa36ed12e077",
       "mode": 420,
       "origin": "kit"
     },
@@ -787,7 +787,7 @@
       "kind": "skill",
       "ownerSkill": "retro",
       "surface": "claude",
-      "sha256": "e6a2c56fa1955749688fefe6c0f1ab492630cfad2e4039c5da27dfcaf9264159",
+      "sha256": "f064dac544daa14ac2cb68b67f1005f21ee87ba3ac8fefbf2e8af3b571f5c318",
       "mode": 420,
       "origin": "kit"
     },
@@ -958,7 +958,7 @@
       "kind": "skill",
       "ownerSkill": "tdd",
       "surface": "claude",
-      "sha256": "dc99725701a923b47f6a593f45b27647b197f0d3ee0db6690758503c23cf0487",
+      "sha256": "224c6eee6a29440b59ca60eda32fb7fcccc33fcb657b8a14d4c8dbab18838b32",
       "mode": 420,
       "origin": "kit"
     },
@@ -985,7 +985,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "claude",
-      "sha256": "ce6e10c0e1319e4fe78c1c7f145022a9b7b1f8e11637efa4d2e58496a93b834e",
+      "sha256": "6e864ecc021e04d339d47558b7e0d4ec8f791c37975e988200ea6094a918949d",
       "mode": 420,
       "origin": "kit"
     },
@@ -1057,7 +1057,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "claude",
-      "sha256": "42cdba3805ad137fe04e30cbd08a6d82fa444d0e3e5d8b74ca2c01159e3f53c4",
+      "sha256": "9cb4b328d2cdb4ef531fbe29adb92e4a2f6e448d73fdb312aa898bb358f9c2d9",
       "mode": 420,
       "origin": "kit"
     },
@@ -1100,7 +1100,7 @@
     {
       "path": "docs/agents/wave-anchor-template.md",
       "kind": "template",
-      "sha256": "508aba0f30e22fadc380ec7a5a2aabe12bf3a607b87fccd5fb29a134d37369d7",
+      "sha256": "46cc78d0526bfcd0463ed70177e1021beb818e8e6a976e4883cb37992ca8cdb6",
       "mode": 420,
       "origin": "kit"
     },
@@ -1114,7 +1114,7 @@
     {
       "path": "scripts/board-sync.py",
       "kind": "script",
-      "sha256": "3c56480a5ad6fdf87ea1de7ebc05cc32e53aad78fdfb75dbb9dac4ae7c6e875c",
+      "sha256": "8cb7d0e3906f4f838f5a0c2ad808b7f802303b127459da0f0c89dd834c89a0f9",
       "mode": 493,
       "origin": "kit"
     },

@@ -90,6 +90,14 @@ Body aus `docs/agents/wave-anchor-template.md` **Stufe 1** (Kopf + Cluster-Herku
 
 **Alle Board-Schreib-Mechaniken (Stub anlegen, ins Board hängen, Status stempeln) laufen über den geteilten Board-Sync-Helper** `scripts/board-sync.py` — keine bare `gh issue create`/`gh project item-*` mehr in dieser Prosa (per Lint erzwungen, `scripts/test_skill_gh_lint.py`; Board-Konstanten leben in `docs/agents/board-sync.md`).
 
+**Idempotenz — Stub-Marker + search-before-create (Pflicht, VOR dem `create`).** Re-Runs von board-to-waves dürfen **keine** Duplikat-Stubs erzeugen (sonst verwirrt der Duplikat-Stub die Modus-B-Identität in `to-prd`). Spiegelt das `to-prd`-Muster:
+- **Stabiler Stub-Marker** `<!-- wave-stub-source: <thema-slug> -->` als **erste Body-Zeile** jedes Stubs. `<thema-slug>` = kebab-case-Slug des Gate-Outcomes; beim **ersten** Lauf gesetzt, danach **nie** geändert (Identität ≠ Inhalt — der Slug bleibt auffindbar, auch wenn sich Mitglieder/Größe später ändern).
+- **search-before-create** je Kandidat **vor** dem `create`. **Kein** Verlass auf GitHub-Search (indexiert HTML-Kommentare nicht) — bounded lokal:
+  ```bash
+  gh issue list --repo <owner>/<repo> --state open --limit 500 --json number,body,labels
+  # lokal auf `wave-stub-source: <thema-slug>` filtern → 1 Treffer ⇒ skip + melden (Stub existiert); >1 ⇒ STOP + melden; 0 ⇒ create
+  ```
+
 **Kandidaten-Stub anlegen (cluster/Wave-los)** — Issue **ohne** `type:cluster` und **ohne** `--wave` (genau ein `type:*` + ein `priority:*`; Titel **ohne** `Welle <N>`-Präfix, da die Wave-Nummer erst bei der Promotion vergeben wird), ins Board hängen, Status `Triaged` (geclustert, noch nicht geplant). Danach reift `to-prd` den Stub (Mode B) zur Draft-PRD, `to-issues` promotet ihn zum Anker (setzt dann `type:cluster` + Wave):
 ```bash
 python3 scripts/board-sync.py create \

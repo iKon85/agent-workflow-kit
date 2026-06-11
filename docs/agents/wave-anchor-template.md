@@ -11,6 +11,7 @@ Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Pr
 ---
 --- TEMPLATE AB HIER (alles oben drüber ist Anleitung, nicht ins Issue kopieren) ---
 
+<!-- wave-stub-source: <thema-slug> -->   <!-- Stufe 1: stabiler Idempotenz-Marker, board-to-waves search-before-create; kebab-case-Slug des Gate-Outcomes, nie geändert -->
 <!-- prd-source-id: <#> -->
 **plan_revision:** r<N>        <!-- Stufe 2: bei der Promotion gestempelt (vor dem ersten Heading — der execute-ready-Checker verlangt ihn dort, sonst denied der Post-Promote-Audit den Anker) -->
 

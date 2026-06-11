@@ -17,18 +17,44 @@ How the board-managed workflow skills (`to-prd`, `to-issues`, `board-to-waves`, 
 | Spec-Path | text | optional | link from an issue to its spec doc |
 | Plan-Path | text | optional | link from an issue to its plan doc |
 
-## IDs (discovered)
+## Machine profile (SSOT) — `scripts/board_config.py` reads this
 
-```
-PROJECT_NODE_ID  = <fill via /setup-workflow>
-OWNER            = <owner>
-REPO             = <owner>/<repo>
-STATUS_FIELD_ID  = <fill>
-STATUS_OPTIONS   = { <stage> = <option-id>, ... }
-WAVE_FIELD_ID    = <fill / omit>
-CLUSTER_FIELD_ID = <fill / omit>
-SPEC_PATH_FIELD_ID = <fill / omit>
-PLAN_PATH_FIELD_ID = <fill / omit>
+`/setup-workflow` fills the board-identity values (node id, field IDs, status options) from `gh project field-list`. The convention values (labels, branch prefixes, PR markers, headings) ship pre-filled to match the bundled skills — edit them only if you adapt those conventions. The IDs live **only** in this block (the table above is documentation), so the two cannot drift.
+
+<!-- board-sync:profile -->
+```json
+{
+  "repo": "<owner>/<repo>",
+  "project": {
+    "number": 0,
+    "owner": "<owner>",
+    "nodeId": "<fill via /setup-workflow>"
+  },
+  "fields": {
+    "status": {
+      "id": "<fill>",
+      "options": { "<stage>": "<option-id>" }
+    },
+    "wave": "<fill / omit>",
+    "cluster": "<fill / omit>",
+    "specPath": "<fill / omit>",
+    "planPath": "<fill / omit>"
+  },
+  "labels": {
+    "readyForAgent": "ready-for-agent",
+    "typePrefix": "type:",
+    "clusterType": "type:cluster"
+  },
+  "branchPrefixes": ["feat", "fix", "chore", "docs"],
+  "prMarkers": {
+    "partOf": "Part of",
+    "retroMarker": "**Retro:**",
+    "retroValues": ["gefahren", "übersprungen"]
+  },
+  "headings": {
+    "vorBau": "Vor Bau zu klären"
+  }
+}
 ```
 
 ## If the IDs are not yet filled (stub)

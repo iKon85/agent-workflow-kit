@@ -1,6 +1,6 @@
 ---
 name: retro
-disable-model-invocation: true
+disable-model-invocation: false
 description: Use when the user explicitly asks for a retro after a session with PR-activity. Analyzes session friction and proposes concrete config mutations (Memory/Skill/CLAUDE.md/Hook) with per-patch approval. No file is written — findings live in the mutated config.
 ---
 
@@ -76,7 +76,7 @@ wc -l "$HOME/.claude/projects/<project>/memory/MEMORY.md"
 ```
 
 Threshold-Trigger (einer reicht):
-- Aktives Memory-Set ≥ 45 Files (Sweep-Trigger über dem CLAUDE.md-Ziel „aktives Set <35" — feuert nur bei echtem Bloat, nicht auf einem gesund-aber-vollen Set; realer aktiver Stand ~39, content-checked alle aktiv, Retro)
+- Aktives Memory-Set ≥ 50 Files (Sweep-Trigger über dem CLAUDE.md-Ziel „aktives Set <35" — feuert nur bei echtem Bloat, nicht auf einem gesund-aber-vollen Set; realer aktiver Stand ~46, content-checked alle aktiv,-/Retro)
 - MEMORY.md > 120 Zeilen
 
 Wenn Trigger gerissen:
@@ -93,7 +93,7 @@ Wenn 0 Trigger:
 
 **Warum hier (Pflicht-Step, nicht nur Memory):** Memory ist passiv (nur wenn Claude dran denkt); `/retro` läuft routinemäßig nach PR-Activity und ist das natürliche Enforcement-Vehikel. Der Eintrag muss VOR der symmetrischen Analyse passieren, damit er ggf. als Patch-Vorschlag in den Flow einfließt.
 
-**Threshold-Tuning:** Sweep-Trigger = ≥45 Files / >120 Zeilen MEMORY.md; das CLAUDE.md-Ziel bleibt „aktives Set <35" (Aspiration) — Trigger über Ziel mit Headroom, damit der Sweep nicht auf jedem Retro feuert (Retro: realer Stand ~39, content-checked alle aktiv → 0 sicher löschbar; der Legacy-DAL-Memory-Cluster retired bei Delete). Nach weiteren Retros nachjustieren. (Die frühere `project_*_done`-Done-File-Klasse + `## Project (Active)`-Section existieren nicht mehr — das aktuelle Memory-Modell ist prune-on-touch ohne Done-File-Lifecycle; `consolidate-memories.sh` war der einmalige W2-Massen-Archive-Lauf, kein laufender Sweep.)
+**Threshold-Tuning:** Sweep-Trigger = ≥50 Files / >120 Zeilen MEMORY.md; das CLAUDE.md-Ziel bleibt „aktives Set <35" (Aspiration) — Trigger über Ziel mit Headroom, damit der Sweep nicht auf jedem Retro feuert (Retro: realer Stand ~39 → ~46 bei, content-checked alle aktiv → 0 sicher löschbar; der Legacy-DAL-Memory-Cluster retired bei Delete). Schwelle 45→50 angehoben (Retro: Set legitim ~46 aktiv, 45 feuerte auf gesundem Set). Nach weiteren Retros nachjustieren. (Die frühere `project_*_done`-Done-File-Klasse + `## Project (Active)`-Section existieren nicht mehr — das aktuelle Memory-Modell ist prune-on-touch ohne Done-File-Lifecycle; `consolidate-memories.sh` war der einmalige W2-Massen-Archive-Lauf, kein laufender Sweep.)
 
 ### 3. Symmetrische Analyse (Claude eigenständig)
 

@@ -44,6 +44,14 @@ RIGHT (vertical):
 
 ### 1. Planning
 
+**First, mark the ticket active on the board.** When a ticket was provided (you're on a `feat/<#>-`/`fix/<#>-` branch), run once at TDD pickup:
+
+```
+python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/sync-board-status.py"
+```
+
+It parses the issue # from the current branch and moves the board item to "In Arbeit" (only from Idee/Triaged/Spec, idempotent). No ticket / no parseable branch → it's a silent no-op, so this is safe to run unconditionally. This closes the gap where the SessionStart sync already ran on `main` before the worktree existed, leaving the board stale.
+
 When exploring the codebase, use the project's domain glossary so that test names and interface vocabulary match the project's language, and respect ADRs in the area you're touching.
 
 Before writing any code:
