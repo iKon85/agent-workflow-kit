@@ -132,7 +132,7 @@
       "kind": "skill",
       "ownerSkill": "improve-codebase-architecture",
       "surface": "codex",
-      "sha256": "678c3e34f1339015053212b3316bf0b676c70aa251050a0613667d4e755fb35e",
+      "sha256": "cd7fc9cd2aa65cca0e17f6ec64083ff86c02aaf3169eb8b68c128b7c65872dfa",
       "mode": 420,
       "origin": "kit"
     },
@@ -150,7 +150,7 @@
       "kind": "skill",
       "ownerSkill": "improve-codebase-architecture",
       "surface": "codex",
-      "sha256": "0120e2384d08e8f1fda412bba5d7f2fcf60d40cb66caed31fa55fd92421b4645",
+      "sha256": "223d59b000d85bff49bb6ee57dc5787fac1a1c69f6bc8b8d58fc0b967d220ebc",
       "mode": 420,
       "origin": "kit"
     },
@@ -204,7 +204,7 @@
       "kind": "skill",
       "ownerSkill": "retro",
       "surface": "codex",
-      "sha256": "215192f9bcb8d96352c0768e63435bbf67bddc1ca04051a0fdc5e0aebaefe357",
+      "sha256": "9bd5f75c43f467eb2f3e20dd637f366febcc66a3cb63e75f2f20f53b58a7b905",
       "mode": 420,
       "origin": "kit"
     },
@@ -384,7 +384,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "codex",
-      "sha256": "e17c6561d2b4e54daea74909298b16990cf64a76167ba0f97e091806b2ee6eba",
+      "sha256": "11ae235d37ab12880b823c6db53628018bc6b24492aff59f24528622cb060708",
       "mode": 420,
       "origin": "kit"
     },
@@ -402,7 +402,7 @@
       "kind": "skill",
       "ownerSkill": "to-prd",
       "surface": "codex",
-      "sha256": "5835214c6f150ad461f43427c189e674de75393bb062d460d8f73cd1ba7974ad",
+      "sha256": "596d1f3eeac3a70ff1d991212afae4e186818aab0cba51891cb11bec14deb415",
       "mode": 420,
       "origin": "kit"
     },
@@ -456,7 +456,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "codex",
-      "sha256": "65d21342363817dce0f27262137d999dadf7d13b68b68457485d1d2442f5ec7d",
+      "sha256": "764940bd0b2d41b99d015dca43f20dc10f036388f33ac8a62a0402a632498d84",
       "mode": 420,
       "origin": "kit"
     },
