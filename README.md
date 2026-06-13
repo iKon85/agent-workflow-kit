@@ -28,23 +28,82 @@ npx github:iKon85/agent-workflow-kit init
 
 ## The workflow it installs
 
-The skills aren't a grab-bag — they're four phases of one loop. Each phase below
-names the failure mode it removes and the skills that remove it.
+The skills aren't a grab-bag — they're four phases of one loop, entered through a
+single funnel no matter where your work starts. Each phase below names the failure
+mode it removes and the skills that remove it.
+
+```mermaid
+flowchart TB
+    idea["💡 vague idea"]
+    plan["📄 plan · external PRD"]
+    backlog["🗂️ backlog"]
+    issue["🎫 raw issue · file bundle"]
+    grill{{"grill? — your call<br/>none · grill-me · grill-with-docs · +codex"}}
+    toprd["to-prd"]
+    form[["📋 one uniform PRD / anchor form"]]
+    toissues["to-issues — decompose"]
+    dec{"how many slices?"}
+    atom["atomic issue · PR closes it"]
+    wave["wave anchor + child slices"]
+    exec["⚙️ Execute<br/>tdd · diagnose · prototype · zoom-out"]
+    land["🚀 Land<br/>wrapup · guardrails · pre-commit"]
+    learn["📚 Learn<br/>retro · write-a-skill"]
+
+    idea --> grill
+    plan --> grill
+    backlog -->|"board-to-waves"| grill
+    grill --> toprd
+    toprd --> form
+    issue -->|"already an issue — synthesized in place"| form
+    form --> toissues
+    toissues --> dec
+    dec -->|"1"| atom
+    dec -->|"≥2"| wave
+    atom --> exec
+    wave --> exec
+    exec --> land
+    land --> learn
+    learn -.->|"compounds back in"| idea
+```
 
 ### 1. Plan — turn a vague idea into shaped, tracked work
 
 > *Agents dive into code before the problem is sharp, then build the wrong thing
 > well.* The plan phase makes you earn a clear spec first.
 
-- **`grill-me` / `grill-with-docs`** — interrogate the intent (and the docs)
-  until the real requirement surfaces, instead of latching onto the first framing.
-- **`to-prd`** — turn the sharpened intent into a short PRD issue.
-- **`to-issues`** — slice the PRD into atomic issues, or a wave anchor with
-  child slices when it's bigger than one PR.
-- **`board-to-waves`** — cluster an existing backlog into themed campaigns when
-  you need to *find* the next wave rather than start fresh.
-- **`triage`** — keep the inbox sane with a consistent label vocabulary.
-- **`spec-self-critique`** — red-team your own spec before you commit to building it.
+**One funnel, many doors, one shape.** There's no single front door. You enter
+wherever your work actually starts — a vague idea, a plan you already wrote, a PRD
+pasted from another tool, a raw issue, or a whole backlog — and every door funnels
+into the *same shaped artefact*: a Draft-PRD that, once sliced, becomes either one
+atomic issue or a wave anchor with child slices. What counts downstream is the
+**shape of the artefact, never where it came from** — so each step can be entered
+cold and *extracts or synthesizes* what's missing instead of assuming an earlier
+step ran. The routing key is just *"is there an issue yet?"*: a loose artefact
+(no issue) enters at `to-prd`; an existing issue or file-bundle enters at
+`to-issues` directly.
+
+- **Grill as deep as the work deserves — it's optional.** `grill-me` /
+  `grill-with-docs` interrogate the intent (and your domain docs) until the real
+  requirement surfaces, instead of latching onto the first framing. Skip it for a
+  mechanical change, run a light grill for a normal feature, add `+codex` (below)
+  for something high-stakes. Your call, per piece of work.
+- **`to-prd`** turns whatever you bring — idea, plan, external spec — into a short
+  Draft-PRD issue, *extracting* the template sections from what already exists. A
+  required section it genuinely can't derive becomes an honest **Open points**
+  block, never a silent "looks complete" placeholder.
+- **`to-issues`** slices the PRD into tracer-bullet verticals and picks the shape:
+  **1 slice → one atomic issue** the PR closes; **≥2 slices → a wave anchor** with
+  linked child slices. It re-derives readiness from the artefact itself, so it works
+  just as well started straight on a raw issue or file-bundle — any unresolved
+  *Open points* travel through as a "clarify before building" gate that never
+  vanishes silently.
+- **`board-to-waves`** clusters an existing backlog into themed campaigns when you
+  need to *find* the next wave rather than start fresh.
+- **`triage`** keeps the inbox sane with a consistent label vocabulary.
+- **`spec-self-critique`** red-teams your own spec before you commit to building it.
+
+You approve the slice breakdown before anything is published — the funnel never
+publishes behind your back.
 
 ### 2. Execute — build it right, not just fast
 
