@@ -267,7 +267,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "6fa89fed7f467321772260b16fc1ff01e58d591c232626c35b76dabb1b19581c",
+      "sha256": "5b3313048f2a4485da6406b6548ce1a2089cd428b69d73896b092e3077a1cfdd",
       "mode": 420,
       "origin": "kit"
     },
@@ -384,7 +384,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "codex",
-      "sha256": "ce6e10c0e1319e4fe78c1c7f145022a9b7b1f8e11637efa4d2e58496a93b834e",
+      "sha256": "5b36bca1e6fc82c59d195198d639daf4515e3b766ac0dfa4b09275e9b38ee799",
       "mode": 420,
       "origin": "kit"
     },
@@ -402,7 +402,7 @@
       "kind": "skill",
       "ownerSkill": "to-prd",
       "surface": "codex",
-      "sha256": "795eab3daad2f1d6ac39ccea55ce634816e0b59a2e8c5113542bcbfcf2446b61",
+      "sha256": "9e8a99f734e7d420910f85d7e8c6d45aa1d0d5b98371e7136644d197c7760a5b",
       "mode": 420,
       "origin": "kit"
     },
@@ -868,7 +868,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "6fa89fed7f467321772260b16fc1ff01e58d591c232626c35b76dabb1b19581c",
+      "sha256": "5b3313048f2a4485da6406b6548ce1a2089cd428b69d73896b092e3077a1cfdd",
       "mode": 420,
       "origin": "kit"
     },
@@ -985,7 +985,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "claude",
-      "sha256": "6e864ecc021e04d339d47558b7e0d4ec8f791c37975e988200ea6094a918949d",
+      "sha256": "4a91f4564e8e82bc068a7db8309f6918d74659721073f2133cea3bb9c7c4ecbd",
       "mode": 420,
       "origin": "kit"
     },
@@ -1003,7 +1003,7 @@
       "kind": "skill",
       "ownerSkill": "to-prd",
       "surface": "claude",
-      "sha256": "795eab3daad2f1d6ac39ccea55ce634816e0b59a2e8c5113542bcbfcf2446b61",
+      "sha256": "74ad9a685119816176c2daaf1df471c69c92002bbb9f1a8d836b90f044f73129",
       "mode": 420,
       "origin": "kit"
     },
@@ -1100,7 +1100,7 @@
     {
       "path": "docs/agents/wave-anchor-template.md",
       "kind": "template",
-      "sha256": "46cc78d0526bfcd0463ed70177e1021beb818e8e6a976e4883cb37992ca8cdb6",
+      "sha256": "264955c66bc2fa9adc7f9ccade7b50fad4bb48b010c35aa60a23d863048d689c",
       "mode": 420,
       "origin": "kit"
     },
@@ -1121,7 +1121,7 @@
     {
       "path": "scripts/execute-ready-check.py",
       "kind": "script",
-      "sha256": "8150c6facd58732ca7d55f92e892032435c098a01312cf0ea87d250b762e7cb8",
+      "sha256": "3bc44c284cf9727a3de5b3da0c09eb9f809a5f3bbb5fc81b3be46c00d473220b",
       "mode": 493,
       "origin": "kit"
     },
