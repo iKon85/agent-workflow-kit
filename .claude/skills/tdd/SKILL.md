@@ -114,5 +114,5 @@ After all tests pass, look for [refactor candidates](refactoring.md):
 [ ] Test would survive internal refactor
 [ ] Code is minimal for this test
 [ ] No speculative features added
-[ ] Wellen-Slice: gekippte/neue Annahme für ein ungebautes Geschwister-Issue → ANNAHMEN.md (Worktree-Root; wrapup Step 0c liest es,)
+[ ] Wellen-Slice: gekippte/neue Annahme für ein ungebautes Geschwister-Issue → ANNAHMEN.md (Worktree-Root; wrapup Step 0c liest es)
 ```

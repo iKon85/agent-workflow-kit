@@ -23,7 +23,7 @@ A parallel rebuild of something that exists — a simplified UI stand-in, a re-i
 
 Sind alle Entscheidungen getroffen (Plan gelockt, vor Sign-off/Übergang) und läuft die Session in einem **Worktree** → den gelockten Plan als `PLAN.md` in den Worktree-Root schreiben (gitignored seit, reist nicht über git — Konsistenz mit CLAUDE.md „im Worktree planen"). So überlebt der gelockte Plan einen Session-Schnitt und `to-prd` findet seine Default-Quelle. Same-session-Weiterarbeit **ohne** Worktree bleibt erlaubt (Konversation = Quelle); aber bei beabsichtigtem **Session-Schnitt** vor `to-prd` ist die `PLAN.md` Pflicht. (Die `-codex`-Variante schreibt die `PLAN.md` ohnehin schon.)
 
-## Re-Grill Reconcile — execute-ready (Welle 26 /)
+## Re-Grill Reconcile — execute-ready (Welle 26)
 
 Greift, wenn du ein **bereits existierendes Issue re-grillst** (ein Leaf eines gegrillten Epics oder ein Kind eines Ankers) — der häufigste Re-Grill-Pfad, weil Kampagnen-HITL-Slices über `/grill-me → /tdd` routen. Ziel: der gewurzelte Teilgraph tritt **execute-ready** aus, nie stiller Drift. (grill-me hat keinen Doku-Layer — CONTEXT.md/ADR entfallen; Kern-Regeln identisch zu grill-with-docs §„Re-Grill Reconcile".)
 

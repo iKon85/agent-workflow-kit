@@ -68,7 +68,7 @@ Modell: **Opus** (Sichten/Plan/Brainstorm — Cross-Board-Urteil, <maintainer>s 
 gh issue list --repo <owner>/<repo> --state open --limit 500 \
   --json number,title,labels,body
 ```
-`--limit 500` (item/issue-list cappt **silent**, `docs/agents/board-sync.md` /). Schon-Parent-Issues erkennt man später beim Link — hier reicht Titel/Labels/Body.
+`--limit 500` (item/issue-list cappt **silent**, `docs/agents/board-sync.md`). Schon-Parent-Issues erkennt man später beim Link — hier reicht Titel/Labels/Body.
 
 ### 2. Clustern
 Heuristik anwenden. Pro Kandidat festhalten: Thema (Gate-Outcome), Mitglieder (#…), feuernde Booster, Splitter-Checks, Größe+Risiko, `grill-needed`+Wann. Issues die kein Gate+Booster erreichen → Rest-Topf, **nicht** zwangs-clustern.

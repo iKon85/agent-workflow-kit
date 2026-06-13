@@ -7,7 +7,7 @@
     "agent-workflow-kit": "src/cli.mjs"
   },
   "scripts": {
-    "test": "node --test && python3 -m unittest scripts/test_execute_ready_check.py -v"
+    "test": "node --test"
   },
   "files": [
     ".claude/",

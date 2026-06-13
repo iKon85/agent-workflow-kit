@@ -105,12 +105,12 @@ A parallel rebuild of something that exists — a simplified UI stand-in, a re-i
 
 </supporting-info>
 
-## Re-Grill Reconcile — execute-ready (Welle 26 /)
+## Re-Grill Reconcile — execute-ready (Welle 26)
 
 Triggers when you **re-grill an issue that already exists in the graph** (a leaf of a grilled epic, or a child of an Anker). Goal: leave the rooted sub-graph **execute-ready**, never silently drift.
 
 1. **Read the Parent-Anker decisions FIRST** — fetch the Anker body + its PRD/Key-Decisions and take the seam decision **from there**. Do **not** re-derive the architecture from the leaf (Lehre: a leaf whose central decision was never read got re-litigated through question-rounds). For an atomar leaf, its own body/PRD is the reference.
-2. **Check the leaf for internal contradiction** (Fix B /): a body that contradicts itself ("kein neues UI" + "baue Namensfeld") or the Anker decision → **kein Execute**. Likewise a leaf that says *"finaler Schnitt hängt an #X"* via `<!-- final-cut-depends-on: #X -->` where **#X is closed** without resolving the cut.
+2. **Check the leaf for internal contradiction** (Fix B): a body that contradicts itself ("kein neues UI" + "baue Namensfeld") or the Anker decision → **kein Execute**. Likewise a leaf that says *"finaler Schnitt hängt an #X"* via `<!-- final-cut-depends-on: #X -->` where **#X is closed** without resolving the cut.
 3. **On drift/contradiction:** update the affected issue(s), re-stamp `plan_revision`, set the correct bucket. An internal contradiction → set the leaf to **HITL** (remove `ready-for-agent`, add `## Vor Bau zu klären`); the Drift-Guard then blocks a build-handoff via `target_buildable`. So the contradiction flows through existing machinery — no semantic heuristic in the hook.
 4. **Audit, non-blocking:** `python3 scripts/execute-ready-check.py --issue <n> --mode audit` → visible two-liner. The **blocking** net is the Drift-Guard at handoff (`.claude/hooks/drift-guard.py`).
 5. **Global `-codex` variant** can't change the repo → leave a pointer note ("Issues abgleichen + plan_revision stempeln, repo-seitig"); real enforcement = the repo hook. **Honest bound:** the hook fires at the handoff/session boundary, not at a "grill-exit" event; a same-session global-codex grill → direct `/tdd` (no handoff) is a documented residual (Global-Follow-up).

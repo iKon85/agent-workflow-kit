@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 pr-body-check.py — mechanical guard for the PR-body conventions that were until
-now prose-only (Welle 26 / Slice 8,).
+now prose-only (Welle 26 / Slice 8).
 
 Called by `wrapup` Step 0c AFTER the PR has been created/reused, BEFORE the
 merge gate. Turns three instruction-only rules into a check that actually fires:
@@ -20,7 +20,7 @@ merge gate. Turns three instruction-only rules into a check that actually fires:
 Scope: this script checks ONLY the closes/Part-of anchor rule and the
 `**Retro:**` line. It does NOT parse or validate `annahme-drift` markers
 (those are prose-/judgment-driven in wrapup Step 0c + 5e, deliberately not
-mechanised —/R2-F6). The annahme-drift block therefore runs BEFORE this
+mechanised — R2-F6). The annahme-drift block therefore runs BEFORE this
 check in wrapup Step 0c so the body the script sees is final.
 
 Exit codes:
@@ -30,7 +30,7 @@ Exit codes:
       unavailable) → warn, do NOT block (fail-open, like drift-guard).
 
 The pure functions below carry the logic + the unit tests; gh/git access is a
-thin shell. NOT a hook — `wrapup` invokes it (Design:).
+thin shell. NOT a hook — `wrapup` invokes it (Design).
 
 Usage:
   pr-body-check.py [--branch <name>] [--issue <n>] [--parent <n>|FREI]
