@@ -103,12 +103,16 @@ The solution to the problem, from the user's perspective.
 
 ## User Stories
 
-A LONG, numbered list of user stories. Each user story should be in the format of:
+A LONG, numbered list of user stories. **Write each story in the same language as the rest of the PRD** (this project is German-first → German stories; never mix an English scaffold onto German content). Each user story follows the actor/feature/benefit shape:
 
-1. As an <actor>, I want a <feature>, so that <benefit>
+- Deutsch: `Als <Akteur> möchte ich <Funktion>, damit <Nutzen>.`
+- English: `As a(n) <actor>, I want <feature>, so that <benefit>.`
 
-<user-story-example>
-1. As a mobile bank customer, I want to see balance on my accounts, so that I can make better informed decisions about my spending
+<user-story-example lang="de">
+1. Als QA-Lead möchte ich den Testfortschritt je Phase auf einen Blick sehen, damit ich Engpässe früh erkenne.
+</user-story-example>
+<user-story-example lang="en">
+1. As a mobile bank customer, I want to see balance on my accounts, so that I can make better informed decisions about my spending.
 </user-story-example>
 
 This list of user stories should be extremely extensive and cover all aspects of the feature.

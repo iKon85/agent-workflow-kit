@@ -166,7 +166,7 @@ Pro Patch:
 
 > "Patch X — [Was-Zeile]. Übernehmen? (Ja / Nein / Modifizieren)"
 
-Benutze `AskUserQuestion` mit ≤3 Optionen. Optionen-Labels in Alltagssprache, **niemals Memory-Slugs oder Hook-Paths in den Labels**. Bei "Modifizieren" frag in Alltagssprache nach, was anders sein soll.
+Frage den User direkt; wenn ein strukturierter User-Input-Mechanismus verfügbar ist, nutze ihn mit ≤3 Optionen. Optionen-Labels in Alltagssprache, **niemals Memory-Slugs oder Hook-Paths in den Labels**. Bei "Modifizieren" frag in Alltagssprache nach, was anders sein soll.
 
 ### 6. Umsetzung
 
