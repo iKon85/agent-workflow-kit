@@ -76,7 +76,7 @@ wc -l "$HOME/.claude/projects/<project>/memory/MEMORY.md"
 ```
 
 Threshold-Trigger (einer reicht):
-- Aktives Memory-Set ≥ 50 Files (Sweep-Trigger über dem CLAUDE.md-Ziel „aktives Set <35" — feuert nur bei echtem Bloat, nicht auf einem gesund-aber-vollen Set; realer aktiver Stand ~46, content-checked alle aktiv,-/Retro)
+- Aktives Memory-Set ≥ 50 Files (Sweep-Trigger über dem CLAUDE.md-Ziel „aktives Set <35" — feuert nur bei echtem Bloat, nicht auf einem gesund-aber-vollen Set; realer aktiver Stand ~46, content-checked alle aktiv-/Retro)
 - MEMORY.md > 120 Zeilen
 
 Wenn Trigger gerissen:

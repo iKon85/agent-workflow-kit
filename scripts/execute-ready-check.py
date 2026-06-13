@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 execute-ready-check.py — single source of truth for "execute-ready" graph
-coherence (Welle 26 / Slice 1g, #983).
+coherence (Welle 26 / Slice 1g).
 
 Four callers share this one checker so the parse/coherence rules live + are
 tested ONCE:
@@ -18,7 +18,7 @@ Two separate axes (Codex R1/R2):
                        HITL = valid-but-not-buildable.
   deny_recommended = !graph_coherent
                      OR (mode==handoff AND intent==build AND target leaf AND !buildable).
-  - shape_warnings  : (#1342) provenance-NEUTRAL anchor form check (template
+  - shape_warnings  : provenance-NEUTRAL anchor form check (template
                        sections + body header). audit-only, anchor-only, and
                        NEVER part of graph_coherent/deny_recommended — a loud
                        nudge for output-uniformity, not a gate.
@@ -151,16 +151,16 @@ def parse_final_cut_depends(body: str):
 def is_legacy(body: str) -> bool:
     # Marker-only by design. Date-based grandfathering (createdAt < enforcement
     # date) is intentionally NOT implemented — the explicit `<!-- guard-legacy -->`
-    # marker is the single grandfather path (alt-anchors like #685 get tagged once).
+    # marker is the single grandfather path (alt-anchors like get tagged once).
     return bool(GUARD_LEGACY_RE.search(body or ""))
 
 
-# --- anchor shape audit (non-blocking, #1342) -------------------------------
+# --- anchor shape audit (non-blocking) -------------------------------
 # Provenance-NEUTRAL form check: does a promoted anchor carry the uniform
 # wave-anchor-template shape? Emitted ONLY as shape_warnings in --mode audit;
 # NEVER fed into violations / graph_coherent / deny_recommended. A missing
 # section is a loud nudge, never a handoff block — folding it into deny would
-# recreate exactly the provenance-harness #1342 rejected. The hard block stays
+# recreate exactly the provenance-harness rejected. The hard block stays
 # bucket + coherence only.
 _WAVE_HEADER_RE = re.compile(r"\*\*\s*Welle\s+\d+\s*[—–-]", re.IGNORECASE)
 # `## Herkunft` (new) or the legacy `## Cluster-Herkunft` both satisfy the check.
@@ -172,7 +172,7 @@ _SHAPE_SECTIONS = (
 
 
 def evaluate_anchor_shape(body: str) -> list[str]:
-    """Non-blocking form check for a promoted anchor body (#1342).
+    """Non-blocking form check for a promoted anchor body.
 
     Returns human-readable shape warnings (missing template sections / body
     header). NEVER contributes to violations — uniformity is a loud nudge, not
@@ -215,7 +215,7 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
         target_kind = "leaf"
     else:
         # Anchor tagged <!-- guard-legacy --> grandfathers the whole rooted graph
-        # (#1069/Q4=A: tag once → free). Constrained: pre-convention classes
+        # (Q4=A: tag once → free). Constrained: pre-convention classes
         # (plan_revision status, anchor-rev mismatch) are suppressed graph-wide;
         # ambiguous-bucket only for CLOSED children — an OPEN child's bucket and
         # the structural ready-on-anchor check stay live (new incoherence visible).
