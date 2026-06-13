@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 execute-ready-check.py — single source of truth for "execute-ready" graph
-coherence (Welle 26 / Slice 1g,).
+coherence (Welle 26 / Slice 1g, #983).
 
 Four callers share this one checker so the parse/coherence rules live + are
 tested ONCE:
@@ -18,6 +18,10 @@ Two separate axes (Codex R1/R2):
                        HITL = valid-but-not-buildable.
   deny_recommended = !graph_coherent
                      OR (mode==handoff AND intent==build AND target leaf AND !buildable).
+  - shape_warnings  : (#1342) provenance-NEUTRAL anchor form check (template
+                       sections + body header). audit-only, anchor-only, and
+                       NEVER part of graph_coherent/deny_recommended — a loud
+                       nudge for output-uniformity, not a gate.
 
 Rooted local graph = handoff-target → its native parent (lift) → that parent's
 direct children. NOT a board-wide scan. Atomar leaf (no parent) = its own node only.
@@ -147,8 +151,40 @@ def parse_final_cut_depends(body: str):
 def is_legacy(body: str) -> bool:
     # Marker-only by design. Date-based grandfathering (createdAt < enforcement
     # date) is intentionally NOT implemented — the explicit `<!-- guard-legacy -->`
-    # marker is the single grandfather path (alt-anchors like get tagged once).
+    # marker is the single grandfather path (alt-anchors like #685 get tagged once).
     return bool(GUARD_LEGACY_RE.search(body or ""))
+
+
+# --- anchor shape audit (non-blocking, #1342) -------------------------------
+# Provenance-NEUTRAL form check: does a promoted anchor carry the uniform
+# wave-anchor-template shape? Emitted ONLY as shape_warnings in --mode audit;
+# NEVER fed into violations / graph_coherent / deny_recommended. A missing
+# section is a loud nudge, never a handoff block — folding it into deny would
+# recreate exactly the provenance-harness #1342 rejected. The hard block stays
+# bucket + coherence only.
+_WAVE_HEADER_RE = re.compile(r"\*\*\s*Welle\s+\d+\s*[—–-]", re.IGNORECASE)
+# `## Herkunft` (new) or the legacy `## Cluster-Herkunft` both satisfy the check.
+_SHAPE_SECTIONS = (
+    ("Herkunft", re.compile(r"^#{1,6}\s*(?:Cluster-)?Herkunft\b", re.MULTILINE)),
+    ("Entscheidungen", re.compile(r"^#{1,6}\s*Entscheidungen\b", re.MULTILINE)),
+    ("Slices", re.compile(r"^#{1,6}\s*Slices\b", re.MULTILINE)),
+)
+
+
+def evaluate_anchor_shape(body: str) -> list[str]:
+    """Non-blocking form check for a promoted anchor body (#1342).
+
+    Returns human-readable shape warnings (missing template sections / body
+    header). NEVER contributes to violations — uniformity is a loud nudge, not
+    a gate.
+    """
+    warnings = []
+    if not _WAVE_HEADER_RE.search(body or ""):
+        warnings.append("anchor body header `**Welle N — …**` missing")
+    for name, rx in _SHAPE_SECTIONS:
+        if not rx.search(body or ""):
+            warnings.append(f"anchor section `## {name}` missing")
+    return warnings
 
 
 # --- pure coherence ---------------------------------------------------------
@@ -179,7 +215,7 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
         target_kind = "leaf"
     else:
         # Anchor tagged <!-- guard-legacy --> grandfathers the whole rooted graph
-        # (/Q4=A: tag once → free). Constrained: pre-convention classes
+        # (#1069/Q4=A: tag once → free). Constrained: pre-convention classes
         # (plan_revision status, anchor-rev mismatch) are suppressed graph-wide;
         # ambiguous-bucket only for CLOSED children — an OPEN child's bucket and
         # the structural ready-on-anchor check stay live (new incoherence visible).
@@ -218,12 +254,20 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
         mode == "handoff" and intent == "build"
         and target_kind == "leaf" and not target_buildable
     )
+    # Non-blocking, audit-only, anchor-only. Intentionally NOT part of
+    # graph_coherent/deny_recommended (see evaluate_anchor_shape docstring).
+    shape_warnings = (
+        evaluate_anchor_shape(target["body"])
+        if mode == "audit" and target_kind == "anchor"
+        else []
+    )
     return {
         "graph_coherent": graph_coherent,
         "target_buildable": target_buildable,
         "deny_recommended": deny_recommended,
         "violations": violations,
         "grandfathered": grandfathered,
+        "shape_warnings": shape_warnings,
     }
 
 
@@ -285,7 +329,7 @@ def build_and_evaluate(issue_number: int, mode: str, intent: str,
     if target is None:
         log(f"issue={issue_number} gh-fetch-failed → fail-closed deny")
         return {"graph_coherent": False, "target_buildable": False,
-                "deny_recommended": True, "grandfathered": None,
+                "deny_recommended": True, "grandfathered": None, "shape_warnings": [],
                 "violations": [f"#{issue_number}: could not verify via gh (network/auth) — fail-closed"]}
 
     parent_n = fetch_parent(issue_number)
@@ -320,7 +364,7 @@ def build_and_evaluate(issue_number: int, mode: str, intent: str,
 def _fail_closed(number, why):
     log(f"issue={number} {why} → fail-closed deny")
     return {"graph_coherent": False, "target_buildable": False,
-            "deny_recommended": True, "grandfathered": None,
+            "deny_recommended": True, "grandfathered": None, "shape_warnings": [],
             "violations": [f"#{number}: {why} — fail-closed (could not verify graph)"]}
 
 
@@ -347,6 +391,8 @@ def main() -> int:
             print(f"  ℹ legacy graph grandfathered via #{result['grandfathered']}")
         for v in result["violations"]:
             print(f"  - {v}")
+        for w in result.get("shape_warnings", []):
+            print(f"  ~ shape (non-blocking): {w}")
     return 0
 
 

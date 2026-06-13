@@ -1,17 +1,17 @@
 # Wave-Anker-Template
 
-Der Body eines Wellen-Anker-Issues. Modell: das war der Tracker, der funktioniert hat.
+Der Body eines Wellen-Anker-Issues. Modell: das war der #599-Tracker, der funktioniert hat.
 **Zwei Reife-Stufen** — Platzhalter `<…>` ersetzen, nicht-zutreffende Zeilen löschen:
 
 - **Stufe 1 (Kandidaten-Stub)** — füllt `board-to-waves`: Kopf bis inkl. To-Do-Checklist. **cluster/Wave-los**, Slice-Tabelle bleibt leer (`⬜ via to-issues`).
 - **Stufe 2 (gereift + promotet)** — füllt `to-prd` (Entscheidungen/PRD-Body) + `to-issues` (Slice-Tabelle + Handoff-Blocks, verknüpft Sub-Issues, Promotion setzt `type:cluster` + Wave). Hakt die To-Dos ab.
 
-Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Promotion** (Stufe 2) bekommt der Anker `type:cluster` + **Wave-Field = `<N>`** (monotone Nummer, kein `wave:*`-Label); `type:cluster` **ersetzt** das bisherige `type:*` des Stubs (z.B. `type:followup`) — genau ein `type:*` pro Issue, `board-sync.py promote` strippt das alte; der **Issue-Titel bleibt der beschreibende Draft-PRD-Titel** (kein `Welle <N> —`-Präfix — Modell), das `Welle <N> — <Thema>` lebt in der **Body-Kopfzeile**. Body **immer** via `--body-file` (`gotchas_gh_body_file`). Nummerierung → [SKILL.md des `board-to-waves`](.claude/skills/board-to-waves/SKILL.md) „Wellen-Nummerierung".
+Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Promotion** (Stufe 2) bekommt der Anker `type:cluster` + **Wave-Field = `<N>`** (monotone Nummer, kein `wave:*`-Label); `type:cluster` **ersetzt** das bisherige `type:*` des Stubs (z.B. `type:followup`) — genau ein `type:*` pro Issue, `board-sync.py promote` strippt das alte (#1073); der **Issue-Titel wird zu `Welle <N> — <Thema>`** (das ist das `board-sync.py promote`-Default-Verhalten — `wave_title()` ersetzt jeden alten `Welle X —`-Präfix idempotent und strippt einen führenden Conventional-Commit-Präfix; Opt-out `--no-rename`, #1108 — **autoritativ ist der `promote`-Code**), und das `Welle <N> — <Thema>` steht **auch** in der **Body-Kopfzeile**. Body **immer** via `--body-file` (`gotchas_gh_body_file`). Nummerierung → [SKILL.md des `board-to-waves`](../../.claude/skills/board-to-waves/SKILL.md) „Wellen-Nummerierung".
 
 ---
 --- TEMPLATE AB HIER (alles oben drüber ist Anleitung, nicht ins Issue kopieren) ---
 
-<!-- wave-stub-source: <thema-slug> -->   <!-- Stufe 1: stabiler Idempotenz-Marker, board-to-waves search-before-create; kebab-case-Slug des Gate-Outcomes, nie geändert -->
+<!-- wave-stub-source: <thema-slug> -->   <!-- Stufe 1: stabiler Idempotenz-Marker, board-to-waves search-before-create (#1081); kebab-case-Slug des Gate-Outcomes, nie geändert -->
 <!-- prd-source-id: <#> -->
 **plan_revision:** r<N>        <!-- Stufe 2: bei der Promotion gestempelt (vor dem ersten Heading — der execute-ready-Checker verlangt ihn dort, sonst denied der Post-Promote-Audit den Anker) -->
 
@@ -19,8 +19,9 @@ Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Pr
 
 > 📍 **Execution-Tracker (Stand <Datum>).** Dieses Issue ist Single-Source-of-Truth für „wo stehen wir, was kommt als Nächstes". Jede Sub-Session ankert hier.
 
-## Cluster-Herkunft (board-to-waves — Stufe 1)
+## Herkunft
 
+- **Quelle:** <board-to-waves | externe-prd | rohes-issue | plan | grill> *(provenienz-neutral, #1342 — die Form ist gleich, egal woher; die folgenden Zeilen soweit zutreffend füllen, nicht-zutreffende löschen)*
 - **Mitglieds-Issues:** #<a> #<b> #<c> … *(gelistet; verknüpft via `to-issues`-Promotion, To-Do unten)*
 - **Warum zusammen (feuernde Kriterien):** Gate=<Outcome> · <B1 Code-Nähe / B2 Typ-Homogenität / B3 Abhängigkeit / B4 Verify-Fläche, soweit zutreffend>
 - **Größe + Risiko:** ~<N> Slices · Backend: <ja/nein> · Modell-Mix: <Sonnet/Opus> · Risiko: <niedrig/mittel/hoch — Grund, z.B. Race/Cache/Forecast/Migration>
@@ -32,7 +33,7 @@ Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Pr
 - [ ] **`to-issues`** → Slices schneiden, **pro Slice ein Sub-Issue** (Member-Issue wiederverwenden / neu anlegen), Slice-Tabelle **+ `## Handoff-Startbefehle`-Block je Slice** füllen; bei ≥2 Slices **promoten** (setzt `type:cluster` + Wave) + **alle** Slice-Sub-Issues nativ verknüpfen (vollständig — Slice-Set == Sub-Issue-Set)
 - [ ] **Track** → Rollup ist der Status; Anker zu bei 100 %
 
-## Entscheidungen (Grill <Datum>, gelockt) — *(`to-prd` füllt)*
+## Entscheidungen — *(`to-prd` füllt; bei Quelle `grill`: „Grill <Datum>, gelockt")*
 
 | Item | Entscheidung |
 |---|---|
@@ -52,9 +53,9 @@ Status-Legende: ⬜ offen · 🔄 in Arbeit · ✅ merged #<PR>. **Jeder Slice =
 
 **Schließbedingungen:** <Issue #x → nach welchen Slices> · <…> · Anker #<self> → alle Slices merged + native Sub-Issues 100 %.
 
-**Mid-Wave entdeckte Follow-ups** → als **Slice-Zeile in diese Tabelle** einplanen (Zwischenslice an der richtigen Sequenz-Position, oder ans Ende) + eigenes Sub-Issue (nativ verknüpft, zählt im Rollup). **Keine** separate Follow-ups-Tabelle — die wäre in der Slice-Sicht unsichtbar.
+**Mid-Wave entdeckte Follow-ups** → als **Slice-Zeile in diese Tabelle** einplanen (Zwischenslice an der richtigen Sequenz-Position, oder ans Ende) + eigenes Sub-Issue (nativ verknüpft, zählt im Rollup). **Keine** separate Follow-ups-Tabelle — die wäre in der Slice-Sicht unsichtbar (#1025).
 
-**Parallel-Hinweis:** echtes Parallel nur mit Worktree pro Strang. Slices die Files teilen → seriell.
+**Parallel-Hinweis:** echtes Parallel nur mit Worktree pro Strang (HR7/8). Slices die Files teilen → seriell.
 
 ## Handoff-Startbefehle (pro Slice, paste-ready) — *(`to-issues` füllt)*
 
@@ -63,9 +64,9 @@ Status-Legende: ⬜ offen · 🔄 in Arbeit · ✅ merged #<PR>. **Jeder Slice =
 ```
 Welle <N> · Slice 1 (<refs/closes>, Parent #<self>). Lies #<self> für Kontext/Entscheidung.
 Worktree: ./scripts/setup-worktree.sh <#> <slug>
-Scope (<N> Dateien) — PFLICHTFELD, Blast-Radius-Schätzung am Schnitt; Bau-Session prüft sie gegen ihren Recon-Befund, >2×-Abweichung → STOP:
+Scope (<N> Dateien) — PFLICHTFELD, Blast-Radius-Schätzung am Schnitt (#1079); Bau-Session prüft sie gegen ihren Recon-Befund, >2×-Abweichung → STOP:
 - <konkrete Datei + Änderung>
-Live-Verify: <User-Outcome, DB-/UI-Wert mit Vergleich —>
+Live-Verify: <User-Outcome, DB-/UI-Wert mit Vergleich — HR1>
 PR: <closes #x / refs #self>.
 ```
 </details>

@@ -1,12 +1,12 @@
 ---
 name: to-prd
 disable-model-invocation: true
-description: Turn a locked plan (PLAN.md in the worktree, conversation context, or an externally-authored spec) into a Draft-PRD issue on the project board, then run spec-self-critique. Use after a grill (grill-me / grill-with-docs / their -codex variants) when you want to publish the PRD. Two modes — create fresh, or reuse an existing cluster/Wave-less issue. Does NOT decompose into slices (that is to-issues) and does NOT set type:cluster / Wave (that is to-issues promotion,).
+description: Turn a locked plan (PLAN.md in the worktree, conversation context, or an externally-authored spec) into a Draft-PRD issue on the project board, then run spec-self-critique. Use after a grill (grill-me / grill-with-docs / their -codex variants) when you want to publish the PRD. Two modes — create fresh, or reuse an existing cluster/Wave-less issue. Does NOT decompose into slices (that is to-issues) and does NOT set type:cluster / Wave (that is to-issues promotion, #982).
 ---
 
 # to-prd — Draft-PRD aufs Board
 
-Nimmt einen **schon-gelockten Plan** und publiziert ihn als **Draft-PRD-Issue**. **Erfindet keine Requirements** — synthetisiert nur, was schon entschieden ist. Pipeline: `board-to-waves → grill(-with-docs) → to-prd → to-issues`. Der **Grill sitzt davor**; to-prd schreibt die PRD nach dem Grill. **Zerlegung in Slices + Promotion zum Anker (cluster/Wave, Kind-Link) = `to-issues`** (künftig), nicht hier.
+Nimmt einen **schon-gelockten Plan** und publiziert ihn als **Draft-PRD-Issue**. **Erfindet keine Requirements** — synthetisiert nur, was schon entschieden ist. Pipeline: `board-to-waves → grill(-with-docs) → to-prd → to-issues`. Der **Grill sitzt davor**; to-prd schreibt die PRD nach dem Grill. **Zerlegung in Slices + Promotion zum Anker (cluster/Wave, Kind-Link) = `to-issues`** (künftig #982), nicht hier.
 
 Board-Konstanten (Project-Node, Field-/Status-IDs) + Helper liegen **consumer-seitig**: vom Projekt-Root `docs/agents/board-sync.md` lesen + den Helper `scripts/board-sync.py` nutzen (fehlen sie → `/setup-workflow` scaffoldet den Projekt-Layer). Issue-Body **immer** `--body-file` (inline `--body` mit Backticks/Klammern crasht bash).
 
@@ -15,9 +15,13 @@ Board-Konstanten (Project-Node, Field-/Status-IDs) + Helper liegen **consumer-se
 to-prd liest den gelockten Plan, egal woher:
 - **Default: `PLAN.md` im aktuellen Worktree** — was die `-codex`-Grills (`grill-me-codex` / `grill-with-docs-codex`) immer schreiben (Codex-Review-Akt braucht die Datei); `grill-me` / `grill-with-docs` schreiben `PLAN.md` nur konditional (bei Worktree-/Session-Schnitt).
 - **Fallback: Konversations-Kontext** (same-session, ohne PLAN.md).
-- **Extern übergeben:** anderswo erstellte Spezifikation (z.B. Claude Web), in den Kontext gereicht.
+- **Extern übergeben:** anderswo erstellte Spezifikation (z.B. Claude Web/Codex), in den Kontext gereicht.
 
 Liegt eine `PLAN.md` im Worktree, ist sie die Quelle; sonst Konversation/extern.
+
+**Kalt-Einstieg = extract-or-synthesize, nicht assume-or-fail (#1342).** `to-prd` ist der **universelle Normalisierer** für lose Artefakte (Plan/Doc/externe PRD ohne Board-Issue): die PRD-Template-Sektionen werden **aus dem Vorhandenen extrahiert**, statt einen vorherigen Grill vorauszusetzen. `to-prd` **mandatet keinen** Grill und **keinen** Codex — die Tiefe ist die Wahl der einsteigenden Person.
+- **Nicht-ableitbare Pflicht-Sektion ≠ stiller „complete"-Platzhalter (#1342):** lässt sich eine Pflicht-Sektion (z.B. „Testing Decisions") aus dem Input **nicht** herleiten, wandert der offene Inhalt in eine **`## Offene Punkte (nicht aus Input ableitbar)`**-Sektion — die PRD ist dann ehrlich *offen* statt fälschlich *vollständig*. `spec-self-critique` (Schritt 5) bleibt Pflicht.
+- **Downstream-Vertrag:** ein nicht-leeres `## Offene Punkte` zwingt `to-issues`, die betroffenen Slices als **HITL** (`## Vor Bau zu klären`) zu publishen oder vorher nachzufragen — die offenen Punkte verschwinden nie still (s. `to-issues` §3b).
 
 ## 2. Modus erkennen — neu vs bestehendes Issue
 
@@ -27,7 +31,7 @@ Kein User-Flag — auto:
 
 **Hard-Stop vor jedem Write:** trägt das Ziel-Issue `type:cluster` (Label) ODER eine Wave-Nummer → **abbrechen** und melden: „cluster/Wave-Anker ist kein to-prd-Ziel — gehört in den Wave-Modell-/`to-issues`-Pfad". to-prd **setzt nie** cluster/Wave und **strippt sie nie** — es arbeitet ausschließlich auf cluster/Wave-losen Issues. Wave lebt im Projects-v2-**Feld**, nicht als Label → vor dem Write das Board-Item lesen:
 ```bash
-gh project item-list 1 --owner <owner> --limit 500 --format json   # Wave-/cluster-Zugehörigkeit des Ziels prüfen
+gh project item-list 1 --owner iKon85 --limit 500 --format json   # Wave-/cluster-Zugehörigkeit des Ziels prüfen
 ```
 
 ## 3. Ziel-Identität — Identität ≠ Inhalt
@@ -38,7 +42,7 @@ gh project item-list 1 --owner <owner> --limit 500 --format json   # Wave-/clust
   - **Separater Content-Fingerprint** `<!-- prd-content-fp: <hash> -->` — nur für Diff/Audit/Bump-Entscheidung, **nicht** für Identität.
 - **search-before-create:** **kein** Verlass auf GitHub-Search (indexiert HTML-Kommentare nicht). Bounded lokal:
   ```bash
-  gh issue list --repo <owner>/<repo> --state open --limit 500 --json number,body,labels
+  gh issue list --repo iKon85/Testreporter --state open --limit 500 --json number,body,labels
   # lokal auf `prd-source-id: <id>` filtern → 1 Treffer ⇒ update; >1 ⇒ STOP+melden; 0 ⇒ create
   ```
 
@@ -82,8 +86,10 @@ to-prd hat `disable-model-invocation: true` und kann kein Skill literal aufrufen
 ```
 to-prd: mode=<A|B> target=#<n> <created|updated> rev <old>→<new>
   status=Spec  labels=<type:*, priority:*>  cluster/Wave=none
+  source=<plan|conversation|external>  synthesized=<marker-liste | none>  readiness=<ok | offene-punkte>
   child-drift=<none | #a(r1) #b(r1) …>
 ```
+`source` = woher der Input kam (Kalt-Einstieg sichtbar machen, #1342). `synthesized` = welche Marker `to-prd` frisch gesetzt hat (z.B. `prd-source-id`). `readiness=offene-punkte` ⇔ die PRD trägt eine nicht-leere `## Offene Punkte`-Sektion.
 
 <prd-template>
 
@@ -97,12 +103,16 @@ The solution to the problem, from the user's perspective.
 
 ## User Stories
 
-A LONG, numbered list of user stories. Each user story should be in the format of:
+A LONG, numbered list of user stories. **Write each story in the same language as the rest of the PRD** (this project is German-first → German stories; never mix an English scaffold onto German content). Each user story follows the actor/feature/benefit shape:
 
-1. As an <actor>, I want a <feature>, so that <benefit>
+- Deutsch: `Als <Akteur> möchte ich <Funktion>, damit <Nutzen>.`
+- English: `As a(n) <actor>, I want <feature>, so that <benefit>.`
 
-<user-story-example>
-1. As a mobile bank customer, I want to see balance on my accounts, so that I can make better informed decisions about my spending
+<user-story-example lang="de">
+1. Als QA-Lead möchte ich den Testfortschritt je Phase auf einen Blick sehen, damit ich Engpässe früh erkenne.
+</user-story-example>
+<user-story-example lang="en">
+1. As a mobile bank customer, I want to see balance on my accounts, so that I can make better informed decisions about my spending.
 </user-story-example>
 
 This list of user stories should be extremely extensive and cover all aspects of the feature.
