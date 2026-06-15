@@ -32,44 +32,22 @@ The skills aren't a grab-bag — they're four phases of one loop, entered throug
 single funnel no matter where your work starts. Each phase below names the failure
 mode it removes and the skills that remove it.
 
-```mermaid
-flowchart TB
-    idea["💡 vague idea"]
-    plan["📄 plan · external PRD"]
-    backlog["🗂️ backlog"]
-    issue["🎫 raw issue · file bundle"]
-    grill{{"grill? — your call<br/>none · grill-me · grill-with-docs · +codex"}}
-    toprd["to-prd"]
-    form[["📋 one uniform PRD / anchor form"]]
-    toissues["to-issues — decompose"]
-    dec{"how many slices?"}
-    atom["atomic issue · PR closes it"]
-    wave["wave anchor + child slices"]
-    gatecheck{"slice carries an unknown?"}
-    gate["gate-before-build<br/>🔬 verify-spike · 📐 decision-gate · 🧭 grill-codex"]
-    exec["⚙️ Execute<br/>tdd · diagnose · prototype · zoom-out"]
-    land["🚀 Land<br/>wrapup · guardrails · pre-commit"]
-    learn["📚 Learn<br/>retro · write-a-skill"]
+![The workflow loop: idea / plan / backlog / raw-issue all funnel through an optional grill into one uniform PRD, which to-issues decomposes into an atomic issue or a wave anchor; a gate clears any unknown, then Execute → Land → Learn, which compounds back into the next idea.](docs/workflow.png)
 
-    idea --> grill
-    plan --> grill
-    backlog -->|"board-to-waves"| grill
-    grill --> toprd
-    toprd --> form
-    issue -->|"already an issue — synthesized in place"| form
-    form --> toissues
-    toissues --> dec
-    dec -->|"1"| atom
-    dec -->|"≥2"| wave
-    atom --> gatecheck
-    wave --> gatecheck
-    gatecheck -->|"yes — clarify first, lighter than a full grill"| gate
-    gatecheck -->|"no — AFK"| exec
-    gate --> exec
-    exec --> land
-    land --> learn
-    learn -.->|"compounds back in"| idea
-```
+<!--
+  The image above is a pre-rendered PNG, not a live Mermaid block, on purpose:
+  GitHub's Mermaid renderer clips long node labels, and an <img>-embedded SVG
+  can't render Mermaid's foreignObject node text (shows blank). A rasterised PNG
+  renders identically everywhere.
+  Source of truth: tools/agent-workflow-kit/assets/workflow.mmd
+  Regenerate after editing the source:
+    npx -y @mermaid-js/mermaid-cli \
+      -i tools/agent-workflow-kit/assets/workflow.mmd \
+      -o tools/agent-workflow-kit/assets/workflow.png \
+      -t dark -b '#0d1117' -s 3
+  build-kit.mjs copies assets/workflow.png -> dist-kit/docs/workflow.png.
+-->
+
 
 ### 1. Plan — turn a vague idea into shaped, tracked work
 
