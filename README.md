@@ -266,7 +266,8 @@ wave-anchor template.
   `THIRD-PARTY-NOTICES.md` with its upstream path.
 - The `grill-*-codex` / `codex-review` cross-model review is by **Chase AI**
   (https://github.com/chaseai-yt/grill-me-codex), MIT.
-- `retro`, `wrapup`, `spec-self-critique`, `board-to-waves` are original work.
+- `retro`, `wrapup`, `spec-self-critique`, `board-to-waves`, `verify-spike`,
+  `decision-gate` are original work.
 
 Full origin + license of every skill is in [PROVENANCE.md](PROVENANCE.md).
 
