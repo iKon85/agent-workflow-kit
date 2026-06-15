@@ -52,6 +52,7 @@ PLAN_PATH_FIELD_ID = _CFG["fields"]["planPath"]
 READY_FOR_AGENT = _CFG["labels"]["readyForAgent"]
 TYPE_PREFIX = _CFG["labels"]["typePrefix"]
 CLUSTER_TYPE_LABEL = _CFG["labels"]["clusterType"]
+WAVE_STUB_LABEL = _CFG["labels"]["waveStub"]
 
 # Sub-issues GraphQL API is behind a preview feature gate per account.
 SUB_ISSUES_HEADER = "GraphQL-Features: sub_issues"
@@ -187,10 +188,13 @@ def bucket_label_args(issue: int, bucket: Optional[str]) -> Optional[list[str]]:
     if bucket is None:
         return None
     base = ["issue", "edit", str(issue), "--repo", REPO]
+    # Bucketing = to-issues' atomar publish (5b): the source stub becomes a build-ready
+    # leaf, so it leaves the wave-stub planning list too. Strip is unconditional
+    # (gh exits 0 on an absent label, verified 2026-06-15).
     if bucket == "afk":
-        return [*base, "--add-label", READY_FOR_AGENT]
+        return [*base, "--add-label", READY_FOR_AGENT, "--remove-label", WAVE_STUB_LABEL]
     if bucket == "hitl":
-        return [*base, "--remove-label", READY_FOR_AGENT]
+        return [*base, "--remove-label", READY_FOR_AGENT, "--remove-label", WAVE_STUB_LABEL]
     raise ValueError(f"unknown bucket {bucket!r}; valid: afk, hitl")
 
 
@@ -204,8 +208,14 @@ def type_labels_to_strip(labels: list[str]) -> list[str]:
 
 
 def promote_label_args(issue: int, strip: Optional[list[str]] = None) -> list[str]:
-    """The `gh issue edit` argv that adds type:cluster and strips prior type:* labels."""
-    args = ["issue", "edit", str(issue), "--repo", REPO, "--add-label", CLUSTER_TYPE_LABEL]
+    """The `gh issue edit` argv that adds type:cluster and strips prior type:* labels.
+
+    Also strips `wave-stub`: once promoted the issue is a planned Anker, no longer a
+    board-to-waves candidate awaiting planning. Unconditional `--remove-label` is safe
+    — gh exits 0 when the label is absent (verified 2026-06-15).
+    """
+    args = ["issue", "edit", str(issue), "--repo", REPO,
+            "--add-label", CLUSTER_TYPE_LABEL, "--remove-label", WAVE_STUB_LABEL]
     for label in strip or []:
         args += ["--remove-label", label]
     return args
@@ -329,7 +339,10 @@ def cmd_create(args) -> int:
     hitl_guard(getattr(args, "hitl", False), args.label or [])
     create_args = ["issue", "create", "--repo", REPO, "--title", args.title,
                    "--body-file", args.body_file]
-    for label in args.label or []:
+    labels = list(args.label or [])
+    if getattr(args, "wave_stub", False):
+        labels.append(WAVE_STUB_LABEL)
+    for label in labels:
         create_args += ["--label", label]
     if args.dry_run:
         _print_dry(create_args)
@@ -430,6 +443,9 @@ def build_parser() -> argparse.ArgumentParser:
     cr.add_argument("--cluster")
     cr.add_argument("--hitl", action="store_true",
                     help="mark slice HITL — rejects a ready-for-agent label")
+    cr.add_argument("--wave-stub", action="store_true", dest="wave_stub",
+                    help="tag as board-to-waves candidate stub (wave-stub label; "
+                         "stripped at promote / add --bucket)")
     cr.add_argument("--dry-run", action="store_true")
     cr.set_defaults(func=cmd_create)
 

@@ -166,7 +166,9 @@ Pro Patch:
 
 > "Patch X — [Was-Zeile]. Übernehmen? (Ja / Nein / Modifizieren)"
 
+<!-- mirror-xform:start codex-user-input-mechanism -->
 Benutze `AskUserQuestion` mit ≤3 Optionen. Optionen-Labels in Alltagssprache, **niemals Memory-Slugs oder Hook-Paths in den Labels**. Bei "Modifizieren" frag in Alltagssprache nach, was anders sein soll.
+<!-- mirror-xform:end -->
 
 ### 6. Umsetzung
 

@@ -43,6 +43,7 @@ Even when the slices were already cut upstream (a grill/PRD slice table), do NOT
 - For the FIRST outcome slice after any prep slices, trace one concrete value through ALL layers against the code (`grep`/Read) — do not trust an abstraction like "config-driven resolver replaces the FIELD_MAPs". A missing layer = carve a new slice BEFORE publishing.
 - **Seam-Ownership check (Fix A):** does any slice **replace/unify/retire a central mechanism**? If yes, it MUST be its own 🧊 grill-needed slice — NOT hidden in a behavior-preserving naming/tweak leaf. A byte-neutral slice does not discharge the seam.
 - **Blast-Radius-Schwelle:** for each slice, estimate the blast radius (~N files, from recon/grep — not a guess; workflow slices count SKILL.md + adapter mirrors + tests). **≥ 10 estimated files OR not estimable → check for a split.** If the slice stays deliberately large, it MUST be 🧊 **grill-needed** (HITL) with a "why indivisible" justification **in the issue body** — a guideline, not a hard block, but the deviation lives in the body, not in the agent's head. (Incident: "DAL Rest" cut as 1 slice → 34 prod files / ~155 call-sites at execute-recon, an emergency in-build split. No gate at the cut existed.)
+- **Gate-Typ + Sequenz (Retro):** jeder Slice, der **kein** glatter AFK-Bau ist, kriegt einen Gate-Tag — 🧭 **Design-Grill** (Entscheidung mit Alternativen, hard-to-reverse, ADR-würdig → `grill-with-docs-codex`), 🔬 **Verify-Spike** (reine Faktenfrage, read-only), 📐 **Abwägung/Research** (konkrete Trade-off-Wahl ODER „nochmal Research nötig", **unter** Grill-Schwelle — read-only Recherche + dokumentierte Abwägung im Issue), 📝 **Review-Notiz** (Befund, **kein** Bau-Slice). Ein Gate-Slice (🧭/🔬/📐) wird als **eigener Slice** geschnitten, **vor** seinem abhängigen Bau-Slice sequenziert und blockt ihn (gate-before-build, sichtbar in „Blocked by" + Tabellen-Reihenfolge). „Modifizieren / offene Entscheidung / Research-Lücke" beim Schneiden → Gate-Slice, **nie** blind AFK-`/tdd`. (🔬 **Verify-Spike** läuft mit dem Skill `verify-spike` — read-only Faktenfrage, throwaway-Harness, Verdikt als ADR/Kommentar, Wegwerf gelöscht. 📐 **Abwägung/Research** läuft mit dem Skill `decision-gate` — Optionen + Kriterien, read-only Recherche/Messung, dokumentierte Trade-off-Tabelle, begründete Entscheidung als ADR/Kommentar; Wegwerf-Mess-Code gelöscht.)
 
 - **`## Offene Punkte` aus der Quelle → downstream HITL:** trägt das Quell-Artefakt (z.B. eine `to-prd`-PRD mit nicht-ableitbaren Sektionen) eine nicht-leere **`## Offene Punkte`**-Sektion, **muss** `to-issues` entweder **stoppen + nachfragen** ODER die betroffene(n) Slice(s)/den Leaf als **HITL** mit `## Vor Bau zu klären` publishen — die offenen Punkte verschwinden nie still (eine Draft-PRD hat selbst keinen Bucket; der lebt erst auf Kind/Leaf, §5c).
 
@@ -65,6 +66,7 @@ Present the proposed breakdown as a numbered list. For each slice, show:
 
 - **Title**: short descriptive name
 - **Type**: HITL / AFK
+- **Gate**: `—` (glatter AFK-Bau) · 🧭 Design-Grill (`grill-with-docs-codex`, ADR-würdig) · 🔬 Verify-Spike (read-only Faktenfrage) · 📐 Abwägung/Research (Trade-off-Wahl ODER Research unter Grill-Schwelle, read-only + dokumentierte Abwägung) · 📝 Review-Notiz (kein Bau-Slice). Ein Gate-Slice (🧭/🔬/📐) wird **vor** seinem abhängigen Bau-Slice einsortiert (gate-before-build) + blockt ihn.
 - **Blast-Radius**: ~N estimated files (from recon/grep, not a guess — workflow slices count SKILL.md + adapter mirrors + tests). Flags the §3b threshold at the cut.
 - **Blocked by**: which other slices (if any) must complete first
 - **User stories covered**: which user stories this addresses (if the source material has them)
@@ -93,6 +95,8 @@ How it is published depends on the decomposition test (gilt für **jede** Quelle
 - **≥2 independently mergeable slices → PROMOTE.** The source issue *becomes the Anker*.
 - **exactly 1 slice → ATOMAR.** The source issue *stays a leaf*; the single PR `closes` it. *(Ein mechanisches Bündel mit nur einer sinnvollen Slice wird **nicht** zum Anker.)*
 
+**`wave-stub`-Strip ist automatisch — kein manueller Edit.** War die Quelle ein `board-to-waves`-Kandidaten-Stub (`label:wave-stub`), entfernt **beide** Publish-Mechaniken das Label idempotent: `promote` (§5a) **und** `add --bucket` (§5b atomar). Sie verlässt damit die „wartet auf Planung"-Liste (`is:open label:wave-stub`), egal ob sie Welle oder atomares Leaf wird. Niemals per bare `gh issue edit --remove-label wave-stub` nachhelfen — der Helper ist der einzige Label-Writer (s. Box unten).
+
 **Lane-D — mechanisches Bündel (Datei-Liste/Refactor).** Es darf den Domänen-Grill **überspringen** — **nur** wenn: Blast-Radius *schätzbar* **und** `<10 Dateien` **und** *kein* Seam ersetzt (§3b Seam-Ownership/Blast-Radius bleiben). Sonst → **HITL** mit `## Vor Bau zu klären` (strukturelle Fragen / why-indivisible), wie §3b/§5c es verlangen. Kein `## Vor Bau zu klären` nötig, wenn nichts offen ist.
 
 **All board writes go through `scripts/board-sync.py` only** — never a bare `gh issue create`/`project item-add`/`item-edit`/`addSubIssue`, and never a workflow-state label edit (`gh issue edit --add-label ready-for-agent|needs-info|type:cluster`). The helper owns the one-parent-check, preview header, field IDs, and the HITL guard.
@@ -106,7 +110,10 @@ WAVE=$(python3 scripts/board-sync.py next-wave)
 # 2. render the Stufe-2 Anker body from docs/agents/wave-anchor-template.md into /tmp/anchor.md:
 #    body header `**Welle $WAVE — <Thema>**`, **plan_revision:** r<N> at top (before the first
 #    heading), the FILLED Slices table (you know the cut), the full grilled PRD in a collapsible
-#    <details>, and the stale `<!-- prd: awaiting-decomposition -->` marker REMOVED. The issue
+#    <details> — **mit ALLEN eingebetteten PRD-Markern gestrippt** (`plan_revision`, `prd-source-id`,
+#    `prd-content-fp`, `<!-- prd: awaiting-decomposition -->`): der PRD-eigene `plan_revision` kollidiert
+#    sonst mit dem Anker-`plan_revision` → execute-ready `[DENY] plan_revision multiple` (Retro).
+#    Der Anker trägt seine Marker im Kopf; die `<details>`-Einbettung ist reiner Text. The issue
 #    TITLE is rewritten to `Welle N — <Thema>` by the promote step below (step 3) — do NOT set it
 #    here; promote prepends the wave prefix (and strips any `fix:`/`feat:` prefix) idempotently.
 #    Rewrite the PRD body via skill-prose gh (body-fill is issue CONTENT, NOT a board write — the
@@ -129,7 +136,7 @@ python3 scripts/board-sync.py link --parent <prd#> --child <new#>
 # → the promoted anchor graph is audited at exit (§7, execute-ready --mode audit, non-blocking)
 ```
 
-- The Anker body comes from **`docs/agents/wave-anchor-template.md` (Stufe 2)** — filled Slices table + collapsible PRD; the stale `<!-- prd: awaiting-decomposition -->` marker is **removed** (the post-promote audit flags it otherwise). Reference output.
+- The Anker body comes from **`docs/agents/wave-anchor-template.md` (Stufe 2)** — filled Slices table + collapsible PRD; **die eingebettete PRD im `<details>` wird von ALLEN ihren Markern gestrippt** (`plan_revision`/`prd-source-id`/`prd-content-fp`/`awaiting-decomposition`) — der Anker trägt seine eigenen im Kopf; ein doppelter `plan_revision` triggert `[DENY] plan_revision multiple` (Retro). Reference output.
 - Promoted children carry the title prefix **`Welle N / Slice X — <outcome>`**.
 - Fresh children each have exactly one parent → the one-parent constraint is never violated. `link` refuses a foreign-parent re-parent (exits non-zero — drift, never silent).
 
@@ -182,8 +189,22 @@ Reference the blocking ticket(s), or "None - can start immediately".
 ## Vor Bau zu klären   <!-- HITL only — the open decisions; omit for AFK -->
 - <open question 1>
 
+## Verifikations-Frage   <!-- 🔬 Verify-Spike only — omit otherwise -->
+**Frage (Ja/Nein):** <genau eine falsifizierbare Frage>
+**Scope/Version:** <Lib@version / Runtime / DB / Plattform-Kontext>
+**JA sieht so aus:** <konkreter Output/Beleg>
+**NEIN sieht so aus:** <konkreter Output/Beleg>
+**Verdikt-Senke:** <ADR / dieser Body / Folge-Slice #N>
+
+## Abwägung   <!-- 📐 Abwägung/Research only — omit otherwise -->
+**Optionen:** <konkurrierende Ansätze>
+**Kriterien:** <Entscheidungs-Achsen, z.B. Komplexität / Blast-Radius / Reversibilität / Fit>
+**Trade-offs:** <Tabelle Optionen × Kriterien, je Zelle ein Beleg (`file:line` / Messwert / Doc) — kein Adjektiv>
+**Entscheidung:** <gewählte Option + warum sie auf den wichtigen Kriterien gewinnt + was bewusst eingetauscht>
+**Verdikt-Senke:** <ADR / dieser Body / Folge-Slice #N>
+
 ## Handoff-Startbefehl
-Scope + Live-Verify + start skill (HITL → `/grill-me → /tdd`, AFK → `/tdd`).
+Scope + Live-Verify + start skill (🧭 Design-Grill → `/grill-with-docs-codex`, 🔬 Verify-Spike → `/verify-spike`, 📐 Abwägung/Research → `/decision-gate`, AFK → `/tdd`, HITL → `/grill-me → /tdd`).
 </issue-template>
 
 **Blast-Radius-Abgleich (Bau-Session):** the stamped `**Blast-Radius:**` is the estimate *at the cut* — the build session compares it against its own recon befund. A real befund **> 2× the estimate → STOP + report** (re-cut at the Anker), do NOT keep building silently.
@@ -214,6 +235,8 @@ It asserts, for the rooted local graph:
 - `plan_revision` stamped and coherent (child == Anker, leaf own); no stale in-between;
 - Parent↔Child consistent (Anker carries no bucket / no `ready-for-agent`);
 - ** Anker-Shape** (`## Herkunft`/`## Entscheidungen`/`## Slices` + Body-Kopfzeile) — als **`shape_warnings`** (rein non-blocking, fließt **nie** in `deny_recommended`).
+
+War die Quelle ein `wave-stub`-Stub, kurz bestätigen, dass das Label weg ist (die Publish-Mechanik strippt es automatisch — s. §5): `gh issue view <anker-or-leaf#> --json labels -q '.labels[].name'` zeigt **kein** `wave-stub`. (Nicht Teil von `execute-ready-check.py` — eigener Quick-Check.)
 
 `--mode audit` is **non-blocking** — a mismatch is a **loud warning** here; the **hard block** is `.claude/hooks/drift-guard.py` at handoff-creation. Emit a visible audit two-liner:
 

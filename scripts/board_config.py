@@ -44,6 +44,7 @@ _REQUIRED_PATHS = (
     ("fields", "wave"), ("fields", "cluster"),
     ("fields", "specPath"), ("fields", "planPath"),
     ("labels", "readyForAgent"), ("labels", "typePrefix"), ("labels", "clusterType"),
+    ("labels", "waveStub"),
     ("branchPrefixes",),
     ("prMarkers", "partOf"), ("prMarkers", "retroMarker"), ("prMarkers", "retroValues"),
     ("headings", "vorBau"),

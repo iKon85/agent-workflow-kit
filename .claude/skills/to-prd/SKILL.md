@@ -21,7 +21,7 @@ Liegt eine `PLAN.md` im Worktree, ist sie die Quelle; sonst Konversation/extern.
 
 **Kalt-Einstieg = extract-or-synthesize, nicht assume-or-fail.** `to-prd` ist der **universelle Normalisierer** für lose Artefakte (Plan/Doc/externe PRD ohne Board-Issue): die PRD-Template-Sektionen werden **aus dem Vorhandenen extrahiert**, statt einen vorherigen Grill vorauszusetzen. `to-prd` **mandatet keinen** Grill und **keinen** Codex — die Tiefe ist die Wahl der einsteigenden Person.
 - **Nicht-ableitbare Pflicht-Sektion ≠ stiller „complete"-Platzhalter:** lässt sich eine Pflicht-Sektion (z.B. „Testing Decisions") aus dem Input **nicht** herleiten, wandert der offene Inhalt in eine **`## Offene Punkte (nicht aus Input ableitbar)`**-Sektion — die PRD ist dann ehrlich *offen* statt fälschlich *vollständig*. `spec-self-critique` (Schritt 5) bleibt Pflicht.
-- **Downstream-Vertrag:** ein nicht-leeres `## Offene Punkte` zwingt `to-issues`, die betroffenen Slices als **HITL** (`## Vor Bau zu klären`) zu publishen oder vorher nachzufragen — die offenen Punkte verschwinden nie still (s. `to-issues` §3b).
+- **Downstream-Vertrag:** ein nicht-leeres `## Offene Punkte` zwingt `to-issues`, die betroffenen Slices als **HITL** (`## Vor Bau zu klären`) zu publishen oder vorher nachzufragen — die offenen Punkte verschwinden nie still (s. `to-issues` §3b). Jeder offene Punkt wird nach **Gate-Typ** klassifiziert (🧭 Design-Grill / 🔬 Verify-Spike / 📐 Abwägung-Research / 📝 Review-Notiz), damit `to-issues` ihn als Gate-Slice **vor** den abhängigen Bau-Slice sequenziert (gate-before-build) — eine 📝 Review-Notiz wird **nicht** geschnitten (s. Template-Sektion „Review-Notizen" + `to-issues` §3b). (Retro)
 
 ## 2. Modus erkennen — neu vs bestehendes Issue
 
@@ -140,6 +140,10 @@ A list of testing decisions that were made. Include:
 - A description of what makes a good test (only test external behavior, not implementation details)
 - Which modules will be tested
 - Prior art for the tests (i.e. similar types of tests in the codebase)
+
+## Review-Notizen (Findings, die NICHT Slices werden)
+
+Befunde, die real sind, aber **kein baubares Item** — z.B. ein Review-only-Geruch, den kein Linter/Gate fängt (SoC-Drift in einem Handler, Stil-Frage). Pro Eintrag: was + warum kein Slice. Diese tragen den Gate-Tag 📝; `to-issues` schneidet sie **nicht**. Behebung opportunistisch beim nächsten Touch, nicht getrackt. (Abgrenzung: ein Befund, der baubar ist, gehört in Implementation Decisions; ein offener Entscheidungs-/Research-Punkt in `## Offene Punkte`.)
 
 ## Out of Scope
 

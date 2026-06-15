@@ -45,6 +45,8 @@ flowchart TB
     dec{"how many slices?"}
     atom["atomic issue · PR closes it"]
     wave["wave anchor + child slices"]
+    gatecheck{"slice carries an unknown?"}
+    gate["gate-before-build<br/>🔬 verify-spike · 📐 decision-gate · 🧭 grill-codex"]
     exec["⚙️ Execute<br/>tdd · diagnose · prototype · zoom-out"]
     land["🚀 Land<br/>wrapup · guardrails · pre-commit"]
     learn["📚 Learn<br/>retro · write-a-skill"]
@@ -59,8 +61,11 @@ flowchart TB
     toissues --> dec
     dec -->|"1"| atom
     dec -->|"≥2"| wave
-    atom --> exec
-    wave --> exec
+    atom --> gatecheck
+    wave --> gatecheck
+    gatecheck -->|"yes — clarify first, lighter than a full grill"| gate
+    gatecheck -->|"no — AFK"| exec
+    gate --> exec
     exec --> land
     land --> learn
     learn -.->|"compounds back in"| idea
@@ -101,6 +106,15 @@ step ran. The routing key is just *"is there an issue yet?"*: a loose artefact
   need to *find* the next wave rather than start fresh.
 - **`triage`** keeps the inbox sane with a consistent label vocabulary.
 - **`spec-self-critique`** red-teams your own spec before you commit to building it.
+- **`verify-spike` / `decision-gate` — gate-before-build.** When `to-issues` cuts a
+  slice that hinges on an unknown it tags the slice instead of guessing: a single
+  yes/no fact against the real lib/runtime/DB runs as a **`verify-spike`** (throwaway
+  read-only harness, verdict + proof sunk to the issue); a bounded "which option"
+  trade-off or a research gap runs as a **`decision-gate`** (read-only weigh-up,
+  options × criteria table, reasoned pick sunk to an ADR/issue). The gate is its own
+  slice, sequenced *before* the build slice it blocks — clarify the one open point
+  cheaply instead of re-grilling the whole feature; genuinely hard-to-reverse calls
+  still escalate up to `+codex`.
 
 You approve the slice breakdown before anything is published — the funnel never
 publishes behind your back.
@@ -226,8 +240,8 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**21 skills** (Plan: grill-me, grill-with-docs, to-prd, to-issues, board-to-waves,
-triage, spec-self-critique · Execute: tdd, prototype, diagnose, zoom-out,
+**23 skills** (Plan: grill-me, grill-with-docs, to-prd, to-issues, board-to-waves,
+triage, spec-self-critique, verify-spike, decision-gate · Execute: tdd, prototype, diagnose, zoom-out,
 improve-codebase-architecture · Land: git-guardrails, setup-pre-commit, wrapup ·
 Learn: retro, write-a-skill · Setup: setup-workflow · Codex review: grill-me-codex,
 grill-with-docs-codex, codex-review), installed for both surfaces — `.claude/skills`

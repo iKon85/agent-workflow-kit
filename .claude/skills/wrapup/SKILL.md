@@ -28,6 +28,7 @@ Schließt eine fertige Slice-Session ab: **Stand landbar machen (Step 0: commit 
 
 Vor dem Merge **immer** das Deploy-Banner zeigen (Step 3). Keine y/n-Rückfrage (so gewählt) — aber die Pre-flight-Hard-Stops sind nicht verhandelbar.
 
+<!-- mirror-xform:start codex-wrapup-execution-model -->
 ## Ausführungs-Modell — 3 Phasen (mechanischer Teil auf Sonnet)
 
 **Warum getrennt:** `model:`-Frontmatter überschreibt das Session-Modell laut Doku **nur „für den Rest des aktuellen Turns" — beim nächsten Prompt greift wieder das Session-Modell** ([skills.md](https://code.claude.com/docs/en/skills.md)). `wrapup` ist **mehr-Turn-interaktiv** (Retro-Gate, Annahme-Drift-Bestätigung): jede User-Gate-Antwort startet einen neuen Turn → das Frontmatter fiele nach dem ersten Gate zurück, der **mechanische Großteil läuft danach** also wieder auf dem Session-Modell (in durchweg Opus belegt). Darum trägt der Skill **kein** `model:`-Frontmatter mehr; stattdessen geht die mechanische git/gh-Plumbing an einen **Sonnet-Subagent** (der läuft ganz auf seinem eigenen Modell, turn-unabhängig). Alle User-Gates **und** die Secret-Review bleiben im **Hauptthread** (= Session-Modell, das <maintainer> gewählt hat — Sonnet *oder* Opus; der Subagent erzwingt Sonnet für den Bulk unabhängig davon).
@@ -50,6 +51,7 @@ Vor dem Merge **immer** das Deploy-Banner zeigen (Step 3). Keine y/n-Rückfrage 
 **Merge = Prod-Deploy bleibt `/wrapup`-getriggert:** die `/wrapup`-Eingabe ist die Freigabe pro Lauf; der Hauptthread dispatcht = trägt die Freigabe an den Subagent weiter. Kein Auto-/Hook-Trigger.
 
 > Die folgenden Steps sind je mit `[Phase N]` getaggt. Phase 1 + 3 führt der Hauptthread aus; **alles mit `[Phase 2]` läuft im Sonnet-Subagent** — der Hauptthread führt diese Steps **nicht** selbst aus, sondern dispatcht sie als einen Block.
+<!-- mirror-xform:end -->
 
 ## Pre-flight — Hard-Stops (bei JEDEM Fail: abbrechen, melden, NICHTS mergen/löschen) `[Phase 1 · Hauptthread]`
 
@@ -88,7 +90,9 @@ Direkt nach grünem Pre-flight, **bevor** Step 0a irgendwas committet: **eine** 
 ### Step 0 — Stand landbar machen (commit → push → PR; idempotent, IM Worktree)
 Macht die Slice landefähig, **ohne abzubrechen, wenn schon alles erledigt ist** (jeder Sub-Step ist No-op, wenn nichts zu tun). Läuft noch **im Worktree** (cwd = `$WT`, Branch = `$BRANCH` aus dem Pre-flight) — erst Step 1 wechselt in den Main-Tree.
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 > **Phasen-Schnitt in Step 0:** 0a (Commit + Secret-Review) und die Annahme-Drift-**Bestätigung** (0c.2) sind `[Phase 1 · Hauptthread]`; 0b (Push) und der PR-/Body-/Merge-Gate-Rest von 0c sind `[Phase 2 · Sonnet-Subagent]`. Der Hauptthread sammelt in 0a + 0c.2 die Inputs (Commit lokal, Retro-Zeile, bestätigte Marker) und dispatcht **danach** 0b→5e.1 an den Subagent.
+<!-- mirror-xform:end -->
 
 **Step 0a — Dirty Tree → committen.** `[Phase 1 · Hauptthread]` Nur wenn `git status --porcelain` nicht leer.
 - **`.env`-Hard-Block (mechanisch):** liegt `.env`/`.env.*` im Tree → **STOP**, nie committen (globale Regel, nicht verhandelbar). Manuell klären.
@@ -106,12 +110,16 @@ fi
 ```
 **Pre-commit-Hook (husky `tsc`+ESLint) feuert beim Commit** — neu in diesem Pfad (früher committete der User vor `/wrapup`, der Hook lief außerhalb). Schlägt er mit *vielen* `Cannot find module`/TS2307 quer über **fremde** Files fehl (nicht deine Slice-Files) → Worktree-`node_modules` fehlt/stale, **kein** echter Fehler: `pnpm install --frozen-lockfile` (warmer Store, ~Sek.), dann erneut committen. **Nie `--no-verify`.** Echte TS-/Lint-Fehler in *deinen* Slice-Files = berechtigter Stop → beheben, nicht bypassen.
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 **Step 0b — Ungepusht → pushen.** `[Phase 2 · Sonnet-Subagent]` Feature-Branch → `pre-push` erlaubt (nur `main` ist geblockt). Setzt Upstream idempotent:
+<!-- mirror-xform:end -->
 ```bash
 git push -u origin "$BRANCH"     # schon gepusht & aktuell → No-op; abgelehnt (z. B. divergiert) → STOP + Grund melden
 ```
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 **Step 0c — PR sicherstellen + Merge-Gate.** `[Phase 2 · Sonnet-Subagent — AUSSER 0c.2 Drift-Bestätigung = Phase 1]` Bestehenden PR **wiederverwenden** (kein Abbruch!), sonst anlegen; dann Mergebarkeit prüfen. Der Subagent bekommt den **fertigen** Body-Text (Retro-Zeile + bestätigte Marker) aus Phase 1 und schreibt ihn nur noch — die Marker-Bestätigung (0c.2) hat der Hauptthread **vor** dem Dispatch erledigt.
+<!-- mirror-xform:end -->
 ```bash
 PR=$(gh pr view "$BRANCH" --json number -q .number 2>/dev/null || true)
 if [ -z "$PR" ]; then
@@ -139,7 +147,7 @@ gh pr view "$PR" --json state,mergeable,mergeStateStatus,statusCheckRollup
     <!-- annahme-drift: {"target":"","section":"Vor Bau zu klären","op":"append","text":"retro-Seam in 1g vereinheitlicht — vor Schnitt prüfen"} -->
     ```
   - **Zeile ohne `#<n>`-Ziel (malformed)** → **warnen + im Walkthrough klären** (Ziel nachtragen oder Eintrag bewusst verwerfen), **nie still droppen** (Spiegel zu „stilles Schreiben verboten", Step 5e).
-  - **Log fehlt/leer** (oder Nicht-Wellen-Slice ohne Log) → **Fallback retro-style: ICH bringe zuerst eigene Kandidaten ein, frage NICHT blank.** Wie bei `/retro` (User liefert Richtung + Freigabe, nicht das Impl-Detail — er kennt es meist nicht, ich habe gebaut; CLAUDE.local.md „Liegt X so vor? frage ich nicht <maintainer>"): die im Slice **bewusst getroffenen oder gekippten** Annahmen durchgehen, die ein **ungebautes** Geschwister-Issue tragen könnten, und sie als **benannte Kandidaten** vorlegen — je `- #<n>?: <Annahme> → trägt evtl. <Issue/Contract>`. Der User bestätigt / verwirft / priorisiert; bestätigte → Marker wie oben von Hand. **Null** Kandidaten → das **ausdrücklich sagen** („keine Drift gefunden — geprüft: <kurz, was berührt wurde>"), erst danach optional die Eine-Zeile-Absicherung *„etwas übersehen, das ein ungebautes Issue trägt?"*. Die blanke Frage ist **nie** Ersatz fürs eigene Durchgehen.
+  - **Log fehlt/leer** (oder Nicht-Wellen-Slice ohne Log) → **Fallback retro-style: ICH bringe zuerst eigene Kandidaten ein, frage NICHT blank.** Wie bei `/retro` (User liefert Richtung + Freigabe, nicht das Impl-Detail — er kennt es meist nicht, ich habe gebaut; sted-local.md „Liegt X so vor? frage ich nicht <maintainer>"): die im Slice **bewusst getroffenen oder gekippten** Annahmen durchgehen, die ein **ungebautes** Geschwister-Issue tragen könnten, und sie als **benannte Kandidaten** vorlegen — je `- #<n>?: <Annahme> → trägt evtl. <Issue/Contract>`. Der User bestätigt / verwirft / priorisiert; bestätigte → Marker wie oben von Hand. **Null** Kandidaten → das **ausdrücklich sagen** („keine Drift gefunden — geprüft: <kurz, was berührt wurde>"), erst danach optional die Eine-Zeile-Absicherung *„etwas übersehen, das ein ungebautes Issue trägt?"*. Die blanke Frage ist **nie** Ersatz fürs eigene Durchgehen.
   - Kein Marker → nichts propagiert (eine vergessene Drift fängt der Drift-Guard am nächsten Handoff).
 - **Body-Konventions-Check (mechanisch) — nach Retro-Zeile + Annahme-Drift-Markern, gegen den finalen Body:** Das Script prüft die `closes`-vs-`Part of`-Regel (Anker-Schutz) + die `**Retro:**`-Pflichtzeile gegen den **realen PR-Body**. Es **parst KEINE `annahme-drift`-Marker** (deren Validierung ist bewusst nicht mechanisiert/R2-F6) — darum laufen die Marker-Writes davor. Issue-Nr. aus dem Branch, Parent via `board-sync.py parent-of`.
   ```bash
@@ -153,7 +161,9 @@ gh pr view "$PR" --json state,mergeable,mergeStateStatus,statusCheckRollup
   - `mergeable == CONFLICTING` → **STOP** (Merge-Konflikt; Branch rebasen/auflösen).
   - `mergeable == UNKNOWN` (frisch erstellter PR — GitHub rechnet die Mergebarkeit async) → **kein Stop**: der Merge-Versuch in Step 1 ist das echte Gate (Step 1 verifiziert `state == MERGED` und stoppt sonst).
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 ### Step 1 — PR mergen (= Prod-Deploy) `[Phase 2 · Sonnet-Subagent]`
+<!-- mirror-xform:end -->
 **Body-Konventions-Gate (vor dem Merge):** Erst mergen, wenn `pr-body-check.py` (Step 0c) **Exit 0** lieferte — er deckt die `**Retro:**`-Pflichtzeile (`gefahren`/`übersprungen` + Grund) **und** die `closes`-vs-`Part of`-Anker-Regel mechanisch ab. Bei Exit 1 zuerst den Body fixen (`gh pr edit "$PR" --body-file <korrigierter Body>`) und neu prüfen, **nicht** blind mergen. (Bestehender PR ohne `**Retro:**`-Zeile fällt damit ebenfalls in den STOP.)
 
 **Wichtig:** `gh pr merge` macht intern `git checkout main` — das schlägt fehl wenn `main` im Feature-Worktree belegt ist. Deshalb **immer zuerst in den Main-Tree wechseln**:
@@ -166,7 +176,9 @@ gh pr merge "$PR" --merge --delete-branch
 - Danach verifizieren: `gh pr view "$PR" --json state -q .state` == `MERGED`. Nicht MERGED → Stop, Rest NICHT ausführen.
 - „already merged"-Meldung + `state == MERGED` → OK (Remote-Merge lief durch, nur lokale Folgeschritte fehlten) → weitermachen.
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 ### Step 2 — Worktree-Dev-Server beenden (VOR der Worktree-Auflösung!) `[Phase 2 · Sonnet-Subagent]`
+<!-- mirror-xform:end -->
 Reihenfolge-Falle: ein laufender Prozess hält Dir + Ports → `git worktree remove` schlägt sonst fehl.
 **cwd-Falle:** der Kill-Loop unten matcht Prozesse per cwd-unter-WT — läuft die Shell selbst im WT
 (z.B. „pr merged"-Pfad, wo Step-1's `cd "$MAIN_TREE"` übersprungen wird), killt er den eigenen
@@ -194,7 +206,9 @@ Wurde der Server in DIESER Session als Background-Task gestartet, zusätzlich pe
 Der Hauptthread gibt das Banner aus dem Subagent-Report aus (Subagent hat in Step 1 gemerged). Eine Zeile, z. B.:
 > ⚠ PR #`$PR` gemerged → your deploy platform deployt `main` (~7 min live: <your-app-domain>).
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 ### Step 4 — Worktree auflösen (AUS dem Main-Tree) `[Phase 2 · Sonnet-Subagent]`
+<!-- mirror-xform:end -->
 `git worktree remove` darf nicht aus dem zu entfernenden Worktree laufen → vorher in den Main-Tree wechseln. Den lokalen Branch löscht **Step 5** (nach dem Main-Update — vorher refuse't `-d`, s. dort).
 ```bash
 cd "$MAIN_TREE"
@@ -204,7 +218,9 @@ git fetch origin --prune
 ```
 - Schlägt `git worktree remove` fehl („contains modified or untracked files" / „is locked") → **nicht** blind `--force`: erst prüfen, ob Step 2 wirklich alle Prozesse beendet hat (`lsof`, `pgrep`), sonst gingen evtl. echte Dateien verloren. Ursache melden statt forcen.
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 ### Step 5 — Main aktualisieren + lokalen Branch löschen `[Phase 2 · Sonnet-Subagent]`
+<!-- mirror-xform:end -->
 ```bash
 cd "$MAIN_TREE"
 git checkout main 2>/dev/null || true   # i. d. R. schon auf main
@@ -214,7 +230,9 @@ git branch -d "$BRANCH"                  # NACH dem ff-Pull — erst jetzt ist d
 `--ff-only`: kein Push, keine Branch-Protection (pre-push) berührt. Kein Fast-Forward möglich → melden (divergierter Main = Anomalie, untersuchen).
 - **`git branch -d "$BRANCH"` gehört NACH den Pull** (nicht in Step 4): davor ist der Merge-Commit noch nicht von `main` reachable + der Remote-Upstream schon gepruned → `-d` refuse't „not fully merged" und schlägt das Hook-geblockte, verbotene `-D` vor. `-d` reicht nach dem Pull immer; schlägt es trotzdem fehl → melden, **nie** `-D`.
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 ### Step 5b — Issue-Close verifizieren (Auto-Close-Miss abfangen) `[Phase 2 · Sonnet-Subagent]`
+<!-- mirror-xform:end -->
 GitHub schließt das `closes #<n>`-Issue beim Merge **nur**, wenn das Keyword im PR-Body nicht in Backticks/Code-Span steht — sonst bleibt das Issue still offen. Deshalb hart prüfen, nicht vertrauen. Issue-Nummer kommt aus dem Branch (`feat/<N>-…`).
 ```bash
 ISSUE=$(echo "$BRANCH" | sed -E 's#^(feat|fix|chore|docs)/([0-9]+)-.*#\2#')
@@ -232,7 +250,9 @@ fi
 ```
 **Vorbeugend** außerdem: `closes #<#>` im PR-Body **nie** in Backticks/Code-Span schreiben (sonst ignoriert GitHub das Keyword — genau der Miss, den dieser Step abfängt). (Retro 2026-05-31.)
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 ### Step 5c — Verwaiste merged-Branches kehren (lokale Karteileichen) `[Phase 2 · Sonnet-Subagent]`
+<!-- mirror-xform:end -->
 Step 4 löscht **nur** den Branch dieser Slice. Über die Zeit sammeln sich aber lokale Branches an, deren PR längst gemergt ist (manuelle Merges, Alt-Stände vor diesem Skill, andere Sessions). Nach dem Main-Update einmal sicher durchkehren — **ausschließlich `-d`** (löscht nur, was aus `main` reachable ist; refuse't alles andere, inkl. in anderen Worktrees ausgecheckter Branches):
 ```bash
 cd "$MAIN_TREE"
@@ -245,7 +265,9 @@ done
 - **Squash-/rebase-gemergte** Branches sind nicht aus `main` reachable → der Sweep lässt sie **bewusst** stehen (kein `-D`-Bypass). Die bleiben manuelle Einzelfall-Entscheidung: `gh pr list --head <b> --state merged` verifizieren, dann force't der User selbst.
 - Fängt die Merge-Commit-Klasse (Repo-Default `--merge`) und verhindert das Branch-Müll-Wachstum, das diesen Step motiviert hat (2026-06-02, 28 Karteileichen).
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 ### Step 5d — Verwaiste merged-Branches kehren (REMOTE Karteileichen) `[Phase 2 · Sonnet-Subagent]`
+<!-- mirror-xform:end -->
 `--delete-branch` (Step 1) löscht nur den Remote-Branch *dieser* Slice. Über die Zeit stauen sich auf `origin` aber Hunderte Remote-Branches, deren PR längst gemergt ist (GitHub „auto-delete head branches" aus, manuelle Merges, Alt-Stände). 5c sieht die **nicht** — es kehrt nur lokal. Darum hier einmal die Remote-Karteileichen kehren, **autoritativ über den PR-Status** (nicht über `--merged`-Reachability — das übersähe squash/rebase-gemergte, vgl. 5c). Sichere Menge = *Remote-Branch existiert* **und** *hat einen MERGED-PR* **und** *hat KEINEN offenen PR* (Reuse-Schutz):
 ```bash
 cd "$MAIN_TREE"
@@ -279,7 +301,9 @@ fi
 ### Step 5e — Land-Reconcile (Anker + Geschwister kohärent halten —) `[5e.1 = Phase 2 · 5e.2/5e.3 = Phase 3]`
 Greift nur, wenn das gemergte Issue ein **Slice eines Wellen-Ankers** ist (`Part of #<anker>`). Hält den Rest-Graph land-seitig execute-ready. **Phasen-Schnitt:** der Tick (5e.1) ist ein eindeutiger Ein-Zeilen-Flip → läuft im **Subagent** (Phase 2); die inhaltlichen Sibling-Edits (5e.2) sind User-Gate (propose+bestätigen) → **Hauptthread** (Phase 3), gespeist aus den `annahme-drift`-Markern, die der Subagent-Report zurückgibt.
 
+<!-- mirror-xform:start codex-wrapup-phase-labels -->
 1. **Anker-Tracker-Tick — prose-geführt** `[Phase 2 · Sonnet-Subagent]` (kein Script wie 5b–5d; ein Edit nach Augenmaß). Anker-Body **unmittelbar vor dem Write neu fetchen**. In der **Slices-Tabelle** die **genau eine** Zeile finden, deren **Sub-Issue-Spalte `#<n>`** trägt (= der gemergte Slice) → ihre **Status-Zelle** flippen: `⬜`/`🔄` → `✅ #<PR>` (Emoji-Tabelle — **keine** `- [ ]`-Checkbox; das war der Mismatch). Match über `#<n>` (robuster als der Titel). Mehrdeutig / 0 Treffer / Race → **stop + vorschlagen** (kein Blind-Regex, der die falsche Zeile/`#n` trifft). Die Status-Spalte ist **`wrapup`-gepflegt**; der native „Sub-issues progress"-Rollup ist die %-Zweitsicht. Ersetzt den alten reinen Step-6-Reminder.
+<!-- mirror-xform:end -->
 1b. **Anker-Komplett-Check (direkt nach dem Tick)** `[Erkennung Phase 2 · Close Phase 3]`: Nach dem Flip prüfen, ob **alle** Slice-Zeilen der Tabelle `✅` tragen (kein `⬜`/`🔄` mehr) — Ergebnis als `anker-komplett: ja/nein` in den Subagent-Report. Bei **ja** schließt der **Hauptthread** (Phase 3) den Anker: `gh issue close <anker#> -c "Welle abgeschlossen — alle Slices via PR #<PR> gemerged."` und verifiziert den Board-Status `Done` (Auto-Rule Issue-closed→Done). Begründung: der Schutz hält den Anker von **jedem** Auto-Close fern — geschlossen wird er ausschließlich hier, nach belegtem Komplett-Stand. Ohne diesen Step bleibt er nach dem letzten Slice still offen (Lücke PR). Out-of-scope-Reste der Welle gehören als eigene Issues raus, nicht als Offen-Halter in den Anker.
 2. **Annahmen-Propagation — VORSCHLAGEN + BESTÄTIGEN** (Q2) `[Phase 3 · Hauptthread]`. `annahme-drift`-Marker aus dem **Subagent-Report** (bzw. dem PR-Body) parsen (JSON). Pro Marker: Sibling-Edit entwerfen (z. B. `## Vor Bau zu klären` des Ziel-Issues ergänzen) **+ `plan_revision` des Siblings re-stempeln**; dem User **anzeigen, bestätigen lassen, dann erst schreiben**. Stilles Schreiben verboten (Codex #15). Beides prose-geführt: der Tick (1.) ist ein eindeutiger Ein-Zeilen-Flip ohne User-Gate, die inhaltlichen Sibling-Edits sind judgment → propose + bestätigen.
 3. **Land-Sanity (non-blocking):** `python3 scripts/execute-ready-check.py --issue <anker#> --mode audit` → Zweiler; Drift im Report nennen.
