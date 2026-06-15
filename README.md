@@ -32,7 +32,7 @@ The skills aren't a grab-bag — they're four phases of one loop, entered throug
 single funnel no matter where your work starts. Each phase below names the failure
 mode it removes and the skills that remove it.
 
-![The workflow loop: idea / plan / backlog / raw-issue all funnel through an optional grill into one uniform PRD, which to-issues decomposes into an atomic issue or a wave anchor; a gate clears any unknown, then Execute → Land → Learn, which compounds back into the next idea.](docs/workflow.png)
+![The workflow loop: idea / plan / backlog / raw-issue all funnel through an optional grill into one uniform PRD, which to-issues decomposes into an atomic issue or a wave anchor; a gate clears any unknown, then Execute → Land → Learn, which compounds back into the next idea. Two further streams enter outside the funnel — a bug/anomaly through diagnose, and a code-fighting-the-structure change through zoom-out — both joining at Execute; a one-time repo-setup lane (setup-workflow, git-guardrails, setup-pre-commit) sits off the loop and installs the pre-commit/pre-push gate that Land relies on.](docs/workflow.png)
 
 <!--
   The image above is a pre-rendered PNG, not a live Mermaid block, on purpose:
@@ -106,20 +106,29 @@ publishes behind your back.
   and must fail for the right reason.
 - **`prototype`** — spike a throwaway when the path is genuinely unclear, so the
   real implementation is informed.
+
+**Two more skills are doors of their own, not funnel steps.** You reach for them
+when the work *starts* broken or tangled rather than from a fresh idea, so they
+enter outside the plan funnel and feed straight into Execute:
+
 - **`diagnose`** — a disciplined root-cause hunt for bugs (reproduce → isolate →
-  fix → prove), not a guess-and-patch.
+  fix → prove), not a guess-and-patch. Entered from a bug or anomaly, never the PRD
+  funnel; the fix it lands flows on into Execute.
 - **`zoom-out` / `improve-codebase-architecture`** — step back from the diff to
-  the structure when a change is fighting the codebase.
+  the structure when a change is fighting the codebase. A recon stream that either
+  becomes a planned slice (back through `to-issues`) or guides a refactor in place.
 
 ### 3. Land — ship without surprises
 
 > *The risky part is the merge: half-checked PRs, broken hooks, context lost at
 > handoff.* The land phase puts mechanical gates in front of the commit.
 
-- **`git-guardrails` / `setup-pre-commit`** — install the guardrails and a
-  pre-commit gate so secrets and broken builds can't slip through.
 - **`wrapup`** — the pre-PR closeout: live-verify the outcome, write the PR body,
   reconcile the board, and surface anything still open.
+- **The pre-commit / pre-push gate fires automatically** — TypeScript, lint, and
+  contract guards block a broken commit or push. You don't run a skill here; the
+  gate was installed once at setup (`git-guardrails` / `setup-pre-commit`, see
+  Configuration) and now guards every Land.
 - **Helper scripts** — `pr-body-check.py`, `execute-ready-check.py`, and
   `board-sync.py` keep the PR and the issue tracker honest (see Configuration).
 
@@ -155,6 +164,11 @@ writes:
 
 Each generated file carries a `setup-workflow` sentinel on its first line, so a
 re-run only fills what's missing and **never overwrites content you've filled in**.
+
+Two more one-time skills harden the repo when you adopt the kit:
+**`git-guardrails`** installs the secret / branch / broken-build guardrails, and
+**`setup-pre-commit`** wires the pre-commit gate. Run them once — afterwards the
+gate fires automatically on every commit and push (see the Land phase above).
 
 ### The board profile
 
@@ -219,10 +233,11 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 ## What's in the box
 
 **23 skills** (Plan: grill-me, grill-with-docs, to-prd, to-issues, board-to-waves,
-triage, spec-self-critique, verify-spike, decision-gate · Execute: tdd, prototype, diagnose, zoom-out,
-improve-codebase-architecture · Land: git-guardrails, setup-pre-commit, wrapup ·
-Learn: retro, write-a-skill · Setup: setup-workflow · Codex review: grill-me-codex,
-grill-with-docs-codex, codex-review), installed for both surfaces — `.claude/skills`
+triage, spec-self-critique, verify-spike, decision-gate · Execute: tdd, prototype ·
+Diagnose & refactor streams: diagnose, zoom-out, improve-codebase-architecture ·
+Land: wrapup · Learn: retro, write-a-skill · Setup: setup-workflow, git-guardrails,
+setup-pre-commit · Codex review: grill-me-codex, grill-with-docs-codex, codex-review),
+installed for both surfaces — `.claude/skills`
 (Claude Code) and `.agents/skills` (Codex).
 
 **Helper scripts** — `board_config.py` (profile loader), `board-sync.py`,
