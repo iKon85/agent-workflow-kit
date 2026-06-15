@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.2.1",
+  "kitVersion": "0.2.2",
   "files": [
     {
       "path": ".agents/skills/board-to-waves/SKILL.md",
