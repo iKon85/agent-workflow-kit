@@ -20,4 +20,4 @@ grill-with-docs (MIT); each carries Chase's `THIRD-PARTY-NOTICES.md`.
 
 ## Own work (MIT, Copyright (c) 2026 Niko (iKon85))
 
-retro, wrapup, spec-self-critique, board-to-waves — covered by the root LICENSE.
+retro, wrapup, spec-self-critique, board-to-waves, verify-spike, decision-gate — covered by the root LICENSE.

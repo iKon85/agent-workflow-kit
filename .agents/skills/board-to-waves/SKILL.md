@@ -57,7 +57,7 @@ Modell: **Opus** (Sichten/Plan/Brainstorm — Cross-Board-Urteil, <maintainer>s 
 
 ## Größe + `grill-needed` (je Kandidat)
 
-- **Größe + Risiko** in KI-Schritten, **nie Manntage** (CLAUDE.local): grobe Slice-Zahl, Backend-ja/nein, Modell-Mix, Risiko-Level (Race/Cache/Forecast/Migration → hoch).
+- **Größe + Risiko** in KI-Schritten, **nie Manntage** (sted-local): grobe Slice-Zahl, Backend-ja/nein, Modell-Mix, Risiko-Level (Race/Cache/Forecast/Migration → hoch).
 - **`grill-needed`-Flag** — feuert bei: viele Slices ODER fuzzy (Mitglieder sind `type:idea`/`type:research`, nicht entschieden) ODER subsystem-übergreifend ODER offene Produkt-Entscheidungen. = niedrige Entscheidungs-Reife.
   - **„diese Session"** wenn überschaubar, **„eigene Session"** wenn zu groß/fuzzy für nebenher. Empfehlung in den Stub, **<maintainer>s Call**.
 
@@ -98,15 +98,18 @@ Body aus `docs/agents/wave-anchor-template.md` **Stufe 1** (Kopf + Cluster-Herku
   # lokal auf `wave-stub-source: <thema-slug>` filtern → 1 Treffer ⇒ skip + melden (Stub existiert); >1 ⇒ STOP + melden; 0 ⇒ create
   ```
 
-**Kandidaten-Stub anlegen (cluster/Wave-los)** — Issue **ohne** `type:cluster` und **ohne** `--wave` (genau ein `type:*` + ein `priority:*`; Titel **ohne** `Welle <N>`-Präfix, da die Wave-Nummer erst bei der Promotion vergeben wird), ins Board hängen, Status `Triaged` (geclustert, noch nicht geplant). Danach reift `to-prd` den Stub (Mode B) zur Draft-PRD, `to-issues` promotet ihn zum Anker (setzt dann `type:cluster` + Wave):
+**Kandidaten-Stub anlegen (cluster/Wave-los)** — Issue **ohne** `type:cluster` und **ohne** `--wave` (genau ein `type:*` + ein `priority:*`; Titel **ohne** `Welle <N>`-Präfix, da die Wave-Nummer erst bei der Promotion vergeben wird), **mit `--wave-stub`** (durchsuchbarer „wartet auf Planung"-Filter — der HTML-Marker oben ist nur lokal greppbar, GitHub indexiert ihn nicht), ins Board hängen, Status `Triaged` (geclustert, noch nicht geplant). Danach reift `to-prd` den Stub (Mode B) zur Draft-PRD, `to-issues` promotet ihn zum Anker (setzt dann `type:cluster` + Wave, **strippt `wave-stub`** — der Stub verlässt die Planungs-Liste):
 ```bash
 python3 scripts/board-sync.py create \
   --title "<Outcome/Thema>" \
   --body-file <stub.md> \
   --label "type:feature" --label "priority:medium" \
+  --wave-stub \
   --status Triaged
 ```
 Gibt `#<STUB_NUM> <URL>` aus. `--dry-run` zeigt die `gh`-Aufrufe ohne Schreiben. (Fuzzy/unentschiedener Kandidat → `type:research` statt `type:feature`.)
+
+**Offene Stubs durchsuchen** (= „was muss ich noch planen"): `gh issue list --label wave-stub --state open` bzw. Board-Filter `is:open label:wave-stub`. Bei `to-issues`-Promotion (Welle) **oder** atomar-Publish (`add --bucket`) wird `wave-stub` automatisch gestrippt — kein manueller Edit.
 
 **Mitglieds-Issues:** im Stub-Body listen (#…). **Noch kein** Wave-Stempel und **kein** nativer Parent-Link beim Clustern — beides setzt `to-issues` bei der Promotion. Dass die Member bis dahin in der „wave-los"-View (`is:open no:wave`) auftauchen, ist **korrekt**: ein Kandidat ist noch keine committete Welle.
 

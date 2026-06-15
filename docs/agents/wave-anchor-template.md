@@ -45,11 +45,13 @@ Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Pr
 
 Reihenfolge (WSJF-lite): sichtbar + low-risk zuerst → Logik/Backend → Cleanup. Abhängigkeiten erzwingen Reihenfolge.
 
-| # | Status | Slice | Sub-Issue | Branch | Modell | Backend? | schließt/refs |
-|---|---|---|---|---|---|---|---|
-| 1 | ⬜ | <Slice-Titel> | #<sub> | `feat/<#>-<slug>` | <Sonnet/Opus> | <ja/nein> | <closes #x / refs #y> |
+| # | Status | Slice | Sub-Issue | Branch | Modell | Gate | Backend? | schließt/refs |
+|---|---|---|---|---|---|---|---|---|
+| 1 | ⬜ | <Slice-Titel> | #<sub> | `feat/<#>-<slug>` | <Sonnet/Opus> | <—/🧭/🔬/📐/📝> | <ja/nein> | <closes #x / refs #y> |
 
 Status-Legende: ⬜ offen · 🔄 in Arbeit · ✅ merged #<PR>. **Jeder Slice = ein Sub-Issue** (`#<sub>`) — die **Status-Zelle tickt `wrapup` (Step 5e.1) beim Merge automatisch** (`⬜`/`🔄` → `✅ #<PR>`, gematcht über die Sub-Issue-Spalte); der native „Sub-issues progress"-Rollup ist die %-Zweitsicht.
+
+**Gate-Legende (Retro):** `—` AFK-Bau (`/tdd`) · 🧭 Design-Grill (`grill-with-docs-codex`, ADR) · 🔬 Verify-Spike (read-only Faktenfrage) · 📐 Abwägung/Research (Trade-off/Research, read-only, unter Grill-Schwelle) · 📝 Review-Notiz (kein Bau-Slice). Ein Gate-Slice (🧭/🔬/📐) steht **vor** seinem abhängigen Bau-Slice (gate-before-build) + blockt ihn.
 
 **Schließbedingungen:** <Issue #x → nach welchen Slices> · <…> · Anker #<self> → alle Slices merged + native Sub-Issues 100 %.
 

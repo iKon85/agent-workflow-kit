@@ -43,7 +43,8 @@ How the board-managed workflow skills (`to-prd`, `to-issues`, `board-to-waves`, 
   "labels": {
     "readyForAgent": "ready-for-agent",
     "typePrefix": "type:",
-    "clusterType": "type:cluster"
+    "clusterType": "type:cluster",
+    "waveStub": "wave-stub"
   },
   "branchPrefixes": ["feat", "fix", "chore", "docs"],
   "prMarkers": {
