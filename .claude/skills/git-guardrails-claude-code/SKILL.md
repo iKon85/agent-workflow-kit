@@ -10,7 +10,7 @@ Sets up a PreToolUse hook that intercepts and blocks dangerous git commands befo
 
 ## What Gets Blocked
 
-- `git push` (all variants including `--force`)
+- `git push` **to `main`/`master`** and any **force-push** (`--force` / `-f` / `--force-with-lease`). A normal feature-branch push (`git push -u origin <feature>`, `git push origin --delete <branch>`) is **allowed** — the git-level `pre-push` hook is the backstop for direct-to-`main` pushes.
 - `git reset --hard`
 - `git clean -f` / `git clean -fd`
 - `git branch -D`

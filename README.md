@@ -239,13 +239,15 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**23 skills** (Plan: grill-me, grill-with-docs, to-prd, to-issues, board-to-waves,
+**24 skills** (Plan: grill-me, grill-with-docs, to-prd, to-issues, board-to-waves,
 triage, spec-self-critique, verify-spike, decision-gate · Execute: tdd, prototype ·
 Diagnose & refactor streams: diagnose, zoom-out, improve-codebase-architecture ·
 Land: wrapup · Learn: retro, write-a-skill · Setup: setup-workflow, git-guardrails,
 setup-pre-commit · Codex review: grill-me-codex, grill-with-docs-codex, codex-review),
 installed for both surfaces — `.claude/skills`
-(Claude Code) and `.agents/skills` (Codex).
+(Claude Code) and `.agents/skills` (Codex) — plus `codex-adapter-sync`
+(Codex-only: keeps the `.agents/skills` mirror in sync with the `.claude/skills`
+source for dual-surface repos).
 
 **Helper scripts** — `board_config.py` (profile loader), `board-sync.py`,
 `execute-ready-check.py`, `pr-body-check.py`, the handoff drift-guard and
@@ -267,7 +269,7 @@ board-status hooks, the opt-in LoC-offender gate, and a wave-anchor template.
 - The `grill-*-codex` / `codex-review` cross-model review is by **Chase AI**
   (https://github.com/chaseai-yt/grill-me-codex), MIT.
 - `retro`, `wrapup`, `spec-self-critique`, `board-to-waves`, `verify-spike`,
-  `decision-gate` are original work.
+  `decision-gate`, `codex-adapter-sync` are original work.
 
 Full origin + license of every skill is in [PROVENANCE.md](PROVENANCE.md).
 

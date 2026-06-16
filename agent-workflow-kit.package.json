@@ -1,12 +1,21 @@
 {
-  "kitVersion": "0.2.5",
+  "kitVersion": "0.3.0",
   "files": [
     {
       "path": ".agents/skills/board-to-waves/SKILL.md",
       "kind": "skill",
       "ownerSkill": "board-to-waves",
       "surface": "codex",
-      "sha256": "29e7dc9564bf0c0f9b5486e805c52f16234c9e3c3d730e7c3a494e992f7a02cc",
+      "sha256": "3fc010a2c2a2ea81ebb8301a67b9cc156e789cc70b95208cc1bf1b85cc07412c",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/codex-adapter-sync/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "codex-adapter-sync",
+      "surface": "codex",
+      "sha256": "5cbb4bdb66180a523d4ddb958f8d71608e58ab7759580f3d07664a9c0c32a30a",
       "mode": 420,
       "origin": "kit"
     },
@@ -213,7 +222,7 @@
       "kind": "skill",
       "ownerSkill": "retro",
       "surface": "codex",
-      "sha256": "9dbf9c7b6d723f050e5de712644c86d9ecc8eae78f00aca5546cdd7813cd5670",
+      "sha256": "b748036367a5c7017238016a5f604e0f4ebb38cfd7b919850b6c58431a54eda9",
       "mode": 420,
       "origin": "kit"
     },
@@ -474,7 +483,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "codex",
-      "sha256": "a34a0f8f6869c41f9d56e52db57a9b0ddcd608cc2e30bc6ba53c024ea1f8a2a9",
+      "sha256": "a6c1d8e5bc8a25bea3a84318072a918acbca15409e9d69a9ffc2a9e35733f83d",
       "mode": 420,
       "origin": "kit"
     },
@@ -522,7 +531,7 @@
       "kind": "skill",
       "ownerSkill": "board-to-waves",
       "surface": "claude",
-      "sha256": "9597dba0803409e9911174b65dd4a80b81ba0ca09874e74cdf50bcc574c168ab",
+      "sha256": "8d84eb336fb93c6aea98dd94c9926d625e905f9f2c3c89fac2ac419728693f33",
       "mode": 420,
       "origin": "kit"
     },
@@ -585,7 +594,7 @@
       "kind": "skill",
       "ownerSkill": "git-guardrails-claude-code",
       "surface": "claude",
-      "sha256": "234922b83c0a1737ee7300806c21ac0f389b07aaeb65c2d71ccedafbc5e1ea4b",
+      "sha256": "3a9725d178639756598b4fbd3b77a6a206f22a3a0f7ec661267147644bae20b9",
       "mode": 420,
       "origin": "kit"
     },
@@ -594,7 +603,7 @@
       "kind": "skill",
       "ownerSkill": "git-guardrails-claude-code",
       "surface": "claude",
-      "sha256": "c0732a032876cf4ab33385fb0993dbe85206d3f98f567ccb3db3ffbdaec0df8f",
+      "sha256": "dd77df8c1419d55102169127c420cd989af95828c3f82bb85536ffdfaf7e0bcd",
       "mode": 420,
       "origin": "kit"
     },
@@ -828,7 +837,16 @@
       "kind": "skill",
       "ownerSkill": "retro",
       "surface": "claude",
-      "sha256": "d835747f339b4cd0466e148552d7c2482102807dd1bb165ed0267f508e21a9c8",
+      "sha256": "ae6271b6bb1944bdb1df1b06e5e16a9304634e4333dfad0b5e5d008f78794ac7",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/setup-pre-commit/scripts/pre-commit.template.sh",
+      "kind": "skill",
+      "ownerSkill": "setup-pre-commit",
+      "surface": "claude",
+      "sha256": "b64a0af66a52f397f7495d2e27ea6a2bf33cd7bc9c57fd18061ae5036296e5d3",
       "mode": 420,
       "origin": "kit"
     },
@@ -837,16 +855,7 @@
       "kind": "skill",
       "ownerSkill": "setup-pre-commit",
       "surface": "claude",
-      "sha256": "872f4037cb7e6e0e340d4175c086550072959925dffc87b160d1a30dc9f63bbd",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/skills/setup-pre-commit/THIRD-PARTY-NOTICES.md",
-      "kind": "doc",
-      "ownerSkill": "setup-pre-commit",
-      "surface": "claude",
-      "sha256": "4d1bc428a89549a50dbd4aed8ff0bed8f7393dce81ed116e292cd77ae2c05916",
+      "sha256": "b2c727f5922dce2acb21bfa055c208a20893f7a54e4967656a64beeedec90ebe",
       "mode": 420,
       "origin": "kit"
     },
@@ -1107,7 +1116,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "claude",
-      "sha256": "5c7cce7f62b57e7ed7c2e974c68e1fd72d66402174c03f0f625b02792efe6b40",
+      "sha256": "f6d4b8b0136076a3a59c5232904073425797638cde5b6825b2094f18433a534e",
       "mode": 420,
       "origin": "kit"
     },
