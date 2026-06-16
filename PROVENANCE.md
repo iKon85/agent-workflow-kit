@@ -8,7 +8,7 @@ not byte-identity.
 
 to-prd, to-issues, grill-with-docs, grill-me, tdd, diagnose, zoom-out,
 improve-codebase-architecture, prototype, triage, write-a-skill,
-git-guardrails-claude-code, setup-pre-commit, setup-workflow.
+git-guardrails-claude-code, setup-workflow.
 
 Each carries a `THIRD-PARTY-NOTICES.md` with its upstream path.
 
@@ -20,4 +20,8 @@ grill-with-docs (MIT); each carries Chase's `THIRD-PARTY-NOTICES.md`.
 
 ## Own work (MIT, Copyright (c) 2026 Niko (iKon85))
 
-retro, wrapup, spec-self-critique, board-to-waves, verify-spike, decision-gate — covered by the root LICENSE.
+retro, wrapup, spec-self-critique, board-to-waves, verify-spike, decision-gate,
+codex-adapter-sync, setup-pre-commit — covered by the root LICENSE.
+`setup-pre-commit` was rewritten from Matt Pocock's husky-based skill to a
+zero-dep native git `core.hooksPath` scaffold; nothing of the original
+mechanic remains (courtesy attribution).

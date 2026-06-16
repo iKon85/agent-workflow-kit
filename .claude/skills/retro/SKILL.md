@@ -82,7 +82,7 @@ Threshold-Trigger (einer reicht):
 Wenn Trigger gerissen:
 - Im Output ein Satz: "Memory-Sweep-Probe: N aktive Memory-Files, X Zeilen MEMORY.md — über Token-Hygiene-Ziel (<35 Files)."
 - Konfig-Patch-Vorschlag in Step 3 mitgeben:
-  "Patch X — Memory-Set über <35. Veraltete/erledigte Memories identifizieren + löschen (prune-on-touch). Vor jedem Löschen Inhalt prüfen; Recovery nur via `archive/` + `./scripts/consolidate-memories.sh --restore <slug>`. **Wirkt auf:** Memory · **Gewicht:** niedrig (Hygiene, punktuell)."
+  "Patch X — Memory-Set über <35. Veraltete/erledigte Memories identifizieren + löschen (prune-on-touch). Vor jedem Löschen Inhalt prüfen; gelöschte Memory-Files nach `archive/` verschieben (statt hart löschen), damit Recovery möglich bleibt. **Wirkt auf:** Memory · **Gewicht:** niedrig (Hygiene, punktuell)."
   Wie jeder Step-4-Patch trägt auch dieser die `Wirkt auf / Gewicht`-Zeile (3b/Step 4).
 
 Wenn 0 Trigger:

@@ -108,7 +108,7 @@ if [ -n "$(git status --porcelain)" ]; then
   git commit -m "<conventional message aus dem Diff>"
 fi
 ```
-**Pre-commit-Hook (husky `tsc`+ESLint) feuert beim Commit** — neu in diesem Pfad (früher committete der User vor `/wrapup`, der Hook lief außerhalb). Schlägt er mit *vielen* `Cannot find module`/TS2307 quer über **fremde** Files fehl (nicht deine Slice-Files) → Worktree-`node_modules` fehlt/stale, **kein** echter Fehler: `pnpm install --frozen-lockfile` (warmer Store, ~Sek.), dann erneut committen. **Nie `--no-verify`.** Echte TS-/Lint-Fehler in *deinen* Slice-Files = berechtigter Stop → beheben, nicht bypassen.
+**Pre-commit-Hook (`tsc`+ESLint via `.githooks/`, gesetzt über `core.hooksPath`) feuert beim Commit** — neu in diesem Pfad (früher committete der User vor `/wrapup`, der Hook lief außerhalb). Schlägt er mit *vielen* `Cannot find module`/TS2307 quer über **fremde** Files fehl (nicht deine Slice-Files) → (node/pnpm-Repo) Worktree-`node_modules` fehlt/stale, **kein** echter Fehler: `pnpm install --frozen-lockfile` (warmer Store, ~Sek.), dann erneut committen. **Nie `--no-verify`.** Echte TS-/Lint-Fehler in *deinen* Slice-Files = berechtigter Stop → beheben, nicht bypassen.
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
 **Step 0b — Ungepusht → pushen.** `[Phase 2 · Sonnet-Subagent]` Feature-Branch → `pre-push` erlaubt (nur `main` ist geblockt). Setzt Upstream idempotent:
@@ -147,7 +147,7 @@ gh pr view "$PR" --json state,mergeable,mergeStateStatus,statusCheckRollup
     <!-- annahme-drift: {"target":"","section":"Vor Bau zu klären","op":"append","text":"retro-Seam in 1g vereinheitlicht — vor Schnitt prüfen"} -->
     ```
   - **Zeile ohne `#<n>`-Ziel (malformed)** → **warnen + im Walkthrough klären** (Ziel nachtragen oder Eintrag bewusst verwerfen), **nie still droppen** (Spiegel zu „stilles Schreiben verboten", Step 5e).
-  - **Log fehlt/leer** (oder Nicht-Wellen-Slice ohne Log) → **Fallback retro-style: ICH bringe zuerst eigene Kandidaten ein, frage NICHT blank.** Wie bei `/retro` (User liefert Richtung + Freigabe, nicht das Impl-Detail — er kennt es meist nicht, ich habe gebaut; sted-local.md „Liegt X so vor? frage ich nicht <maintainer>"): die im Slice **bewusst getroffenen oder gekippten** Annahmen durchgehen, die ein **ungebautes** Geschwister-Issue tragen könnten, und sie als **benannte Kandidaten** vorlegen — je `- #<n>?: <Annahme> → trägt evtl. <Issue/Contract>`. Der User bestätigt / verwirft / priorisiert; bestätigte → Marker wie oben von Hand. **Null** Kandidaten → das **ausdrücklich sagen** („keine Drift gefunden — geprüft: <kurz, was berührt wurde>"), erst danach optional die Eine-Zeile-Absicherung *„etwas übersehen, das ein ungebautes Issue trägt?"*. Die blanke Frage ist **nie** Ersatz fürs eigene Durchgehen.
+  - **Log fehlt/leer** (oder Nicht-Wellen-Slice ohne Log) → **Fallback retro-style: ICH bringe zuerst eigene Kandidaten ein, frage NICHT blank.** Wie bei `/retro` (User liefert Richtung + Freigabe, nicht das Impl-Detail — er kennt es meist nicht, ich habe gebaut): die im Slice **bewusst getroffenen oder gekippten** Annahmen durchgehen, die ein **ungebautes** Geschwister-Issue tragen könnten, und sie als **benannte Kandidaten** vorlegen — je `- #<n>?: <Annahme> → trägt evtl. <Issue/Contract>`. Der User bestätigt / verwirft / priorisiert; bestätigte → Marker wie oben von Hand. **Null** Kandidaten → das **ausdrücklich sagen** („keine Drift gefunden — geprüft: <kurz, was berührt wurde>"), erst danach optional die Eine-Zeile-Absicherung *„etwas übersehen, das ein ungebautes Issue trägt?"*. Die blanke Frage ist **nie** Ersatz fürs eigene Durchgehen.
   - Kein Marker → nichts propagiert (eine vergessene Drift fängt der Drift-Guard am nächsten Handoff).
 - **Body-Konventions-Check (mechanisch) — nach Retro-Zeile + Annahme-Drift-Markern, gegen den finalen Body:** Das Script prüft die `closes`-vs-`Part of`-Regel (Anker-Schutz) + die `**Retro:**`-Pflichtzeile gegen den **realen PR-Body**. Es **parst KEINE `annahme-drift`-Marker** (deren Validierung ist bewusst nicht mechanisiert/R2-F6) — darum laufen die Marker-Writes davor. Issue-Nr. aus dem Branch, Parent via `board-sync.py parent-of`.
   ```bash
@@ -193,7 +193,7 @@ VITE_DEV_PORT="" BACKEND_PORT=""
 for p in "${VITE_DEV_PORT:-}" "${BACKEND_PORT:-}"; do
   [ -n "$p" ] && lsof -ti:"$p" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
 done
-# b) Alle node/tsx/vite/tsc/pnpm-Prozesse killen, deren cwd UNTER dem Worktree liegt
+# b) [node/pnpm-Stack-spezifisch — andere Runtimes: Prozessliste anpassen] Prozesse killen, deren cwd UNTER dem Worktree liegt
 #    (fängt den pnpm-dev-Parent + tsc-watch, die keinen Port halten, aber den Dir)
 while IFS= read -r pid; do
   cwd=$(readlink -f /proc/"$pid"/cwd 2>/dev/null) || continue

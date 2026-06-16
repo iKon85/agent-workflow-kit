@@ -57,7 +57,7 @@ Modell: **Opus** (Sichten/Plan/Brainstorm — Cross-Board-Urteil, <maintainer>s 
 
 ## Größe + `grill-needed` (je Kandidat)
 
-- **Größe + Risiko** in KI-Schritten, **nie Manntage** (sted-local): grobe Slice-Zahl, Backend-ja/nein, Modell-Mix, Risiko-Level (Race/Cache/Forecast/Migration → hoch).
+- **Größe + Risiko** als grobe Aufwands-Schätzung (kein fixes Zeit-Commitment): grobe Slice-Zahl, Backend-ja/nein, Modell-Mix, Risiko-Level (Race/Cache/Forecast/Migration → hoch).
 - **`grill-needed`-Flag** — feuert bei: viele Slices ODER fuzzy (Mitglieder sind `type:idea`/`type:research`, nicht entschieden) ODER subsystem-übergreifend ODER offene Produkt-Entscheidungen. = niedrige Entscheidungs-Reife.
   - **„diese Session"** wenn überschaubar, **„eigene Session"** wenn zu groß/fuzzy für nebenher. Empfehlung in den Stub, **<maintainer>s Call**.
 
@@ -126,4 +126,4 @@ Nächster Schritt (<maintainer>s Call, getrennt): grill → to-prd (reift den St
 - **Stoppt bei Stubs.** Niemals selbst PRD schreiben, slicen, linken, promoten oder `to-prd`/`to-issues` aufrufen.
 - Abgrenzung: `triage` = pro-Issue-State-Machine; `zoom-out` = Code-Comprehension; `board-to-waves` = board-weite Themen-Affinität. Verschiedene Flughöhen.
 - Rest-Topf ist OK und gewollt — nicht jedes Issue gehört in eine Welle. Zwangs-Clustern verwässert das Gate.
-- Größe/Risiko sind Schätzung (KI-Schritte), kein Commitment. Stub-Empfehlung „Wann grillen" überschreibt <maintainer> jederzeit.
+- Größe/Risiko sind eine grobe Schätzung, kein Commitment. Stub-Empfehlung „Wann grillen" überschreibt <maintainer> jederzeit.
