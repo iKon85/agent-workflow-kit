@@ -88,7 +88,7 @@ Rest (ungeclustert): #m #n …
 ### 4. Kandidaten-Stubs anlegen (je bestätigtem Kandidat)
 Body aus `docs/agents/wave-anchor-template.md` **Stufe 1** (Kopf + Cluster-Herkunft + To-Do-Checklist; Slice-Tabelle leer). Body **immer** `--body-file` (`gotchas_gh_body_file`).
 
-**Alle Board-Schreib-Mechaniken (Stub anlegen, ins Board hängen, Status stempeln) laufen über den geteilten Board-Sync-Helper** `scripts/board-sync.py` — keine bare `gh issue create`/`gh project item-*` mehr in dieser Prosa (per Lint erzwungen, `scripts/test_skill_gh_lint.py`; Board-Konstanten leben in `docs/agents/board-sync.md`).
+**Alle Board-Schreib-Mechaniken (Stub anlegen, ins Board hängen, Status stempeln) laufen über den geteilten Board-Sync-Helper** `scripts/board-sync.py` — keine bare `gh issue create`/`gh project item-*` mehr in dieser Prosa (per Lint erzwungen; Board-Konstanten leben in `docs/agents/board-sync.md`).
 
 **Idempotenz — Stub-Marker + search-before-create (Pflicht, VOR dem `create`).** Re-Runs von board-to-waves dürfen **keine** Duplikat-Stubs erzeugen (sonst verwirrt der Duplikat-Stub die Modus-B-Identität in `to-prd`). Spiegelt das `to-prd`-Muster:
 - **Stabiler Stub-Marker** `<!-- wave-stub-source: <thema-slug> -->` als **erste Body-Zeile** jedes Stubs. `<thema-slug>` = kebab-case-Slug des Gate-Outcomes; beim **ersten** Lauf gesetzt, danach **nie** geändert (Identität ≠ Inhalt — der Slug bleibt auffindbar, auch wenn sich Mitglieder/Größe später ändern).

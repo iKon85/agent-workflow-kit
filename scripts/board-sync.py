@@ -27,6 +27,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -171,6 +172,58 @@ def stamp_arg_list(item_id, wave, status, cluster, spec_path, plan_path) -> list
 
 def issue_number_from_url(url: str) -> int:
     return int(url.rstrip("/").rsplit("/", 1)[-1])
+
+
+# --- Phase-1 LoC-offender marker -------------------------------------
+# At the buildability transition (create with ready-for-agent / add --bucket afk),
+# if the slice's `## Blast-Radius` block names a still-listed offender, plant a
+# machine-readable marker so the build session is forewarned (Phase 1b) — the
+# authority remains the PR-push diff gate (Phase 2). Marker-before-ready ordering
+# is enforced by the call sites; no substantiality decision happens here.
+_BLAST_HEADING_RE = re.compile(r"^#{2,3}\s+Blast-Radius\b", re.IGNORECASE)
+_NEXT_HEADING_RE = re.compile(r"^#{1,6}\s")
+_BLAST_FIELD_RE = re.compile(r"^\*\*(?:Primary|Transitive):\*\*\s*(.+)$", re.IGNORECASE)
+_OFFENDER_MARKER_RE = re.compile(r"^<!--\s*loc-offender:.*-->\s*$", re.MULTILINE)
+
+
+def parse_blast_radius(body: str) -> set:
+    """Paths listed under the `## Blast-Radius` block (Primary + Transitive)."""
+    lines = (body or "").splitlines()
+    start = next((i for i, ln in enumerate(lines) if _BLAST_HEADING_RE.match(ln)), None)
+    if start is None:
+        return set()
+    paths: set = set()
+    for ln in lines[start + 1:]:
+        if _NEXT_HEADING_RE.match(ln):
+            break
+        m = _BLAST_FIELD_RE.match(ln.strip())
+        if not m:
+            continue
+        for tok in m.group(1).split(","):
+            tok = tok.strip().strip("`").strip()
+            if tok and "/" in tok:
+                paths.add(tok)
+    return paths
+
+
+def loc_offender_hits(body: str, offenders: set) -> list:
+    """Sorted intersection of the Blast-Radius paths with the offender baseline."""
+    return sorted(parse_blast_radius(body) & set(offenders))
+
+
+def plant_offender_marker(body: str, hits: list) -> str:
+    """Insert/replace the `<!-- loc-offender: … -->` marker at the top. Idempotent."""
+    if not hits:
+        return body
+    body = _OFFENDER_MARKER_RE.sub("", body or "").lstrip("\n")
+    marker = f"<!-- loc-offender: {','.join(hits)} -->"
+    return f"{marker}\n{body}"
+
+
+def read_offenders() -> set:
+    """The offender baseline from the single SSOT (max-lines-allowlist.json)."""
+    p = Path(__file__).resolve().parent.parent / "max-lines-allowlist.json"
+    return set(json.loads(p.read_text(encoding="utf-8")).get("offenders", []))
 
 
 def bucket_label_args(issue: int, bucket: Optional[str]) -> Optional[list[str]]:
@@ -337,9 +390,18 @@ def cmd_link(args) -> int:
 
 def cmd_create(args) -> int:
     hitl_guard(getattr(args, "hitl", False), args.label or [])
+    labels = list(args.label or [])
+    # Phase-1: a ready-for-agent slice whose Blast-Radius names an offender
+    # gets the marker planted INTO the body-file BEFORE `gh issue create`, so the
+    # issue is never briefly ready-without-marker (no partial-ready window). Skip in
+    # dry-run — that path must read no files / make no writes (parity tests).
+    if READY_FOR_AGENT in labels and not args.dry_run:
+        body = Path(args.body_file).read_text(encoding="utf-8")
+        hits = loc_offender_hits(body, read_offenders())
+        if hits:
+            Path(args.body_file).write_text(plant_offender_marker(body, hits), encoding="utf-8")
     create_args = ["issue", "create", "--repo", REPO, "--title", args.title,
                    "--body-file", args.body_file]
-    labels = list(args.label or [])
     if getattr(args, "wave_stub", False):
         labels.append(WAVE_STUB_LABEL)
     for label in labels:
@@ -396,12 +458,35 @@ def cmd_promote(args) -> int:
     return 0
 
 
+def _plant_marker_on_existing(issue: int) -> None:
+    """Fetch the live issue body; if its Blast-Radius names an offender, rewrite the
+    body with the marker via `gh issue edit --body-file`. No-op when no hit."""
+    body = _gh(["issue", "view", str(issue), "--repo", REPO, "--json", "body", "-q", ".body"])
+    hits = loc_offender_hits(body, read_offenders())
+    if not hits:
+        return
+    marked = plant_offender_marker(body, hits)
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
+        f.write(marked)
+        tmp = f.name
+    _gh(["issue", "edit", str(issue), "--repo", REPO, "--body-file", tmp])
+
+
 def cmd_add(args) -> int:
     url = args.url or f"https://github.com/{REPO}/issues/{args.issue}"
+    issue_no = args.issue or issue_number_from_url(url)
     _add_and_stamp(url, args.wave, args.status, args.cluster, args.spec_path, args.plan_path,
                    dry_run=args.dry_run)
-    label_args = bucket_label_args(args.issue or issue_number_from_url(url),
-                                   getattr(args, "bucket", None))
+    # Phase-1: for `--bucket afk`, plant the offender marker (fetch body →
+    # edit body) BEFORE the ready-for-agent label below, so an agent never grabs a
+    # ready issue whose body lacks the marker (Codex-R1-F6 ordering). Dry-run makes
+    # no gh calls (the body fetch is a network read), so it only notes the step.
+    if getattr(args, "bucket", None) == "afk":
+        if args.dry_run:
+            print(f"[dry-run] would check #{issue_no} Blast-Radius ∩ offenders + plant marker")
+        else:
+            _plant_marker_on_existing(issue_no)
+    label_args = bucket_label_args(issue_no, getattr(args, "bucket", None))
     if label_args is not None:
         if args.dry_run:
             _print_dry(label_args)

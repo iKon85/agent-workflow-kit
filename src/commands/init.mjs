@@ -1,13 +1,13 @@
 import { readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
-import { sha256File } from 'lib/hash.mjs';
-import { writeAtomic } from 'lib/atomicWrite.mjs';
-import { stubSentinel } from 'lib/sentinel.mjs';
-import { STUB_TARGETS } from 'lib/bundle.mjs';
+import { sha256File } from '../lib/hash.mjs';
+import { writeAtomic } from '../lib/atomicWrite.mjs';
+import { stubSentinel } from '../lib/sentinel.mjs';
+import { STUB_TARGETS } from '../lib/bundle.mjs';
 import {
   readManifest, writeManifest, emptyConsumerManifest,
   PACKAGE_MANIFEST_NAME, CONSUMER_MANIFEST_NAME,
-} from 'lib/manifest.mjs';
+} from '../lib/manifest.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
 

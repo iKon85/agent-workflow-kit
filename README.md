@@ -123,8 +123,10 @@ enter outside the plan funnel and feed straight into Execute:
 > *The risky part is the merge: half-checked PRs, broken hooks, context lost at
 > handoff.* The land phase puts mechanical gates in front of the commit.
 
-- **`wrapup`** — the pre-PR closeout: live-verify the outcome, write the PR body,
-  reconcile the board, and surface anything still open.
+- **`wrapup`** — the land-and-clean closeout: make the branch landable, enforce
+  the PR body contract, merge the PR, reconcile the board, sweep merged branches,
+  and surface anything still open. It does not replace live verification; verify
+  the user outcome before landing.
 - **The pre-commit / pre-push gate fires automatically** — TypeScript, lint, and
   contract guards block a broken commit or push. You don't run a skill here; the
   gate was installed once at setup (`git-guardrails` / `setup-pre-commit`, see
@@ -246,8 +248,8 @@ installed for both surfaces — `.claude/skills`
 (Claude Code) and `.agents/skills` (Codex).
 
 **Helper scripts** — `board_config.py` (profile loader), `board-sync.py`,
-`execute-ready-check.py`, `pr-body-check.py`, a handoff drift-guard hook, and a
-wave-anchor template.
+`execute-ready-check.py`, `pr-body-check.py`, the handoff drift-guard and
+board-status hooks, the opt-in LoC-offender gate, and a wave-anchor template.
 
 ## Requirements
 

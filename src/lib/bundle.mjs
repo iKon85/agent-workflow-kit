@@ -11,8 +11,22 @@ export const HELPER_FILES = [
   { path: 'scripts/board-sync.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/execute-ready-check.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/pr-body-check.py', kind: 'script', mode: 0o755 },
+  // Shared hook utility imported by the shipped hooks (drift-guard,
+  // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
+  // hooks ImportError on arrival.
+  { path: '.claude/hooks/_hook_utils.py', kind: 'hook', mode: 0o644 },
   { path: '.claude/hooks/drift-guard.py', kind: 'hook', mode: 0o755 },
+  // Board-status pickup hook — profile-driven (reads project/field/status ids
+  // from the consumer-seeded board profile), so it ships portably. /tdd names it.
+  { path: '.claude/hooks/sync-board-status.py', kind: 'hook', mode: 0o755 },
   { path: 'docs/agents/wave-anchor-template.md', kind: 'template', mode: 0o644 },
+  // Opt-in LoC-offender drive gate (setup-workflow §7b names it). Both are
+  // stdlib-only and profile-driven (threshold + offenders read from the
+  // consumer-seeded max-lines-allowlist.json), so they ship portably. The gate
+  // imports the core, so the core MUST ship too. core = library → 0o644;
+  // gate = invokable CLI (pre-push / manual) → 0o755.
+  { path: 'scripts/loc_offender_core.py', kind: 'script', mode: 0o644 },
+  { path: 'scripts/loc_offender_gate.py', kind: 'script', mode: 0o755 },
 ];
 
 // Project-layer docs `init` seeds as empty stubs (sentinel first line). NOT
