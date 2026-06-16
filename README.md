@@ -190,7 +190,12 @@ marked `<!-- board-sync:profile -->`:
     "specPath": "<field-id>",
     "planPath": "<field-id>"
   },
-  "labels": { "readyForAgent": "ready-for-agent", "typePrefix": "type:", "clusterType": "type:cluster" },
+  "labels": {
+    "readyForAgent": "ready-for-agent",
+    "typePrefix": "type:",
+    "clusterType": "type:cluster",
+    "waveStub": "wave-stub"
+  },
   "branchPrefixes": ["feat", "fix", "chore", "docs"],
   "prMarkers": { "partOf": "Part of", "retroMarker": "**Retro:**", "retroValues": ["done", "skipped"] },
   "headings": { "vorBau": "To clarify before building" }
