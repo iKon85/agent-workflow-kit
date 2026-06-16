@@ -1,8 +1,8 @@
 import { access, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { sha256File } from 'lib/hash.mjs';
-import { hookReferenced } from 'lib/settings.mjs';
-import { writeManifest, readManifest, emptyConsumerManifest, CONSUMER_MANIFEST_NAME } from 'lib/manifest.mjs';
+import { sha256File } from '../lib/hash.mjs';
+import { hookReferenced } from '../lib/settings.mjs';
+import { writeManifest, readManifest, emptyConsumerManifest, CONSUMER_MANIFEST_NAME } from '../lib/manifest.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
 

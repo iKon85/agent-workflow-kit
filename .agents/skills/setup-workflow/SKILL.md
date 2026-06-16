@@ -109,6 +109,20 @@ These are **structured-but-empty** crusts that `/retro` grows; do not ask the us
 
 Ask for the deploy target in plain terms (where does this ship, how is it deployed, what's the live URL?). Record it for the `## Prod` block (Write step). If the user has no deploy target, skip — do not invent one.
 
+### 7b. Section G — Size-Profil (optional LoC-offender gate, non-interactive)
+
+> **Optional, opt-in.** The kit ships a LoC-offender drive gate (`scripts/loc_offender_gate.py`) — a stdlib-only helper that flags files over a line threshold (e.g. wire it into a pre-push hook). It reads a **single threshold SSOT**: `maxLines` in `max-lines-allowlist.json` at the repo root. Seeding that file is harmless even if you never wire the gate; without it the gate has no profile to read. (The SSOT repo additionally enforces the same threshold as a project-specific test-runner fitness check — that check is **not** shipped; the portable gate is the Python helper above.)
+
+Seed `max-lines-allowlist.json` **only if absent** (never overwrite — its `offenders` array is curated debt):
+```json
+{
+  "maxLines": 300,
+  "vendored": [],
+  "offenders": []
+}
+```
+Adjust `maxLines` only if the consumer asks for a different line limit. `vendored` = permanently-exempt third-party primitives; `offenders` = the shrinking known-debt set (files already over the limit at adoption). Report `created · skipped (already present)`.
+
 ### 8. Write
 
 For each `docs/...` file: obey the idempotency contract (the "Idempotency contract" section). Prepend the sentinel with the resolved `state` (and `mode` for board-sync).

@@ -1,12 +1,12 @@
 {
-  "kitVersion": "0.2.2",
+  "kitVersion": "0.2.5",
   "files": [
     {
       "path": ".agents/skills/board-to-waves/SKILL.md",
       "kind": "skill",
       "ownerSkill": "board-to-waves",
       "surface": "codex",
-      "sha256": "ba6561f435a3a2b5e27a5b8091fcb11e4849af746f4276a9b065919676d2bf29",
+      "sha256": "29e7dc9564bf0c0f9b5486e805c52f16234c9e3c3d730e7c3a494e992f7a02cc",
       "mode": 420,
       "origin": "kit"
     },
@@ -267,7 +267,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "05091a744e852f8407a423e4a9fb3416167857951addee64e16eb698340fab92",
+      "sha256": "cab5125b7a0bb388898b785c02a731f333797e3fa335bc4a72124ada23492957",
       "mode": 420,
       "origin": "kit"
     },
@@ -393,7 +393,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "codex",
-      "sha256": "0257226ce91ac31af3beb5e392c37c2fbb815fe81cb6330d9ba4cf947316de5b",
+      "sha256": "434c8764cf75ad06026afa7d03acb3117330cac83bd7f0be6fdf9fe181c0220f",
       "mode": 420,
       "origin": "kit"
     },
@@ -497,9 +497,23 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/hooks/_hook_utils.py",
+      "kind": "hook",
+      "sha256": "d16ca26f3057a500cc67242fd67125d1715e7e7fd2984398545f6374fef497bb",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/hooks/drift-guard.py",
       "kind": "hook",
       "sha256": "cf5306968ebb5022089df271b1e333d9846f6c8ffdbc9c3364182300402cf12e",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/sync-board-status.py",
+      "kind": "hook",
+      "sha256": "b263ab81fcb0b9b08573ae911900286d0fdd9d4d699cc40bf650b326b090acd4",
       "mode": 493,
       "origin": "kit"
     },
@@ -508,7 +522,7 @@
       "kind": "skill",
       "ownerSkill": "board-to-waves",
       "surface": "claude",
-      "sha256": "c8269c354f9f2a8707d690af5785dbeac2bd3127a8f488b174a9841c8d4681d6",
+      "sha256": "9597dba0803409e9911174b65dd4a80b81ba0ca09874e74cdf50bcc574c168ab",
       "mode": 420,
       "origin": "kit"
     },
@@ -886,7 +900,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "05091a744e852f8407a423e4a9fb3416167857951addee64e16eb698340fab92",
+      "sha256": "cab5125b7a0bb388898b785c02a731f333797e3fa335bc4a72124ada23492957",
       "mode": 420,
       "origin": "kit"
     },
@@ -1012,7 +1026,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "claude",
-      "sha256": "0257226ce91ac31af3beb5e392c37c2fbb815fe81cb6330d9ba4cf947316de5b",
+      "sha256": "434c8764cf75ad06026afa7d03acb3117330cac83bd7f0be6fdf9fe181c0220f",
       "mode": 420,
       "origin": "kit"
     },
@@ -1150,7 +1164,7 @@
     {
       "path": "scripts/board-sync.py",
       "kind": "script",
-      "sha256": "1b64e4dee189bd67247a4eee78cf6e882652f00e8a2eb669cf305df54b697de8",
+      "sha256": "7f5e75ff2ae312036afcc60ade8325f183e3aeb9463d1cc79787824183fa1a1f",
       "mode": 493,
       "origin": "kit"
     },
@@ -1158,6 +1172,20 @@
       "path": "scripts/execute-ready-check.py",
       "kind": "script",
       "sha256": "23d67fe29704b24fe811423f1df89f11656529960ecc051a782e960ffcf019ca",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/loc_offender_core.py",
+      "kind": "script",
+      "sha256": "8da6377b1b46dcd3d945f2afe7535da58284319e552dac7bc5bb558dca430afc",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/loc_offender_gate.py",
+      "kind": "script",
+      "sha256": "6a01973418bd329c2170035ef09f087d37708e5eabd22b80a37e98b5c3dff857",
       "mode": 493,
       "origin": "kit"
     },

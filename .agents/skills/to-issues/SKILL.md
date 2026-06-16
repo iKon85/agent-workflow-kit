@@ -172,9 +172,13 @@ Status alone cannot discriminate (both are `Spec`) — the **label** does. The h
 <!-- slice-id: <stable-kebab-id> -->
 <!-- parent-prd: #<prd#> -->   <!-- omit for an atomar leaf -->
 **plan_revision:** r<N>        <!-- child mirrors the Anker's revision; atomar leaf carries its own -->
-**Blast-Radius:** ~N Dateien   <!-- recon estimate at the cut; the build session checks it against its own recon -->
 
 **Part of:** Welle <N> · Anker #<prd#>   <!-- visible child→anchor link (bare #N, not a /issues/ URL); omit for an atomar leaf -->
+
+## Blast-Radius
+**Primary:** <Dateien die dieser Slice direkt umbaut — kommagetrennt>
+**Transitive:** <mittelbar berührte/gelesene Dateien, „—" falls keine>
+<!-- strukturiert (Primary/Transitive), NICHT Skalar „~N Dateien": board-sync schneidet Primary∪Transitive ∩ bekannte LoC-Offender → loc-offender-Marker (Phase 1, Vorwarnung). Ein optionales pre-push-LoC-Gate (`scripts/loc_offender_gate.py`, opt-in) ist die durchsetzende Autorität (Phase 2). Recon-Schätzung am Schnitt: die Bau-Session prüft die gestempelte Schätzung gegen ihren Befund, real >2× → STOP, am Anker neu schneiden. -->
 
 ## What to build
 End-to-end behavior of this vertical slice (not layer-by-layer). Avoid file paths/snippets (stale fast).

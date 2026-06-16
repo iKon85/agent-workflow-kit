@@ -1,12 +1,12 @@
 import { readFile, access, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { sha256File } from 'lib/hash.mjs';
-import { writeAtomic, backupFile, lineDiff } from 'lib/atomicWrite.mjs';
-import { hookReferenced } from 'lib/settings.mjs';
+import { sha256File } from '../lib/hash.mjs';
+import { writeAtomic, backupFile, lineDiff } from '../lib/atomicWrite.mjs';
+import { hookReferenced } from '../lib/settings.mjs';
 import {
   readManifest, writeManifest, emptyConsumerManifest,
   PACKAGE_MANIFEST_NAME, CONSUMER_MANIFEST_NAME, indexByPath,
-} from 'lib/manifest.mjs';
+} from '../lib/manifest.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
 
