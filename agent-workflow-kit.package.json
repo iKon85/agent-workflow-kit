@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.3.0",
+  "kitVersion": "0.3.1",
   "files": [
     {
       "path": ".agents/skills/board-to-waves/SKILL.md",
@@ -222,7 +222,7 @@
       "kind": "skill",
       "ownerSkill": "retro",
       "surface": "codex",
-      "sha256": "b748036367a5c7017238016a5f604e0f4ebb38cfd7b919850b6c58431a54eda9",
+      "sha256": "bbf86bcf491698022c087da7f7a89ee84ba3f4644daa8f339b452e1ad533d574",
       "mode": 420,
       "origin": "kit"
     },
@@ -540,7 +540,7 @@
       "kind": "skill",
       "ownerSkill": "codex-review",
       "surface": "claude",
-      "sha256": "95dbfd6e3b6a45f37e3e95f9f13c8025db30bd1677bddf2e065b1e270b5b9511",
+      "sha256": "18b96a508e49e11695d6883710ccd66df1ee6176bafa7455f105b5f740615c75",
       "mode": 420,
       "origin": "kit"
     },
@@ -621,7 +621,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me-codex",
       "surface": "claude",
-      "sha256": "9ac5af29a65f5ae9df2a77c8d3ca8d4ee7c71af44322ecfecdc5b974478710fa",
+      "sha256": "3b81c3477623a8a0c8b97b276d4aa4084ec7b9b0081631035a7a2445f3589de1",
       "mode": 420,
       "origin": "kit"
     },
@@ -675,7 +675,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs-codex",
       "surface": "claude",
-      "sha256": "aa80d88b9214c0b74cc60a6e5fd5f6e5dba99c0c5d78937abf29a0038825a987",
+      "sha256": "96e5d5b732cd0fd47e6adda0ec3daa60d1d6f5f938c2fa329d1c004875767c48",
       "mode": 420,
       "origin": "kit"
     },
@@ -837,7 +837,7 @@
       "kind": "skill",
       "ownerSkill": "retro",
       "surface": "claude",
-      "sha256": "ae6271b6bb1944bdb1df1b06e5e16a9304634e4333dfad0b5e5d008f78794ac7",
+      "sha256": "b7a8b04e98aa30e4d4eb48e61dd2b2aed198dae5957c2a2b1f2779385bc3f2f0",
       "mode": 420,
       "origin": "kit"
     },
