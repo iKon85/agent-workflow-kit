@@ -237,6 +237,17 @@ npx github:iKon85/agent-workflow-kit uninstall   # remove kit-installed files
 still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 `--yes` / `-y` (non-interactive).
 
+## Release notes
+
+### 0.3.1
+
+- Uses run-scoped Codex temp output paths for cross-model review skills, so
+  parallel grill/review sessions do not collide on shared `/tmp` files.
+- Raises the `retro` memory-sweep trigger to 60 active files to avoid false
+  positives on healthy, content-checked memory sets.
+- Bumps the kit metadata to `0.3.1`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
+
 ## What's in the box
 
 **24 skills** (Plan: grill-me, grill-with-docs, to-prd, to-issues, board-to-waves,
