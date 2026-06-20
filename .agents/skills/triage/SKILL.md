@@ -1,7 +1,7 @@
 ---
 name: triage
 disable-model-invocation: true
-description: Triage issues through the project board workflow. Use when user wants to triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow.
+description: "Triage issues through the project board workflow. Use when user wants to triage issues, review incoming bugs or feature requests, prepare issues for an AFK agent, or manage issue workflow."
 ---
 
 # Triage

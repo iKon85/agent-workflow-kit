@@ -239,6 +239,17 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.3.2
+
+- Publishes the latest workflow guidance for `retro`, `to-issues`, and
+  `grill-with-docs-codex`: generalize retro patches to the underlying class,
+  prove absence-before-build before cutting new build slices, require gate
+  discipline, and track deferred phases in multi-phase plans.
+- Quotes YAML-sensitive Codex skill descriptions so Codex frontmatter validation
+  accepts descriptions with commas, colons, arrows, and quoted trigger phrases.
+- Bumps the kit metadata to `0.3.2`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
+
 ### 0.3.1
 
 - Uses run-scoped Codex temp output paths for cross-model review skills, so

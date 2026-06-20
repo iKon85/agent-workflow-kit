@@ -134,6 +134,8 @@ Bevor du in Step 4 einen Patch formulierst, ordne **jede** Friktion auf der Schw
 
 ### 4. Patch-Vorschläge (konkrete Empfehlung, keine Multiple-Choice mit Tech-Refs)
 
+**Generalisierungs-Check ZUERST (Pflicht, vor dem Formulieren) — Klasse statt Symptom.** Bevor du einen Patch schneidest, abstrahiere eine Ebene hoch: *„Wovon ist dieser Vorfall ein BEISPIEL?"* Der Patch deckt die **Klasse / das Prinzip** (alle Szenarien, in denen derselbe Mechanismus beißt) — der konkrete Vorfall ist nur das **Beispiel**, nicht der Scope. Symptom-enge Patches (genau-dieser-eine-Trigger) verfehlen die nächste Variante derselben Klasse, und der User muss nachsteuern. **ABER Klasse ≠ Spekulation:** nimm nur **verifizierte** Mitglieder der Klasse auf (Verify-First), strukturiere **erweiterbar** statt mit ungeprüften Mustern vollzupacken — zu breit (ungeprüft) ist derselbe Fehler wie zu eng, nur andersrum. (Retro: „blocke `(`" = Symptom → „Shim verarbeitet Regex anders als echtes ripgrep" = Klasse; aber `\d` bewusst NICHT aufgenommen, weil es auf ripgrep funktioniert = unverifizierter Breaker.)
+
 Für jeden Friction-Punkt: Claude formuliert **eine konkrete Empfehlung** mit kurzer Begründung in Alltagssprache. Format:
 
 > **Patch X — [eine Zeile Was].**

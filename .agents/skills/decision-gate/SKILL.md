@@ -1,6 +1,6 @@
 ---
 name: decision-gate
-description: Resolve a bounded trade-off choice or a targeted research gap with read-only investigation, a documented weigh-up, and a reasoned decision. Use when a plan or slice hinges on a concrete "which option" choice or a "need to research this first" gap that is above a binary yes/no fact (verify-spike) but below a high-stakes, hard-to-reverse, ADR-worthy decision (grill-with-docs-codex). Output is a trade-off table plus a justified pick sunk into an ADR/issue/comment. NOT for binary fact-checks (verify-spike), open-ended design feel (prototype), or bug root-cause (diagnose).
+description: "Resolve a bounded trade-off choice or a targeted research gap with read-only investigation, a documented weigh-up, and a reasoned decision. Use when a plan or slice hinges on a concrete \"which option\" choice or a \"need to research this first\" gap that is above a binary yes/no fact (verify-spike) but below a high-stakes, hard-to-reverse, ADR-worthy decision (grill-with-docs-codex). Output is a trade-off table plus a justified pick sunk into an ADR/issue/comment. NOT for binary fact-checks (verify-spike), open-ended design feel (prototype), or bug root-cause (diagnose)."
 ---
 
 # Decision Gate
