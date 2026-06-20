@@ -239,6 +239,19 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.3.3
+
+- Adds a counted-completeness planning guard to `grill-me`,
+  `grill-with-docs`, and their Codex review variants. Cross-cutting changes now
+  get classified before plan lock as either a grep-able pattern rollout or a
+  concept rollout that needs a code-derived surface matrix.
+- Makes "complete everywhere" claims evidence-based: plans should carry a fresh
+  census, guard test, or `X of Y` surface count instead of relying on memory.
+  This is aimed at avoiding partial migrations that only look complete from the
+  happy-path slice.
+- Bumps the kit metadata to `0.3.3`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
+
 ### 0.3.2
 
 - Publishes the latest workflow guidance for `retro`, `to-issues`, and

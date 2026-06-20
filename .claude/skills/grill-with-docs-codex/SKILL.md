@@ -106,6 +106,15 @@ If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](
 
 Ist der Plan ein **Multi-Phase-Pattern** (expand-contract, dual-write, Backfill, gestaffelter Rollout)? Dann **alle Phasen explizit aufzählen** (z.B. expand → read-switch → write-switch → contract), markieren welche in DIESEM Plan vs. **deferred** sind, und prüfen welcher **Ordering-Guard** Phase N vor Phase N-1 verhindert. Eine aufgeschobene Phase, die nur als Code-Kommentar lebt, ist ein Befund — sie gehört als Tracking-Issue ins Board (CLAUDE.md §Backlog-Workflow „Aufgeschobene Phase = sofort Tracking-Issue"). Welle 39: read-switch gebaut, write-switch nur kommentiert, das Contraction-Issue sprang voraus → Frame-Edits live verschattet.
 
+### Querschnitts-Weiche — Muster vs. Konzept
+
+Ist die Änderung **querschnittig** (neues Muster/Pattern ODER neue Datenstruktur/Domänen-Unterscheidung, betrifft ≥3 Stellen, ODER „überall / X von Y unterscheiden / migrieren")? Dann **während des Grills** klassifizieren — nicht in die Post-Spec-Self-Critique vertagen; die Klassifizierung wird Teil des `PLAN.md`, den Codex in Act 2 reviewt:
+
+- **Muster** (Alt→Neu, z.B. TanStack-Query ersetzt manuelles Laden): der Nenner ist **grep-bar** → in den Plan: Census aller Alt-Stellen + ein `*.guard.test.ts`, der rot bleibt, solange Alt-Stellen außerhalb einer schrumpfenden Allowlist existieren.
+- **Konzept** (neue Unterscheidung, z.B. Projekt↔Kampagne): `grep` findet die **Abwesenheit** eines Konzepts nicht → in den Plan: eine **code-abgeleitete** Flächen-Liste (Routen/Seiten/Exporte/Auswertungen) × **fachliches Verdikt pro Fläche** (zählt / N/A / offen); „zählt"-Zeilen werden getrackte Items.
+
+„vollständig" nie aus Plan/Gedächtnis behaupten — Nenner frisch zählen, `X von Y` melden. Substanz, Trigger-Schwelle + Guard-Template → die Projekt-Konvention-Datei `docs/conventions/spec-completeness.md` (falls vorhanden), §Querschnitts-Weiche.
+
 ### Handoff to Act 2
 
 When the decision tree is resolved, the glossary/ADRs are updated, and we're aligned, **write the agreed plan to `PLAN.md`** (use the canonical terms from `CONTEXT.md`), then run Act 2:
