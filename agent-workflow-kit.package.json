@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.3.2",
+  "kitVersion": "0.3.3",
   "files": [
     {
       "path": ".agents/skills/board-to-waves/SKILL.md",
@@ -60,7 +60,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me",
       "surface": "codex",
-      "sha256": "ee978e6d464514b0b04b678783d17c78c5d3d1450b90f04df560592cc22a2957",
+      "sha256": "524f76788d1f418e41e69a96a3ed7d094bfa66a3c8c37124bf6aad3269470b6d",
       "mode": 420,
       "origin": "kit"
     },
@@ -96,7 +96,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "codex",
-      "sha256": "ab6f64465b7e6aa0fd708ca254636ee0389570e1951e705784bc3a7265baea61",
+      "sha256": "deeb42936f1c803d3df3c99f32067aa02144ba9de0449c9564e1006af11c7162",
       "mode": 420,
       "origin": "kit"
     },
@@ -621,7 +621,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me-codex",
       "surface": "claude",
-      "sha256": "3b81c3477623a8a0c8b97b276d4aa4084ec7b9b0081631035a7a2445f3589de1",
+      "sha256": "027a79deb1fce2e11e8bb462ba328e5399955bf1e2d10106cb2039b9f9a1851f",
       "mode": 420,
       "origin": "kit"
     },
@@ -639,7 +639,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me",
       "surface": "claude",
-      "sha256": "37713bea4a47d1b1751e1c259943ab171faaf8cf59904de5331cb809dc90aea4",
+      "sha256": "7d13a519a00134988359fb7df0b58cd34aac743935e8bcddacda5384d7196938",
       "mode": 420,
       "origin": "kit"
     },
@@ -675,7 +675,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs-codex",
       "surface": "claude",
-      "sha256": "24bf0d459622f0b1809e4297aec426b4381bb10f610ec68128b5fc5483ddbb23",
+      "sha256": "a734ea22199f74cd894a37747955a7ceb24e5e1449b820198efe09a14a5f4037",
       "mode": 420,
       "origin": "kit"
     },
@@ -711,7 +711,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "claude",
-      "sha256": "c4929f90aa162fa34ce83273bffa08b499f393967b5b6a8427d103f8e81b230b",
+      "sha256": "8d3df1f3083a62ba35335dce2904473dd26bdaea70cc842c0f4a3d10313c18e1",
       "mode": 420,
       "origin": "kit"
     },
