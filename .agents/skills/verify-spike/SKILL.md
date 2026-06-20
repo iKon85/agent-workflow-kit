@@ -1,6 +1,6 @@
 ---
 name: verify-spike
-description: Answer a single yes/no factual question about reality with a minimal throwaway, read-only harness and output-proof. Use when a plan, ADR, or implementation hinges on an empirically-checkable fact — does a library API exist / behave this way on this version, does the runtime / DB / platform actually have this capability, does an external assumption hold — and you need a proven verdict before locking the decision. NOT for design exploration (prototype), bug root-cause (diagnose), or building a feature (tdd).
+description: "Answer a single yes/no factual question about reality with a minimal throwaway, read-only harness and output-proof. Use when a plan, ADR, or implementation hinges on an empirically-checkable fact — does a library API exist / behave this way on this version, does the runtime / DB / platform actually have this capability, does an external assumption hold — and you need a proven verdict before locking the decision. NOT for design exploration (prototype), bug root-cause (diagnose), or building a feature (tdd)."
 ---
 
 # Verify Spike

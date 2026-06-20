@@ -1,7 +1,7 @@
 ---
 name: to-prd
 disable-model-invocation: true
-description: Turn a locked plan (PLAN.md in the worktree, conversation context, or an externally-authored spec) into a Draft-PRD issue on the project board, then run spec-self-critique. Use after a grill (grill-me / grill-with-docs / their -codex variants) when you want to publish the PRD. Two modes — create fresh, or reuse an existing cluster/Wave-less issue. Does NOT decompose into slices (that is to-issues) and does NOT set type:cluster / Wave (that is to-issues promotion).
+description: "Turn a locked plan (PLAN.md in the worktree, conversation context, or an externally-authored spec) into a Draft-PRD issue on the project board, then run spec-self-critique. Use after a grill (grill-me / grill-with-docs / their -codex variants) when you want to publish the PRD. Two modes — create fresh, or reuse an existing cluster/Wave-less issue. Does NOT decompose into slices (that is to-issues) and does NOT set type:cluster / Wave (that is to-issues promotion)."
 ---
 
 # to-prd — Draft-PRD aufs Board

@@ -102,6 +102,10 @@ If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](
 
 </supporting-info>
 
+### Lifecycle-Vollständigkeit bei Multi-Phase-Plänen
+
+Ist der Plan ein **Multi-Phase-Pattern** (expand-contract, dual-write, Backfill, gestaffelter Rollout)? Dann **alle Phasen explizit aufzählen** (z.B. expand → read-switch → write-switch → contract), markieren welche in DIESEM Plan vs. **deferred** sind, und prüfen welcher **Ordering-Guard** Phase N vor Phase N-1 verhindert. Eine aufgeschobene Phase, die nur als Code-Kommentar lebt, ist ein Befund — sie gehört als Tracking-Issue ins Board (CLAUDE.md §Backlog-Workflow „Aufgeschobene Phase = sofort Tracking-Issue"). Welle 39: read-switch gebaut, write-switch nur kommentiert, das Contraction-Issue sprang voraus → Frame-Edits live verschattet.
+
 ### Handoff to Act 2
 
 When the decision tree is resolved, the glossary/ADRs are updated, and we're aligned, **write the agreed plan to `PLAN.md`** (use the canonical terms from `CONTEXT.md`), then run Act 2:
