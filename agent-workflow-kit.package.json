@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.3.3",
+  "kitVersion": "0.3.4",
   "files": [
     {
       "path": ".agents/skills/board-to-waves/SKILL.md",
@@ -96,7 +96,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "codex",
-      "sha256": "deeb42936f1c803d3df3c99f32067aa02144ba9de0449c9564e1006af11c7162",
+      "sha256": "283fc14f012a7e54fd4bd86b146dc06d1be17a11f51f487e3d5efa5d21b2d73c",
       "mode": 420,
       "origin": "kit"
     },
@@ -222,7 +222,7 @@
       "kind": "skill",
       "ownerSkill": "retro",
       "surface": "codex",
-      "sha256": "1ae8f183152ff689c7267db9a6794c01ff860003d8b3ac12cb2a6affba496e5a",
+      "sha256": "bb2ec62ba762ad9e745ad790b93d91909a919104692e5d243f90d742c33c0c28",
       "mode": 420,
       "origin": "kit"
     },
@@ -276,7 +276,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "cab5125b7a0bb388898b785c02a731f333797e3fa335bc4a72124ada23492957",
+      "sha256": "f361102f7a4978f3ab783ce686837aa710e1ba826b4d709f1314d8612eb2d445",
       "mode": 420,
       "origin": "kit"
     },
@@ -313,6 +313,15 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "sha256": "4f53c9b40ce2651e3611aa090eaedbd6dbc9b71ef8c5f7e65eac0d8263190d0d",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/setup-workflow/workflow-overview.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "codex",
+      "sha256": "063c270dbd8df0f6867d986126136c376bfe17ebc5bc982d63c9f342d50448f4",
       "mode": 420,
       "origin": "kit"
     },
@@ -483,7 +492,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "codex",
-      "sha256": "a6c1d8e5bc8a25bea3a84318072a918acbca15409e9d69a9ffc2a9e35733f83d",
+      "sha256": "1c18f2a75bede1d0b30b37b3c1c7cee05ea157c6d12df82bbcca275b1ea05687",
       "mode": 420,
       "origin": "kit"
     },
@@ -675,7 +684,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs-codex",
       "surface": "claude",
-      "sha256": "a734ea22199f74cd894a37747955a7ceb24e5e1449b820198efe09a14a5f4037",
+      "sha256": "e9fc28a09127aee1ffb9ea8fb90b9b5ca43f7d2c2645a7ad6e4ba2d9c9f3ff1e",
       "mode": 420,
       "origin": "kit"
     },
@@ -711,7 +720,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "claude",
-      "sha256": "8d3df1f3083a62ba35335dce2904473dd26bdaea70cc842c0f4a3d10313c18e1",
+      "sha256": "85e7c8126fc4410634c144c73be3337375f499f4cefc74f30a91f7818bfac5a3",
       "mode": 420,
       "origin": "kit"
     },
@@ -837,7 +846,7 @@
       "kind": "skill",
       "ownerSkill": "retro",
       "surface": "claude",
-      "sha256": "03a33bcbcdb335a751d7c1d2436c154224d9f0e26c371a17331e62f14d622757",
+      "sha256": "75b06752aa943d2ffff783e63cdb39a8d80ff8670d6902801bb344ec2c6872d3",
       "mode": 420,
       "origin": "kit"
     },
@@ -909,7 +918,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "cab5125b7a0bb388898b785c02a731f333797e3fa335bc4a72124ada23492957",
+      "sha256": "f361102f7a4978f3ab783ce686837aa710e1ba826b4d709f1314d8612eb2d445",
       "mode": 420,
       "origin": "kit"
     },
@@ -946,6 +955,15 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "sha256": "4f53c9b40ce2651e3611aa090eaedbd6dbc9b71ef8c5f7e65eac0d8263190d0d",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/setup-workflow/workflow-overview.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "claude",
+      "sha256": "063c270dbd8df0f6867d986126136c376bfe17ebc5bc982d63c9f342d50448f4",
       "mode": 420,
       "origin": "kit"
     },
@@ -1116,7 +1134,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "claude",
-      "sha256": "f6d4b8b0136076a3a59c5232904073425797638cde5b6825b2094f18433a534e",
+      "sha256": "298afd52c1c42493d3f56c4b42d0ffd1ccb8751ee86f7274eac5594e63064b1d",
       "mode": 420,
       "origin": "kit"
     },
@@ -1159,7 +1177,14 @@
     {
       "path": "docs/agents/wave-anchor-template.md",
       "kind": "template",
-      "sha256": "4ce6fec6f1245181dd1870efdec995b4bd057022074240b259fc9d3d19680b0f",
+      "sha256": "e0e63fe18646774d364592aa249c8be40920024fad66403956671c752f35473d",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/anchor_table.py",
+      "kind": "script",
+      "sha256": "8a03f5afce9473627d50ae03bd8150405eb0f85e1263abd5ee1360e33b8a438b",
       "mode": 420,
       "origin": "kit"
     },
@@ -1173,7 +1198,7 @@
     {
       "path": "scripts/board-sync.py",
       "kind": "script",
-      "sha256": "7f5e75ff2ae312036afcc60ade8325f183e3aeb9463d1cc79787824183fa1a1f",
+      "sha256": "2fb42b07061d2623b41800df2c704ed39b1f1ca15d818f8e40f9db2ac8a3379a",
       "mode": 493,
       "origin": "kit"
     },

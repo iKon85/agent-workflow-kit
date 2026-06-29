@@ -45,11 +45,13 @@ Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Pr
 
 Reihenfolge (WSJF-lite): sichtbar + low-risk zuerst → Logik/Backend → Cleanup. Abhängigkeiten erzwingen Reihenfolge.
 
+<!-- slice-table:start -->
 | # | Status | Slice | Sub-Issue | Branch | Modell | Gate | Backend? | schließt/refs |
 |---|---|---|---|---|---|---|---|---|
 | 1 | ⬜ | <Slice-Titel> | #<sub> | `feat/<#>-<slug>` | <Sonnet/Opus> | <—/🧭/🔬/📐/📝> | <ja/nein> | <closes #x / refs #y> |
+<!-- slice-table:end -->
 
-Status-Legende: ⬜ offen · 🔄 in Arbeit · ✅ merged #<PR>. **Jeder Slice = ein Sub-Issue** (`#<sub>`) — die **Status-Zelle tickt `wrapup` (Step 5e.1) beim Merge automatisch** (`⬜`/`🔄` → `✅ #<PR>`, gematcht über die Sub-Issue-Spalte); der native „Sub-issues progress"-Rollup ist die %-Zweitsicht.
+Status-Legende: ⬜ offen · 🔄 in Arbeit · ✅ merged #<PR>. **Jeder Slice = ein Sub-Issue** (`#<sub>`). **Die volatilen Spalten Status + Branch generiert `board-sync.py anchor-sync <anker#>` aus dem Board** (zwischen den `<!-- slice-table:start/end -->`-Markern; `wrapup` Step 5e.1 ruft es beim Merge) — monoton (kippt nie ein `✅`/`🔄` zurück), driftfrei idempotent; **stabile Plan-Spalten (Slice/Modell/Gate/Backend?/refs) bleiben hand-gepflegt** und überleben verbatim. Fehlende Sub-Issue-Zeilen hängt es an (Gen-b-Split). **Marker nicht löschen** — ohne sie kann `anchor-sync` die Tabelle nicht finden (Erstlauf lokalisiert sie über die `Status`+`Sub-Issue`-Kopfzeile und setzt die Marker selbst). Der native „Sub-issues progress"-Rollup ist die %-Zweitsicht.
 
 **Gate-Legende (Retro):** `—` AFK-Bau (`/tdd`) · 🧭 Design-Grill (`grill-with-docs-codex`, ADR) · 🔬 Verify-Spike (read-only Faktenfrage) · 📐 Abwägung/Research (Trade-off/Research, read-only, unter Grill-Schwelle) · 📝 Review-Notiz (kein Bau-Slice). Ein Gate-Slice (🧭/🔬/📐) steht **vor** seinem abhängigen Bau-Slice (gate-before-build) + blockt ihn.
 

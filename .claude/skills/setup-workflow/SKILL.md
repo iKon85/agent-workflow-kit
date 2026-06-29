@@ -1,6 +1,6 @@
 ---
 name: setup-workflow
-description: "Scaffolds the project layer the portable workflow skills assume — issue tracker, triage labels, domain-doc layout, GitHub-Projects board field-IDs, spec-self-critique + spec-completeness seeds, and the deploy target. Writes `docs/agents/*`, `docs/conventions/spec-completeness.md`, and the `## Agent skills` + `## Prod` blocks in CLAUDE.md/AGENTS.md. Idempotent: a re-run reconciles per file/section and never overwrites filled content. Run once after installing the skills (or `npx <pkg> init`), or when a skill reports missing project-layer context. Adapted from Matt Pocock's `setup-matt-pocock-skills` (MIT)."
+description: "Scaffolds the project layer the portable workflow skills assume — issue tracker, triage labels, domain-doc layout, GitHub-Projects board field-IDs, spec-self-critique + spec-completeness seeds, workflow overview, and the deploy target. Writes `docs/agents/*`, `docs/conventions/spec-completeness.md`, and the `## Workflow` / `## Agent skills` / `## Prod` blocks in CLAUDE.md/AGENTS.md. Idempotent: a re-run reconciles per file/section and never overwrites filled content. Run once after installing the skills (or `npx <pkg> init`), or when a skill reports missing project-layer context. Adapted from Matt Pocock's `setup-matt-pocock-skills` (MIT)."
 disable-model-invocation: true
 ---
 
@@ -20,7 +20,8 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `docs/agents/board-sync.md` | GitHub-Projects field-IDs + board profile — **only meaningful for a GitHub tracker** (Section D) |
 | `docs/agents/skills/spec-self-critique.md` | per-point enrichment skeleton; `/retro` appends here (Section E) |
 | `docs/conventions/spec-completeness.md` | a valid `## Self-Critique-Check` convention seed (Section E) |
-| `## Agent skills` + `## Prod` in CLAUDE.md **and** AGENTS.md | one-line pointers + deploy target (Sections C/F + Write) |
+| `## Workflow` in CLAUDE.md **and** AGENTS.md | generic entry-point map seeded from [workflow-overview.md](./workflow-overview.md) (Section F + Write) |
+| `## Agent skills` + `## Prod` in CLAUDE.md **and** AGENTS.md | one-line pointers + deploy target (Sections C/G + Write) |
 
 ## Idempotency contract — read before writing anything
 
@@ -37,7 +38,7 @@ Every project-layer file this skill (or `npx init`) creates begins with **one se
   - First line is `state=filled` / `state=not-applicable` → **skip** (only the *first line* counts — a later mention of "setup-workflow" in the body does not).
   - File exists, **non-empty, no sentinel** (legacy / pre-existing) → treat as **legacy-filled**, **skip**, report it.
   - File exists but empty/whitespace, no sentinel → treat as fillable.
-- **CLAUDE.md / AGENTS.md carry no sentinel** (they are not ours) → reconcile **per section** via the block headers `## Agent skills` / `## Prod`: add a missing block, never overwrite an existing one or surrounding user content.
+- **CLAUDE.md / AGENTS.md carry no sentinel** (they are not ours) → reconcile **per section** via the block headers `## Workflow` / `## Agent skills` / `## Prod`: add a missing block, never overwrite an existing one or surrounding user content.
 - **Never overwrite filled content.** A re-run only fills what is missing/stub. End with a report: `<file>: created · filled · skipped (already filled / legacy / not-applicable)`.
 
 ## Process
@@ -47,7 +48,7 @@ Every project-layer file this skill (or `npx init`) creates begins with **one se
 Read the current state; don't assume. For every target file, read its first line to classify it per the idempotency contract (missing / stub / filled / not-applicable / legacy).
 
 - `git remote -v` and `.git/config` — GitHub? GitLab? Which owner/repo?
-- `CLAUDE.md` and `AGENTS.md` at the repo root — which exist? Do they already have an `## Agent skills` / `## Prod` block?
+- `CLAUDE.md` and `AGENTS.md` at the repo root — which exist? Do they already have a `## Workflow` / `## Agent skills` / `## Prod` block?
 - `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/` — domain-doc layout.
 - `docs/agents/`, `docs/agents/skills/`, `docs/conventions/` — prior output of this skill.
 - `gh auth status` (if GitHub) — is `gh` authenticated, and with which scopes?
@@ -103,13 +104,19 @@ These are **structured-but-empty** crusts that `/retro` grows; do not ask the us
 
 > **Handoff drift-guard (`.claude/hooks/drift-guard.py`).** The repo ships a PreToolUse hook that blocks a `.handoff/*.md` Write when the linked issue's rooted graph is not execute-ready (it delegates all coherence to `scripts/execute-ready-check.py --mode handoff`). It self-filters to `.handoff/*.md` and fires **only once handoff docs exist** — a freshly scaffolded project carries the guard but has nothing to guard yet (silently inoperative until the first `.handoff/` write). This scaffold only **documents** the interplay; it does **not** build new mechanics. Once the project starts emitting handoffs, writes land in `.handoff/` and the guard activates automatically.
 
-### 7. Section F — Deploy target
+### 7. Section F — Workflow overview
+
+> The workflow overview is a short entry-point map: which skill to start with for a feature, ready plan, bug, implementation slice, or finished branch. It should stay generic; the detailed mechanics live in the individual skills and the project-layer docs.
+
+Seed `## Workflow` from [workflow-overview.md](./workflow-overview.md) when the target CLAUDE.md/AGENTS.md file has no `## Workflow` block. If a `## Workflow` block already exists, leave it untouched and report `skipped (already present)`; it is likely repo-specific.
+
+### 8. Section G — Deploy target
 
 > `wrapup` and live-verify reference where this project deploys (host, command, URL). It lives in the `## Prod` block of CLAUDE.md/AGENTS.md, not a separate file.
 
 Ask for the deploy target in plain terms (where does this ship, how is it deployed, what's the live URL?). Record it for the `## Prod` block (Write step). If the user has no deploy target, skip — do not invent one.
 
-### 7b. Section G — Size-Profil (optional LoC-offender gate, non-interactive)
+### 8b. Section H — Size-Profil (optional LoC-offender gate, non-interactive)
 
 > **Optional, opt-in.** The kit ships a LoC-offender drive gate (`scripts/loc_offender_gate.py`) — a stdlib-only helper that flags files over a line threshold (e.g. wire it into a pre-push hook). It reads a **single threshold SSOT**: `maxLines` in `max-lines-allowlist.json` at the repo root. Seeding that file is harmless even if you never wire the gate; without it the gate has no profile to read. (The SSOT repo additionally enforces the same threshold as a project-specific test-runner fitness check — that check is **not** shipped; the portable gate is the Python helper above.)
 
@@ -127,12 +134,17 @@ Adjust `maxLines` only if the consumer asks for a different line limit. `vendore
 
 For each `docs/...` file: obey the idempotency contract (the "Idempotency contract" section). Prepend the sentinel with the resolved `state` (and `mode` for board-sync).
 
-For the **`## Agent skills`** and **`## Prod`** blocks, reconcile per section in **both** CLAUDE.md and AGENTS.md that exist:
+For the **`## Workflow`**, **`## Agent skills`**, and **`## Prod`** blocks, reconcile per section in **both** CLAUDE.md and AGENTS.md that exist:
 
 - If **both** files exist → write/update the block in **both** (keep them coherent — Codex is a first-class surface).
 - If **one** exists → that one.
 - If **neither** exists → ask the user which surface(s) to create (**default `CLAUDE.md`**), then write there.
+- If a `## Workflow` block already exists → skip it; this block is often repo-specific.
 - If an `## Agent skills` / `## Prod` block already exists → update its contents in-place; never duplicate or clobber surrounding user content.
+
+`## Workflow` block:
+
+Use [workflow-overview.md](./workflow-overview.md) verbatim as the generic seed.
 
 `## Agent skills` block:
 

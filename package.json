@@ -1,6 +1,6 @@
 {
   "name": "agent-workflow-kit",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Portable AI-agent workflow skills (plan → execute → land → learn) for Claude Code & Codex. npx init/update/diff/uninstall.",
   "type": "module",
   "bin": {

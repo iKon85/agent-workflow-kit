@@ -239,6 +239,22 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.3.4
+
+- Ships `board-sync.py anchor-sync` plus the `anchor_table.py` helper, so wave
+  anchors can regenerate Slices-table Status/Branch cells from the board instead
+  of relying on hand-ticked rows.
+- Updates `wrapup` and the wave-anchor template to use the new anchor-sync flow,
+  including dry-run review, stable plan-column preservation, and appended rows for
+  mid-wave split sub-issues.
+- Extends `setup-workflow` to seed a generic `## Workflow` overview in
+  `CLAUDE.md` / `AGENTS.md` when the consumer repo does not already have one.
+- Tightens planning guidance: grill skills now point to a code-derived impact
+  census when a project provides one, and `retro` uses agent-neutral wording for
+  Claude/Codex surfaces while raising the memory-sweep trigger to 65 active files.
+- Bumps the kit metadata to `0.3.4`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
+
 ### 0.3.3
 
 - Adds a counted-completeness planning guard to `grill-me`,
