@@ -54,6 +54,7 @@ READY_FOR_AGENT = _CFG["labels"]["readyForAgent"]
 TYPE_PREFIX = _CFG["labels"]["typePrefix"]
 CLUSTER_TYPE_LABEL = _CFG["labels"]["clusterType"]
 WAVE_STUB_LABEL = _CFG["labels"]["waveStub"]
+PROJECT_ITEM_LIST_LIMIT = 2000
 
 # Sub-issues GraphQL API is behind a preview feature gate per account.
 SUB_ISSUES_HEADER = "GraphQL-Features: sub_issues"
@@ -349,7 +350,7 @@ def _add_and_stamp(url, wave, status, cluster, spec_path, plan_path, dry_run) ->
 # --- commands ----------------------------------------------------------------
 def cmd_next_wave(_args) -> int:
     items = _gh_json(["project", "item-list", str(PROJECT_NUMBER), "--owner", PROJECT_OWNER,
-                      "--limit", "500", "--format", "json"]).get("items", [])
+                      "--limit", str(PROJECT_ITEM_LIST_LIMIT), "--format", "json"]).get("items", [])
     print(compute_next_wave(items))
     return 0
 
@@ -497,6 +498,66 @@ def cmd_add(args) -> int:
     return 0
 
 
+# --- anchor-sync: regenerate the wave-anchor Slices-table volatile cells
+# Pure table logic (parse/merge/refresh/render/splice) lives in anchor_table.py so
+# it is independently testable without gh/config; this file keeps only the gh-backed
+# board fetch + the command wiring. See anchor_table.py for the design rationale.
+from anchor_table import (  # noqa: E402
+    SLICE_TABLE_START, SLICE_TABLE_END,
+    split_pipe_row, is_separator_row, parse_pipe_table, render_pipe_table,
+    col_index, first_subissue_num,
+    status_token_from_board, status_base, refresh_status_cell,
+    branch_from_board, refresh_branch_cell, merge_slice_rows,
+    locate_slice_table, current_slice_table, splice_slice_table,
+    extract_anchor_board_data,
+)
+
+ANCHOR_SLICES_QUERY = (
+    "query($owner:String!,$repo:String!,$num:Int!){"
+    "repository(owner:$owner,name:$repo){issue(number:$num){"
+    "subIssues(first:100){nodes{number title "
+    "closedByPullRequestsReferences(first:10,includeClosedPrs:true)"
+    "{nodes{number state headRefName}} "
+    "projectItems(first:10){nodes{s:fieldValueByName(name:\"Status\")"
+    "{... on ProjectV2ItemFieldSingleSelectValue{name}}}}"
+    "}}}}}"
+)
+
+
+def _anchor_board_data(num: int) -> dict:
+    data = _gh_json(["api", "graphql", "--header", SUB_ISSUES_HEADER,
+                     "-f", f"query={ANCHOR_SLICES_QUERY}",
+                     "-F", f"owner={PROJECT_OWNER}", "-F", f"repo={REPO_NAME}",
+                     "-F", f"num={num}"])
+    return extract_anchor_board_data(data)
+
+
+def cmd_anchor_sync(args) -> int:
+    board = _anchor_board_data(args.issue)
+    body = _gh(["issue", "view", str(args.issue), "--repo", REPO, "--json", "body", "-q", ".body"])
+    headers, rows = current_slice_table(body)
+    if not headers:
+        print(f"#{args.issue}: no slice table found — nothing to sync", file=sys.stderr)
+        return 1
+    new_rows, appended = merge_slice_rows(headers, rows, board)
+    new_body = splice_slice_table(body, render_pipe_table(headers, new_rows))
+    appended_note = (f"; +{len(appended)} new sub-issue row(s): "
+                     f"{', '.join('#' + str(s) for s in appended)}" if appended else "")
+    if new_body == body:
+        print(f"#{args.issue}: slice table already in sync (no drift)")
+        return 0
+    if args.dry_run:
+        print(f"[dry-run] would update #{args.issue} slice table{appended_note}")
+        print(render_pipe_table(headers, new_rows))
+        return 0
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
+        f.write(new_body)
+        tmp = f.name
+    _gh(["issue", "edit", str(args.issue), "--repo", REPO, "--body-file", tmp])
+    print(f"synced #{args.issue} slice table from board{appended_note}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="board-sync.py", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="command", required=True)
@@ -557,6 +618,13 @@ def build_parser() -> argparse.ArgumentParser:
                     help="workflow-label write: afk → add ready-for-agent; hitl → strip it")
     ad.add_argument("--dry-run", action="store_true")
     ad.set_defaults(func=cmd_add)
+
+    asy = sub.add_parser("anchor-sync",
+                         help="regenerate a wave-anchor Slices-table's volatile cells "
+                              "(Status/Branch) from the board, in place")
+    asy.add_argument("issue", type=int, help="the wave-anchor issue number")
+    asy.add_argument("--dry-run", action="store_true")
+    asy.set_defaults(func=cmd_anchor_sync)
     return p
 
 

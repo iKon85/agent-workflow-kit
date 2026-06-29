@@ -8,6 +8,9 @@ export const HELPER_FILES = [
   // every board-specific value from docs/agents/board-sync.md through it, so it
   // MUST ship or they are broken-on-arrival. Library (imported, not run) → 0o644.
   { path: 'scripts/board_config.py', kind: 'script', mode: 0o644 },
+  // Pure Slices-table logic imported by board-sync.py for `anchor-sync` —
+  // library (imported, not run) → 0o644. MUST ship or board-sync.py ImportErrors.
+  { path: 'scripts/anchor_table.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/board-sync.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/execute-ready-check.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/pr-body-check.py', kind: 'script', mode: 0o755 },

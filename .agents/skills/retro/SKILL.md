@@ -14,11 +14,11 @@ A retro is a session-contained vehicle for surfacing friction and turning it int
 
 ## Symmetrie-Prinzip (Pflicht)
 
-**Retro-Input = User-Friction + Claude-Friction. Beide gleichberechtigt.**
+**Retro-Input = User-Friction + Agent-Friction. Beide gleichberechtigt.**
 
-Der User beschreibt seine Pains in Alltagssprache. Claude bringt parallel die eigenen Session-Pains aus dem Tool-Call-Trace ein. **Beides** geht durch die Analyse-Pipeline. Claude analysiert (Root-Cause + Konfig-Komponente) und schlägt Maßnahmen vor. User stimmt pro Patch ab.
+Der User beschreibt seine Pains in Alltagssprache. Der ausführende Agent bringt parallel die eigenen Session-Pains aus dem Tool-Call-Trace ein. **Beides** geht durch die Analyse-Pipeline. Der Agent analysiert (Root-Cause + Konfig-Komponente) und schlägt Maßnahmen vor. User stimmt pro Patch ab.
 
-Niemals ist die Retro nur "Claude fragt User nach Friction". Das wäre der falsche Eingangspunkt — der User sieht oft nur Symptome, Claude sieht im Trace die echten Tool-Call-Failures, Memory-Stalls, Hook-Misses und Skill-Konflikte.
+Niemals ist die Retro nur "Agent fragt User nach Friction". Das wäre der falsche Eingangspunkt — der User sieht oft nur Symptome, der Agent sieht im Trace die echten Tool-Call-Failures, Memory-Stalls, Hook-Misses und Skill-Konflikte.
 
 ## Why this exists
 
@@ -50,11 +50,11 @@ Ask exactly:
 
 > "War Friction in der Session? Wenn ja, in 1-2 Sätzen: was war's?"
 
-User-Beschreibung in **Alltagssprache** erwartbar ("Worktree-Setup ist ärgerlich", "LSP zickt rum"). Es ist **Claude's Job**, daraus die technische Root-Cause + Konfig-Komponente abzuleiten — NIEMALS soll Claude den User danach fragen.
+User-Beschreibung in **Alltagssprache** erwartbar ("Worktree-Setup ist ärgerlich", "LSP zickt rum"). Es ist **Aufgabe des Agents**, daraus die technische Root-Cause + Konfig-Komponente abzuleiten — NIEMALS soll der Agent den User danach fragen.
 
-### 2b. Claude-Friction-Self-Probe (Pflicht, parallel zu 2a)
+### 2b. Agent-Friction-Self-Probe (Pflicht, parallel zu 2a)
 
-Claude scannt die Session selbst auf Friction. Pflicht-Check-Liste:
+Der ausführende Agent scannt die Session selbst auf Friction. Pflicht-Check-Liste:
 
 - Welche Tool-Calls schlugen fehl oder mussten retried werden? (Permission-Denials, Edit-vor-Read-Errors, Bash-Pipe-Aborts)
 - Welche Memories haben sich beim Hinschauen als stale erwiesen? (Inhalt widerspricht heutigem Code)
@@ -63,7 +63,7 @@ Claude scannt die Session selbst auf Friction. Pflicht-Check-Liste:
 - Welche Bash-Calls liefen mit CWD-Drift / sequentieller Permission-Approval / fehlendem absoluten Pfad?
 - Welche `<system-reminder>`-Spam-Muster traten wiederholt auf?
 
-Eigene Findings explizit als **"Claude-Finding: …"** im Output markieren, gleichberechtigt zu User-Findings.
+Eigene Findings explizit als **"<Agent>-Finding: …"** im Output markieren, gleichberechtigt zu User-Findings. Beispiele: **"Codex-Finding: …"** auf Codex, **"Claude-Finding: …"** auf Claude.
 
 ### 2c. Memory-Sweep-Probe (Pflicht, falls Threshold gerissen)
 
@@ -76,7 +76,7 @@ wc -l "$HOME/.claude/projects/<project>/memory/MEMORY.md"
 ```
 
 Threshold-Trigger (einer reicht):
-- Aktives Memory-Set ≥ 60 Files (Sweep-Trigger über dem CLAUDE.md-Ziel „aktives Set <35" — feuert nur bei echtem Bloat, nicht auf einem gesund-aber-vollen Set; realer aktiver Stand ~50, content-checked alle aktiv--/Retro)
+- Aktives Memory-Set ≥ 65 Files (Sweep-Trigger über dem CLAUDE.md-Ziel „aktives Set <35" — feuert nur bei echtem Bloat, nicht auf einem gesund-aber-vollen Set; realer aktiver Stand ~50–61, content-checked alle aktiv---/Retro)
 - MEMORY.md > 120 Zeilen
 
 Wenn Trigger gerissen:
@@ -91,19 +91,19 @@ Wenn 0 Trigger:
 
 **Skip-Erlaubnis:** keine — Sweep-Probe läuft auf jedem Retro.
 
-**Warum hier (Pflicht-Step, nicht nur Memory):** Memory ist passiv (nur wenn Claude dran denkt); `/retro` läuft routinemäßig nach PR-Activity und ist das natürliche Enforcement-Vehikel. Der Eintrag muss VOR der symmetrischen Analyse passieren, damit er ggf. als Patch-Vorschlag in den Flow einfließt.
+**Warum hier (Pflicht-Step, nicht nur Memory):** Memory ist passiv (nur wenn der Agent dran denkt); `/retro` läuft routinemäßig nach PR-Activity und ist das natürliche Enforcement-Vehikel. Der Eintrag muss VOR der symmetrischen Analyse passieren, damit er ggf. als Patch-Vorschlag in den Flow einfließt.
 
-**Threshold-Tuning:** Sweep-Trigger = ≥60 Files / >120 Zeilen MEMORY.md; das CLAUDE.md-Ziel bleibt „aktives Set <35" (Aspiration) — Trigger über Ziel mit Headroom, damit der Sweep nicht auf jedem Retro feuert (Retro: realer Stand ~39 → ~46 bei, content-checked alle aktiv → 0 sicher löschbar; der Legacy-DAL-Memory-Cluster retired bei Delete). Schwelle 45→50 → 50→60 angehoben (Retro 2026-06-18: 50 feuerte auf einem legitim-50-aktiv-Set, alle content-checked aktiv, 0 sicher löschbar). Nach weiteren Retros nachjustieren. (Die frühere `project_*_done`-Done-File-Klasse + `## Project (Active)`-Section existieren nicht mehr — das aktuelle Memory-Modell ist prune-on-touch ohne Done-File-Lifecycle; `consolidate-memories.sh` war der einmalige W2-Massen-Archive-Lauf, kein laufender Sweep.)
+**Threshold-Tuning:** Sweep-Trigger = ≥65 Files / >120 Zeilen MEMORY.md; das CLAUDE.md-Ziel bleibt „aktives Set <35" (Aspiration) — Trigger über Ziel mit Headroom, damit der Sweep nicht auf jedem Retro feuert (Retro: realer Stand ~39 → ~46 bei, content-checked alle aktiv → 0 sicher löschbar; der Legacy-DAL-Memory-Cluster retired bei Delete). Schwelle 45→50 → 50→60 (Retro 2026-06-18) → 60→65 angehoben (Retro 2026-06-27: 61 feuerte erneut auf einem legitim-voll-aktiven Set, alle content-checked aktiv, 0 sicher löschbar — dasselbe Leerlauf-Sweep-Muster wie bei 50). Nach weiteren Retros nachjustieren. (Die frühere `project_*_done`-Done-File-Klasse + `## Project (Active)`-Section existieren nicht mehr — das aktuelle Memory-Modell ist prune-on-touch ohne Done-File-Lifecycle; `consolidate-memories.sh` war der einmalige W2-Massen-Archive-Lauf, kein laufender Sweep.)
 
-### 3. Symmetrische Analyse (Claude eigenständig)
+### 3. Symmetrische Analyse (Agent eigenständig)
 
-Für **jeden** Friction-Punkt (User-gemeldet UND selbst-gefunden) analysiert Claude:
+Für **jeden** Friction-Punkt (User-gemeldet UND selbst-gefunden) analysiert der Agent:
 
 - **Root-Cause:** Welcher Tool-Call / Memory / Hook / Skill war konkret involviert?
 - **Konfig-Komponente:** Welche Mutation würde das nächste Mal verhindern? (Memory / Skill / CLAUDE.md / Hook / Helper-Script / Issue / nichts)
 - **Wiederholbar oder einmalig?** Einmalige Vorfälle → kein Patch nötig.
 
-Wenn die User-Beschreibung in Step 2a mehrdeutig ist, darf Claude **EINE** klärende Outcome-Frage stellen — z.B. "an welcher Stelle war's am ärgerlichsten — beim Setup, mitten in der Arbeit, oder beim Cleanup?". Niemals Multiple-Choice mit Memory-Namen, Hook-Paths, oder Konfig-Klassen.
+Wenn die User-Beschreibung in Step 2a mehrdeutig ist, darf der Agent **EINE** klärende Outcome-Frage stellen — z.B. "an welcher Stelle war's am ärgerlichsten — beim Setup, mitten in der Arbeit, oder beim Cleanup?". Niemals Multiple-Choice mit Memory-Namen, Hook-Paths, oder Konfig-Klassen.
 
 ### 3b. Ziel + Gewicht bestimmen (Schwellen-Leiter)
 
@@ -136,7 +136,7 @@ Bevor du in Step 4 einen Patch formulierst, ordne **jede** Friktion auf der Schw
 
 **Generalisierungs-Check ZUERST (Pflicht, vor dem Formulieren) — Klasse statt Symptom.** Bevor du einen Patch schneidest, abstrahiere eine Ebene hoch: *„Wovon ist dieser Vorfall ein BEISPIEL?"* Der Patch deckt die **Klasse / das Prinzip** (alle Szenarien, in denen derselbe Mechanismus beißt) — der konkrete Vorfall ist nur das **Beispiel**, nicht der Scope. Symptom-enge Patches (genau-dieser-eine-Trigger) verfehlen die nächste Variante derselben Klasse, und der User muss nachsteuern. **ABER Klasse ≠ Spekulation:** nimm nur **verifizierte** Mitglieder der Klasse auf (Verify-First), strukturiere **erweiterbar** statt mit ungeprüften Mustern vollzupacken — zu breit (ungeprüft) ist derselbe Fehler wie zu eng, nur andersrum. (Retro: „blocke `(`" = Symptom → „Shim verarbeitet Regex anders als echtes ripgrep" = Klasse; aber `\d` bewusst NICHT aufgenommen, weil es auf ripgrep funktioniert = unverifizierter Breaker.)
 
-Für jeden Friction-Punkt: Claude formuliert **eine konkrete Empfehlung** mit kurzer Begründung in Alltagssprache. Format:
+Für jeden Friction-Punkt: Der Agent formuliert **eine konkrete Empfehlung** mit kurzer Begründung in Alltagssprache. Format:
 
 > **Patch X — [eine Zeile Was].**
 > **Warum:** [eine Zeile, warum es die Friction beseitigt].
@@ -181,7 +181,7 @@ For each approved patch, execute the mutation immediately (Edit / Write / Bash).
 Die Retro ist **opt-in** (User triggert `/retro`); ich **biete sie vor der PR-Erstellung an**, erzwinge sie nie. Wird sie gemacht, dann vor PR (nicht erst nach Merge). Nach allen Patches:
 
 1. In 2-3 Sätzen zusammenfassen, was geändert + was deferiert wurde.
-2. Eine **`## Retro / Meta-Findings`-Sektion in den PR-Body** falten — in den noch zu erstellenden PR, oder via `gh pr edit` wenn schon offen: die ehrliche Friction-Analyse (User- **und** Claude-Findings) + die angewandten Patches.
+2. Eine **`## Retro / Meta-Findings`-Sektion in den PR-Body** falten — in den noch zu erstellenden PR, oder via `gh pr edit` wenn schon offen: die ehrliche Friction-Analyse (User- **und** Agent-Findings) + die angewandten Patches.
 3. Repo-Datei-Patches (CLAUDE.md/Hook/Skill/Script) werden **als Teil des Slice-PR committet**; Memory-Patches sind Filesystem-only (nicht im PR).
 
 Niemals eine Datei in `.claude/retros/` anlegen.
