@@ -239,6 +239,18 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.3.5
+
+- Adds the `to-issues` member-reconcile rule for promoting `board-to-waves`
+  stubs that already carry native Member sub-issues, so old members are reused
+  or explicitly unlinked/closed instead of creating duplicate slice children.
+- Ships `board-sync.py unlink`, a parent-checked and idempotent helper for
+  removing superseded sub-issue links without touching foreign parents.
+- Tightens promoted-anchor labels by stripping `ready-for-agent` alongside
+  `wave-stub`, so an Anker is not accidentally treated as a buildable leaf.
+- Bumps the kit metadata to `0.3.5`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
+
 ### 0.3.4
 
 - Ships `board-sync.py anchor-sync` plus the `anchor_table.py` helper, so wave

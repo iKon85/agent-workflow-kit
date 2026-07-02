@@ -64,6 +64,11 @@ ADD_SUBISSUE_MUTATION = (
     "addSubIssue(input:{issueId:$parent,subIssueId:$child}){"
     "issue{number} subIssue{number}}}"
 )
+REMOVE_SUBISSUE_MUTATION = (
+    "mutation($parent:ID!,$child:ID!){"
+    "removeSubIssue(input:{issueId:$parent,subIssueId:$child}){"
+    "issue{number} subIssue{number}}}"
+)
 PARENT_QUERY = (
     "query($owner:String!,$repo:String!,$num:Int!){"
     "repository(owner:$owner,name:$repo){issue(number:$num){parent{number title}}}}"
@@ -264,12 +269,18 @@ def type_labels_to_strip(labels: list[str]) -> list[str]:
 def promote_label_args(issue: int, strip: Optional[list[str]] = None) -> list[str]:
     """The `gh issue edit` argv that adds type:cluster and strips prior type:* labels.
 
-    Also strips `wave-stub`: once promoted the issue is a planned Anker, no longer a
-    board-to-waves candidate awaiting planning. Unconditional `--remove-label` is safe
-    — gh exits 0 when the label is absent (verified 2026-06-15).
+    Also strips `wave-stub` and `ready-for-agent`: once promoted the issue is a
+    planned Anker, no longer a board-to-waves candidate and never a buildable leaf —
+    an Anker carries no buildability bucket (the post-promote audit invariant). A
+    clean Draft-PRD has neither label, but an atomar→promote flip source can carry
+    `ready-for-agent` (it was first wrongly published as an AFK leaf).
+    Unconditional `--remove-label` is safe — gh exits 0 when the label is absent
+    (verified 2026-06-15).
     """
     args = ["issue", "edit", str(issue), "--repo", REPO,
-            "--add-label", CLUSTER_TYPE_LABEL, "--remove-label", WAVE_STUB_LABEL]
+            "--add-label", CLUSTER_TYPE_LABEL,
+            "--remove-label", WAVE_STUB_LABEL,
+            "--remove-label", READY_FOR_AGENT]
     for label in strip or []:
         args += ["--remove-label", label]
     return args
@@ -386,6 +397,31 @@ def cmd_link(args) -> int:
         return 0
     _gh([*link_args, "-f", f"parent={_node_id(args.parent)}", "-f", f"child={_node_id(args.child)}"])
     print(f"linked #{args.child} → #{args.parent}")
+    return 0
+
+
+def cmd_unlink(args) -> int:
+    """Remove a native sub-issue link. Parent-checked + idempotent (mirror of cmd_link):
+    only unlinks when the child's current parent IS args.parent — never touches a foreign
+    parent. The reconcile counterpart for to-issues when a promoted stub still carries
+    board-to-waves member sub-issues that are superseded by fresh slices."""
+    current = _parent_of(args.child)
+    if current is None:
+        print(f"#{args.child} has no parent — skip (idempotent)")
+        return 0
+    if current != args.parent:
+        print(f"#{args.child} parent is #{current}, not #{args.parent} — skip, "
+              f"not unlinking a foreign parent")
+        # Foreign-parent mismatch: non-zero for reconcile/publish; zero only in audit mode.
+        return 0 if getattr(args, "allow_drift_report", False) else 1
+    unlink_args = ["api", "graphql", "--header", SUB_ISSUES_HEADER,
+                   "-f", f"query={REMOVE_SUBISSUE_MUTATION}"]
+    if args.dry_run:
+        _print_dry([*unlink_args, "-f", f"parent=<#{args.parent} node-id>",
+                    "-f", f"child=<#{args.child} node-id>"])
+        return 0
+    _gh([*unlink_args, "-f", f"parent={_node_id(args.parent)}", "-f", f"child={_node_id(args.child)}"])
+    print(f"unlinked #{args.child} from #{args.parent}")
     return 0
 
 
@@ -579,6 +615,14 @@ def build_parser() -> argparse.ArgumentParser:
                     help="report a foreign-parent conflict but exit 0 (read-only audit)")
     ln.add_argument("--dry-run", action="store_true")
     ln.set_defaults(func=cmd_link)
+
+    ul = sub.add_parser("unlink", help="remove child as sub-issue of parent (parent-checked, idempotent)")
+    ul.add_argument("--parent", type=int, required=True)
+    ul.add_argument("--child", type=int, required=True)
+    ul.add_argument("--allow-drift-report", action="store_true", dest="allow_drift_report",
+                    help="report a foreign-parent mismatch but exit 0 (read-only audit)")
+    ul.add_argument("--dry-run", action="store_true")
+    ul.set_defaults(func=cmd_unlink)
 
     cr = sub.add_parser("create", help="create an issue + add to board + stamp fields")
     cr.add_argument("--title", required=True)
