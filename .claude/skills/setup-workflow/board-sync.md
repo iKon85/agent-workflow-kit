@@ -21,6 +21,8 @@ How the board-managed workflow skills (`to-prd`, `to-issues`, `board-to-waves`, 
 
 `/setup-workflow` fills the board-identity values (node id, field IDs, status options) from `gh project field-list`. The convention values (labels, branch prefixes, PR markers, headings) ship pre-filled to match the bundled skills — edit them only if you adapt those conventions. The IDs live **only** in this block (the table above is documentation), so the two cannot drift.
 
+The optional `wrapup` block is a wrapup-only switch, not a board field: `wrapup.remoteBranchSweep` (default `false`) gates `wrapup` Step 5d's remote-branch sweep — `false`/missing (the shipped default) means Step 5d only reports the count of stale merged-PR remotes it found; `true` lets it actually `git push origin --delete` them. Flip it to `true` once you trust the sweep in your repo.
+
 <!-- board-sync:profile -->
 ```json
 {
@@ -54,6 +56,9 @@ How the board-managed workflow skills (`to-prd`, `to-issues`, `board-to-waves`, 
   },
   "headings": {
     "vorBau": "Vor Bau zu klären"
+  },
+  "wrapup": {
+    "remoteBranchSweep": false
   }
 }
 ```

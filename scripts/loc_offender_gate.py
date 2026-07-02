@@ -53,10 +53,21 @@ def resolve_base_ref(explicit, cwd=None) -> str:
 
 
 def load_max_lines(path=None):
-    """Read maxLines + offenders set from max-lines-allowlist.json (the single SSOT)."""
+    """Read maxLines + offenders set from max-lines-allowlist.json (the single SSOT).
+
+    Missing file / malformed JSON / missing keys → GateError, not a bare
+    exception — run_gate's `except GateError` already turns that into a normal
+    red gate message (with the SKIP_CI_GUARDS escape hatch) instead of a raw
+    traceback escaping the gate.
+    """
     p = Path(path) if path else _repo_root() / "max-lines-allowlist.json"
-    raw = json.loads(p.read_text(encoding="utf-8"))
-    return int(raw["maxLines"]), set(raw["offenders"])
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        return int(raw["maxLines"]), set(raw["offenders"])
+    except GateError:
+        raise
+    except Exception as exc:
+        raise GateError(f"max-lines-allowlist.json unlesbar/ungültig ({p}): {exc}") from exc
 
 
 def _repo_root() -> Path:

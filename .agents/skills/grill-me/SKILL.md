@@ -10,6 +10,14 @@ Ask the questions one at a time.
 
 If a question can be answered by exploring the codebase, explore the codebase instead.
 
+## Verwandte Skills
+
+**Codebase mit `CONTEXT.md`/ADRs vorhanden?** → `grill-with-docs` nutzen statt diesem Skill — gleicher Grill, zusätzlich gegen das bestehende Domänenmodell geschärft, pflegt `CONTEXT.md`/ADRs inline mit.
+
+<!-- mirror-xform:start codex-escalation -->
+**Hoher Einsatz / schwer reversibel** (Auth, Schema, Concurrency, Migrations, Payments)? Auf der Claude-Code-Surface schließt sich an diesen Grill danach eine Cross-Model-Review durch Codex an — auf dieser Surface nicht verfügbar.
+<!-- mirror-xform:end -->
+
 ## Coherence is the default — the grill locks only the deltas
 
 A feature that builds on existing features inherits the existing building blocks by default, across **every** layer: the UI renders the same components, the backend calls the same services and calculations, data flows through the same paths, conventions carry over. Do not interview the user about how such a feature should look or behave where an existing counterpart exists — that is already decided. Lock only:
@@ -38,7 +46,7 @@ Greift, wenn du ein **bereits existierendes Issue re-grillst** (ein Leaf eines g
 
 1. **Parent-Anker-Entscheidungen ZUERST lesen** — Anker-Body + dessen PRD/Key-Decisions holen, die Seam-Entscheidung **von dort** nehmen. Architektur **nicht** aus dem Leaf neu herleiten (Lehre: ein Leaf, dessen zentrale Entscheidung nie gelesen wurde, wurde durch Frage-Runden re-litigiert). Atomar-Leaf → eigener Body/PRD ist die Referenz.
 2. **Leaf auf inneren Widerspruch prüfen**: ein Body, der sich selbst („kein neues UI" + „baue Namensfeld") oder die Anker-Entscheidung widerspricht → **kein Execute**. Ebenso ein Leaf, das *„finaler Schnitt hängt an #X"* via `<!-- final-cut-depends-on: #X -->` sagt, wo **#X geschlossen** ist, ohne den Schnitt aufzulösen.
-3. **Bei Drift/Widerspruch:** betroffene Issue(s) updaten, `plan_revision` neu stempeln, korrekten Bucket setzen. Innerer Widerspruch → Leaf auf **HITL**: `ready-for-agent` strippen via `python3 scripts/board-sync.py add --bucket hitl --issue <n>` (Helper bleibt Owner der Workflow-Labels — kein bares `gh issue edit --add-label`), `## Vor Bau zu klären` ergänzen. Der Drift-Guard blockt dann den Build-Handoff über `target_buildable` — der Widerspruch fließt durch bestehende Mechanik, keine Heuristik im Hook.
+3. **Bei Drift/Widerspruch:** betroffene Issue(s) updaten, `plan_revision` neu stempeln, korrekten Bucket setzen. Innerer Widerspruch → Leaf auf **HITL**: `ready-for-agent` strippen via `python3 scripts/board-sync.py add --bucket hitl --issue <n>` (Helper bleibt Owner der Workflow-Labels — kein bares `gh issue edit --add-label`), die `headings.vorBau`-Heading ergänzen (Board-Profil `docs/agents/board-sync.md`; <project> aktuell `## Vor Bau zu klären`). Der Drift-Guard blockt dann den Build-Handoff über `target_buildable` — der Widerspruch fließt durch bestehende Mechanik, keine Heuristik im Hook.
 4. **Audit, non-blocking:** `python3 scripts/execute-ready-check.py --issue <n> --mode audit` → sichtbarer Zweizeiler. Das **blockierende** Netz ist der Drift-Guard am Handoff (`.claude/hooks/drift-guard.py`).
 
 **Marker** (HTML-Kommentare, grep-bar): `<!-- guard-ack: #<n> r<N> reason:<text> by-user -->`, `<!-- final-cut-depends-on: #<n> -->`, `<!-- handoff-intent: build|grill -->`, `<!-- guard-legacy -->`. Kanonische Tabelle aller Marker: Modul-Docstring von `scripts/execute-ready-check.py`.

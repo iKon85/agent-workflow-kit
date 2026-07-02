@@ -53,23 +53,17 @@ _ITEM_QUERY = (
 )
 
 
-def fetch_board_item(repo_owner, repo_name, proj_number, field_id, issue_num):
-    """(item_id, current_status) for issue_num's item in the project, or
-    (None, reason) on any miss. Reads only this issue's items — no board-wide
-    list, no pagination cap, blind to Done/archived items elsewhere."""
-    rc, out = run([
-        "gh", "api", "graphql",
-        "-f", f"query={_ITEM_QUERY}",
-        "-F", f"owner={repo_owner}",
-        "-F", f"repo={repo_name}",
-        "-F", f"number={issue_num}",
-    ])
-    if rc != 0 or not out:
-        return None, "gh graphql failed"
-    try:
-        issue = json.loads(out)["data"]["repository"]["issue"]
-    except (json.JSONDecodeError, KeyError, TypeError):
-        return None, "invalid graphql response"
+def resolve_status_from_items(issue, proj_number, field_id):
+    """Pure decision core: given the already-parsed `data.repository.issue`
+    node from the board-item GraphQL response, disambiguate this issue's item
+    in `proj_number` and extract its value for `field_id`.
+
+    No subprocess/network — parsed dict in, decision out. Returns
+    (item_id, current_status) on a clean single-item match (current is ""
+    when the field has never been set), or (None, reason) on any miss:
+    issue not found, 0/2+ project items in the target project (incl. items
+    that belong to a *different* project number), or a malformed item id.
+    """
     if not issue:
         return None, "issue not found"
 
@@ -88,6 +82,26 @@ def fetch_board_item(repo_owner, repo_name, proj_number, field_id, issue_num):
             current = fv.get("name", "")
             break
     return item_id, current
+
+
+def fetch_board_item(repo_owner, repo_name, proj_number, field_id, issue_num):
+    """(item_id, current_status) for issue_num's item in the project, or
+    (None, reason) on any miss. Reads only this issue's items — no board-wide
+    list, no pagination cap, blind to Done/archived items elsewhere."""
+    rc, out = run([
+        "gh", "api", "graphql",
+        "-f", f"query={_ITEM_QUERY}",
+        "-F", f"owner={repo_owner}",
+        "-F", f"repo={repo_name}",
+        "-F", f"number={issue_num}",
+    ])
+    if rc != 0 or not out:
+        return None, "gh graphql failed"
+    try:
+        issue = json.loads(out)["data"]["repository"]["issue"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None, "invalid graphql response"
+    return resolve_status_from_items(issue, proj_number, field_id)
 
 
 def main() -> int:

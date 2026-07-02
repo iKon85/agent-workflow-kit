@@ -16,14 +16,16 @@ A **flow** is a path through the skills. Most paths run along one **main flow**;
 
 The route most work travels. You have an idea and want it built.
 
+<!-- mirror-xform:start codex-escalation -->
 1. **`/grill-with-docs`** — sharpen the idea by relentless interview. Start here when you **have a codebase**: it's stateful, retaining what it learns in `CONTEXT.md` and ADRs. (No codebase? Use `/grill-me` — see Standalone.) For high-stakes/hard-to-reverse work, add the cross-model variant **`/grill-with-docs-codex`** (see Cross-model review).
+<!-- mirror-xform:end -->
 2. **Branch — can you settle every question in conversation?** If a question needs a runnable answer (state, business logic, a UI you have to see), detour through a prototype, bridged by **`/handoff`** in both directions (see Crossing sessions): `/handoff` out → fresh session → **`/prototype`** to answer with throwaway code → `/handoff` back what you learned.
 3. **Gate — does a slice hinge on an unknown?** Clear it *before* building (see Gate-before-build): a binary fact → **`/verify-spike`**; a bounded "which option" trade-off → **`/decision-gate`**.
 4. **Branch — is this a multi-session build?**
    - **Yes** → **`/to-prd`** (turn the thread into a PRD) → **`/to-issues`** (split into independently-grabbable issues / a wave anchor). Clear context between issues: fresh session per issue, kick off **`/implement`** with the PRD + the single issue.
    - **No** → **`/implement`** right here, same context window.
 
-   Either way, **`/implement`** builds each issue by driving **`/tdd`** internally — one red-green slice at a time — then closes out with **`/code-review`** (the two-axis Standards×Spec review, convention in `docs/agents/code-review.md`) before committing. Reach for **`/tdd`** on its own to build a concrete behaviour test-first without a full spec, and **`/code-review`** on its own to review any branch/PR against a fixed point.
+   Either way, **`/implement`** builds each issue by driving **`/tdd`** internally — one red-green slice at a time — then closes out with **`/code-review`** (the two-axis Standards×Spec review; project layer at `docs/agents/code-review.md`, seeded by `/setup-workflow`) before committing. Reach for **`/tdd`** on its own to build a concrete behaviour test-first without a full spec, and **`/code-review`** on its own to review any branch/PR against a fixed point.
 5. **Land** → **`/wrapup`** (see Land). **Learn** → **`/retro`** (see Learn).
 
 ### Context hygiene
@@ -36,7 +38,9 @@ When `/to-issues` cuts a slice that hinges on an unknown, it tags the slice inst
 
 - **`/verify-spike`** — a single yes/no fact against the real lib/runtime/DB/platform, answered by a throwaway read-only harness with output-proof.
 - **`/decision-gate`** — a bounded trade-off ("which option") or a targeted research gap: options × criteria table + reasoned pick, sunk to an ADR/issue.
+<!-- mirror-xform:start codex-escalation -->
 - **`/grill-with-docs-codex` / `/grill-me-codex`** — for genuinely hard-to-reverse calls, escalate to a cross-model grill (see Cross-model review).
+<!-- mirror-xform:end -->
 
 ## On-ramps
 
@@ -50,8 +54,10 @@ A starting situation that generates work, then merges onto the main flow.
 
 An independent second model catches what one model rationalises. Read-only, bounded.
 
+<!-- mirror-xform:start codex-escalation -->
 - **`/grill-me-codex` / `/grill-with-docs-codex`** — run the grill (Act 1), then a *different* model (Codex) adversarially reviews the locked plan (Act 2) before any code.
-- **`/codex-review`** — standalone: you already have a plan, just want the cross-model stress-test.
+<!-- mirror-xform:end -->
+- **`/codex-review`** (nur Claude Code) — standalone: you already have a plan, just want the cross-model stress-test.
 
 ## Codebase health
 
@@ -66,17 +72,17 @@ Model-invoked references that run *beneath* the other skills — each the single
 
 - **`/domain-modeling`** — sharpen the project's *domain* language: challenge a fuzzy term, resolve an overloaded word, record a hard-to-reverse decision as an ADR. The active discipline `/grill-with-docs` drives to keep `CONTEXT.md` a clean glossary. (ADR conventions: `docs/adr/README.md`.)
 - **`/codebase-design`** — the deep-module vocabulary (module, interface, depth, seam, adapter, leverage, locality) for designing a module's *shape*. `/tdd` and `/improve-codebase-architecture` both speak it.
-- **`/write-a-skill`** — reference for writing and editing skills well (invocation, information hierarchy, progressive disclosure, leading words, pruning, failure modes). *This router is itself an instance of its "router skill" pattern.*
+- **`/write-a-skill`** (nur Claude Code) — reference for writing and editing skills well (invocation, information hierarchy, progressive disclosure, leading words, pruning, failure modes). *This router is itself an instance of its "router skill" pattern.*
 
 ## Land
 
 - **`/wrapup`** — the land-and-clean closeout: make the branch landable, enforce the PR-body contract, merge, reconcile the board, sweep merged branches, surface what's still open. Does not replace live verification — verify the user outcome first.
-- The **pre-commit / pre-push gate** fires automatically (installed once via `/git-guardrails-claude-code` / `/setup-pre-commit`), blocking a broken commit/push.
+- The **pre-commit / pre-push gate** fires automatically (installed once via `/git-guardrails-claude-code` / `/setup-pre-commit`, beide nur Claude Code), blocking a broken commit/push.
 
 ## Learn
 
 - **`/retro`** — in-session post-mortem that proposes concrete changes to rules, skills, or hooks, each with per-patch approval.
-- **`/write-a-skill`** — turn a move you keep repeating into a reusable skill (see Vocabulary).
+- **`/write-a-skill`** (nur Claude Code) — turn a move you keep repeating into a reusable skill (see Vocabulary).
 
 ## Crossing sessions
 

@@ -13,7 +13,9 @@ Board-Konstanten (Project-Node, Field-/Status-IDs) + Helper liegen **consumer-se
 ## 1. Eingang — quellen-agnostisch
 
 to-prd liest den gelockten Plan, egal woher:
+<!-- mirror-xform:start codex-escalation -->
 - **Default: `PLAN.md` im aktuellen Worktree** — was die `-codex`-Grills (`grill-me-codex` / `grill-with-docs-codex`) immer schreiben (Codex-Review-Akt braucht die Datei); `grill-me` / `grill-with-docs` schreiben `PLAN.md` nur konditional (bei Worktree-/Session-Schnitt).
+<!-- mirror-xform:end -->
 - **Fallback: Konversations-Kontext** (same-session, ohne PLAN.md).
 - **Extern übergeben:** anderswo erstellte Spezifikation (z.B. Claude Web/Codex), in den Kontext gereicht.
 
@@ -21,7 +23,7 @@ Liegt eine `PLAN.md` im Worktree, ist sie die Quelle; sonst Konversation/extern.
 
 **Kalt-Einstieg = extract-or-synthesize, nicht assume-or-fail.** `to-prd` ist der **universelle Normalisierer** für lose Artefakte (Plan/Doc/externe PRD ohne Board-Issue): die PRD-Template-Sektionen werden **aus dem Vorhandenen extrahiert**, statt einen vorherigen Grill vorauszusetzen. `to-prd` **mandatet keinen** Grill und **keinen** Codex — die Tiefe ist die Wahl der einsteigenden Person.
 - **Nicht-ableitbare Pflicht-Sektion ≠ stiller „complete"-Platzhalter:** lässt sich eine Pflicht-Sektion (z.B. „Testing Decisions") aus dem Input **nicht** herleiten, wandert der offene Inhalt in eine **`## Offene Punkte (nicht aus Input ableitbar)`**-Sektion — die PRD ist dann ehrlich *offen* statt fälschlich *vollständig*. `spec-self-critique` (Schritt 5) bleibt Pflicht.
-- **Downstream-Vertrag:** ein nicht-leeres `## Offene Punkte` zwingt `to-issues`, die betroffenen Slices als **HITL** (`## Vor Bau zu klären`) zu publishen oder vorher nachzufragen — die offenen Punkte verschwinden nie still (s. `to-issues` §3b). Jeder offene Punkt wird nach **Gate-Typ** klassifiziert (🧭 Design-Grill / 🔬 Verify-Spike / 📐 Abwägung-Research / 📝 Review-Notiz), damit `to-issues` ihn als Gate-Slice **vor** den abhängigen Bau-Slice sequenziert (gate-before-build) — eine 📝 Review-Notiz wird **nicht** geschnitten (s. Template-Sektion „Review-Notizen" + `to-issues` §3b). (Retro)
+- **Downstream-Vertrag:** ein nicht-leeres `## Offene Punkte` zwingt `to-issues`, die betroffenen Slices als **HITL** (`headings.vorBau`-Heading, Board-Profil `docs/agents/board-sync.md`; <project> aktuell `## Vor Bau zu klären`) zu publishen oder vorher nachzufragen — die offenen Punkte verschwinden nie still (s. `to-issues` §3b). Jeder offene Punkt wird nach **Gate-Typ** klassifiziert (🧭 Design-Grill / 🔬 Verify-Spike / 📐 Abwägung-Research / 📝 Review-Notiz), damit `to-issues` ihn als Gate-Slice **vor** den abhängigen Bau-Slice sequenziert (gate-before-build) — eine 📝 Review-Notiz wird **nicht** geschnitten (s. Template-Sektion „Review-Notizen" + `to-issues` §3b). (Retro)
 
 ## 2. Modus erkennen — neu vs bestehendes Issue
 

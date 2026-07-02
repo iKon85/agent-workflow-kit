@@ -22,7 +22,7 @@ to-issues        schneidet Slices + promotet (setzt type:cluster + Wave bei ≥2
 
 **Stoppt bei Stubs.** Kein Slice-Plan, keine PRD, kein Sub-Issue-Link, keine Promotion. Ob/wann ein Stub echte Welle wird = separater Schritt (`to-prd → to-issues`), <maintainer>s Call.
 
-Modell: **Opus** (Sichten/Plan/Brainstorm — Cross-Board-Urteil, <maintainer>s Tabelle).
+Modell: **stärkstes verfügbares Reasoning-Modell für Board-weite Urteilsbildung** (Sichten/Plan/Brainstorm — Cross-Board-Urteil, <maintainer>s Tabelle).
 
 ## Wellen-Nummerierung & Registry
 

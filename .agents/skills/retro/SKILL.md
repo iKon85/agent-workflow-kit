@@ -65,7 +65,15 @@ Der ausführende Agent scannt die Session selbst auf Friction. Pflicht-Check-Lis
 
 Eigene Findings explizit als **"<Agent>-Finding: …"** im Output markieren, gleichberechtigt zu User-Findings. Beispiele: **"Codex-Finding: …"** auf Codex, **"Claude-Finding: …"** auf Claude.
 
-### 2c. Memory-Sweep-Probe (Pflicht, falls Threshold gerissen)
+### 2c. Memory-Sweep-Probe (Pflicht, falls Threshold gerissen — nur wenn ein Memory-Verzeichnis existiert)
+
+Erst Existenz prüfen — Consumer ohne Claude-Auto-Memory (z.B. reine Codex-Installation) haben kein Memory-Verzeichnis:
+
+```bash
+test -d "$HOME/.claude/projects/<project>/memory" && echo present || echo absent
+```
+
+Verzeichnis fehlt → ein Satz im Output: "Memory-Sweep-Probe: kein Memory-Verzeichnis (kein Claude-Auto-Memory) — übersprungen." Kein Patch-Vorschlag, Step gilt als erfüllt. Sonst weiter:
 
 Empirisch zählen — aktives Memory-Set + Index-Größe:
 
@@ -89,11 +97,11 @@ Wenn 0 Trigger:
 - Ein-Zeiler im Output: "Memory-Sweep ok (N Files / X Zeilen)."
 - Kein Patch-Vorschlag.
 
-**Skip-Erlaubnis:** keine — Sweep-Probe läuft auf jedem Retro.
+**Skip-Erlaubnis:** nur bei fehlendem Memory-Verzeichnis (s.o.) — sonst keine, Sweep-Probe läuft auf jedem Retro.
 
 **Warum hier (Pflicht-Step, nicht nur Memory):** Memory ist passiv (nur wenn der Agent dran denkt); `/retro` läuft routinemäßig nach PR-Activity und ist das natürliche Enforcement-Vehikel. Der Eintrag muss VOR der symmetrischen Analyse passieren, damit er ggf. als Patch-Vorschlag in den Flow einfließt.
 
-**Threshold-Tuning:** Sweep-Trigger = ≥65 Files / >120 Zeilen MEMORY.md; das CLAUDE.md-Ziel bleibt „aktives Set <35" (Aspiration) — Trigger über Ziel mit Headroom, damit der Sweep nicht auf jedem Retro feuert (Retro: realer Stand ~39 → ~46 bei, content-checked alle aktiv → 0 sicher löschbar; der Legacy-DAL-Memory-Cluster retired bei Delete). Schwelle 45→50 → 50→60 (Retro 2026-06-18) → 60→65 angehoben (Retro 2026-06-27: 61 feuerte erneut auf einem legitim-voll-aktiven Set, alle content-checked aktiv, 0 sicher löschbar — dasselbe Leerlauf-Sweep-Muster wie bei 50). Nach weiteren Retros nachjustieren. (Die frühere `project_*_done`-Done-File-Klasse + `## Project (Active)`-Section existieren nicht mehr — das aktuelle Memory-Modell ist prune-on-touch ohne Done-File-Lifecycle; `consolidate-memories.sh` war der einmalige W2-Massen-Archive-Lauf, kein laufender Sweep.)
+**Threshold-Tuning:** Sweep-Trigger = ≥65 Files / >120 Zeilen MEMORY.md (Ziel bleibt „aktives Set <35", Trigger liegt mit Headroom darüber, damit gesund-volle Sets nicht auf jedem Retro feuern); Schwelle schrittweise 39→46→50→60→65 nachjustiert über---/Retros, jeweils weil ein legitim-volles Set (0 sicher löschbar) erneut auslöste — bei erneutem Leerlauf-Fund weiter anheben.
 
 ### 3. Symmetrische Analyse (Agent eigenständig)
 
@@ -126,7 +134,7 @@ Bevor du in Step 4 einen Patch formulierst, ordne **jede** Friktion auf der Schw
 
 **Tier sagt wohin grob, Klasse sagt welche Datei.** Bei einem **Skill**-Ziel entscheidet das Klassen-Routing in Step 4 („Klasse zuerst") **welche** Datei — z.B. ein „mittel → `spec-self-critique`"-Patch landet (publizierte Klasse) im **Projekt-Layer** `docs/agents/skills/spec-self-critique.md`, nicht im Gerüst.
 
-**GitHub-Issue ist KEIN Gewicht-Tier.** Ein echter Follow-up = Arbeit zum Tracken → `gh issue create` + Board-Sync (Step-4-Tabelle), **orthogonal** zur Leiter; sein „Gewicht" richtet sich nach dem Follow-up-Scope. Die Leiter klassifiziert **Konfig-Patches**, nicht „mach ein Ticket draus".
+**GitHub-Issue ist KEIN Gewicht-Tier.** Ein echter Follow-up = Arbeit zum Tracken → `python3 scripts/board-sync.py create` (Step-4-Tabelle), **orthogonal** zur Leiter; sein „Gewicht" richtet sich nach dem Follow-up-Scope. Die Leiter klassifiziert **Konfig-Patches**, nicht „mach ein Ticket draus".
 
 **Ziel fehlt im Projekt — zwei Fälle scharf trennen:**
 - **(a) Tier-Skill ganz fehlt** (z.B. Fremd-Projekt ohne `spec-self-critique`): kein durables Spec-Time-Gate da. **Memory ist KEIN Ersatz** — passiver Recall fängt keinen wiederkehrenden Spec-Defekt vor dem Bau. Ehrlich melden: *„für dieses Tier gibt es in diesem Projekt kein durables Ziel"* + `/setup-workflow`-Follow-up vorschlagen. **Kein Fake-Guard via Memory.**
@@ -157,7 +165,7 @@ Mögliche Mutation-Targets (intern für Claude, NICHT im User-Output auflisten):
 | Projektspezifische Skill-Lore (`generic`/`vendored`-Skill) | `docs/agents/skills/<skill>.md` (Projekt-Layer) |
 | Neuer/geänderter Hook | `.claude/hooks/<name>.py` + Test |
 | Neues Helper-Script | `scripts/<name>.sh` (+ tracked `.claude/settings.json` Whitelist —: `.local.json` propagiert nicht in Worktrees) |
-| Neues GitHub-Issue | `gh issue create` + Board-Sync |
+| Neues GitHub-Issue | `python3 scripts/board-sync.py create` |
 | "Nichts machen" | einmaliger Vorfall, kein Recurrence-Risiko |
 
 **Skill-Patch-Routing (Klasse zuerst).** Zielt ein Patch auf ein Skill, ZUERST `.claude/skills/skill-manifest.json` **best-effort** lesen. Publizierte Klassen (`generic`/`vendored`): **projektspezifische** Lore → `docs/agents/skills/<skill>.md` (Projekt-Layer), **generisch-portable** Verbesserung → `.claude/skills/<skill>/SKILL.md`. `project-private`: Skill-Dir ist ok. **Manifest fehlt** (Fremd-Install) → safe-default: Lore nach `docs/agents/skills/<skill>.md`, NIE in ein publiziertes Skill-Dir. (Hält publizierte Skills self-contained; z.B. `spec-self-critique` ist `generic` → seine projektspezifischen Checks gehören in den Projekt-Layer, nicht ins Gerüst.)

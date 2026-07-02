@@ -52,11 +52,15 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from board_config import load_board_config  # noqa: E402
+from board_config import ConfigError, load_board_config  # noqa: E402
 
 # Project-specific label + heading come from the board profile (no inline
 # constants → published kit stays project-neutral).
-_CFG = load_board_config()
+try:
+    _CFG = load_board_config()
+except ConfigError as exc:
+    print(f"[FAIL] execute-ready-check: Board-Profil nicht verfügbar — {exc}", file=sys.stderr)
+    sys.exit(1)
 
 LOG_DIR = Path(".claude/logs")
 LOG_NAME = "execute-ready-check"
@@ -238,8 +242,17 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
 
     # Fix B (b): final-cut dependency closed without resolution
     fc = parse_final_cut_depends(target["body"])
-    if fc is not None and closed_lookup.get(fc) == "closed":
-        violations.append(f"#{target['number']}: final-cut depends on #{fc} which is CLOSED")
+    if fc is not None:
+        fc_state = closed_lookup.get(fc)
+        if fc_state == "closed":
+            violations.append(f"#{target['number']}: final-cut depends on #{fc} which is CLOSED")
+        elif fc_state == "unresolved":
+            # gh could not resolve the dependency (network/auth) — a silent
+            # "open" default here would let a stale/unverifiable final-cut
+            # dependency slip an unbuilt handoff through.
+            violations.append(
+                f"#{target['number']}: final-cut dependency #{fc} could not be "
+                f"verified via gh (network/auth) — fail-closed")
 
     if truncated:
         violations.append("graph too large for guard (>100 children) — cannot prove completeness")
@@ -337,7 +350,13 @@ def build_and_evaluate(issue_number: int, mode: str, intent: str,
     fc = parse_final_cut_depends(target["body"])
     if fc is not None:
         st = fetch_issue(fc)
-        closed_lookup[fc] = "closed" if (st and st.get("state", "").upper() == "CLOSED") else "open"
+        if st is None:
+            # gh could not resolve the dependency at all → "unresolved", NOT a
+            # silent "open" default (that would hide an unverifiable final-cut
+            # dependency instead of denying it).
+            closed_lookup[fc] = "unresolved"
+        else:
+            closed_lookup[fc] = "closed" if st.get("state", "").upper() == "CLOSED" else "open"
 
     if parent_n is None:
         children, truncated = fetch_children(issue_number)

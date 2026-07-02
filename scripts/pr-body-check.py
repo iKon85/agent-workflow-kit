@@ -46,9 +46,13 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from board_config import load_board_config  # noqa: E402
+from board_config import ConfigError, load_board_config  # noqa: E402
 
-_CFG = load_board_config()
+try:
+    _CFG = load_board_config()
+except ConfigError as exc:
+    print(f"[FAIL] pr-body-check: Board-Profil nicht verfügbar — {exc}", file=sys.stderr)
+    sys.exit(1)
 
 
 def _spaced(marker: str) -> str:
@@ -101,11 +105,15 @@ def strip_code(text: str) -> str:
 def _close_on(body: str, n: int) -> bool:
     """True if an ACTIVE close-keyword targets #n (outside code spans).
 
-    Matches both `closes #n` and the colon form `closes: #n` (GitHub auto-closes
-    on both — the colon form was the R2-F3 bypass on the anchor guard).
+    Matches `closes #n`, the colon form `closes: #n` (GitHub auto-closes on both
+    — the colon form was the R2-F3 bypass on the anchor guard), AND the
+    full-URL form `closes https://github.com/<owner>/<repo>/issues/<n>` (GitHub
+    auto-closes on this too — exactly the class bypass this script exists
+    to catch).
     """
+    target = rf"(?:#0*{n}(?!\d)|https?://\S+/issues/0*{n}(?!\d))"
     pat = re.compile(
-        rf"\b(?:{CLOSE_KEYWORDS})(?::\s*|\s+)#0*{n}(?!\d)", re.IGNORECASE)
+        rf"\b(?:{CLOSE_KEYWORDS})(?::\s*|\s+){target}", re.IGNORECASE)
     return bool(pat.search(strip_code(body)))
 
 
