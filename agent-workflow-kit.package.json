@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.3.4",
+  "kitVersion": "0.3.5",
   "files": [
     {
       "path": ".agents/skills/board-to-waves/SKILL.md",
@@ -411,7 +411,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "codex",
-      "sha256": "e0d75cce8f090b114adfc451cf8689806ff29f010777be2757820b38ef5ed351",
+      "sha256": "af8d6a4c3af9507ebd7b5c3bbc8a369d6b47630af444460e353a2d7b143704a0",
       "mode": 420,
       "origin": "kit"
     },
@@ -1053,7 +1053,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "claude",
-      "sha256": "d51d8338bbc74d731d365b7c27fc8b956e90e8967e2770c4408a23237f900eac",
+      "sha256": "05b4872ae2b4ce4f646091cef5a51730bacd701c658875ff64f7852f755e80ae",
       "mode": 420,
       "origin": "kit"
     },
@@ -1198,7 +1198,7 @@
     {
       "path": "scripts/board-sync.py",
       "kind": "script",
-      "sha256": "2fb42b07061d2623b41800df2c704ed39b1f1ca15d818f8e40f9db2ac8a3379a",
+      "sha256": "8fa41291603fcfcecceae2be13a08b1f9128c11e30e42e89cae8d4054e88fbf5",
       "mode": 493,
       "origin": "kit"
     },
