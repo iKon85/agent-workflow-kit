@@ -25,6 +25,7 @@ npx github:iKon85/agent-workflow-kit init
    board profile. See [Configuration](#configuration).
 3. **Start working.** Trigger skills by name (`/grill-with-docs`, `/tdd`,
    `/wrapup`, …) — the workflow below explains when each one earns its keep.
+   Unsure which one fits? Run **`/ask-matt`** — it routes you to the right skill.
 
 ## The workflow it installs
 
@@ -78,7 +79,8 @@ step ran. The routing key is just *"is there an issue yet?"*: a loose artefact
   **1 slice → one atomic issue** the PR closes; **≥2 slices → a wave anchor** with
   linked child slices. It re-derives readiness from the artefact itself, so it works
   just as well started straight on a raw issue or file-bundle — any unresolved
-  *Open points* travel through as a "clarify before building" gate that never
+  *Open points* travel through as a build-blocking gate (the profile's
+  configurable `vorBau` heading, see [Configuration](#configuration)) that never
   vanishes silently.
 - **`board-to-waves`** clusters an existing backlog into themed campaigns when you
   need to *find* the next wave rather than start fresh.
@@ -137,8 +139,8 @@ enter outside the plan funnel and feed straight into Execute:
   the user outcome before landing.
 - **The pre-commit / pre-push gate fires automatically** — TypeScript, lint, and
   contract guards block a broken commit or push. You don't run a skill here; the
-  gate was installed once at setup (`git-guardrails` / `setup-pre-commit`, see
-  Configuration) and now guards every Land.
+  gate was installed once at setup (`git-guardrails` / `setup-pre-commit`, both
+  Claude only, see Configuration) and now guards every Land.
 - **`resolving-merge-conflicts`** — a disciplined loop for an in-progress
   merge/rebase conflict: understand each side's intent from history/PRs, preserve
   both where possible, always resolve (never `--abort`), then re-run the checks.
@@ -152,13 +154,16 @@ enter outside the plan funnel and feed straight into Execute:
 
 - **`retro`** — an in-session post-mortem that proposes concrete changes to your
   rules, skills, or hooks, each with per-patch approval.
-- **`write-a-skill`** — turn a move you keep repeating into a reusable skill.
+- **`write-a-skill`** (Claude only) — turn a move you keep repeating into a
+  reusable skill.
 
 ### Optional: cross-model review (via Codex)
 
 An independent second model is a cheap way to catch what one model rationalizes.
 **`grill-me-codex` / `grill-with-docs-codex`** run the grill through Codex, and
-**`codex-review`** gets a second-opinion code review. These need the Codex CLI.
+**`codex-review`** gets a second-opinion code review. All three are Claude only
+(invoked from Claude Code, which shells out to the Codex CLI) and need the Codex
+CLI installed.
 
 ## Configuration
 
@@ -178,10 +183,11 @@ writes:
 Each generated file carries a `setup-workflow` sentinel on its first line, so a
 re-run only fills what's missing and **never overwrites content you've filled in**.
 
-Two more one-time skills harden the repo when you adopt the kit:
-**`git-guardrails`** installs the secret / branch / broken-build guardrails, and
-**`setup-pre-commit`** wires the pre-commit gate. Run them once — afterwards the
-gate fires automatically on every commit and push (see the Land phase above).
+Two more one-time skills harden the repo when you adopt the kit — both **Claude
+only**: **`git-guardrails`** installs the secret / branch / broken-build
+guardrails, and **`setup-pre-commit`** wires the pre-commit gate. Run them once
+— afterwards the gate fires automatically on every commit and push (see the
+Land phase above).
 
 ### The board profile
 
@@ -210,8 +216,8 @@ marked `<!-- board-sync:profile -->`:
     "waveStub": "wave-stub"
   },
   "branchPrefixes": ["feat", "fix", "chore", "docs"],
-  "prMarkers": { "partOf": "Part of", "retroMarker": "**Retro:**", "retroValues": ["done", "skipped"] },
-  "headings": { "vorBau": "To clarify before building" }
+  "prMarkers": { "partOf": "Part of", "retroMarker": "**Retro:**", "retroValues": ["gefahren", "übersprungen"] },
+  "headings": { "vorBau": "Vor Bau zu klären" }
 }
 ```
 
@@ -249,6 +255,28 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 `--yes` / `-y` (non-interactive).
 
 ## Release notes
+
+### 0.4.0
+
+- Adds the model-invoked `code-review` skill (two-axis Standards×Spec review,
+  Fowler smell baseline, merge-base preflight) on both surfaces; the `ask-matt`
+  router and `implement` now point at real published ware.
+- Codex-surface skills no longer escalate to Claude-only `-codex` targets, and
+  the router marks Claude-only skills explicitly, so a Codex consumer is never
+  routed to an unreachable skill.
+- New guards: same-surface skill-reference existence, project-private mirror
+  structure-parity, a hardcoded-profile-value scan, and a build-staging vs
+  published-repo staleness check (`kit:staleness`).
+- Hardened scripts: `board-sync.py` create surfaces the issue number + a repair
+  command on partial failure; `anchor-sync` fails loud on a header mismatch
+  instead of duplicating rows; the CLI writes its manifest atomically.
+- Profile-driven prose: PR/issue markers and template headings reference the
+  board-profile keys instead of hardcoded literals, so a consumer's renamed
+  values pass their own checks; the seed and this README's profile example match.
+- Onboarding: the seeded workflow overview lists every entry point including the
+  `ask-matt` router and the gate skills; Claude-only skills and hooks are marked.
+- Bumps the kit metadata to `0.4.0`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
 
 ### 0.3.5
 
@@ -313,22 +341,30 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**29 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
+**30 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
 grill-with-docs, to-prd, to-issues, board-to-waves, triage, spec-self-critique,
 verify-spike, decision-gate · Execute: tdd, prototype, implement ·
 Design/diagnose/refactor streams: diagnose, zoom-out,
 improve-codebase-architecture, codebase-design, domain-modeling · Land: wrapup,
-resolving-merge-conflicts · Learn: retro, write-a-skill · Setup: setup-workflow,
-git-guardrails, setup-pre-commit · Codex review: grill-me-codex, grill-with-docs-codex,
-codex-review),
+resolving-merge-conflicts, code-review · Learn: retro, write-a-skill · Setup:
+setup-workflow, git-guardrails, setup-pre-commit · Codex review: grill-me-codex,
+grill-with-docs-codex, codex-review),
 installed for both surfaces — `.claude/skills`
 (Claude Code) and `.agents/skills` (Codex) — plus `codex-adapter-sync`
 (Codex-only: keeps the `.agents/skills` mirror in sync with the `.claude/skills`
-source for dual-surface repos).
+source for dual-surface repos). **Claude only** (no `.agents/skills` mirror —
+skip these on a Codex-first repo): `write-a-skill`, `git-guardrails-claude-code`,
+`setup-pre-commit`, `grill-me-codex`, `grill-with-docs-codex`, `codex-review`.
 
 **Helper scripts** — `board_config.py` (profile loader), `board-sync.py`,
 `execute-ready-check.py`, `pr-body-check.py`, the handoff drift-guard and
-board-status hooks, the opt-in LoC-offender gate, and a wave-anchor template.
+board-status hooks (Claude only — wired via `.claude/settings.json`, no Codex
+mirror), the opt-in LoC-offender gate, and a wave-anchor template.
+
+This kit deliberately ships without a test suite (a leaner `npx` payload) — the
+scripts and skills are tested in the maintainer's private source repo they're
+generated from. Customizing a guard? Add your own tests against the copy in
+your repo.
 
 ## Requirements
 
@@ -346,7 +382,7 @@ board-status hooks, the opt-in LoC-offender gate, and a wave-anchor template.
 - The `grill-*-codex` / `codex-review` cross-model review is by **Chase AI**
   (https://github.com/chaseai-yt/grill-me-codex), MIT.
 - `retro`, `wrapup`, `spec-self-critique`, `board-to-waves`, `verify-spike`,
-  `decision-gate`, `codex-adapter-sync` are original work.
+  `decision-gate`, `codex-adapter-sync`, `code-review` are original work.
 
 Full origin + license of every skill is in [PROVENANCE.md](PROVENANCE.md).
 

@@ -85,6 +85,26 @@ Codex adapter side:
      on both sides. Stale source content is not a transform: copy it into the
      Codex mirror instead. A mirror-parity lint (if your project ships one)
      strips paired regions and fails on unmarked or unpaired drift.
+   - **Escalation-target rewrite (standard adaptation).** A Claude-only,
+     vendored escalation skill (`surfaces: [claude]` in the manifest — e.g.
+     `grill-with-docs-codex`, `grill-me-codex`, Chase AI's cross-model Act-2
+     variants) has no `.agents` mirror. Any Codex-side reference to that skill
+     name is a dangling target and must be rewritten to its plain, dual-surface
+     counterpart (`grill-with-docs`, `grill-me`) instead. Reword the sentence
+     around the swapped name so it stays coherent on the Codex surface — in
+     particular, drop any claim that a *different* model reviews the plan
+     afterwards (Act 2): that mechanic is Claude-orchestrator-specific
+     (dispatches `codex exec` as a subprocess) and does not apply once the
+     agent running the skill already is Codex. For a dual-surface
+     generic/vendored skill, do this inside a paired `mirror-xform` region (see
+     above) so the Claude source keeps citing the real `-codex` skill
+     unchanged while the Codex mirror gets the plain, reworded sentence; for a
+     Codex-only project-private skill, rewrite the reference directly, no
+     marker needed. A reference to the skill's real upstream repo name or a
+     real doc file path that merely happens to contain the string (e.g.
+     `chaseai-yt/grill-me-codex`, `docs/agents/skills/grill-with-docs-codex.md`)
+     is not an escalation target and must NOT be rewritten — rewriting it would
+     break attribution/a real link.
 5. Validate Codex skill frontmatter:
    - `name` and `description` are required.
    - Quote `description` when it contains colons, arrows, commas, or other

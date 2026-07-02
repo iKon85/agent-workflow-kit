@@ -42,12 +42,15 @@ Even when the slices were already cut upstream (a grill/PRD slice table), do NOT
 - Every byte-neutral/prep slice names its deferred half + the slice that closes it.
 - For the FIRST outcome slice after any prep slices, trace one concrete value through ALL layers against the code (`grep`/Read) — do not trust an abstraction like "config-driven resolver replaces the FIELD_MAPs". A missing layer = carve a new slice BEFORE publishing.
 - **Seam-Ownership check (Fix A):** does any slice **replace/unify/retire a central mechanism**? If yes, it MUST be its own 🧊 grill-needed slice — NOT hidden in a behavior-preserving naming/tweak leaf. A byte-neutral slice does not discharge the seam.
-- **Blast-Radius-Schwelle:** for each slice, estimate the blast radius (~N files, from recon/grep — not a guess; workflow slices count SKILL.md + adapter mirrors + tests). **≥ 10 estimated files OR not estimable → check for a split.** If the slice stays deliberately large, it MUST be 🧊 **grill-needed** (HITL) with a "why indivisible" justification **in the issue body** — a guideline, not a hard block, but the deviation lives in the body, not in the agent's head. (Incident: "DAL Rest" cut as 1 slice → 34 prod files / ~155 call-sites at execute-recon, an emergency in-build split. No gate at the cut existed.)
-- **Gate-Typ + Sequenz (Retro):** jeder Slice, der **kein** glatter AFK-Bau ist, kriegt einen Gate-Tag — 🧭 **Design-Grill** (Entscheidung mit Alternativen, hard-to-reverse, ADR-würdig → `grill-with-docs-codex`), 🔬 **Verify-Spike** (reine Faktenfrage, read-only), 📐 **Abwägung/Research** (konkrete Trade-off-Wahl ODER „nochmal Research nötig", **unter** Grill-Schwelle — read-only Recherche + dokumentierte Abwägung im Issue), 📝 **Review-Notiz** (Befund, **kein** Bau-Slice). Ein Gate-Slice (🧭/🔬/📐) wird als **eigener Slice** geschnitten, **vor** seinem abhängigen Bau-Slice sequenziert und blockt ihn (gate-before-build, sichtbar in „Blocked by" + Tabellen-Reihenfolge). „Modifizieren / offene Entscheidung / Research-Lücke" beim Schneiden → Gate-Slice, **nie** blind AFK-`/tdd`. (🔬 **Verify-Spike** läuft mit dem Skill `verify-spike` — read-only Faktenfrage, throwaway-Harness, Verdikt als ADR/Kommentar, Wegwerf gelöscht. 📐 **Abwägung/Research** läuft mit dem Skill `decision-gate` — Optionen + Kriterien, read-only Recherche/Messung, dokumentierte Trade-off-Tabelle, begründete Entscheidung als ADR/Kommentar; Wegwerf-Mess-Code gelöscht.)
+- **Blast-Radius-Schwelle:** for each slice, estimate the blast radius (~N files, from recon/grep — not a guess; workflow slices count SKILL.md + adapter mirrors + tests). **≥ 10 estimated files OR not estimable → check for a split.** If the slice stays deliberately large, it MUST be 🧊 **grill-needed** (HITL) with a "why indivisible" justification **in the issue body** — a guideline, not a hard block, but the deviation lives in the body, not in the agent's head. (Incident: "DAL Rest" cut as 1 slice → 34 prod files / ~155 call-sites at execute-recon, an emergency in-build split. No gate at the cut existed.) (Begriffs-Abgrenzung: dieses Blast-Radius ist eine **Slice-Schätzung** — ~N Dateien für den einzelnen Schnitt — nicht ein projekteigener Rollout-Vollständigkeits-Census (z.B. ein-artiger, code-abgeleiteter „X von Y"-Census über alle Flächen eines querschnittigen Konzepts, falls dein Repo einen führt).)
+<!-- mirror-xform:start codex-escalation -->
+- **Gate-Typ + Sequenz (Retro):** jeder Slice, der **kein** glatter AFK-Bau ist, kriegt einen Gate-Tag — 🧭 **Design-Grill** (Entscheidung mit Alternativen, hard-to-reverse, ADR-würdig → `grill-with-docs`), 🔬 **Verify-Spike** (reine Faktenfrage, read-only), 📐 **Abwägung/Research** (konkrete Trade-off-Wahl ODER „nochmal Research nötig", **unter** Grill-Schwelle — read-only Recherche + dokumentierte Abwägung im Issue), 📝 **Review-Notiz** (Befund, **kein** Bau-Slice). Ein Gate-Slice (🧭/🔬/📐) wird als **eigener Slice** geschnitten, **vor** seinem abhängigen Bau-Slice sequenziert und blockt ihn (gate-before-build, sichtbar in „Blocked by" + Tabellen-Reihenfolge). „Modifizieren / offene Entscheidung / Research-Lücke" beim Schneiden → Gate-Slice, **nie** blind AFK-`/tdd`. (🔬 **Verify-Spike** läuft mit dem Skill `verify-spike` — read-only Faktenfrage, throwaway-Harness, Verdikt als ADR/Kommentar, Wegwerf gelöscht. 📐 **Abwägung/Research** läuft mit dem Skill `decision-gate` — Optionen + Kriterien, read-only Recherche/Messung, dokumentierte Trade-off-Tabelle, begründete Entscheidung als ADR/Kommentar; Wegwerf-Mess-Code gelöscht.)
+<!-- mirror-xform:end -->
+- **🧭-vs.-📐-Diskriminator:** ersetzt/vereinheitlicht/retired die Entscheidung einen **zentralen Seam**, ist sie ein **One-Way-Door** (schwer/teuer rückgängig zu machen) oder eine **Schema-Migration** → 🧭 Design-Grill (ADR-würdig, s. Seam-Ownership oben). Sonst — eine **begrenzte Wahl zwischen konkreten Optionen**, leicht revidierbar → 📐 Abwägung/Research.
 - **Absence-before-build (Retro):** ein als „Feature/Seite/Endpoint/Flow X **bauen**" geschnittener Slice (oder ein Gate „X-Lücke unklar") MUSS einen **Existenz-Grep** zitieren — *absent* (`grep <pattern> = 0` über Route **und** UI **und** Repo) ODER *partial* (`existiert @<file>, Lücke = <Y>`). Ein Hedge („IST-Stand unklar → in der Bau-Phase verifizieren") ist **kein** gültiger Slice-Zustand: der Check ist billig (Minuten), also **am Schnitt**, nicht in ein Gate vertagt. (Incident: F4 „Umbrella-Projekt anlegen" als 📐-Gate geschnitten, obwohl 3 Greps „bereits gebaut" zeigten — die Lücke wurde vertagt statt aufgelöst.)
 - **Gate-Disziplin:** ein 🔬/📐-Gate ist erst legitim, **nachdem** der billige Read-only-Check NICHT auflöst — der Gate-Slice nennt eine Zeile „warum der Check nicht reichte". Ein Gate ist kein Parkplatz für nicht-gelaufenes Recon.
 
-- **`## Offene Punkte` aus der Quelle → downstream HITL:** trägt das Quell-Artefakt (z.B. eine `to-prd`-PRD mit nicht-ableitbaren Sektionen) eine nicht-leere **`## Offene Punkte`**-Sektion, **muss** `to-issues` entweder **stoppen + nachfragen** ODER die betroffene(n) Slice(s)/den Leaf als **HITL** mit `## Vor Bau zu klären` publishen — die offenen Punkte verschwinden nie still (eine Draft-PRD hat selbst keinen Bucket; der lebt erst auf Kind/Leaf, §5c).
+- **`## Offene Punkte` aus der Quelle → downstream HITL:** trägt das Quell-Artefakt (z.B. eine `to-prd`-PRD mit nicht-ableitbaren Sektionen) eine nicht-leere **`## Offene Punkte`**-Sektion, **muss** `to-issues` entweder **stoppen + nachfragen** ODER die betroffene(n) Slice(s)/den Leaf als **HITL** mit der `headings.vorBau`-Heading (§5c) publishen — die offenen Punkte verschwinden nie still (eine Draft-PRD hat selbst keinen Bucket; der lebt erst auf Kind/Leaf, §5c).
 
 The table is only "done" when every user-facing row passes the trace. **Incident:** a custom-field read-path fell between a byte-neutral resolver slice (1a) and a "UI" slice — owned by neither, caught a slice too late.
 
@@ -57,10 +60,10 @@ When the slices change **workflow markdown** (skills, hooks, conventions) instea
 
 1. **Contract-Prosa** — the `SKILL.md`/convention rule that prescribes the behavior.
 2. **Mechanik** — the command/hook/helper that *enforces* it (e.g. `scripts/board-sync.py`, a lint fixture, a hook). If a behavior genuinely has no machinery, write the explicit notation **`Mechanik: n/a weil <reason>`** — never silently omit it.
-3. **Test/Fixture** — the `scripts/test_*.py` that proves it.
-4. **Adapter-Mirror** — the `.agents/skills/…` copy (codex side), kept in sync via `codex-adapter-sync`.
+3. **Test/Fixture** — *falls dein Repo eine Test-Schicht für Workflow-Scripts führt* (z.B. `scripts/test_*.py`): der Test, der es beweist. Sonst die explizite Notation **`Test: n/a weil <reason>`** (z.B. kein Script-Test-Harness im Consumer-Repo) — nie stillschweigend weglassen.
+4. **Adapter-Mirror** — *falls dein Skill Dual-Surface ist* (Claude + Codex): die `.agents/skills/…`-Kopie, gehalten via `codex-adapter-sync`. Sonst die explizite Notation **`Mirror: n/a weil project-private / Single-Surface`**.
 
-Trace ONE concrete behavior (e.g. "a HITL child never carries `ready-for-agent`") through all four: prose says it → helper guard rejects it → test asserts the rejection → mirror carries the same prose. A missing layer = carve a slice before publishing. *(This trace is checklist discipline in prose; mechanically enforced are only the Test/Mirror **existence** via lint — not the full four-layer trace.)*
+Trace ONE concrete behavior (e.g. "a HITL child never carries `ready-for-agent`") through all four: prose says it → helper guard rejects it → test asserts the rejection → mirror carries the same prose. A missing layer = carve a slice before publishing; an `n/a` layer (3/4) is a deliberate, named exemption, not a gap. *(This trace is checklist discipline in prose; mechanically enforced are only the Test/Mirror **existence** via lint — not the full four-layer trace, and never for a layer marked `n/a`.)*
 
 ### 4. Quiz the user
 
@@ -68,7 +71,10 @@ Present the proposed breakdown as a numbered list. For each slice, show:
 
 - **Title**: short descriptive name
 - **Type**: HITL / AFK
-- **Gate**: `—` (glatter AFK-Bau) · 🧭 Design-Grill (`grill-with-docs-codex`, ADR-würdig) · 🔬 Verify-Spike (read-only Faktenfrage) · 📐 Abwägung/Research (Trade-off-Wahl ODER Research unter Grill-Schwelle, read-only + dokumentierte Abwägung) · 📝 Review-Notiz (kein Bau-Slice). Ein Gate-Slice (🧭/🔬/📐) wird **vor** seinem abhängigen Bau-Slice einsortiert (gate-before-build) + blockt ihn.
+<!-- mirror-xform:start codex-escalation -->
+- **Gate**: `—` (glatter AFK-Bau) · 🧭 Design-Grill (`grill-with-docs`, ADR-würdig) · 🔬 Verify-Spike (read-only Faktenfrage) · 📐 Abwägung/Research (Trade-off-Wahl ODER Research unter Grill-Schwelle, read-only + dokumentierte Abwägung) · 📝 Review-Notiz (kein Bau-Slice). Ein Gate-Slice (🧭/🔬/📐) wird **vor** seinem abhängigen Bau-Slice einsortiert (gate-before-build) + blockt ihn.
+<!-- mirror-xform:end -->
+- **🧭-vs.-📐:** zentraler Seam / One-Way-Door / Schema-Migration → 🧭; eine begrenzte Wahl zwischen konkreten Optionen → 📐 (Kriterium: §3b).
 - **Blast-Radius**: ~N estimated files (from recon/grep, not a guess — workflow slices count SKILL.md + adapter mirrors + tests). Flags the §3b threshold at the cut.
 - **Blocked by**: which other slices (if any) must complete first
 - **User stories covered**: which user stories this addresses (if the source material has them)
@@ -99,7 +105,7 @@ How it is published depends on the decomposition test (gilt für **jede** Quelle
 
 **`wave-stub`-Strip ist automatisch — kein manueller Edit.** War die Quelle ein `board-to-waves`-Kandidaten-Stub (`label:wave-stub`), entfernt **beide** Publish-Mechaniken das Label idempotent: `promote` (§5a) **und** `add --bucket` (§5b atomar). Sie verlässt damit die „wartet auf Planung"-Liste (`is:open label:wave-stub`), egal ob sie Welle oder atomares Leaf wird. Niemals per bare `gh issue edit --remove-label wave-stub` nachhelfen — der Helper ist der einzige Label-Writer (s. Box unten).
 
-**Lane-D — mechanisches Bündel (Datei-Liste/Refactor).** Es darf den Domänen-Grill **überspringen** — **nur** wenn: Blast-Radius *schätzbar* **und** `<10 Dateien` **und** *kein* Seam ersetzt (§3b Seam-Ownership/Blast-Radius bleiben). Sonst → **HITL** mit `## Vor Bau zu klären` (strukturelle Fragen / why-indivisible), wie §3b/§5c es verlangen. Kein `## Vor Bau zu klären` nötig, wenn nichts offen ist.
+**Lane-D — mechanisches Bündel (Datei-Liste/Refactor).** Es darf den Domänen-Grill **überspringen** — **nur** wenn: Blast-Radius *schätzbar* **und** `<10 Dateien` **und** *kein* Seam ersetzt (§3b Seam-Ownership/Blast-Radius bleiben). Sonst → **HITL** mit der `headings.vorBau`-Heading (strukturelle Fragen / why-indivisible), wie §3b/§5c es verlangen. Keine `headings.vorBau`-Heading nötig, wenn nichts offen ist.
 
 **All board writes go through `scripts/board-sync.py` only** — never a bare `gh issue create`/`project item-add`/`item-edit`/`addSubIssue`, and never a workflow-state label edit (`gh issue edit --add-label ready-for-agent|needs-info|type:cluster`). The helper owns the one-parent-check, preview header, field IDs, and the HITL guard.
 
@@ -141,10 +147,10 @@ python3 scripts/board-sync.py link --parent <prd#> --child <new#>
 - The Anker body comes from **`docs/agents/wave-anchor-template.md` (Stufe 2)** — filled Slices table + collapsible PRD; **die eingebettete PRD im `<details>` wird von ALLEN ihren Markern gestrippt** (`plan_revision`/`prd-source-id`/`prd-content-fp`/`awaiting-decomposition`) — der Anker trägt seine eigenen im Kopf; ein doppelter `plan_revision` triggert `[DENY] plan_revision multiple` (Retro). Reference output.
 - Promoted children carry the title prefix **`Welle N / Slice X — <outcome>`**.
 - Fresh children each have exactly one parent → the one-parent constraint is never violated. `link` refuses a foreign-parent re-parent (exits non-zero — drift, never silent).
-- **Member-Reconcile beim Promote eines `board-to-waves`-Stubs (Pflicht — Retro).** Der Normalfall `board-to-waves → to-issues`: der Stub trägt schon **native Member-Sub-Issues** (die geclusterten Kandidaten). Diese MÜSSEN im Publish-Pass reconcilet werden, sonst hängen sie neben den frischen Slices → **Duplikate + execute-ready `DENY`** (der Anker-Kind-Set muss == Slice-Set sein; Alt-Member ohne `plan_revision`/Bucket denyen den §7-Audit). Regel pro Member:
-  - **1:1-Mapping (Member ⇒ genau ein Slice)** → das **Member-Issue als Slice wiederverwenden** (Body auf den Slice-Vertrag heben, `link` ist schon da), **nicht** neu anlegen + alt schließen.
-  - **Split/Merge (Member ⇒ mehrere Slices, oder mehrere Member ⇒ ein Slice) ODER frischer Slice ohne Member** → den/die superseded Member **`unlink`en + als „superseded by Slice #<n>" schließen** (Mapping-Kommentar). Unlink via `python3 scripts/board-sync.py unlink --parent <anker#> --child <member#>` (parent-checked + idempotent; **nie** bare `gh api removeSubIssue`), dann `gh issue close <member#> -c "…"`.
-  - **Vor dem Publish** die vorhandenen Member enumerieren (`python3 scripts/board-sync.py children-of <stub#>`) und pro Member die Weiche (reuse vs unlink+close) treffen — nicht erst reaktiv am §7-Audit-DENY. (Incident Retro: 12 Slices neu angelegt, 8 Member 1:1/1:N gemappt → nachträglich 10 unlinken + 8 schließen; damals fehlte `board-sync unlink`, jetzt vorhanden.)
+- **Member-Reconcile beim Promote eines `board-to-waves`-Stubs (Pflicht — Retro, korrigiert).** Die Pipeline läuft **nie direkt** `board-to-waves → to-issues` — immer über den Zwischenschritt `board-to-waves` (Stub) → [optional grill] → `to-prd` (Draft-PRD) → `to-issues` (Publish). `board-to-waves` setzt beim Clustern **keine** nativen Sub-Issue-Links (Wave-Feld + Parent-Link entstehen erst hier, bei DIESER Promotion) — **Reconcile-Input sind die im Stub-Body als `#…`-Liste geführten Mitglieds-Issues** (Body lesen, z.B. `gh issue view <anker#> --json body`), **nicht** `children-of <stub#>`: das findet vor der ersten Promotion nichts (noch kein nativer Link vorhanden). Diese Mitglieder MÜSSEN im Publish-Pass reconcilet werden, sonst hängen sie neben den frischen Slices → **Duplikate + execute-ready `DENY`** (der Anker-Kind-Set muss == Slice-Set sein; Alt-Member ohne `plan_revision`/Bucket denyen den §7-Audit). Regel pro Member:
+  - **1:1-Mapping (Member ⇒ genau ein Slice)** → das **Member-Issue als Slice wiederverwenden** (Body auf den Slice-Vertrag heben, **danach** `link` setzen — der Link existiert vor dieser Promotion noch nicht), **nicht** neu anlegen + alt schließen.
+  - **Split/Merge (Member ⇒ mehrere Slices, oder mehrere Member ⇒ ein Slice) ODER frischer Slice ohne Member** → den/die superseded Member als **„superseded by Slice #<n>" schließen** (Mapping-Kommentar); trägt ein Member ausnahmsweise bereits einen nativen Link (z.B. aus einem früheren Teil-Lauf derselben Promotion), erst `unlink`en via `python3 scripts/board-sync.py unlink --parent <anker#> --child <member#>` (parent-checked + idempotent; **nie** bare `gh api removeSubIssue`), dann `gh issue close <member#> -c "…"`.
+  - **Vor dem Publish** die im Stub-Body gelisteten Mitglieds-Issues lesen und pro Member die Weiche (reuse vs. close) treffen — nicht erst reaktiv am §7-Audit-DENY. (Incident Retro: 12 Slices neu angelegt, 8 Member 1:1/1:N gemappt → nachträglich 10 unlinken + 8 schließen; damals fehlte `board-sync unlink`, jetzt vorhanden.)
 
 #### 5b. ATOMAR (1 slice)
 
@@ -155,11 +161,11 @@ Then set the bucket via the helper — the leaf already exists, so the workflow-
 ```bash
 # AFK (buildable now): set ready-for-agent
 python3 scripts/board-sync.py add --issue <prd#> --bucket afk
-# HITL (grill first): strip ready-for-agent + the body carries `## Vor Bau zu klären`
+# HITL (grill first): strip ready-for-agent + the body carries the `headings.vorBau` heading (§5c)
 python3 scripts/board-sync.py add --issue <prd#> --bucket hitl
 ```
 
-`--bucket hitl` strips the label mechanically (a HITL leaf is never buildable — same invariant `create --hitl` enforces by rejecting). Bucket semantics + the `## Vor Bau zu klären` requirement → §5c (the authority is `execute-ready-check.py`).
+`--bucket hitl` strips the label mechanically (a HITL leaf is never buildable — same invariant `create --hitl` enforces by rejecting). Bucket semantics + the `headings.vorBau` heading requirement → §5c (the authority is `execute-ready-check.py`).
 
 #### 5c. HITL/AFK — Label + Body (`ready-for-agent` is the discriminator)
 
@@ -168,7 +174,7 @@ Every child **and** the atomar leaf sits in **exactly one** bucket:
 | Bucket | `ready-for-agent` | Status | Body |
 |---|---|---|---|
 | **AFK** (buildable now) | **present** | `Spec` | complete What + AC |
-| **HITL** (grill first) | **absent** | `Spec` | mandatory `## Vor Bau zu klären` with the open questions known from the macro-grill |
+| **HITL** (grill first) | **absent** | `Spec` | mandatory `headings.vorBau` heading (Board-Profil `docs/agents/board-sync.md`; <project> aktuell `## Vor Bau zu klären`) with the open questions known from the macro-grill |
 
 Status alone cannot discriminate (both are `Spec`) — the **label** does. The helper's `--hitl` flag rejects a `ready-for-agent` label mechanically. Authority = `scripts/execute-ready-check.py` (`parse_bucket`) — bei Abweichung gilt der Checker.
 
@@ -196,7 +202,7 @@ End-to-end behavior of this vertical slice (not layer-by-layer). Avoid file path
 ## Blocked by
 Reference the blocking ticket(s), or "None - can start immediately".
 
-## Vor Bau zu klären   <!-- HITL only — the open decisions; omit for AFK -->
+## Vor Bau zu klären   <!-- heading = Board-Profil `headings.vorBau` (docs/agents/board-sync.md); HITL only — the open decisions; omit for AFK -->
 - <open question 1>
 
 ## Verifikations-Frage   <!-- 🔬 Verify-Spike only — omit otherwise -->
@@ -214,7 +220,9 @@ Reference the blocking ticket(s), or "None - can start immediately".
 **Verdikt-Senke:** <ADR / dieser Body / Folge-Slice #N>
 
 ## Handoff-Startbefehl
-Scope + Live-Verify + start skill (🧭 Design-Grill → `/grill-with-docs-codex`, 🔬 Verify-Spike → `/verify-spike`, 📐 Abwägung/Research → `/decision-gate`, AFK → `/tdd`, HITL → `/grill-me → /tdd`).
+<!-- mirror-xform:start codex-escalation -->
+Scope + Live-Verify + start skill (🧭 Design-Grill → `/grill-with-docs`, 🔬 Verify-Spike → `/verify-spike`, 📐 Abwägung/Research → `/decision-gate`, AFK → `/tdd`, HITL → `/grill-me → /tdd`).
+<!-- mirror-xform:end -->
 </issue-template>
 
 **Blast-Radius-Abgleich (Bau-Session):** the stamped `**Blast-Radius:**` is the estimate *at the cut* — the build session compares it against its own recon befund. A real befund **> 2× the estimate → STOP + report** (re-cut at the Anker), do NOT keep building silently.
@@ -241,7 +249,7 @@ python3 scripts/execute-ready-check.py --issue <anker-or-leaf#> --mode audit
 ```
 
 It asserts, for the rooted local graph:
-- every child + the atomar leaf is in **exactly one** bucket (AFK: `ready-for-agent` + complete · HITL: no `ready-for-agent` + `## Vor Bau zu klären`);
+- every child + the atomar leaf is in **exactly one** bucket (AFK: `ready-for-agent` + complete · HITL: no `ready-for-agent` + the `headings.vorBau` heading, §5c);
 - `plan_revision` stamped and coherent (child == Anker, leaf own); no stale in-between;
 - Parent↔Child consistent (Anker carries no bucket / no `ready-for-agent`);
 - ** Anker-Shape** (`## Herkunft`/`## Entscheidungen`/`## Slices` + Body-Kopfzeile) — als **`shape_warnings`** (rein non-blocking, fließt **nie** in `deny_recommended`).

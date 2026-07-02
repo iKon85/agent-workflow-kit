@@ -32,13 +32,18 @@ from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from board_config import load_board_config  # noqa: E402
+from board_config import ConfigError, load_board_config  # noqa: E402
 
 # --- Board profile (SSOT: docs/agents/board-sync.md `board-sync:profile`) ----
 # No inline board IDs: board_config reads them from the profile so the published
 # kit carries no project-private constants (a consumer's profile is seeded by
-# /setup-workflow).
-_CFG = load_board_config()
+# /setup-workflow). A bad/missing profile fails clean here (one-line stderr, exit
+# 1) instead of a raw ConfigError traceback.
+try:
+    _CFG = load_board_config()
+except ConfigError as exc:
+    print(f"error: {exc}", file=sys.stderr)
+    sys.exit(1)
 REPO = _CFG["repo"]
 REPO_NAME = REPO.split("/", 1)[1]
 PROJECT_NUMBER = _CFG["project"]["number"]
@@ -55,6 +60,7 @@ TYPE_PREFIX = _CFG["labels"]["typePrefix"]
 CLUSTER_TYPE_LABEL = _CFG["labels"]["clusterType"]
 WAVE_STUB_LABEL = _CFG["labels"]["waveStub"]
 PROJECT_ITEM_LIST_LIMIT = 2000
+GH_TIMEOUT_SECONDS = 15  # a hanging gh prompt must not block a session indefinitely
 
 # Sub-issues GraphQL API is behind a preview feature gate per account.
 SUB_ISSUES_HEADER = "GraphQL-Features: sub_issues"
@@ -86,8 +92,12 @@ class GhError(RuntimeError):
 
 # --- subprocess seam (the only thing tests monkeypatch) ----------------------
 def _gh(args: list[str]) -> str:
-    """Run `gh <args>`, return stdout. Raise GhError on non-zero exit."""
-    result = subprocess.run(["gh", *args], capture_output=True, text=True)
+    """Run `gh <args>`, return stdout. Raise GhError on non-zero exit or timeout."""
+    try:
+        result = subprocess.run(["gh", *args], capture_output=True, text=True,
+                                 timeout=GH_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as exc:
+        raise GhError(f"gh {' '.join(args)} timed out after {GH_TIMEOUT_SECONDS}s") from exc
     if result.returncode != 0:
         raise GhError(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
     return result.stdout
@@ -298,11 +308,15 @@ _CONVENTIONAL_PREFIX_RE = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s*")
 def wave_title(current: str, wave: int) -> str:
     """Title for a wave anchor: `Welle <N> — <Thema>`.
 
-    Replaces any existing `Welle X — ` prefix (idempotent re-promote) and strips a
-    leading conventional-commit prefix, then re-prefixes with the given wave.
+    Strips a leading conventional-commit prefix FIRST, then any existing
+    `Welle X — ` prefix underneath it (idempotent re-promote), then re-prefixes
+    with the given wave. Order matters: a title like `fix: Welle 7 — X` only
+    reveals its `Welle 7 — ` prefix once the conventional prefix is gone —
+    stripping Wave first leaves it intact and doubles up into
+    `Welle 29 — Welle 7 — X`.
     """
-    thema = _WAVE_PREFIX_RE.sub("", current)
-    thema = _CONVENTIONAL_PREFIX_RE.sub("", thema).strip()
+    thema = _CONVENTIONAL_PREFIX_RE.sub("", current)
+    thema = _WAVE_PREFIX_RE.sub("", thema).strip()
     return f"Welle {wave} — {thema}"
 
 
@@ -448,8 +462,24 @@ def cmd_create(args) -> int:
         _add_and_stamp("<new-url>", args.wave, args.status, args.cluster, None, None, dry_run=True)
         return 0
     url = _gh(create_args).strip().splitlines()[-1]
-    _add_and_stamp(url, args.wave, args.status, args.cluster, None, None, dry_run=False)
-    print(f"#{issue_number_from_url(url)} {url}")
+    issue_no = issue_number_from_url(url)
+    # Print the number/URL immediately — a board-sync failure below must never
+    # swallow it. A retry without this would blind-recreate a duplicate issue
+    # (the create already succeeded, only the board-sync half failed).
+    print(f"#{issue_no} {url}")
+    try:
+        _add_and_stamp(url, args.wave, args.status, args.cluster, None, None, dry_run=False)
+    except GhError as exc:
+        repair = f"python3 scripts/board-sync.py add --issue {issue_no}"
+        if args.wave is not None:
+            repair += f" --wave {args.wave}"
+        if args.status:
+            repair += f" --status {args.status}"
+        if args.cluster:
+            repair += f" --cluster {args.cluster}"
+        print(f"board-sync of #{issue_no} FAILED after create: {exc}")
+        print(f"  repair (idempotent): {repair}")
+        return 1
     return 0
 
 

@@ -64,12 +64,40 @@ def render_pipe_table(headers: list[str], rows: list[list[str]]) -> str:
     return "\n".join(lines)
 
 
+_MD_EMPHASIS_RE = re.compile(r"^(\*{1,2}|_{1,2})(.+)\1$")
+
+
+def _strip_markdown_emphasis(cell: str) -> str:
+    """Strip one layer of wrapping markdown emphasis (`**Bold**`, `_em_`) so a
+    stylised header still exact-matches. Deliberately NOT a fuzzy/substring
+    strip — a genuine variant like 'Sub-Issue (native)' must stay unmatched."""
+    m = _MD_EMPHASIS_RE.match(cell)
+    return m.group(2) if m else cell
+
+
 def col_index(headers: list[str], name: str) -> Optional[int]:
-    """Index of the column whose header == name (stripped), or None."""
+    """Index of the column whose header — trimmed and stripped of one layer of
+    wrapping markdown emphasis — equals name exactly, or None."""
     for i, h in enumerate(headers):
-        if h.strip() == name:
+        if _strip_markdown_emphasis(h.strip()) == name:
             return i
     return None
+
+
+def require_col_index(headers: list[str], name: str) -> int:
+    """`col_index(headers, name)`, or a loud ValueError if this column can't be
+    pinned down — e.g. a header variant like 'Sub-Issue (native)' that
+    `locate_slice_table` matched on a raw substring but `col_index` can't
+    exact/tolerant-match. Never let a silent None flow downstream and get
+    misread as "no row has this column": that used to make merge_slice_rows
+    treat every board sub-issue as missing and append it as a duplicate row,
+    on every run (, proven by a 2026-07-02 double-run)."""
+    idx = col_index(headers, name)
+    if idx is None:
+        raise ValueError(
+            f"slice table found but column {name!r} not matched "
+            f"(headers: {headers})")
+    return idx
 
 
 def first_subissue_num(cell: str) -> Optional[int]:
@@ -144,23 +172,29 @@ def merge_slice_rows(headers: list[str], rows: list[list[str]],
                      board: dict) -> tuple[list[list[str]], list[int]]:
     """Refresh Status/Branch per row from board (keyed by the Sub-Issue cell's first
     #n) and append board sub-issues missing from the table. Returns (rows, appended).
-    Rows whose sub-issue is absent from the board stay verbatim."""
-    si, st, br = (col_index(headers, c) for c in ("Sub-Issue", "Status", "Branch"))
+    Rows whose sub-issue is absent from the board stay verbatim.
+
+    Sub-Issue and Status are REQUIRED columns (`require_col_index` raises loudly
+    if a header variant can't be matched) — a silent None here used to make
+    `seen` stay empty and every board sub-issue get appended as a duplicate row
+    on every run."""
+    si = require_col_index(headers, "Sub-Issue")
+    st = require_col_index(headers, "Status")
+    br = col_index(headers, "Branch")
     slice_i = col_index(headers, "Slice")
     # A board sub-issue counts as present if its #n appears ANYWHERE in the
     # Sub-Issue column — incl. a folded secondary ref like `(schließt)`
     # — so it is never appended as a duplicate row.
     seen: set = set()
-    if si is not None:
-        for row in rows:
-            if si < len(row):
-                seen.update(int(n) for n in _SUBISSUE_NUM_RE.findall(row[si]))
+    for row in rows:
+        if si < len(row):
+            seen.update(int(n) for n in _SUBISSUE_NUM_RE.findall(row[si]))
     out: list[list[str]] = []
     for row in rows:
         row = list(row)
-        sub = first_subissue_num(row[si]) if si is not None and si < len(row) else None
+        sub = first_subissue_num(row[si]) if si < len(row) else None
         if sub is not None and sub in board:
-            if st is not None and st < len(row):
+            if st < len(row):
                 row[st] = refresh_status_cell(row[st], board[sub])
             if br is not None and br < len(row):
                 row[br] = refresh_branch_cell(row[br], board[sub])
@@ -170,10 +204,8 @@ def merge_slice_rows(headers: list[str], rows: list[list[str]],
         if sub in seen:
             continue
         new = [""] * len(headers)
-        if si is not None:
-            new[si] = f"#{sub}"
-        if st is not None:
-            new[st] = status_token_from_board(entry)
+        new[si] = f"#{sub}"
+        new[st] = status_token_from_board(entry)
         if br is not None:
             head = branch_from_board(entry)
             if head:
@@ -188,7 +220,13 @@ def merge_slice_rows(headers: list[str], rows: list[list[str]],
 # --- locate / splice the table within the anchor body ------------------------
 def locate_slice_table(lines: list[str]) -> Optional[tuple[int, int]]:
     """[start, end) of the existing slice table: the header pipe-row that names both
-    Status and Sub-Issue, plus the contiguous pipe rows after it."""
+    Status and Sub-Issue, plus the contiguous pipe rows after it.
+
+    Deliberately a raw substring match (lenient, to find variant tables) — that
+    can locate a header whose actual Sub-Issue/Status columns don't `col_index`
+    exact-match (e.g. 'Sub-Issue (native)'). That mismatch is caught downstream:
+    `merge_slice_rows` requires both columns via `require_col_index`, which
+    raises loudly instead of silently duplicating rows."""
     hdr = next((i for i, ln in enumerate(lines)
                 if ln.strip().startswith("|") and "Status" in ln and "Sub-Issue" in ln), None)
     if hdr is None:

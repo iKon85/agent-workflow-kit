@@ -20,6 +20,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `docs/agents/board-sync.md` | GitHub-Projects field-IDs + board profile — **only meaningful for a GitHub tracker** (Section D) |
 | `docs/agents/skills/spec-self-critique.md` | per-point enrichment skeleton; `/retro` appends here (Section E) |
 | `docs/conventions/spec-completeness.md` | a valid `## Self-Critique-Check` convention seed (Section E) |
+| `docs/agents/code-review.md` | Standards-source pointers + adjacent-review-tooling notes the `code-review` skill's Standards axis reads (Section I) |
 | `## Workflow` in CLAUDE.md **and** AGENTS.md | generic entry-point map seeded from [workflow-overview.md](./workflow-overview.md) (Section F + Write) |
 | `## Agent skills` + `## Prod` in CLAUDE.md **and** AGENTS.md | one-line pointers + deploy target (Sections C/G + Write) |
 
@@ -129,6 +130,12 @@ Seed `max-lines-allowlist.json` **only if absent** (never overwrite — its `off
 }
 ```
 Adjust `maxLines` only if the consumer asks for a different line limit. `vendored` = permanently-exempt third-party primitives; `offenders` = the shrinking known-debt set (files already over the limit at adoption). Report `created · skipped (already present)`.
+
+### 8c. Section I — Code-review project layer (non-interactive)
+
+> The `code-review` skill's Standards axis reads a project layer for exactly which docs count as this repo's conventions, and how the method relates to any other review tooling already running here. Seed it so the skill resolves that directly instead of guessing at the repo root.
+
+Seed `docs/agents/code-review.md` from [code-review.md](./code-review.md) — the same structured-but-empty philosophy as Section E: the two headings ("Standards sources in this repo" / "Adjacent review tooling") ship complete, but filling in this repo's real values is a manual edit (or a later pass), not something this run invents. Write at `state=filled` — the scaffold itself is the finished deliverable; nothing is pending from `/setup-workflow`'s side.
 
 ### 8. Write
 
