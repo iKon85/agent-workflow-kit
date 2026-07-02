@@ -1,7 +1,7 @@
 # Third-Party Notices
 
 This skill is adapted from **Matt Pocock's skills**
-(https://github.com/mattpocock/skills), `skills/engineering/diagnose` @ 2bf7005, Copyright (c) 2026 Matt Pocock,
+(https://github.com/mattpocock/skills), `skills/engineering/diagnosing-bugs` @ 7a83a3a, Copyright (c) 2026 Matt Pocock,
 used under the MIT License. Locally adapted (fork-and-own); see PROVENANCE.md.
 
 ```

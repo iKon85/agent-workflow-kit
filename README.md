@@ -93,6 +93,11 @@ step ran. The routing key is just *"is there an issue yet?"*: a loose artefact
   slice, sequenced *before* the build slice it blocks — clarify the one open point
   cheaply instead of re-grilling the whole feature; genuinely hard-to-reverse calls
   still escalate up to `+codex`.
+- **`domain-modeling` / `codebase-design` — shared design vocabulary.** When a slice
+  is about *shaping* rather than shipping — pinning down the ubiquitous language and
+  ADRs (`domain-modeling`) or designing a deep module behind a clean seam
+  (`codebase-design`) — these give the grill and the design work a precise, consistent
+  vocabulary instead of ad-hoc terms.
 
 You approve the slice breakdown before anything is published — the funnel never
 publishes behind your back.
@@ -106,6 +111,9 @@ publishes behind your back.
   and must fail for the right reason.
 - **`prototype`** — spike a throwaway when the path is genuinely unclear, so the
   real implementation is informed.
+- **`implement`** — drive a PRD or a set of issues to done: `tdd` at the agreed
+  seams, typecheck + single-file tests throughout, the full suite once at the end,
+  then a `code-review` pass before it lands.
 
 **Two more skills are doors of their own, not funnel steps.** You reach for them
 when the work *starts* broken or tangled rather than from a fresh idea, so they
@@ -131,6 +139,9 @@ enter outside the plan funnel and feed straight into Execute:
   contract guards block a broken commit or push. You don't run a skill here; the
   gate was installed once at setup (`git-guardrails` / `setup-pre-commit`, see
   Configuration) and now guards every Land.
+- **`resolving-merge-conflicts`** — a disciplined loop for an in-progress
+  merge/rebase conflict: understand each side's intent from history/PRs, preserve
+  both where possible, always resolve (never `--abort`), then re-run the checks.
 - **Helper scripts** — `pr-body-check.py`, `execute-ready-check.py`, and
   `board-sync.py` keep the PR and the issue tracker honest (see Configuration).
 
@@ -302,11 +313,14 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**24 skills** (Plan: grill-me, grill-with-docs, to-prd, to-issues, board-to-waves,
-triage, spec-self-critique, verify-spike, decision-gate · Execute: tdd, prototype ·
-Diagnose & refactor streams: diagnose, zoom-out, improve-codebase-architecture ·
-Land: wrapup · Learn: retro, write-a-skill · Setup: setup-workflow, git-guardrails,
-setup-pre-commit · Codex review: grill-me-codex, grill-with-docs-codex, codex-review),
+**29 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
+grill-with-docs, to-prd, to-issues, board-to-waves, triage, spec-self-critique,
+verify-spike, decision-gate · Execute: tdd, prototype, implement ·
+Design/diagnose/refactor streams: diagnose, zoom-out,
+improve-codebase-architecture, codebase-design, domain-modeling · Land: wrapup,
+resolving-merge-conflicts · Learn: retro, write-a-skill · Setup: setup-workflow,
+git-guardrails, setup-pre-commit · Codex review: grill-me-codex, grill-with-docs-codex,
+codex-review),
 installed for both surfaces — `.claude/skills`
 (Claude Code) and `.agents/skills` (Codex) — plus `codex-adapter-sync`
 (Codex-only: keeps the `.agents/skills` mirror in sync with the `.claude/skills`
