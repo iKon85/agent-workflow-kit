@@ -1,12 +1,66 @@
 {
-  "kitVersion": "0.3.5",
+  "kitVersion": "0.3.6",
   "files": [
+    {
+      "path": ".agents/skills/ask-matt/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "ask-matt",
+      "surface": "codex",
+      "sha256": "5534df228d723959a2ba7cb422690bbee813aae60af2d889447130ff825ba189",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/ask-matt/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "ask-matt",
+      "surface": "codex",
+      "sha256": "7cb8510364c9540b4db99746a70c8483d12ac56dd1b9aa71afa7ec06e40cb0a8",
+      "mode": 420,
+      "origin": "kit"
+    },
     {
       "path": ".agents/skills/board-to-waves/SKILL.md",
       "kind": "skill",
       "ownerSkill": "board-to-waves",
       "surface": "codex",
       "sha256": "3fc010a2c2a2ea81ebb8301a67b9cc156e789cc70b95208cc1bf1b85cc07412c",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/codebase-design/DEEPENING.md",
+      "kind": "skill",
+      "ownerSkill": "codebase-design",
+      "surface": "codex",
+      "sha256": "125e6b77413ad2bc7cf7a772bc74336d580a50f9e797db2178ed133d62333d06",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/codebase-design/DESIGN-IT-TWICE.md",
+      "kind": "skill",
+      "ownerSkill": "codebase-design",
+      "surface": "codex",
+      "sha256": "21c3264953bd30ee87b181a3ccaf0e70649f461e5ffd7dc654acee4ba1788b31",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/codebase-design/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "codebase-design",
+      "surface": "codex",
+      "sha256": "4a83651253d940c37627822be0ddc669feab96b797480cf98f994cc8962555a8",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/codebase-design/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "codebase-design",
+      "surface": "codex",
+      "sha256": "e63620daa7a0e363ec6ec1e18dfceb8b82d3a4328e8b17d1370b2d63f9aa94ad",
       "mode": 420,
       "origin": "kit"
     },
@@ -42,7 +96,7 @@
       "kind": "skill",
       "ownerSkill": "diagnose",
       "surface": "codex",
-      "sha256": "59a15d123470df9bba357ca36950fb67adc67e8ddcb54d60758186c8cc591f03",
+      "sha256": "c1a4a08856dae24f1dc80ca0b4044c5fa3a9172d142a5a8847175bd7b55d7776",
       "mode": 420,
       "origin": "kit"
     },
@@ -51,7 +105,43 @@
       "kind": "doc",
       "ownerSkill": "diagnose",
       "surface": "codex",
-      "sha256": "3cb59aca68a024c42b745548f904ccd619d23170a8f70a67cc07dd04fa6f7ca3",
+      "sha256": "a0009c40ee143a241d26005c735e1f1c980f124de7e22e3ba0d7e4efb9c16a2b",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/domain-modeling/ADR-FORMAT.md",
+      "kind": "skill",
+      "ownerSkill": "domain-modeling",
+      "surface": "codex",
+      "sha256": "f1f36cd3f8d3b6474ddd5855da4e233bfc4ae1a1c5024909ccf11871819a41b2",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/domain-modeling/CONTEXT-FORMAT.md",
+      "kind": "skill",
+      "ownerSkill": "domain-modeling",
+      "surface": "codex",
+      "sha256": "b8cc318f2a4285b530e908b6bc43901c3c5cd11100362636bbc4216639bef597",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/domain-modeling/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "domain-modeling",
+      "surface": "codex",
+      "sha256": "498c7b955924403afe7cdc9130bd2fbd422a62dd48054ebcdf841bed24c1b184",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/domain-modeling/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "domain-modeling",
+      "surface": "codex",
+      "sha256": "54e3b6cfdcb64a23008cd179a20d52b4c15cc97b378661f8a28dc569902792ac",
       "mode": 420,
       "origin": "kit"
     },
@@ -69,7 +159,7 @@
       "kind": "doc",
       "ownerSkill": "grill-me",
       "surface": "codex",
-      "sha256": "e5d7616b9ad5adee26230856b73fa089db41784432cad657490e0a2f858fc617",
+      "sha256": "d04ca927ecd88c8b7c701fb0e1e3019dff48ec30baf628c0d0723e9f3a775bb6",
       "mode": 420,
       "origin": "kit"
     },
@@ -96,7 +186,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "codex",
-      "sha256": "283fc14f012a7e54fd4bd86b146dc06d1be17a11f51f487e3d5efa5d21b2d73c",
+      "sha256": "b12dedd3f378d8b91230b4ec80a8bae40511038331afad6c5bc8363c7ed155d3",
       "mode": 420,
       "origin": "kit"
     },
@@ -105,7 +195,25 @@
       "kind": "doc",
       "ownerSkill": "grill-with-docs",
       "surface": "codex",
-      "sha256": "29db04a0b4d77c43226fcb310b85c48fbddb6c5031a8aa83a7d9bb0e05540614",
+      "sha256": "044fb58d1245f1b88cefca113dedd16c02b24aeea5b929837d6549e809d65bf6",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/implement/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "implement",
+      "surface": "codex",
+      "sha256": "5b55552c4a0d90fe15c9ee44abce4498faa03b73e332024e30ab69c2b7065770",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/implement/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "implement",
+      "surface": "codex",
+      "sha256": "58ec11b49ec4afda40936df4429209487da236690fc2b34d4059f97790b930be",
       "mode": 420,
       "origin": "kit"
     },
@@ -177,7 +285,7 @@
       "kind": "doc",
       "ownerSkill": "improve-codebase-architecture",
       "surface": "codex",
-      "sha256": "dab6334143d1c8b5223d50c3827f71356b2eff99badbf6705b4c0067a04d4536",
+      "sha256": "f0472d46cf9e3bd5b9a289d08bab852163281c2dc6aef581e68e5d81bf2cbb5b",
       "mode": 420,
       "origin": "kit"
     },
@@ -204,7 +312,7 @@
       "kind": "doc",
       "ownerSkill": "prototype",
       "surface": "codex",
-      "sha256": "601648ed49fc2f884a1c8326c013aede78064112856012f8c8026cf324e7f785",
+      "sha256": "e28470b2eed847d8d82b6832cb6f7ee99c00ab89306464ef18ff39238d47dada",
       "mode": 420,
       "origin": "kit"
     },
@@ -214,6 +322,24 @@
       "ownerSkill": "prototype",
       "surface": "codex",
       "sha256": "d76d565149ee50456c5ddc5e29c27fec8737637874fe5c37d970db085a200b27",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/resolving-merge-conflicts/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "resolving-merge-conflicts",
+      "surface": "codex",
+      "sha256": "c7c9ba81362a786aac05d2223123bf1bd2f8a99c3243a72882ede9c68bedfb24",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/resolving-merge-conflicts/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "resolving-merge-conflicts",
+      "surface": "codex",
+      "sha256": "1dc0f4e8cb6b604cf4c1559cc1b75c42d0886eab84bb9cc94043f3169fb208b8",
       "mode": 420,
       "origin": "kit"
     },
@@ -303,7 +429,7 @@
       "kind": "doc",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "94dfe2f99459423fc58a23061f71343ead970e0c767d6ab1ae8c41d9ee0e2132",
+      "sha256": "abaa285d58e5f4a49de4e4b72e66922e8536721288bb121949a53329f352ed1c",
       "mode": 420,
       "origin": "kit"
     },
@@ -402,7 +528,7 @@
       "kind": "doc",
       "ownerSkill": "tdd",
       "surface": "codex",
-      "sha256": "16e3ef12d9e9289b1f39d38d1e8340f28206bda922f8278345ccbbe7e79ebe81",
+      "sha256": "c7354a328eeaa6953c9abcd9557681bef75fd9f8a6ee32a425ea0ab199b606c7",
       "mode": 420,
       "origin": "kit"
     },
@@ -420,7 +546,7 @@
       "kind": "doc",
       "ownerSkill": "to-issues",
       "surface": "codex",
-      "sha256": "dba4bc63f758f13b6ff92bd05e720f4747f61e5d957e417bcc4f0f314fa46b86",
+      "sha256": "ebafd41acac58985494ad453fffb94f5d49dfb2713022960924afb599c34eacc",
       "mode": 420,
       "origin": "kit"
     },
@@ -438,7 +564,7 @@
       "kind": "doc",
       "ownerSkill": "to-prd",
       "surface": "codex",
-      "sha256": "3823211c175ae848b139bf7118436a5146ee0782a20ddb219102e44c22624871",
+      "sha256": "4d237f949beebc69f7cb2906654aa5f0aed7eef675e94026d9b0b2d0ff890dc1",
       "mode": 420,
       "origin": "kit"
     },
@@ -474,7 +600,7 @@
       "kind": "doc",
       "ownerSkill": "triage",
       "surface": "codex",
-      "sha256": "404de5d9af306e6fad1be88f122ee6e0ebcbe4e0f1dd808cf0a894d22d5476d8",
+      "sha256": "66bcd6e7fab31c28cdf8774a1bdb8d49db743db331988839f3858b2fa700ad23",
       "mode": 420,
       "origin": "kit"
     },
@@ -536,11 +662,65 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/ask-matt/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "ask-matt",
+      "surface": "claude",
+      "sha256": "3b5fcf78b520c19863165af63a1f29b9254a8baa7262830f96d4c8e58bdaf677",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/ask-matt/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "ask-matt",
+      "surface": "claude",
+      "sha256": "7cb8510364c9540b4db99746a70c8483d12ac56dd1b9aa71afa7ec06e40cb0a8",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/board-to-waves/SKILL.md",
       "kind": "skill",
       "ownerSkill": "board-to-waves",
       "surface": "claude",
       "sha256": "8d84eb336fb93c6aea98dd94c9926d625e905f9f2c3c89fac2ac419728693f33",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/codebase-design/DEEPENING.md",
+      "kind": "skill",
+      "ownerSkill": "codebase-design",
+      "surface": "claude",
+      "sha256": "125e6b77413ad2bc7cf7a772bc74336d580a50f9e797db2178ed133d62333d06",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/codebase-design/DESIGN-IT-TWICE.md",
+      "kind": "skill",
+      "ownerSkill": "codebase-design",
+      "surface": "claude",
+      "sha256": "21c3264953bd30ee87b181a3ccaf0e70649f461e5ffd7dc654acee4ba1788b31",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/codebase-design/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "codebase-design",
+      "surface": "claude",
+      "sha256": "a8d50abac5a4018f60e1d911d4b6f4e36454ca14d6c390c0695a578c7de65dad",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/codebase-design/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "codebase-design",
+      "surface": "claude",
+      "sha256": "e63620daa7a0e363ec6ec1e18dfceb8b82d3a4328e8b17d1370b2d63f9aa94ad",
       "mode": 420,
       "origin": "kit"
     },
@@ -585,7 +765,7 @@
       "kind": "skill",
       "ownerSkill": "diagnose",
       "surface": "claude",
-      "sha256": "28886402bbfa0470248086eab9106a103b964b76ae9496e63ff0c8a6761b6d13",
+      "sha256": "d5bfe8aaef5f47cfff5497b4490e9ff5dca7b70ba60d5f24874ac0352b83a094",
       "mode": 420,
       "origin": "kit"
     },
@@ -594,7 +774,43 @@
       "kind": "doc",
       "ownerSkill": "diagnose",
       "surface": "claude",
-      "sha256": "3cb59aca68a024c42b745548f904ccd619d23170a8f70a67cc07dd04fa6f7ca3",
+      "sha256": "a0009c40ee143a241d26005c735e1f1c980f124de7e22e3ba0d7e4efb9c16a2b",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/domain-modeling/ADR-FORMAT.md",
+      "kind": "skill",
+      "ownerSkill": "domain-modeling",
+      "surface": "claude",
+      "sha256": "f1f36cd3f8d3b6474ddd5855da4e233bfc4ae1a1c5024909ccf11871819a41b2",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/domain-modeling/CONTEXT-FORMAT.md",
+      "kind": "skill",
+      "ownerSkill": "domain-modeling",
+      "surface": "claude",
+      "sha256": "b8cc318f2a4285b530e908b6bc43901c3c5cd11100362636bbc4216639bef597",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/domain-modeling/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "domain-modeling",
+      "surface": "claude",
+      "sha256": "c67b879c65b991d1f146c08296dec15c886dd687069f38ce8b276d2b3fc74fc5",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/domain-modeling/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "domain-modeling",
+      "surface": "claude",
+      "sha256": "54e3b6cfdcb64a23008cd179a20d52b4c15cc97b378661f8a28dc569902792ac",
       "mode": 420,
       "origin": "kit"
     },
@@ -621,7 +837,7 @@
       "kind": "doc",
       "ownerSkill": "git-guardrails-claude-code",
       "surface": "claude",
-      "sha256": "d9d176e95e77bbfde638b503223590a45a67e3c98fc86cb80398c1f6a57b41bf",
+      "sha256": "cd395ceb65bfeb9f826b13e539afc391521d4b83d1e6f1af65220085e9e9e7e1",
       "mode": 420,
       "origin": "kit"
     },
@@ -630,7 +846,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me-codex",
       "surface": "claude",
-      "sha256": "027a79deb1fce2e11e8bb462ba328e5399955bf1e2d10106cb2039b9f9a1851f",
+      "sha256": "44fb793bf31ea1fbf1cd48ca31ef8d2a3ebf0e5a7e444079c66b0ed3c0e15fdd",
       "mode": 420,
       "origin": "kit"
     },
@@ -657,7 +873,7 @@
       "kind": "doc",
       "ownerSkill": "grill-me",
       "surface": "claude",
-      "sha256": "e5d7616b9ad5adee26230856b73fa089db41784432cad657490e0a2f858fc617",
+      "sha256": "d04ca927ecd88c8b7c701fb0e1e3019dff48ec30baf628c0d0723e9f3a775bb6",
       "mode": 420,
       "origin": "kit"
     },
@@ -684,7 +900,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs-codex",
       "surface": "claude",
-      "sha256": "e9fc28a09127aee1ffb9ea8fb90b9b5ca43f7d2c2645a7ad6e4ba2d9c9f3ff1e",
+      "sha256": "d86a1cb971ba38cc9bd2c7a7c8ed8684689b73149096091a47dedd94d3cf11c4",
       "mode": 420,
       "origin": "kit"
     },
@@ -720,7 +936,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "claude",
-      "sha256": "85e7c8126fc4410634c144c73be3337375f499f4cefc74f30a91f7818bfac5a3",
+      "sha256": "bb0ee52ff8cb608ad7196491f55ae2e49b525659a7ee7beea755ed358eaf32a9",
       "mode": 420,
       "origin": "kit"
     },
@@ -729,7 +945,25 @@
       "kind": "doc",
       "ownerSkill": "grill-with-docs",
       "surface": "claude",
-      "sha256": "29db04a0b4d77c43226fcb310b85c48fbddb6c5031a8aa83a7d9bb0e05540614",
+      "sha256": "044fb58d1245f1b88cefca113dedd16c02b24aeea5b929837d6549e809d65bf6",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/implement/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "implement",
+      "surface": "claude",
+      "sha256": "5b55552c4a0d90fe15c9ee44abce4498faa03b73e332024e30ab69c2b7065770",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/implement/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "implement",
+      "surface": "claude",
+      "sha256": "58ec11b49ec4afda40936df4429209487da236690fc2b34d4059f97790b930be",
       "mode": 420,
       "origin": "kit"
     },
@@ -801,7 +1035,7 @@
       "kind": "doc",
       "ownerSkill": "improve-codebase-architecture",
       "surface": "claude",
-      "sha256": "dab6334143d1c8b5223d50c3827f71356b2eff99badbf6705b4c0067a04d4536",
+      "sha256": "f0472d46cf9e3bd5b9a289d08bab852163281c2dc6aef581e68e5d81bf2cbb5b",
       "mode": 420,
       "origin": "kit"
     },
@@ -828,7 +1062,7 @@
       "kind": "doc",
       "ownerSkill": "prototype",
       "surface": "claude",
-      "sha256": "601648ed49fc2f884a1c8326c013aede78064112856012f8c8026cf324e7f785",
+      "sha256": "e28470b2eed847d8d82b6832cb6f7ee99c00ab89306464ef18ff39238d47dada",
       "mode": 420,
       "origin": "kit"
     },
@@ -838,6 +1072,24 @@
       "ownerSkill": "prototype",
       "surface": "claude",
       "sha256": "d76d565149ee50456c5ddc5e29c27fec8737637874fe5c37d970db085a200b27",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/resolving-merge-conflicts/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "resolving-merge-conflicts",
+      "surface": "claude",
+      "sha256": "c7c9ba81362a786aac05d2223123bf1bd2f8a99c3243a72882ede9c68bedfb24",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/resolving-merge-conflicts/THIRD-PARTY-NOTICES.md",
+      "kind": "doc",
+      "ownerSkill": "resolving-merge-conflicts",
+      "surface": "claude",
+      "sha256": "1dc0f4e8cb6b604cf4c1559cc1b75c42d0886eab84bb9cc94043f3169fb208b8",
       "mode": 420,
       "origin": "kit"
     },
@@ -945,7 +1197,7 @@
       "kind": "doc",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "94dfe2f99459423fc58a23061f71343ead970e0c767d6ab1ae8c41d9ee0e2132",
+      "sha256": "abaa285d58e5f4a49de4e4b72e66922e8536721288bb121949a53329f352ed1c",
       "mode": 420,
       "origin": "kit"
     },
@@ -1044,7 +1296,7 @@
       "kind": "doc",
       "ownerSkill": "tdd",
       "surface": "claude",
-      "sha256": "16e3ef12d9e9289b1f39d38d1e8340f28206bda922f8278345ccbbe7e79ebe81",
+      "sha256": "c7354a328eeaa6953c9abcd9557681bef75fd9f8a6ee32a425ea0ab199b606c7",
       "mode": 420,
       "origin": "kit"
     },
@@ -1062,7 +1314,7 @@
       "kind": "doc",
       "ownerSkill": "to-issues",
       "surface": "claude",
-      "sha256": "dba4bc63f758f13b6ff92bd05e720f4747f61e5d957e417bcc4f0f314fa46b86",
+      "sha256": "ebafd41acac58985494ad453fffb94f5d49dfb2713022960924afb599c34eacc",
       "mode": 420,
       "origin": "kit"
     },
@@ -1080,7 +1332,7 @@
       "kind": "doc",
       "ownerSkill": "to-prd",
       "surface": "claude",
-      "sha256": "3823211c175ae848b139bf7118436a5146ee0782a20ddb219102e44c22624871",
+      "sha256": "4d237f949beebc69f7cb2906654aa5f0aed7eef675e94026d9b0b2d0ff890dc1",
       "mode": 420,
       "origin": "kit"
     },
@@ -1116,7 +1368,7 @@
       "kind": "doc",
       "ownerSkill": "triage",
       "surface": "claude",
-      "sha256": "404de5d9af306e6fad1be88f122ee6e0ebcbe4e0f1dd808cf0a894d22d5476d8",
+      "sha256": "66bcd6e7fab31c28cdf8774a1bdb8d49db743db331988839f3858b2fa700ad23",
       "mode": 420,
       "origin": "kit"
     },
@@ -1139,11 +1391,20 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/write-a-skill/GLOSSARY.md",
+      "kind": "skill",
+      "ownerSkill": "write-a-skill",
+      "surface": "claude",
+      "sha256": "eaab3564313cec3d35209bb42b05c797dcb350c075a079936c4dd173f9d8e8d8",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/write-a-skill/SKILL.md",
       "kind": "skill",
       "ownerSkill": "write-a-skill",
       "surface": "claude",
-      "sha256": "be8f20e66309258034b82a7db5040b03798aa40546f9d387662c2bd86be23123",
+      "sha256": "ad216ab67cef6ea726b0d7d54e5b2b145ad2bb9ec5d32b9ea072898e3ceae989",
       "mode": 420,
       "origin": "kit"
     },
@@ -1152,7 +1413,7 @@
       "kind": "doc",
       "ownerSkill": "write-a-skill",
       "surface": "claude",
-      "sha256": "ef7d99635d1b64d734414d8e8068400b418c9f362e9cd0c4b1adddefafd5a641",
+      "sha256": "cfe27ee56d1486f95413c0f3e1fc15140a5082c2523914ea4e920e7d2af137a1",
       "mode": 420,
       "origin": "kit"
     },
