@@ -5,11 +5,13 @@ description: Create, write, edit, and improve agent skills — the vocabulary an
 
 # Writing Skills
 
-> **Skill-Identität (nicht verwirren lassen):** Ordner `write-a-skill` + Invocation `/write-a-skill` = Matt Pococks Upstream-Skill **`writing-great-skills`**. Upstream hat das alte prozess-/template-basierte `write-a-skill` durch diese Vokabular-/Prinzipien-Referenz ersetzt und auf **user-invoked** (`disable-model-invocation: true`) umgestellt. Wir behalten den Ordnernamen `write-a-skill` (Invocation-Stabilität) **und** halten es bewusst **model-invoked** (Auto-Fire auf „create/write a skill" + `/write-a-skill`, wie in CLAUDE.md `## Workflow` referenziert). Inhalt = Upstream `writing-great-skills` @ `7a83a3a`, lokal adaptiert. Provenance/Rename-Ledger: `docs/agents/provenance.md` (§Re-Sync-Log), im Projekt-Root.
+> **Skill identity (don't get confused):** the folder `write-a-skill` + invocation `/write-a-skill` map to Matt Pocock's upstream skill **`writing-great-skills`**. Upstream replaced the old process-/template-based `write-a-skill` with this vocabulary/principles reference and switched it to **user-invoked** (`disable-model-invocation: true`). We keep the folder name `write-a-skill` (invocation stability) **and** deliberately keep it **model-invoked** (auto-fires on "create/write a skill" + `/write-a-skill`, as referenced in CLAUDE.md `## Workflow`). Content = upstream `writing-great-skills` @ `7a83a3a`, locally adapted. Provenance/rename ledger: `docs/agents/provenance.md` (§Re-Sync-Log), at the project root.
 
 A skill exists to wrangle determinism out of a stochastic system. **Predictability** — the agent taking the same _process_ every run, not producing the same output — is the root virtue; every lever below serves it.
 
 **Bold terms** are defined in [`GLOSSARY.md`](GLOSSARY.md); look them up there for the full meaning.
+
+**Language:** if the skill is a publish-candidate (ships in a shared kit, not tied to one project), write its prose in English from the start — English-first, not a later translation pass; a mechanical census in that kit's build tooling proves every published skill's prose is English. A project-private skill may stay in whatever language its home project works in.
 
 ## Invocation
 

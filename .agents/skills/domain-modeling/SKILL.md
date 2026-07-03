@@ -5,7 +5,7 @@ description: "Build and sharpen a project's domain model. Use when the user want
 
 # Domain Modeling
 
-> **In diesem Repo (falls vorhanden):** `CONTEXT.md` + `docs/adr/` existieren bereits (lazy erzeugt via `/grill-with-docs`). Die **ADR-Konventionen sind SSOT in `docs/adr/README.md`** (Projekt-Root; Status-Lifecycle, Template, Nummerierung) — bei ADR-Erzeugung diese Konvention nutzen, nicht die generische [ADR-FORMAT.md](./ADR-FORMAT.md) darüberschreiben. `/grill-with-docs`(-codex) pflegt CONTEXT.md + ADRs im Betrieb; dieses Skill ist das Vokabular dahinter. Provenance: `docs/agents/provenance.md`.
+> **In this repo (if present):** `CONTEXT.md` + `docs/adr/` already exist (lazily created via `/grill-with-docs`). The **ADR conventions are SSOT in `docs/adr/README.md`** (project root; status lifecycle, template, numbering) — use that convention when creating an ADR, don't shadow it with the generic [ADR-FORMAT.md](./ADR-FORMAT.md). `/grill-with-docs`(-codex) maintains CONTEXT.md + ADRs in operation; this skill is the vocabulary underneath. Provenance: `docs/agents/provenance.md`.
 
 Actively build and sharpen the project's domain model as you design. This is the *active* discipline — challenging terms, inventing edge-case scenarios, and writing the glossary and decisions down the moment they crystallise. (Merely *reading* `CONTEXT.md` for vocabulary is not this skill — that's a one-line habit any skill can do. This skill is for when you're changing the model, not just consuming it.)
 

@@ -1,324 +1,313 @@
 ---
 name: wrapup
 disable-model-invocation: true
-description: >-
-  Use ONLY when the user types /wrapup. Session-end "land & clean" for a
-  finished feature/fix worktree — merges the open PR (= triggers prod deploy),
-  kills the worktree dev server, removes the worktree + local branch, and
-  fast-forwards the main checkout so main is current again, then sweeps
-  merged-branch leftovers (local + stale remote whose PR is merged). If the
-  slice isn't landed yet, it first makes it landable (Step 0): commits a dirty
-  tree (after an .env/secret check), pushes, and opens the PR — reusing one if
-  it already exists. User-triggered only (never auto-invoke, never hook). Aborts
-  hard only on: not in a feature worktree, a detected .env/secret, a rejected
-  push, a conflicting PR, or red (FAILURE) checks.
+"description": "Use ONLY when the user types /wrapup. Session-end \"land & clean\" for a finished feature/fix worktree — merges the open PR (= triggers prod deploy), kills the worktree dev server, removes the worktree + local branch, and fast-forwards the main checkout so main is current again, then sweeps merged-branch leftovers (local + stale remote whose PR is merged). If the slice isn't landed yet, it first makes it landable (Step 0): commits a dirty tree (after an .env/secret check), pushes, and opens the PR — reusing one if it already exists. User-triggered only (never auto-invoke, never hook). Aborts hard only on: not in a feature worktree, a detected .env/secret, a rejected push, a conflicting PR, or red (FAILURE) checks."
 ---
 
-# wrapup — PR landen & Worktree auflösen
+# wrapup — land PR & tear down worktree
 
-Trigger: User tippt `/wrapup` (optional mit PR-Nummer, z. B. `/wrapup 697`). **Nur manuell** — `disable-model-invocation: true`, kein Hook, kein Auto-Invoke.
+Trigger: user types `/wrapup` (optionally with a PR number, e.g. `/wrapup 697`). **Manual only** — `disable-model-invocation: true`, no hook, no auto-invoke.
 
-## Was dieser Skill macht
+## What this skill does
 
-Schließt eine fertige Slice-Session ab: **Stand landbar machen (Step 0: commit → push → PR anlegen/wiederverwenden)** → offenen PR mergen → Worktree-Dev-Server beenden → Worktree + lokalen Branch auflösen → Main-Checkout per Fast-Forward aktualisieren. Spart das wiederholte Eintippen der Abschluss-Sequenz. Ist die Slice schon committed/gepusht/mit PR, ist Step 0 ein No-op (kein Abbruch deswegen).
+Closes out a finished slice session: **make the state landable (Step 0: commit → push → create/reuse PR)** → merge the open PR → kill the worktree's dev server → tear down the worktree + local branch → fast-forward the main checkout. Saves retyping the closing sequence. If the slice is already committed/pushed/has a PR, Step 0 is a no-op (never aborts because of that).
 
-## ⚠ Spec-Kontext (lesen, nicht überspringen)
+## ⚠ Spec context (read, don't skip)
 
-**Merge auf `main` = Prod-Deploy** (your deploy platform-Webhook, ~7 min live). CLAUDE.md: *„Claude deployt NIE eigenmächtig — Merge+Deploy bei <maintainer>."* Dieser Skill **verletzt das nicht**, weil **<maintainer> ihn selbst triggert** — der `/wrapup`-Aufruf IST die explizite Merge+Deploy-Freigabe pro Lauf. Deshalb: **niemals** diesen Skill aus einem Hook, einem anderen Skill oder autonom aufrufen. Nur auf direkte `/wrapup`-Eingabe.
+**Merging to `main` = prod deploy** (your deploy platform webhook, ~7 min live). CLAUDE.md: *"Claude never deploys on its own — merge+deploy is <maintainer>'s call."* This skill **does not violate that**, because **<maintainer> triggers it himself** — the `/wrapup` invocation IS the explicit merge+deploy authorization for that run. So: **never** call this skill from a hook, another skill, or autonomously. Only on a direct `/wrapup` input.
 
-Vor dem Merge **immer** das Deploy-Banner zeigen (Step 3). Keine y/n-Rückfrage (so gewählt) — aber die Pre-flight-Hard-Stops sind nicht verhandelbar.
+Always show the deploy banner **before** the merge (Step 3). No y/n confirmation (deliberate choice) — but the pre-flight hard stops are non-negotiable.
 
 <!-- mirror-xform:start codex-wrapup-execution-model -->
-## Ausführungs-Modell — 3 Phasen (Empfehlung: mechanischer Teil im Worker-Subagent)
+## Execution model — 3 phases (recommended: mechanical part in the worker subagent)
 
-**Warum empfohlen:** `wrapup` ist **mehr-Turn-interaktiv** (Retro-Gate, Annahme-Drift-Bestätigung). Alle User-Gates **und** die Secret-Review bleiben im **Hauptthread** (= Session-Modell, das <maintainer> gewählt hat); **empfohlen** ist, die mechanische git/gh-Plumbing danach an einen Codex-Worker-Subagent zu geben. Für diese reine Mechanik `spawn_agent` mit `agent_type: worker`, `model: gpt-5.4-mini`, `reasoning_effort: low` verwenden; Security-Judgment und Freigaben nie delegieren.
+**Why recommended:** `wrapup` is **multi-turn interactive** (retro gate, assumption-drift confirmation). All user gates **and** the secret review stay in the **main thread** (= the session model <maintainer> chose); **recommended** is handing the mechanical git/gh plumbing afterward to a Codex worker subagent. For this pure mechanics block, use `spawn_agent` with `agent_type: worker`, `model: gpt-5.4-mini`, `reasoning_effort: low`; never delegate security judgment or approvals.
 
-**Bedingung — kein Hard-Contract:** Dieser 3-Phasen-Schnitt lohnt sich nur, **wenn dein Harness echten Subagent-Dispatch mit Model-Param kann** (hier: `spawn_agent` + `model`/`reasoning_effort`). **Kann dein Harness das nicht** → **läuft alles inline im Hauptthread**: Phase 1+2+3 in einem Lauf, gleiche Steps, gleiche Reihenfolge, gleiche Gates — nur ohne Phasenwechsel. Die **STOP-zurück-Regel bleibt davon unberührt und gilt unverändert scharf** (s. u.): bei jedem Hard-Stop abbrechen, NICHTS forcen, den Grund explizit melden — inline heißt das: der Hauptthread hält an derselben Stelle an, statt weiterzumachen.
+**Condition — not a hard contract:** this 3-phase split only pays off **if your harness supports real subagent dispatch with a model param** (here: `spawn_agent` + `model`/`reasoning_effort`). **If your harness can't** → **everything runs inline in the main thread**: phases 1+2+3 in one pass, same steps, same order, same gates — just without the phase switch. The **STOP-back rule is unaffected by this and stays exactly as sharp** (see below): abort on every hard stop, force NOTHING, report the reason explicitly — inline that means the main thread halts at the same point instead of continuing.
 
-| Phase | Wer | Inhalt |
+| Phase | Who | Content |
 |---|---|---|
-| **1 — Vorbereitung + Gates** | **Hauptthread** (Session-Modell) | Pre-flight · Retro-Exit-Gate · **Step 0a Commit inkl. Secret-Review** (Security-Judgment bleibt hier) · **Step 0c.2 Annahme-Drift propose+bestätigen**. Sammelt: `**Retro:**`-Zeilentext, bestätigte `annahme-drift`-Marker-Blöcke, Conventional Title/Commit-Kontext. |
-| **2 — Mechanik** | **Codex-Worker-Subagent** (Dispatch, empfohlen — sonst Hauptthread inline) | Step 0b Push · Step 0c PR anlegen/wiederverwenden (Body mit Retro-Zeile + Markern + `closes`/`Part of`) → `pr-body-check` → Merge-Gate · **Step 1 Merge (= Deploy)** · Step 2 Dev-Server-Kill · Step 4 Worktree-Remove · Step 5 Main-FF + `branch -d` · Step 5b Issue-Close · Step 5c/5d Branch-Sweep · Step 5e.1 Anker-Tick. Reiner git/gh-Mechanik-Block, mechanisch verifizierbar. |
-| **3 — Post-Merge-Gates + Report** | **Hauptthread** (Session-Modell) | Step 3 Deploy-Banner · **Step 5e.2 Sibling-Propagation propose+bestätigen+schreiben** · Step 6 Report. |
+| **1 — prep + gates** | **Main thread** (session model) | Pre-flight · retro-exit gate · **Step 0a commit incl. secret review** (security judgment stays here) · **Step 0c.2 assumption-drift propose+confirm**. Collects: `**Retro:**` line text, confirmed `annahme-drift` marker blocks, conventional title/commit context. |
+| **2 — mechanics** | **Codex worker subagent** (dispatch, recommended — otherwise main thread inline) | Step 0b push · Step 0c create/reuse PR (body with retro line + markers + `closes`/`Part of`) → `pr-body-check` → merge gate · **Step 1 merge (= deploy)** · Step 2 kill dev server · Step 4 remove worktree · Step 5 main FF + `branch -d` · Step 5b issue close · Step 5c/5d branch sweep · Step 5e.1 anchor tick. Pure git/gh mechanics block, mechanically verifiable. |
+| **3 — post-merge gates + report** | **Main thread** (session model) | Step 3 deploy banner · **Step 5e.2 sibling propagation propose+confirm+write** · Step 6 report. |
 
-**Dispatch-Contract (Phase 1 → Phase 2, nur falls dein Harness Subagent-Dispatch mit Model-Param kann):** Wenn Phase 1 grün durch ist (alle Gates beantwortet, Commit liegt lokal), **einen** Subagent dispatchen — `spawn_agent` mit `agent_type: worker`, `model: gpt-5.4-mini`, `reasoning_effort: low`. Prompt übergibt **alle** in Phase 1 gesammelten Werte:
-- `WT`, `MAIN_TREE`, `BRANCH`, `ISSUE`, Anker-Nr. (falls `Part of #<anker>`) bzw. Leaf-Flag
-- den **fertigen PR-Body-Text** (Retro-Zeile + bestätigte `annahme-drift`-Marker + `closes`/`Part of`) und den Conventional Title
-- Auftrag: Step 0b→5e.1 **mechanisch** ausführen (cwd-Disziplin der Steps beibehalten: 0b im `$WT`, ab Step 1 `cd "$MAIN_TREE"`).
+**Dispatch contract (phase 1 → phase 2, only if your harness can do subagent dispatch with a model param):** once phase 1 is green (all gates answered, commit is local), dispatch **one** subagent — `spawn_agent` with `agent_type: worker`, `model: gpt-5.4-mini`, `reasoning_effort: low`. Prompt hands over **all** values collected in phase 1:
+- `WT`, `MAIN_TREE`, `BRANCH`, `ISSUE`, anchor number (if `Part of #<anchor>`) resp. leaf flag
+- the **finished PR body text** (retro line + confirmed `annahme-drift` markers + `closes`/`Part of`) and the conventional title
+- task: execute Step 0b→5e.1 **mechanically** (keep the steps' cwd discipline: 0b in `$WT`, from Step 1 on `cd "$MAIN_TREE"`).
 
-**Subagent-Rückgabe (knapp, strukturiert) — bei Inline-Fallback hält der Hauptthread dieselben Werte am Ende von Phase 2 selbst fest:** PR-# · `state == MERGED`? · `pr-body-check`-Exit · Sweep-Zahlen (5c lokal / 5d remote) · Anker-Tick-Ergebnis (getickt `✅ #<PR>` / propose-pending) · **`anker-komplett: ja/nein`** (alle Slice-Zeilen ✅? — Phase 3 schließt bei ja den Anker, Step 5e.1b) · die geparsten `annahme-drift`-Marker (für Phase-3-Step-5e.2) · Main-SHA · **jeder STOP** mit Grund.
+**Subagent return (concise, structured) — on inline fallback the main thread records the same values itself at the end of phase 2:** PR # · `state == MERGED`? · `pr-body-check` exit · sweep counts (5c local / 5d remote) · anchor-tick result (ticked `✅ #<PR>` / propose-pending) · **`anchor-complete: yes/no`** (all slice rows ✅? — phase 3 closes the anchor on yes, Step 5e.1b) · the parsed `annahme-drift` markers (for phase-3 Step 5e.2) · main SHA · **every STOP** with reason.
 
-**STOP-zurück-Regel (nicht verhandelbar):** Trifft der Subagent **irgendeinen** Hard-Stop (Push abgelehnt · `pr-body-check` Exit 1 · Merge-Gate `CONFLICTING`/roter Check · Merge nicht `MERGED` · `worktree remove`/`branch -d` refuse't · **jeder Secret-Grep-Treffer** im — eigentlich schon in Phase 1 committeten — Diff) → **abbrechen, NICHTS forcen, an den Hauptthread zurückmelden** (Grund + Stelle). Der Subagent **klärt keine Security-Judgment-Frage selbst** und fragt den User nicht direkt — er meldet, der Hauptthread entscheidet.
+**STOP-back rule (non-negotiable):** if the subagent hits **any** hard stop (push rejected · `pr-body-check` exit 1 · merge gate `CONFLICTING`/red check · merge not `MERGED` · `worktree remove`/`branch -d` refused · **any secret-grep hit** in the diff — already committed in phase 1) → **abort, force NOTHING, report back to the main thread** (reason + location). The subagent **does not resolve any security-judgment question itself** and does not ask the user directly — it reports, the main thread decides.
 
-**Merge = Prod-Deploy bleibt `/wrapup`-getriggert:** die `/wrapup`-Eingabe ist die Freigabe pro Lauf; der Hauptthread dispatcht (oder führt inline aus) = trägt die Freigabe weiter. Kein Auto-/Hook-Trigger.
+**Merge = prod deploy stays `/wrapup`-triggered:** the `/wrapup` input is the per-run authorization; the main thread dispatching (or executing inline) carries that authorization forward. No auto-/hook trigger.
 
-> Die folgenden Steps sind je mit `[Phase N]` getaggt — das ist die **empfohlene** Zuordnung bei Subagent-Dispatch. Phase 1 + 3 führt der Hauptthread aus; **alles mit `[Phase 2]` läuft im Codex-Worker-Subagent, sofern dein Harness das kann** — kann er es nicht, führt der Hauptthread diese Steps **selbst inline aus**, in derselben Reihenfolge, ohne die Gates/Regeln zu lockern.
+> The following steps are each tagged `[Phase N]` — that's the **recommended** assignment for subagent dispatch. The main thread executes phases 1 + 3; **everything tagged `[Phase 2]` runs in the Codex worker subagent, provided your harness supports it** — if it can't, the main thread executes those steps **itself, inline**, in the same order, without loosening the gates/rules.
 <!-- mirror-xform:end -->
 
-## Pre-flight — Hard-Stops (bei JEDEM Fail: abbrechen, melden, NICHTS mergen/löschen) `[Phase 1 · Hauptthread]`
+## Pre-flight — hard stops (on ANY fail: abort, report, do NOT merge/delete anything) `[Phase 1 · main thread]`
 
-Kontext ermitteln:
+Determine context:
 ```bash
 WT=$(git rev-parse --show-toplevel)
 BRANCH=$(git branch --show-current)
 MAIN_TREE=$(git worktree list --porcelain | awk '/^worktree / {print $2; exit}')
 ```
 
-1. **Im Feature-Worktree?** `WT` ≠ `MAIN_TREE` **und** `BRANCH` ≠ `main`. Sonst Stop (`/wrapup` läuft im Worktree der fertigen Slice, nicht im Haupt-Checkout / nicht auf main).
-Das ist die **einzige** reine Vorbedingung. Früher waren *dirty Tree*, *ungepushte Commits* und *kein offener PR* ebenfalls harte Stops — **nicht mehr**: **Step 0** stellt sie her (commit → push → PR anlegen/wiederverwenden, idempotent), die Mergebarkeit prüft **Step 0c** danach.
+1. **In the feature worktree?** `WT` ≠ `MAIN_TREE` **and** `BRANCH` ≠ `main`. Otherwise stop (`/wrapup` runs in the finished slice's worktree, not in the main checkout / not on main).
+This is the **only** pure precondition. Previously *dirty tree*, *unpushed commits*, and *no open PR* were also hard stops — **no longer**: **Step 0** establishes them (commit → push → create/reuse PR, idempotent), **Step 0c** then checks mergeability.
 
-Verbleibende Hard-Stops (bei jedem: abbrechen, melden, NICHTS mergen/löschen):
-- nicht im Feature-Worktree (#1)
-- Secret bzw. `.env` im Commit-Diff (Step 0a)
-- abgelehnter Push (Step 0b)
-- PR `CONFLICTING` oder Check-`conclusion` in `FAILURE`/`CANCELLED`/`TIMED_OUT` (Step 0c)
+Remaining hard stops (on each: abort, report, do NOT merge/delete anything):
+- not in the feature worktree (#1)
+- secret resp. `.env` in the commit diff (Step 0a)
+- rejected push (Step 0b)
+- PR `CONFLICTING` or check `conclusion` in `FAILURE`/`CANCELLED`/`TIMED_OUT` (Step 0c)
 
-Bei Stop: präzise sagen *was* blockt und *was* der User tun muss. Nicht „weitermachen versuchen".
+On stop: state precisely *what* blocks and *what* the user needs to do. Not "try to keep going".
 
-## Ablauf (nach grünem Pre-flight)
+## Flow (after a green pre-flight)
 
-### Retro-Erinnerung (nach Pre-flight #1, VOR Step 0 — portabler Backstop, kein Auto-Run) `[Phase 1 · Hauptthread]`
-Direkt nach grünem Pre-flight, **bevor** Step 0a irgendwas committet: **eine** Erinnerung als **blockierendes, optionales Retro-Exit-Gate** — keine Merge-Bestätigung.
+### Retro reminder (after pre-flight #1, BEFORE Step 0 — portable backstop, no auto-run) `[Phase 1 · main thread]`
+Right after a green pre-flight, **before** Step 0a commits anything: **one** reminder as a **blocking, optional retro-exit gate** — not a merge confirmation.
 
-> „Retro schon gefahren? **(a)** ja / weiter → ich lande jetzt. **(b)** du willst noch eine → ich brich hier **sauber** ab, du fährst `/retro`, dann `/wrapup` erneut — die **Repo-Datei**-Patches reisen dann in diesem PR mit (Memory-Patches bleiben lokal)."
+> "Already ran a retro? **(a)** yes / continue → landing now. **(b)** you want one first → I'll abort **cleanly** here, you run `/retro`, then `/wrapup` again — the **repo-file** patches then travel along in this PR (memory patches stay local)."
 
-- Wählt der User **(b)** → `wrapup` **beendet sich sofort sauber** (kein Commit, kein Merge, kein Worktree-Touch). `wrapup` kann **keinen** anderen Skill mitten im Lauf pausieren/resumen → sauberer Exit + Re-Run statt Schein-Pause.
-- Wählt der User **(a)** → weiter mit Step 0a.
-- **NIE** `/retro` selbst aufrufen (kein Auto-Run / kein Auto-Capture) — nur die Erinnerung zeigen.
-- **≠ Merge-y/n:** Die „Keine y/n-Rückfrage"-Regel (Spec-Kontext oben, Z19) betrifft die **Merge**-Bestätigung — die bleibt (Deploy-Banner ohne y/n). Dieses Gate ist ein **pre-Step-0 Retro-Exit**, **keine** Merge-Freigabe. Nicht verwechseln.
-- **Warum im generischen `wrapup`:** im Fremd-Projekt fehlt eine projekt-lokale „vor PR `/retro` anbieten"-Konvention → `wrapup` ist dort der **einzige portable** Retro-Touchpoint. In <project> quittiert man meist „schon erledigt" (primärer Nudge kommt aus der CLAUDE.md-Konvention nach `/tdd`) → kein Doppel-Prompt.
-- **Antwort → Spur (Materialisierung):** Die Gate-Antwort verschwindet nicht — sie wird in **Step 0c** als `**Retro:**`-Pflichtzeile in den PR-Body geschrieben, mit einem der beiden `prMarkers.retroValues`-Werte aus deinem Board-Profil (`docs/agents/board-sync.md`, Details unten in Step 0c; <project> aktuell `gefahren`/`übersprungen`): Retro gelaufen (in dieser oder einer früheren Session des Slice) → erster Wert + Findings-Verweis (`… — Findings unter ## Retro / Meta-Findings`); bewusst keins → zweiter Wert + Begründung (`… — <Grund in <maintainer>s Worten>`). So sieht man jedem gemergten PR an, ob Lernen stattfand. Das ist **keine** neue Frage und kein Auto-Run — nur das Festhalten der ohnehin gegebenen Antwort.
+- User picks **(b)** → `wrapup` **exits cleanly immediately** (no commit, no merge, no worktree touch). `wrapup` **cannot** pause/resume another skill mid-run → clean exit + re-run instead of a fake pause.
+- User picks **(a)** → continue with Step 0a.
+- **NEVER** call `/retro` itself (no auto-run / no auto-capture) — only show the reminder.
+- **≠ merge y/n:** the "no y/n confirmation" rule (spec context above, l. 19) is about the **merge** confirmation — that stays (deploy banner without y/n). This gate is a **pre-Step-0 retro exit**, **not** a merge authorization. Don't confuse the two.
+- **Why in the generic `wrapup`:** in a foreign project there's no project-local "offer `/retro` before PR" convention → `wrapup` is the **only portable** retro touchpoint there. In <project> the answer is usually "already done" (the primary nudge comes from the CLAUDE.md convention after `/tdd`) → no double prompt.
+- **Answer → trace (materialization):** the gate answer doesn't vanish — it gets written in **Step 0c** as a mandatory `**Retro:**` line in the PR body, using one of the two `prMarkers.retroValues` values from your board profile (`docs/agents/board-sync.md`; details below in Step 0c; <project> currently `gefahren`/`übersprungen`): retro ran (this or an earlier session of the slice) → first value + findings pointer (`… — findings under ## Retro / Meta-Findings`); deliberately skipped → second value + reason (`… — <reason in <maintainer>'s words>`). That way every merged PR shows whether learning happened. This is **not** a new question and not an auto-run — just recording the answer already given.
 
-### Step 0 — Stand landbar machen (commit → push → PR; idempotent, IM Worktree)
-Macht die Slice landefähig, **ohne abzubrechen, wenn schon alles erledigt ist** (jeder Sub-Step ist No-op, wenn nichts zu tun). Läuft noch **im Worktree** (cwd = `$WT`, Branch = `$BRANCH` aus dem Pre-flight) — erst Step 1 wechselt in den Main-Tree.
+### Step 0 — make the state landable (commit → push → PR; idempotent, IN the worktree)
+Makes the slice landable **without aborting if everything's already done** (every sub-step is a no-op if there's nothing to do). Still runs **in the worktree** (cwd = `$WT`, branch = `$BRANCH` from pre-flight) — only Step 1 switches to the main tree.
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-> **Phasen-Schnitt in Step 0:** 0a (Commit + Secret-Review) und die Annahme-Drift-**Bestätigung** (0c.2) sind `[Phase 1 · Hauptthread]`; 0b (Push) und der PR-/Body-/Merge-Gate-Rest von 0c sind `[Phase 2 · Codex-Worker-Subagent]`. Der Hauptthread sammelt in 0a + 0c.2 die Inputs (Commit lokal, Retro-Zeile, bestätigte Marker) und dispatcht **danach** 0b→5e.1 an den Subagent.
+> **Phase split within Step 0:** 0a (commit + secret review) and the assumption-drift **confirmation** (0c.2) are `[Phase 1 · main thread]`; 0b (push) and the rest of 0c (PR/body/merge-gate) are `[Phase 2 · Codex worker subagent]`. The main thread gathers the inputs in 0a + 0c.2 (commit local, retro line, confirmed markers) and **then** dispatches 0b→5e.1 to the subagent.
 <!-- mirror-xform:end -->
 
-**Step 0a — Dirty Tree → committen.** `[Phase 1 · Hauptthread]` Nur wenn `git status --porcelain` nicht leer.
-- **`.env`-Hard-Block (mechanisch):** liegt `.env`/`.env.*` im Tree → **STOP**, nie committen (globale Regel, nicht verhandelbar). Manuell klären.
-- **Secret-Review (Judgment):** vor dem Commit `git diff --cached` durchsehen — keine Keys/Tokens/Passwörter/Private-Keys mitcommiten. `grep` ist Aid, entscheiden tut der Verstand (Variablenname `token` ≠ Secret; echter Key → `git reset` + Stop).
-- **Commit-Message Conventional** (`<type>(<scope>): <kurze Zusammenfassung> (#<issue>)`): Typ aus Branch-Prefix, Zusammenfassung aus dem **tatsächlichen Diff** (nicht stumpf der Branch-Slug), Issue-Nr. aus dem Branch (`feat/<N>-…`).
+**Step 0a — dirty tree → commit.** `[Phase 1 · main thread]` Only if `git status --porcelain` is non-empty.
+- **`.env` hard block (mechanical):** `.env`/`.env.*` in the tree → **STOP**, never commit (global rule, non-negotiable). Resolve manually.
+- **Secret review (judgment):** review `git diff --cached` before committing — no keys/tokens/passwords/private keys. `grep` is an aid, judgment decides (a variable named `token` ≠ a secret; a real key → `git reset` + stop).
+- **Commit message conventional** (`<type>(<scope>): <short summary> (#<issue>)`): type from the branch prefix, summary from the **actual diff** (not just the branch slug), issue number from the branch (`feat/<N>-…`).
 ```bash
 if [ -n "$(git status --porcelain)" ]; then
   git status --porcelain | grep -qE '(^|[ /])\.env(\.[^/ ]*)?$' \
-    && { echo "STOP: .env im Arbeitsbaum — nicht committen, manuell klären."; exit 1; }
+    && { echo "STOP: .env in the working tree — do not commit, resolve manually."; exit 1; }
   git add -A
   git diff --cached | grep -niE 'BEGIN [A-Z ]*PRIVATE KEY|(api[_-]?key|secret|password|access[_-]?token|bearer)[[:space:]]*[:=]' \
-    && echo "⚠ mögliche Secrets im Diff (oben) — VOR dem Commit prüfen; Fehlalarm (z. B. Variablenname) → weiter, echtes Secret → git reset + STOP."
-  git commit -m "<conventional message aus dem Diff>"
+    && echo "⚠ possible secrets in the diff (above) — check BEFORE committing; false positive (e.g. a variable name) → continue, real secret → git reset + STOP."
+  git commit -m "<conventional message from the diff>"
 fi
 ```
-**Pre-commit-Hook (`tsc`+ESLint via `.githooks/`, gesetzt über `core.hooksPath`) feuert beim Commit** — neu in diesem Pfad (früher committete der User vor `/wrapup`, der Hook lief außerhalb). Schlägt er mit *vielen* `Cannot find module`/TS2307 quer über **fremde** Files fehl (nicht deine Slice-Files) → (node/pnpm-Repo) Worktree-`node_modules` fehlt/stale, **kein** echter Fehler: `pnpm install --frozen-lockfile` (warmer Store, ~Sek.), dann erneut committen. **Nie `--no-verify`.** Echte TS-/Lint-Fehler in *deinen* Slice-Files = berechtigter Stop → beheben, nicht bypassen.
+**The pre-commit hook (`tsc`+ESLint via `.githooks/`, wired via `core.hooksPath`) fires on commit** — new on this path (previously the user committed before `/wrapup`, the hook ran outside it). If it fails with *many* `Cannot find module`/TS2307 across **unrelated** files (not your slice files) → (node/pnpm repo) the worktree's `node_modules` is missing/stale, **not** a real error: `pnpm install --frozen-lockfile` (warm store, ~seconds), then commit again. **Never `--no-verify`.** Real TS/lint errors in *your* slice files = a legitimate stop → fix, don't bypass.
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-**Step 0b — Ungepusht → pushen.** `[Phase 2 · Codex-Worker-Subagent]` Feature-Branch → `pre-push` erlaubt (nur `main` ist geblockt). Setzt Upstream idempotent:
+**Step 0b — unpushed → push.** `[Phase 2 · Codex worker subagent]` Feature branch → `pre-push` allowed (only `main` is blocked). Sets upstream idempotently:
 <!-- mirror-xform:end -->
 ```bash
-git push -u origin "$BRANCH"     # schon gepusht & aktuell → No-op; abgelehnt (z. B. divergiert) → STOP + Grund melden
+git push -u origin "$BRANCH"     # already pushed & current → no-op; rejected (e.g. diverged) → STOP + report reason
 ```
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-**Step 0c — PR sicherstellen + Merge-Gate.** `[Phase 2 · Codex-Worker-Subagent — AUSSER 0c.2 Drift-Bestätigung = Phase 1]` Bestehenden PR **wiederverwenden** (kein Abbruch!), sonst anlegen; dann Mergebarkeit prüfen. Der Subagent bekommt den **fertigen** Body-Text (Retro-Zeile + bestätigte Marker) aus Phase 1 und schreibt ihn nur noch — die Marker-Bestätigung (0c.2) hat der Hauptthread **vor** dem Dispatch erledigt.
+**Step 0c — ensure PR + merge gate.** `[Phase 2 · Codex worker subagent — EXCEPT 0c.2 drift confirmation = phase 1]` **Reuse** an existing PR (no abort!), otherwise create one; then check mergeability. The subagent gets the **finished** body text (retro line + confirmed markers) from phase 1 and only writes it — the marker confirmation (0c.2) was already done by the main thread **before** dispatch.
 <!-- mirror-xform:end -->
 ```bash
 PR=$(gh pr view "$BRANCH" --json number -q .number 2>/dev/null || true)
 if [ -z "$PR" ]; then
-  # Body nach /tmp schreiben (gh --body-file Pflicht: inline Backticks/Klammern crashen bash)
-  #   Leaf-Issue:            "closes #<n>"        (NIE in Backticks → sonst greift Auto-Close nicht, vgl. Step 5b)
-  #   Wellen-/Cluster-Slice: "Part of #<anker>"   (NIE "closes" → schlösse den Anker verfrüht)
+  # write the body to /tmp (gh --body-file is mandatory: inline backticks/parens crash bash)
+  #   leaf issue:          "closes #<n>"        (NEVER in backticks → auto-close won't fire otherwise, see Step 5b)
+  #   wave/cluster slice:  "Part of #<anchor>"  (NEVER "closes" → would close the anchor prematurely)
   gh pr create --base main --head "$BRANCH" --title "<conventional title>" --body-file /tmp/wrapup-pr-body.md
   PR=$(gh pr view "$BRANCH" --json number -q .number)
-  echo "Step 0c: PR #$PR neu angelegt"
+  echo "Step 0c: PR #$PR newly created"
 else
-  echo "Step 0c: PR #$PR bereits vorhanden — wiederverwendet"
+  echo "Step 0c: PR #$PR already exists — reused"
 fi
 gh pr view "$PR" --json state,mergeable,mergeStateStatus,statusCheckRollup
 ```
-- Title = Conventional (wie der Commit). Issue-Nr. aus dem Branch. Body-Konvention strikt wie im Kommentar (Leaf → `closes`, Anker-Slice → `Part of`).
-- **`**Retro:**`-Pflichtzeile in den Body (Materialisierung der Retro-Erinnerung):** Beim Body-Schreiben **genau eine** dieser Zeilen aufnehmen, je nach Gate-Antwort — das Wort direkt nach dem Marker ist eines der beiden `prMarkers.retroValues`-Werte aus deinem Board-Profil (`docs/agents/board-sync.md`, `board-sync:profile`-JSON-Block; `pr-body-check.py`s `RETRO_RE` prüft exakt gegen diese Liste; <project>-Profil aktuell `gefahren`/`übersprungen`):
-  - Retro lief (diese oder frühere Session des Slice) → `**Retro:** <retroValues[0]> — Findings unter ## Retro / Meta-Findings`
-  - bewusst keins → `**Retro:** <retroValues[1]> — <Grund in <maintainer>s Worten>`
+- Title = conventional (like the commit). Issue number from the branch. Body convention strictly as in the comment (leaf → `closes`, anchor slice → `Part of`).
+- **Mandatory `**Retro:**` line in the body (materializing the retro reminder):** when writing the body, include **exactly one** of these lines, depending on the gate answer — the word right after the marker is one of the two `prMarkers.retroValues` values from your board profile (`docs/agents/board-sync.md`, `board-sync:profile` JSON block; `pr-body-check.py`'s `RETRO_RE` checks exactly against this list; <project> profile currently `gefahren`/`übersprungen`):
+  - retro ran (this or an earlier session of the slice) → `**Retro:** <retroValues[0]> — findings under ## Retro / Meta-Findings`
+  - deliberately skipped → `**Retro:** <retroValues[1]> — <reason in <maintainer>'s words>`
 
-  Format exakt: `**Retro:**`-Prefix, dann eines der beiden `prMarkers.retroValues`-Wörter, dann ` — ` + Begründung (mit Space nach dem Marker — `**Retro:**<wert>` ohne Space wird vom Check abgelehnt). **Geschlossenes Set: NUR die zwei im Profil konfigurierten Wörter, wörtlich kopieren — nie freihändig formulieren.** Jede andere Variante (z. B. „Nicht angeboten", „entfällt") lehnt `pr-body-check.py` ab → unnötige Nacharbeit. „Nichts zu retro'n" (Meta-/Config-Session ohne Feature-Slice) ist **kein** dritter Zustand, sondern der zweite `retroValues`-Wert + `<Grund>` (z. B. „Meta-/Config-Session, kein Slice-Retro"). **Gilt für JEDE PR-Body-Erstellung — auch ad-hoc mitten in der Session** (`gh pr create` außerhalb dieses Step 0c): dieselben zwei Formen wörtlich, sonst fängt der Check sie und du arbeitest nach. Kein Auto-Run von `/retro` — nur die Antwort festhalten.
-  - **Reuse-Pfad (PR existierte schon):** der bestehende Body hat die Zeile evtl. nicht. **Proaktiv nachtragen** — fehlt die `**Retro:**`-Zeile im wiederverwendeten Body, sie per `gh pr edit "$PR" --body-file <ergänzter Body>` einfügen, **bevor** der Body-Konventions-Check läuft (nicht auf dessen Exit 1 + Hand-Fix verlassen — Slice-7/8-Lücke).
-- **Annahme-Drift-Selbst-Check (vor Merge —) — VOR dem Body-Check `[0c.2 · Phase 1 · Hauptthread]`:** Die **Bestätigung** der Marker macht der **Hauptthread vor dem Dispatch** (User-Gate — ein Subagent kann nicht bestätigen lassen). Das **Schreiben** der bestätigten Marker in den Body + der Body-Check passieren dann in Phase 2: erst die Marker in den Body schreiben (s. u.), DANN den Body-Konventions-Check laufen lassen, damit dieser den **finalen** Body sieht (R2-F4). Quelle = das **Build-Zeit-Log** `ANNAHMEN.md` (Worktree-Root, gitignored), das Wellen-Slice-Sessions live führen (Erfassung bei Kontext-Frische statt Gedächtnis am Session-Ende; Konvention: CLAUDE.md Cross-Slice-Writeback + `tdd`-Checklist). **Q3-konform: kein Code-/Diff-Scan, keine Heuristik — das Log IST explizit Genanntes, nur früher erfasst.** Das Log ist die **Untergrenze, nicht die Obergrenze**: fällt mir beim Landen eine Drift auf, die **nicht** im Log steht, bringe ich sie genauso retro-style ein (s. Fallback), statt sie zu übergehen.
-  - **Log vorhanden + nicht-leer** → pro Zeile einen `annahme-drift`-Marker-Vorschlag bauen und dem User zur **Bestätigung** zeigen (Schreiben in den PR-Body erst nach OK — Session-Notizen verschwinden nach Merge+Worktree-Removal, nur der PR-Body überlebt für Step 5e). Zeilen-Format `- #<n>: <text>` (optional `- #<n> §<Section>: <text>`); daraus Marker mit Defaults `section="Vor Bau zu klären"` (= `headings.vorBau` aus dem Board-Profil), `op="append"` — JSON-Payload im HTML-Kommentar (überlebt Quotes/Newlines/`-->`):
+  Exact format: `**Retro:**` prefix, then one of the two `prMarkers.retroValues` words, then ` — ` + reason (with a space after the marker — `**Retro:**<value>` without a space gets rejected by the check). **Closed set: ONLY the two words configured in the profile, copy verbatim — never phrase freely.** Any other variant (e.g. "not offered", "n/a") is rejected by `pr-body-check.py` → unnecessary rework. "Nothing to retro" (meta/config session without a feature slice) is **not** a third state — it's the second `retroValues` value + `<reason>` (e.g. "meta/config session, no slice retro"). **Applies to EVERY PR body creation — including ad-hoc mid-session** (`gh pr create` outside this Step 0c): same two forms verbatim, otherwise the check catches them and you rework it. No auto-run of `/retro` — just recording the answer.
+  - **Reuse path (PR already existed):** the existing body may lack the line. **Add it proactively** — if the `**Retro:**` line is missing from the reused body, insert it via `gh pr edit "$PR" --body-file <updated body>` **before** the body-convention check runs (don't rely on its exit 1 + manual fix — the slice-7/8 gap).
+- **Assumption-drift self-check (before merge —) — BEFORE the body check `[0c.2 · phase 1 · main thread]`:** the **confirmation** of the markers is done by the **main thread before dispatch** (user gate — a subagent can't get confirmation). **Writing** the confirmed markers into the body + the body check then happen in phase 2: write the markers into the body first (see below), THEN run the body-convention check, so it sees the **final** body (R2-F4). Source = the **build-time log** `ANNAHMEN.md` (worktree root, gitignored), kept live by wave-slice sessions (captured while context is fresh instead of from memory at session end; convention: CLAUDE.md cross-slice writeback + `tdd` checklist). **Q3-compliant: no code/diff scan, no heuristic — the log IS explicitly stated content, just captured earlier.** The log is the **floor, not the ceiling**: if drift shows up while landing that's **not** in the log, bring it in the same retro-style way (see fallback) instead of skipping it.
+  - **Log present + non-empty** → build one `annahme-drift` marker proposal per line and show it to the user for **confirmation** (write to the PR body only after OK — session notes vanish after merge+worktree removal, only the PR body survives for Step 5e). Line format `- #<n>: <text>` (optionally `- #<n> §<section>: <text>`); build markers from it with defaults `section="Vor Bau zu klären"` (= `headings.vorBau` from the board profile), `op="append"` — JSON payload in an HTML comment (survives quotes/newlines/`-->`):
     ```
-    <!-- annahme-drift: {"target":"","section":"Vor Bau zu klären","op":"append","text":"retro-Seam in 1g vereinheitlicht — vor Schnitt prüfen"} --> <!-- portability-lint: ok -->
+    <!-- annahme-drift: {"target":"","section":"Vor Bau zu klären","op":"append","text":"retro seam unified in 1g — check before the split"} --> <!-- portability-lint: ok -->
     ```
-  - **Zeile ohne `#<n>`-Ziel (malformed)** → **warnen + im Walkthrough klären** (Ziel nachtragen oder Eintrag bewusst verwerfen), **nie still droppen** (Spiegel zu „stilles Schreiben verboten", Step 5e).
-  - **Log fehlt/leer** (oder Nicht-Wellen-Slice ohne Log) → **Fallback retro-style: ICH bringe zuerst eigene Kandidaten ein, frage NICHT blank.** Wie bei `/retro` (User liefert Richtung + Freigabe, nicht das Impl-Detail — er kennt es meist nicht, ich habe gebaut): die im Slice **bewusst getroffenen oder gekippten** Annahmen durchgehen, die ein **ungebautes** Geschwister-Issue tragen könnten, und sie als **benannte Kandidaten** vorlegen — je `- #<n>?: <Annahme> → trägt evtl. <Issue/Contract>`. Der User bestätigt / verwirft / priorisiert; bestätigte → Marker wie oben von Hand. **Null** Kandidaten → das **ausdrücklich sagen** („keine Drift gefunden — geprüft: <kurz, was berührt wurde>"), erst danach optional die Eine-Zeile-Absicherung *„etwas übersehen, das ein ungebautes Issue trägt?"*. Die blanke Frage ist **nie** Ersatz fürs eigene Durchgehen.
-  - Kein Marker → nichts propagiert (eine vergessene Drift fängt der Drift-Guard am nächsten Handoff).
-- **Body-Konventions-Check (mechanisch) — nach Retro-Zeile + Annahme-Drift-Markern, gegen den finalen Body:** Das Script prüft die `closes`-vs-`Part of`-Regel (Anker-Schutz) + die `**Retro:**`-Pflichtzeile gegen den **realen PR-Body**. Es **parst KEINE `annahme-drift`-Marker** (deren Validierung ist bewusst nicht mechanisiert/R2-F6) — darum laufen die Marker-Writes davor. Issue-Nr. aus dem Branch, Parent via `board-sync.py parent-of`.
+  - **Line without a `#<n>` target (malformed)** → **warn + clarify in the walkthrough** (add the target or deliberately discard the entry), **never silently drop** (mirror of "silent writes forbidden", Step 5e).
+  - **Log missing/empty** (or a non-wave slice without a log) → **fallback, retro-style: I bring my own candidates first, I don't ask blank.** Like `/retro` (the user provides direction + approval, not the implementation detail — they usually don't know it, I built it): go through the assumptions **deliberately made or reversed** in the slice that might carry an **unbuilt** sibling issue, and present them as **named candidates** — each `- #<n>?: <assumption> → might carry <issue/contract>`. The user confirms / rejects / prioritizes; confirmed ones → markers as above, by hand. **Zero** candidates → **say so explicitly** ("no drift found — checked: <brief, what was touched>"), only then optionally the one-line safety net *"anything overlooked that carries an unbuilt issue?"*. The blank question is **never** a substitute for going through it yourself.
+  - No marker → nothing propagated (a forgotten drift gets caught by the drift guard at the next handoff).
+- **Body-convention check (mechanical) — after the retro line + assumption-drift markers, against the final body:** the script checks the `closes`-vs-`Part of` rule (anchor guard) + the mandatory `**Retro:**` line against the **real PR body**. It **does not parse `annahme-drift` markers** (their validation is deliberately not mechanized/R2-F6) — that's why the marker writes run first. Issue number from the branch, parent via `board-sync.py parent-of`.
   ```bash
   python3 scripts/pr-body-check.py --branch "$BRANCH"
   ```
-  - **Exit 0** → grün, weiter zum Merge-Gate.
-  - **Exit 1** → **STOP**: die gemeldeten Verstöße im Body beheben (`gh pr edit "$PR" --body-file <korrigierter Body>`), dann das Script **erneut** laufen lassen, bis Exit 0. **Nicht** mit rotem Check mergen.
-  - **Exit 2** → nur Warnung (kein Issue aus dem Branch / kein PR-Body abrufbar), **kein Block** (fail-open).
-- **Merge-Gate** (der frühere Pre-flight-#4-Check, jetzt **nach** dem PR-Anlegen):
-  - `state == OPEN` und **kein** Check mit `conclusion` in `FAILURE`/`CANCELLED`/`TIMED_OUT` → sonst **STOP** (rote Checks nennen).
-  - `mergeable == CONFLICTING` → **STOP** (Merge-Konflikt; Branch rebasen/auflösen).
-  - `mergeable == UNKNOWN` (frisch erstellter PR — GitHub rechnet die Mergebarkeit async) → **kein Stop**: der Merge-Versuch in Step 1 ist das echte Gate (Step 1 verifiziert `state == MERGED` und stoppt sonst).
+  - **Exit 0** → green, continue to the merge gate.
+  - **Exit 1** → **STOP**: fix the reported violations in the body (`gh pr edit "$PR" --body-file <fixed body>`), then run the script **again** until exit 0. **Never** merge with a red check.
+  - **Exit 2** → warning only (no issue from the branch / no PR body retrievable), **no block** (fail-open).
+- **Merge gate** (the former pre-flight #4 check, now **after** creating the PR):
+  - `state == OPEN` and **no** check with `conclusion` in `FAILURE`/`CANCELLED`/`TIMED_OUT` → otherwise **STOP** (name the red checks).
+  - `mergeable == CONFLICTING` → **STOP** (merge conflict; rebase/resolve the branch).
+  - `mergeable == UNKNOWN` (freshly created PR — GitHub computes mergeability async) → **no stop**: the merge attempt in Step 1 is the real gate (Step 1 verifies `state == MERGED` and otherwise stops).
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-### Step 1 — PR mergen (= Prod-Deploy) `[Phase 2 · Codex-Worker-Subagent]`
+### Step 1 — merge the PR (= prod deploy) `[Phase 2 · Codex worker subagent]`
 <!-- mirror-xform:end -->
-**Body-Konventions-Gate (vor dem Merge):** Erst mergen, wenn `pr-body-check.py` (Step 0c) **Exit 0** lieferte — er deckt die `**Retro:**`-Pflichtzeile (einer der `prMarkers.retroValues`-Werte + Grund) **und** die `closes`-vs-`Part of`-Anker-Regel mechanisch ab. Bei Exit 1 zuerst den Body fixen (`gh pr edit "$PR" --body-file <korrigierter Body>`) und neu prüfen, **nicht** blind mergen. (Bestehender PR ohne `**Retro:**`-Zeile fällt damit ebenfalls in den STOP.)
+**Body-convention gate (before the merge):** only merge once `pr-body-check.py` (Step 0c) returned **exit 0** — it mechanically covers the mandatory `**Retro:**` line (one of the `prMarkers.retroValues` values + reason) **and** the `closes`-vs-`Part of` anchor rule. On exit 1, fix the body first (`gh pr edit "$PR" --body-file <fixed body>`) and re-check, **don't** merge blind. (An existing PR without a `**Retro:**` line falls into this STOP too.)
 
-**Wichtig:** `gh pr merge` macht intern `git checkout main` — das schlägt fehl wenn `main` im Feature-Worktree belegt ist. Deshalb **immer zuerst in den Main-Tree wechseln**:
+**Important:** `gh pr merge` internally does `git checkout main` — that fails if `main` is checked out in the feature worktree. So **always switch to the main tree first**:
 ```bash
 cd "$MAIN_TREE"
 gh pr merge "$PR" --merge --delete-branch
 ```
-- `--merge` = Merge-Commit (Repo-Konvention, vgl. `git log` auf main).
-- `--delete-branch` entfernt den **Remote**-Branch. Den lokalen Branch löscht gh nicht, solange er im Worktree ausgecheckt ist — das macht Step 4.
-- Danach verifizieren: `gh pr view "$PR" --json state -q .state` == `MERGED`. Nicht MERGED → Stop, Rest NICHT ausführen.
-- „already merged"-Meldung + `state == MERGED` → OK (Remote-Merge lief durch, nur lokale Folgeschritte fehlten) → weitermachen.
+- `--merge` = merge commit (repo convention, see `git log` on main).
+- `--delete-branch` removes the **remote** branch. `gh` doesn't delete the local branch while it's checked out in the worktree — Step 4 does that.
+- Then verify: `gh pr view "$PR" --json state -q .state` == `MERGED`. Not MERGED → stop, do NOT run the rest.
+- An "already merged" message + `state == MERGED` → OK (the remote merge went through, only the local follow-up steps were missing) → continue.
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-### Step 2 — Worktree-Dev-Server beenden (VOR der Worktree-Auflösung!) `[Phase 2 · Codex-Worker-Subagent]`
+### Step 2 — kill the worktree's dev server (BEFORE tearing down the worktree!) `[Phase 2 · Codex worker subagent]`
 <!-- mirror-xform:end -->
-Reihenfolge-Falle: ein laufender Prozess hält Dir + Ports → `git worktree remove` schlägt sonst fehl.
-**cwd-Falle:** der Kill-Loop unten matcht Prozesse per cwd-unter-WT — läuft die Shell selbst im WT
-(z.B. „pr merged"-Pfad, wo Step-1's `cd "$MAIN_TREE"` übersprungen wird), killt er den eigenen
-Shell-Ancestor → Exit 144, Loop bricht ab, Stray-Proc bleibt. Darum ZUERST in den Main-Tree wechseln.
+Ordering trap: a running process holds the dir + ports → `git worktree remove` otherwise fails.
+**cwd trap:** the kill loop below matches processes by cwd-under-WT — if the shell itself is running in the WT
+(e.g. the "PR already merged" path, where Step 1's `cd "$MAIN_TREE"` gets skipped), it kills its own
+shell ancestor → exit 144, the loop aborts, a stray process remains. So switch to the main tree FIRST.
 ```bash
-cd "$MAIN_TREE"   # raus aus dem Worktree — sonst trifft der cwd-Filter unten die eigene Shell
-# Ports aus .dev-ports lesen (separate source-Zeile, nicht im &&-Chain)
+cd "$MAIN_TREE"   # out of the worktree — otherwise the cwd filter below hits the shell itself
+# read ports from .dev-ports (separate source line, not chained with &&)
 VITE_DEV_PORT="" BACKEND_PORT=""
 [ -f "$WT/.dev-ports" ] && source "$WT/.dev-ports" 2>/dev/null || true
 
-# a) Listener auf den Offset-Ports killen (Front + Back)
+# a) kill listeners on the offset ports (front + back)
 for p in "${VITE_DEV_PORT:-}" "${BACKEND_PORT:-}"; do
   [ -n "$p" ] && lsof -ti:"$p" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
 done
-# b) [node/pnpm-Stack-spezifisch — andere Runtimes: Prozessliste anpassen] Prozesse killen, deren cwd UNTER dem Worktree liegt
-#    (fängt den pnpm-dev-Parent + tsc-watch, die keinen Port halten, aber den Dir)
+# b) [node/pnpm-stack specific — other runtimes: adjust the process list] kill processes whose cwd is UNDER the worktree
+#    (catches the pnpm-dev parent + tsc-watch, which hold no port but hold the dir)
 while IFS= read -r pid; do
   cwd=$(readlink -f /proc/"$pid"/cwd 2>/dev/null) || continue
   case "$cwd" in "$WT"*) kill "$pid" 2>/dev/null || true;; esac
 done < <(pgrep -f 'tsx|vite|tsc|pnpm|node' 2>/dev/null)
 ```
-Wurde der Server in DIESER Session als Background-Task gestartet, zusätzlich per `TaskStop` beenden (Task-ID aus dem Session-Verlauf).
+If the server was started as a background task in THIS session, also stop it via `TaskStop` (task ID from the session history).
 
-### Step 3 — Deploy-Banner `[Phase 3 · Hauptthread]`
-Der Hauptthread gibt das Banner aus dem Subagent-Report aus (Subagent hat in Step 1 gemerged). Eine Zeile, z. B.:
-> ⚠ PR #`$PR` gemerged → your deploy platform deployt `main` (~7 min live: <your-app-domain>).
+### Step 3 — deploy banner `[Phase 3 · main thread]`
+The main thread prints the banner from the subagent report (the subagent merged in Step 1). One line, e.g.:
+> ⚠ PR #`$PR` merged → your deploy platform deploys `main` (~7 min live: <your-app-domain>).
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-### Step 4 — Worktree auflösen (AUS dem Main-Tree) `[Phase 2 · Codex-Worker-Subagent]`
+### Step 4 — tear down the worktree (FROM the main tree) `[Phase 2 · Codex worker subagent]`
 <!-- mirror-xform:end -->
-`git worktree remove` darf nicht aus dem zu entfernenden Worktree laufen → vorher in den Main-Tree wechseln. Den lokalen Branch löscht **Step 5** (nach dem Main-Update — vorher refuse't `-d`, s. dort).
+`git worktree remove` must not run from the worktree being removed → switch to the main tree first. **Step 5** deletes the local branch (after the main update — `-d` refuses before that, see there).
 ```bash
 cd "$MAIN_TREE"
-git worktree remove "$WT"          # Tree ist sauber (Step 0a hat committed) → kein --force nötig
+git worktree remove "$WT"          # tree is clean (Step 0a committed) → no --force needed
 git worktree prune
 git fetch origin --prune
 ```
-- Schlägt `git worktree remove` fehl („contains modified or untracked files" / „is locked") → **nicht** blind `--force`: erst prüfen, ob Step 2 wirklich alle Prozesse beendet hat (`lsof`, `pgrep`), sonst gingen evtl. echte Dateien verloren. Ursache melden statt forcen.
+- If `git worktree remove` fails ("contains modified or untracked files" / "is locked") → **don't** blindly `--force`: first check whether Step 2 really terminated all processes (`lsof`, `pgrep`), otherwise real files might get lost. Report the cause instead of forcing.
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-### Step 5 — Main aktualisieren + lokalen Branch löschen `[Phase 2 · Codex-Worker-Subagent]`
+### Step 5 — update main + delete the local branch `[Phase 2 · Codex worker subagent]`
 <!-- mirror-xform:end -->
 ```bash
 cd "$MAIN_TREE"
-git checkout main 2>/dev/null || true   # i. d. R. schon auf main
+git checkout main 2>/dev/null || true   # usually already on main
 git pull --ff-only
-git branch -d "$BRANCH"                  # NACH dem ff-Pull — erst jetzt ist der Merge-Commit von main reachable
+git branch -d "$BRANCH"                  # AFTER the ff pull — only now is the merge commit reachable from main
 ```
-`--ff-only`: kein Push, keine Branch-Protection (pre-push) berührt. Kein Fast-Forward möglich → melden (divergierter Main = Anomalie, untersuchen).
-- **`git branch -d "$BRANCH"` gehört NACH den Pull** (nicht in Step 4): davor ist der Merge-Commit noch nicht von `main` reachable + der Remote-Upstream schon gepruned → `-d` refuse't „not fully merged" und schlägt das Hook-geblockte, verbotene `-D` vor. `-d` reicht nach dem Pull immer; schlägt es trotzdem fehl → melden, **nie** `-D`.
+`--ff-only`: no push, doesn't touch branch protection (pre-push). No fast-forward possible → report (a diverged main is an anomaly, investigate).
+- **`git branch -d "$BRANCH"` belongs AFTER the pull** (not in Step 4): before that, the merge commit isn't yet reachable from `main` + the remote upstream is already pruned → `-d` refuses "not fully merged" and suggests the hook-blocked, forbidden `-D`. `-d` always works after the pull; if it still fails → report, **never** `-D`.
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-### Step 5b — Issue-Close verifizieren (Auto-Close-Miss abfangen) `[Phase 2 · Codex-Worker-Subagent]`
+### Step 5b — verify issue close (catch auto-close misses) `[Phase 2 · Codex worker subagent]`
 <!-- mirror-xform:end -->
-GitHub schließt das `closes #<n>`-Issue beim Merge **nur**, wenn das Keyword im PR-Body nicht in Backticks/Code-Span steht — sonst bleibt das Issue still offen. Deshalb hart prüfen, nicht vertrauen. Issue-Nummer kommt aus dem Branch (`feat/<N>-…`).
+GitHub only closes the `closes #<n>` issue on merge if the keyword is not inside backticks/a code span — otherwise the issue silently stays open. So verify hard, don't trust it. The issue number comes from the branch (`feat/<N>-…`).
 ```bash
 ISSUE=$(echo "$BRANCH" | sed -E 's#^(feat|fix|chore|docs)/([0-9]+)-.*#\2#')
-if [[ "$ISSUE" =~ ^[0-9]+$ ]]; then              # bash-Regex, kein grep (rtk-Alias-Falle)
+if [[ "$ISSUE" =~ ^[0-9]+$ ]]; then              # bash regex, not grep (rtk-alias trap)
   state=$(gh issue view "$ISSUE" --json state -q .state 2>/dev/null)
   if [ "$state" = "OPEN" ]; then
-    gh issue close "$ISSUE" -c "Gemerged via PR #$PR — Auto-Close griff nicht (Keyword evtl. in Backticks); manuell geschlossen."
-    echo "Step 5b: #$ISSUE war trotz Merge OPEN → manuell geschlossen"
+    gh issue close "$ISSUE" -c "Merged via PR #$PR — auto-close didn't fire (keyword possibly in backticks); closed manually."
+    echo "Step 5b: #$ISSUE was OPEN despite the merge → closed manually"
   else
-    echo "Step 5b: #$ISSUE bereits $state ✓"
+    echo "Step 5b: #$ISSUE already $state ✓"
   fi
 else
-  echo "Step 5b: keine Issue-Nummer im Branch — übersprungen"
+  echo "Step 5b: no issue number in the branch — skipped"
 fi
 ```
-**Vorbeugend** außerdem: `closes #<#>` im PR-Body **nie** in Backticks/Code-Span schreiben (sonst ignoriert GitHub das Keyword — genau der Miss, den dieser Step abfängt). (Retro 2026-05-31.)
+**Preventively** also: never write `closes #<#>` in the PR body inside backticks/a code span (otherwise GitHub ignores the keyword — exactly the miss this step catches).
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-### Step 5c — Verwaiste merged-Branches kehren (lokale Karteileichen) `[Phase 2 · Codex-Worker-Subagent]`
+### Step 5c — sweep orphaned merged branches (local stragglers) `[Phase 2 · Codex worker subagent]`
 <!-- mirror-xform:end -->
-Step 4 löscht **nur** den Branch dieser Slice. Über die Zeit sammeln sich aber lokale Branches an, deren PR längst gemergt ist (manuelle Merges, Alt-Stände vor diesem Skill, andere Sessions). Nach dem Main-Update einmal sicher durchkehren — **ausschließlich `-d`** (löscht nur, was aus `main` reachable ist; refuse't alles andere, inkl. in anderen Worktrees ausgecheckter Branches):
+Step 4 deletes **only** this slice's branch. Over time, local branches whose PR was merged long ago pile up (manual merges, old states from before this skill, other sessions). Do one safe sweep after the main update — **exclusively `-d`** (only deletes what's reachable from `main`; refuses anything else, including branches checked out in other worktrees):
 ```bash
 cd "$MAIN_TREE"
-for b in $(git branch --merged main --format='%(refname:short)'); do   # grep-frei (rtk-Alias-Falle, vgl. 5b)
+for b in $(git branch --merged main --format='%(refname:short)'); do   # grep-free (rtk-alias trap, see 5b)
   [ "$b" = "main" ] && continue
-  git branch -d "$b" 2>/dev/null && echo "  gekehrt: $b"
+  git branch -d "$b" 2>/dev/null && echo "  swept: $b"
 done
 ```
-- **Niemals `-D`** (Hook-geblockt, Hard-Rule). Der Sweep ist durch `--merged main` **und** `-d` doppelt abgesichert — er kann per Definition nichts Ungemergtes treffen.
-- **Squash-/rebase-gemergte** Branches sind nicht aus `main` reachable → der Sweep lässt sie **bewusst** stehen (kein `-D`-Bypass). Die bleiben manuelle Einzelfall-Entscheidung: `gh pr list --head <b> --state merged` verifizieren, dann force't der User selbst.
-- Fängt die Merge-Commit-Klasse (Repo-Default `--merge`) und verhindert das Branch-Müll-Wachstum, das diesen Step motiviert hat (2026-06-02, 28 Karteileichen).
+- **Never `-D`** (hook-blocked, hard rule). The sweep is doubly guarded by `--merged main` **and** `-d` — by definition it can't hit anything unmerged.
+- **Squash-/rebase-merged** branches aren't reachable from `main` → the sweep **deliberately** leaves them alone (no `-D` bypass). Those stay a manual case-by-case call: verify via `gh pr list --head <b> --state merged`, then the user forces it themselves.
+- Covers the merge-commit class (repo default `--merge`) and prevents the branch clutter that motivated this step (2026-06-02, 28 stragglers).
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-### Step 5d — Verwaiste merged-Branches kehren (REMOTE Karteileichen) `[Phase 2 · Codex-Worker-Subagent]`
+### Step 5d — sweep orphaned merged branches (REMOTE stragglers) `[Phase 2 · Codex worker subagent]`
 <!-- mirror-xform:end -->
-`--delete-branch` (Step 1) löscht nur den Remote-Branch *dieser* Slice. Über die Zeit stauen sich auf `origin` aber Hunderte Remote-Branches, deren PR längst gemergt ist (GitHub „auto-delete head branches" aus, manuelle Merges, Alt-Stände). 5c sieht die **nicht** — es kehrt nur lokal. Darum hier einmal die Remote-Karteileichen kehren, **autoritativ über den PR-Status** (nicht über `--merged`-Reachability — das übersähe squash/rebase-gemergte, vgl. 5c). Sichere Menge = *Remote-Branch existiert* **und** *hat einen MERGED-PR* **und** *hat KEINEN offenen PR* (Reuse-Schutz).
+`--delete-branch` (Step 1) only deletes the remote branch of *this* slice. Over time, hundreds of remote branches whose PR was merged long ago pile up on `origin` (GitHub's "auto-delete head branches" is off, manual merges, old states). 5c doesn't see those — it only sweeps locally. So sweep the remote stragglers here once, **authoritatively via PR status** (not via `--merged` reachability — that would miss squash/rebase-merged ones, see 5c). Safe set = *remote branch exists* **and** *has a MERGED PR* **and** *has NO open PR* (reuse guard).
 
-**Schalter (opt-in):** Das eigentliche Löschen läuft **nur**, wenn `wrapup.remoteBranchSweep` in deinem Board-Profil (`docs/agents/board-sync.md`, `board-sync:profile`-JSON-Block) `true` ist — **Default `false`/fehlend = aus** (ein automatischer Remote-Delete ist in einem Fremd-Projekt ohne diese Konvention ein unerwarteter Nebeneffekt). Die Kandidatenmenge wird **immer** ermittelt (read-only, dieselben drei Filter), egal ob der Schalter an oder aus ist:
+**Switch (opt-in):** the actual deletion only runs if `wrapup.remoteBranchSweep` in your board profile (`docs/agents/board-sync.md`, `board-sync:profile` JSON block) is `true` — **default `false`/missing = off** (an automatic remote delete is an unexpected side effect in a foreign project without this convention). The candidate set is **always** determined (read-only, same three filters), whether the switch is on or off:
 ```bash
 cd "$MAIN_TREE"
 SWEEP_ON=$(python3 -c "import sys;sys.path.insert(0,'scripts');from board_config import load_board_config as L;print(bool(L().get('wrapup', {}).get('remoteBranchSweep')))" 2>/dev/null)
 git fetch origin --prune
 gh pr list --state merged --limit 1000 --json headRefName -q '.[].headRefName' | sort -u > /tmp/wrapup-merged.txt
 gh pr list --state open   --limit 1000 --json headRefName -q '.[].headRefName' | sort -u > /tmp/wrapup-open.txt
-# Reale origin-Heads DIREKT abfragen — NICHT `git branch -r` (lokale Tracking-Refs;
-# `fetch --prune` kappt die Ref während der origin-Head noch lebt → verwaister
-# Remote-Branch wird übersehen: `--delete-branch` failte am Worktree-Hold,
-# 5d sah ihn nicht, weil die Tracking-Ref schon weg war).
+# query real origin heads DIRECTLY — NOT `git branch -r` (local tracking refs; a
+# `fetch --prune` can cut the ref while the origin head is still alive → an
+# orphaned remote branch gets missed)
 git ls-remote --heads origin | sed -n 's#^.*[[:space:]]refs/heads/##p' | sort -u > /tmp/wrapup-remotes.txt
-# merged-PR-Heads ∩ existierende origin-Heads − offene-PR-Heads (comm = grep-frei, rtk-Alias-Falle, vgl. 5b/5c)
+# merged-PR heads ∩ existing origin heads − open-PR heads (comm = grep-free, rtk-alias trap, see 5b/5c)
 comm -23 <(comm -12 /tmp/wrapup-merged.txt /tmp/wrapup-remotes.txt) /tmp/wrapup-open.txt > /tmp/wrapup-stale.txt
 STALE=()
 while IFS= read -r b; do
   [ -z "$b" ] && continue
-  [ "$b" = "main" ] && continue          # main nie löschen (Sicherheitsnetz)
+  [ "$b" = "main" ] && continue          # never delete main (safety net)
   STALE+=("$b")
 done < /tmp/wrapup-stale.txt
 if [ "$SWEEP_ON" != "True" ]; then
-  echo "Step 5d: Sweep übersprungen — ${#STALE[@]} stale Remotes, aktivierbar via wrapup.remoteBranchSweep"
+  echo "Step 5d: sweep skipped — ${#STALE[@]} stale remotes, enable via wrapup.remoteBranchSweep"
 elif [ "${#STALE[@]}" -gt 0 ]; then
-  git push origin --delete "${STALE[@]}" && echo "Step 5d: ${#STALE[@]} remote merged-PR-Branch(es) gelöscht"
-  git fetch origin --prune               # lokale remote-tracking refs nachziehen
+  git push origin --delete "${STALE[@]}" && echo "Step 5d: ${#STALE[@]} remote merged-PR branch(es) deleted"
+  git fetch origin --prune               # pull in local remote-tracking refs
 else
-  echo "Step 5d: keine stale remote merged-Branches"
+  echo "Step 5d: no stale remote merged branches"
 fi
 ```
-- **Reversibel:** ein versehentlich gelöschter Remote-Branch ist über die GitHub-PR-Seite („Restore branch") wiederherstellbar — der Merge-Commit hält die Commits ohnehin. Trotzdem ist die Menge dreifach gefiltert (MERGED-PR + existiert + kein offener PR + nie `main`).
-- **`--delete-branch` in Step 1 bleibt** — 5d ist die kumulative Nachkehr, nicht sein Ersatz; bei sauberer Hygiene ist 5d meist ein No-op.
-- **<project> hat den Schalter aktiv** (`docs/agents/board-sync.md`) — Erstlauf nach Einführung kehrte den Altbestand in **einem** Multi-Ref-Push (2026-06-08: 142 stale Remotes von 145).
+- **Reversible:** an accidentally deleted remote branch can be restored via the GitHub PR page ("Restore branch") — the merge commit keeps the commits regardless. The set is still triple-filtered (MERGED PR + exists + no open PR + never `main`).
+- **`--delete-branch` in Step 1 stays** — 5d is the cumulative follow-up sweep, not its replacement; with clean hygiene 5d is usually a no-op.
+- **<project> has the switch enabled** (`docs/agents/board-sync.md`) — the first run after introduction swept the backlog in **one** multi-ref push (2026-06-08, 142/145 stale remotes).
 
-### Step 5e — Land-Reconcile (Anker + Geschwister kohärent halten —) `[5e.1 = Phase 2 · 5e.2/5e.3 = Phase 3]`
-Greift nur, wenn das gemergte Issue ein **Slice eines Wellen-Ankers** ist (`Part of #<anker>`). Hält den Rest-Graph land-seitig execute-ready. **Phasen-Schnitt:** der Tick (5e.1) ist ein eindeutiger Ein-Zeilen-Flip → läuft im **Subagent** (Phase 2); die inhaltlichen Sibling-Edits (5e.2) sind User-Gate (propose+bestätigen) → **Hauptthread** (Phase 3), gespeist aus den `annahme-drift`-Markern, die der Subagent-Report zurückgibt.
+### Step 5e — land-reconcile (keep anchor + siblings coherent —) `[5e.1 = phase 2 · 5e.2/5e.3 = phase 3]`
+Only applies if the merged issue is a **slice of a wave anchor** (`Part of #<anchor>`). Keeps the rest of the graph execute-ready on the land side. **Phase split:** the tick (5e.1) is a clear-cut one-line flip → runs in the **subagent** (phase 2); the substantive sibling edits (5e.2) are a user gate (propose+confirm) → **main thread** (phase 3), fed from the `annahme-drift` markers the subagent report returns.
 
 <!-- mirror-xform:start codex-wrapup-phase-labels -->
-1. **Anker-Tracker-Sync — `anchor-sync`** `[Phase 2 · Codex-Worker-Subagent]`. Statt Hand-Tick: `python3 scripts/board-sync.py anchor-sync <anker#> --dry-run` → Diff sichten → dann ohne `--dry-run` schreiben. Das regeneriert die **volatilen Spalten der Slices-Tabelle aus dem Board** — **Status** (`✅ #<PR>` merged · `🔄` offener PR/In-Arbeit · `⬜` sonst) und **Branch** (tatsächlicher PR-`headRefName`) — **monoton** (kippt nie ein vorhandenes `✅`/`🔄` zurück, falls das Sub-Issue als `Part of`-gen-a/gen-b offen bleibt und keinen Closing-PR trägt) und **driftfrei idempotent**. **Stabile Plan-Spalten** (Slice/Modell/Gate/blocked-by) bleiben **verbatim**; Hand-Annotationen wie `✅ (gen-a)` überleben. **Fehlende Sub-Issue-Zeilen** (mid-wave Splits, Gen-b-Fall) hängt es als Frischzeilen an — Ausgabe nennt sie (`+N new sub-issue row(s)`); deren stabile Zellen (Slice/Gate/Modell) danach von Hand füllen. **Gate-Symbol** managt `anchor-sync` NICHT → bei Bedarf separat. Status-Spalte ist damit board-abgeleitet; der native „Sub-issues progress"-Rollup ist die %-Zweitsicht. Ersetzt Hand-Tick + Step-6-Reminder (Retro). Skript-Fehler / kein Slice-Table → **stop + vorschlagen**.
+1. **Anchor-tracker sync — `anchor-sync`** `[Phase 2 · Codex worker subagent]`. Instead of a manual tick: `python3 scripts/board-sync.py anchor-sync <anchor#> --dry-run` → review the diff → then write without `--dry-run`. This regenerates the **volatile columns of the slices table from the board** — **status** (`✅ #<PR>` merged · `🔄` open PR/in progress · `⬜` otherwise) and **branch** (actual PR `headRefName`) — **monotonically** (never flips an existing `✅`/`🔄` back if a sub-issue stays open as a `Part of`-gen-a/gen-b without a closing PR) and **drift-free idempotent**. **Stable plan columns** (slice/model/gate/blocked-by) stay **verbatim**; manual annotations like `✅ (gen-a)` survive. **Missing sub-issue rows** (mid-wave splits, the gen-b case) get appended as fresh rows — the output names them (`+N new sub-issue row(s)`); fill their stable cells (slice/gate/model) by hand afterward. `anchor-sync` does **not** manage the **gate symbol** → fix separately if needed. The status column is thus board-derived; the native "sub-issues progress" rollup is the %-secondary view. Replaces the manual tick + Step-6 reminder. Script error / no slice table → **stop + propose**.
 <!-- mirror-xform:end -->
-1b. **Anker-Komplett-Check (direkt nach dem Tick)** `[Erkennung Phase 2 · Close Phase 3]`: Nach dem Flip prüfen, ob **alle** Slice-Zeilen der Tabelle `✅` tragen (kein `⬜`/`🔄` mehr) — Ergebnis als `anker-komplett: ja/nein` in den Subagent-Report. Bei **ja** schließt der **Hauptthread** (Phase 3) den Anker: `gh issue close <anker#> -c "Welle abgeschlossen — alle Slices via PR #<PR> gemerged."` und verifiziert den Board-Status `Done` (Auto-Rule Issue-closed→Done). Begründung: der Schutz hält den Anker von **jedem** Auto-Close fern — geschlossen wird er ausschließlich hier, nach belegtem Komplett-Stand. Ohne diesen Step bleibt er nach dem letzten Slice still offen (Lücke PR). Out-of-scope-Reste der Welle gehören als eigene Issues raus, nicht als Offen-Halter in den Anker.
-2. **Annahmen-Propagation — VORSCHLAGEN + BESTÄTIGEN** (Q2) `[Phase 3 · Hauptthread]`. `annahme-drift`-Marker aus dem **Subagent-Report** (bzw. dem PR-Body) parsen (JSON). Pro Marker: Sibling-Edit entwerfen (z. B. die `headings.vorBau`-Heading — <project> aktuell `## Vor Bau zu klären` — des Ziel-Issues ergänzen) **+ `plan_revision` des Siblings re-stempeln**; dem User **anzeigen, bestätigen lassen, dann erst schreiben**. Stilles Schreiben verboten (Codex #15). Beides prose-geführt: der Tick (1.) ist ein eindeutiger Ein-Zeilen-Flip ohne User-Gate, die inhaltlichen Sibling-Edits sind judgment → propose + bestätigen.
-3. **Land-Sanity (non-blocking):** `python3 scripts/execute-ready-check.py --issue <anker#> --mode audit` → Zweiler; Drift im Report nennen.
+1b. **Anchor-complete check (right after the tick)** `[detection phase 2 · close phase 3]`: after the flip, check whether **all** slice rows in the table carry `✅` (no more `⬜`/`🔄`) — result as `anchor-complete: yes/no` in the subagent report. On **yes** the **main thread** (phase 3) closes the anchor: `gh issue close <anchor#> -c "Wave complete — all slices merged via PR #<PR>."` and verifies the board status `Done` (auto-rule issue-closed→Done). Rationale: the guard keeps the anchor away from **any** auto-close — it only gets closed here, after a verified complete state. Without this step it stays silently open after the last slice (gap PR). Out-of-scope wave leftovers get their own issues, not a placeholder inside the anchor.
+2. **Assumption propagation — PROPOSE + CONFIRM** (Q2) `[Phase 3 · main thread]`. Parse `annahme-drift` markers from the **subagent report** (resp. the PR body) (JSON). Per marker: draft a sibling edit (e.g. append to the target issue's `headings.vorBau` heading — <project> currently `## Vor Bau zu klären`) **+ re-stamp the sibling's `plan_revision`**; **show it to the user, get confirmation, only then write**. Silent writes are forbidden (Codex #15). Both are prose-led: the tick (1.) is a clear-cut one-line flip with no user gate, the substantive sibling edits are judgment → propose + confirm.
+3. **Land sanity (non-blocking):** `python3 scripts/execute-ready-check.py --issue <anchor#> --mode audit` → two-liner; name any drift in the report.
 
-### Step 6 — Report `[Phase 3 · Hauptthread]`
-Der Hauptthread fasst aus dem Subagent-Report zusammen. Knapp: gemergter PR (#), Issue-Close-Status (auto vs. manuell via Step 5b), Worktree entfernt (Pfad), lokaler Branch gelöscht, **gekehrte merged-Branches lokal (Step 5c) + remote (Step 5d), je Anzahl**, `main` jetzt auf `<SHA>` (`git log --oneline -1`), Deploy läuft. **Anker-Tracker** (bei `Part of #<anker>`): in Step 5e getickt — Ergebnis (getickt / propose-pending) nennen, **kein** manueller Reminder mehr; bei `anker-komplett: ja` zusätzlich: Anker geschlossen + Board-Status `Done` verifiziert (Step 5e.1b).
+### Step 6 — report `[Phase 3 · main thread]`
+The main thread summarizes from the subagent report. Concise: merged PR (#), issue-close status (auto vs. manual via Step 5b), worktree removed (path), local branch deleted, **swept merged branches local (Step 5c) + remote (Step 5d), counts each**, `main` now at `<SHA>` (`git log --oneline -1`), deploy running. **Anchor tracker** (for `Part of #<anchor>`): ticked in Step 5e — state the result (ticked / propose-pending), **no** more manual reminder; on `anchor-complete: yes` additionally: anchor closed + board status `Done` verified (Step 5e.1b).
 
-## Nicht im Scope
-- Live-Verify / DoD: muss VOR `/wrapup` passiert sein — der Skill landet (Step 0 macht landbar, dann Merge), er **verifiziert nicht**. Step 0's Auto-Commit ersetzt kein Live-Verify.
-- `/retro`: **vor** dem Landen anbieten (s. Retro-Erinnerung vor Step 0) — Repo-Datei-Patches reisen im PR mit, Memory-Patches bleiben lokal. `wrapup` **ruft `/retro` nie selbst auf** (kein Auto-Run); `wrapup` selbst landet/verifiziert nur, es führt keine Retro durch.
-- Andere laufende Worktrees / deren Server bleiben unangetastet.
+## Out of scope
+- Live-verify / DoD: must have happened BEFORE `/wrapup` — this skill lands (Step 0 makes it landable, then merges), it does **not** verify. Step 0's auto-commit doesn't replace live-verify.
+- `/retro`: offer it **before** landing (see the retro reminder before Step 0) — repo-file patches travel in the PR, memory patches stay local. `wrapup` **never calls `/retro` itself** (no auto-run); `wrapup` itself only lands/verifies, it doesn't run a retro.
+- Other running worktrees / their servers are left untouched.

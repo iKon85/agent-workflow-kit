@@ -52,10 +52,10 @@ The optional `wrapup` block is a wrapup-only switch, not a board field: `wrapup.
   "prMarkers": {
     "partOf": "Part of",
     "retroMarker": "**Retro:**",
-    "retroValues": ["gefahren", "übersprungen"]
+    "retroValues": ["ran", "skipped"]
   },
   "headings": {
-    "vorBau": "Vor Bau zu klären"
+    "vorBau": "Clarify Before Build"
   },
   "wrapup": {
     "remoteBranchSweep": false

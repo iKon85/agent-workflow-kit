@@ -216,8 +216,8 @@ marked `<!-- board-sync:profile -->`:
     "waveStub": "wave-stub"
   },
   "branchPrefixes": ["feat", "fix", "chore", "docs"],
-  "prMarkers": { "partOf": "Part of", "retroMarker": "**Retro:**", "retroValues": ["gefahren", "übersprungen"] },
-  "headings": { "vorBau": "Vor Bau zu klären" }
+  "prMarkers": { "partOf": "Part of", "retroMarker": "**Retro:**", "retroValues": ["ran", "skipped"] },
+  "headings": { "vorBau": "Clarify Before Build" }
 }
 ```
 
@@ -255,6 +255,27 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 `--yes` / `-y` (non-interactive).
 
 ## Release notes
+
+### 0.5.0
+
+- Normalizes every published skill body to English across Claude and Codex
+  surfaces, while keeping only audited contract literals and quoted user-input
+  examples in their original language.
+- Adds a mechanical language census for the maintainer source repo, proving
+  **30 of 30** `publish:true` skills scan clean and documenting the small
+  allowlist for deliberate literals.
+- Switches `setup-workflow`'s fresh-install defaults and the README board-profile
+  example to English (`Clarify Before Build`, `ran` / `skipped`) without
+  rewriting a consumer's already-filled project profile.
+- Hardens skill frontmatter and descriptions: NOT clauses stay inside the
+  rendered description budget, plain YAML ` #` truncation is guarded, and the
+  `board-to-waves` / `to-prd` descriptions are fully parseable.
+- Carries the post-audit authoring fixes that affect shipped skills, including a
+  portable `retro` memory path, clearer `verify-spike` / `decision-gate`
+  fallback rules, and tighter `widget-conventions` / `spec-self-critique`
+  boundaries.
+- Bumps the kit metadata to `0.5.0`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
 
 ### 0.4.0
 
@@ -392,6 +413,23 @@ MIT — see [LICENSE](LICENSE).
 
 ## A note on language
 
-Some skill prose is still German — these conventions grew up in a German-speaking
-project. The mechanics are language-neutral (the project layer drives everything),
-so the skills work as-is; an English pass over the prose is a planned follow-up.
+Every published skill's prose is English — a mechanical
+census (`scripts/test_skill_language_census.py`) proves it: all publish:true
+skills scan clean, with an explicit, auditable allowlist for the handful of
+deliberate exceptions — quoted user-input trigger phrases, a bilingual PRD
+example block, and a few cross-skill contract literals (board status values,
+heading names) that other skills or the board tooling consume verbatim.
+
+These conventions grew up in a German-speaking project, so the mechanics
+still default to a project-adoptable language stance: seed defaults (e.g.
+`setup-workflow`'s scaffolded convention files) are English, and a project
+layer or filled-in convention file may be in whatever language that
+project's team works in — the skills themselves don't hardcode a language,
+they read from the project layer. Project-private skills (not shipped in
+this kit) may stay in their home project's language; that's out of scope
+for the kit's own English-first bar.
+
+New publish-candidate skills are English-first: write new skill prose in
+English from the start (see `write-a-skill`), even if the authoring
+project's own working language is something else — matching the state this
+census now proves for every existing published skill.

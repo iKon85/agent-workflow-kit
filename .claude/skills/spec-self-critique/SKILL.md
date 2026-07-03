@@ -1,6 +1,6 @@
 ---
 name: spec-self-critique
-description: "Use AFTER writing or editing a spec (a `SPEC.md`/`PLAN.md` or any spec/design doc), BEFORE asking the user to review — runs a 12-point structural Self-Critique checklist, fixes issues inline, and emits a visible summary. Enriches each check from a project layer if one is present. Triggers right after a spec has been written."
+description: "Use AFTER writing or editing a spec (a `SPEC.md`/`PLAN.md` or any spec/design doc), BEFORE asking the user to review — runs a 12-point structural Self-Critique checklist, fixes issues inline, and emits a visible summary. Enriches each check from a project layer if one is present. Triggers right after a spec has been written. NOT for reviewing finished code/diffs (code-review) — this pass runs on the spec text itself."
 ---
 
 # Spec Self-Critique
@@ -17,7 +17,7 @@ First, check whether a project layer exists: from the project root, look for `do
 
 - **Present** → **full pass**: run the 12 generic checks AND apply the per-point enrichment that file defines (incidents, grep patterns, extra sub-checks).
 - **Absent** → **base pass**: run the 12 generic checks only, then add this one-line warning to the summary:
-  > ⚠ Kein Projekt-Layer (`docs/agents/skills/spec-self-critique.md`) gefunden — nur generische Basis-Checks gelaufen. `/setup-workflow` legt die Schicht an; sie füllt sich projektspezifisch über `/retro`.
+  > ⚠ No project layer found (`docs/agents/skills/spec-self-critique.md`) — only the generic base checks ran. `/setup-workflow` creates the layer; it fills in project-specific content via `/retro`.
 
 > **Routing — keep this skeleton clean.** Project-specific checks, incidents, and grep patterns belong in the project layer (`docs/agents/skills/spec-self-critique.md`), **NOT here**. `/retro` appends new project-specific lore to the project layer, never into this generic skeleton.
 
@@ -33,12 +33,12 @@ Read the most recently written/edited spec in full. Walk the 12-point checklist 
 End with a visible summary in the chat:
 
 ```
-Self-Critique abgeschlossen — <N> Korrekturen:
-- Punkt <X>: <kurze Beschreibung>
+Self-Critique complete — <N> corrections:
+- Point <X>: <short description>
 - ...
 ```
 
-or, if none were needed: `Self-Critique abgeschlossen — keine Korrekturen nötig.` (append the Step-0 layer-absent warning if it applied). THEN ask the user-review question.
+or, if none were needed: `Self-Critique complete — no corrections needed.` (append the Step-0 layer-absent warning if it applied). THEN ask the user-review question.
 
 ## The 12-point checklist
 

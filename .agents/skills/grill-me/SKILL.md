@@ -10,12 +10,12 @@ Ask the questions one at a time.
 
 If a question can be answered by exploring the codebase, explore the codebase instead.
 
-## Verwandte Skills
+## Related skills
 
-**Codebase mit `CONTEXT.md`/ADRs vorhanden?** → `grill-with-docs` nutzen statt diesem Skill — gleicher Grill, zusätzlich gegen das bestehende Domänenmodell geschärft, pflegt `CONTEXT.md`/ADRs inline mit.
+**Codebase with `CONTEXT.md`/ADRs present?** → use `grill-with-docs` instead of this skill — same grill, additionally sharpened against the existing domain model, maintains `CONTEXT.md`/ADRs inline.
 
 <!-- mirror-xform:start codex-escalation -->
-**Hoher Einsatz / schwer reversibel** (Auth, Schema, Concurrency, Migrations, Payments)? Auf der Claude-Code-Surface schließt sich an diesen Grill danach eine Cross-Model-Review durch Codex an — auf dieser Surface nicht verfügbar.
+**High stakes / hard to reverse** (auth, schema, concurrency, migrations, payments)? On the Claude Code surface, this grill is followed by a cross-model review by Codex — not available on this surface.
 <!-- mirror-xform:end -->
 
 ## Coherence is the default — the grill locks only the deltas
@@ -27,26 +27,26 @@ A feature that builds on existing features inherits the existing building blocks
 
 A parallel rebuild of something that exists — a simplified UI stand-in, a re-implemented calculation, a second data path — is a defect to surface, never a silent shortcut. (Incident: a share feature shipped rebuilt, simplified renderers across 6 pages because "looks like the page minus chrome" was treated as open design space instead of the default; half the implementation was replaced.)
 
-## Querschnitts-Weiche — Muster vs. Konzept (vor Plan-Lock)
+## Cross-cutting fork — pattern vs. concept (before plan-lock)
 
-Ist die Änderung **querschnittig** (neues Muster/Pattern ODER neue Datenstruktur/Domänen-Unterscheidung, betrifft ≥3 Stellen, ODER „überall / X von Y unterscheiden / migrieren")? Dann **während des Grills** klassifizieren — nicht in die Post-Spec-Self-Critique vertagen (sonst reviewt Codex einen Plan ohne sie):
+Is the change **cross-cutting** (a new pattern OR a new data structure/domain distinction, touching ≥3 places, OR "everywhere / distinguish X of Y / migrate")? Then classify it **during the grill** — don't defer it to the post-spec self-critique (otherwise Codex reviews a plan without it):
 
-- **Muster** (Alt→Neu, z.B. TanStack-Query ersetzt manuelles Laden): der Nenner ist **grep-bar** → in den Plan: Census aller Alt-Stellen + ein `*.guard.test.ts`, der rot bleibt, solange Alt-Stellen außerhalb einer schrumpfenden Allowlist existieren.
-- **Konzept** (neue Unterscheidung, z.B. Projekt↔Kampagne): `grep` findet die **Abwesenheit** eines Konzepts nicht → in den Plan: eine **code-abgeleitete** Flächen-Liste (Routen/Seiten/Exporte/Auswertungen) × **fachliches Verdikt pro Fläche** (zählt / N/A / offen); „zählt"-Zeilen werden getrackte Items.
+- **Pattern** (old→new, e.g. TanStack Query replacing manual loading): the denominator is **grep-able** → put in the plan: a census of all old spots + a `*.guard.test.ts` that stays red as long as old spots exist outside a shrinking allowlist.
+- **Concept** (a new distinction, e.g. Project↔Campaign): `grep` cannot find the **absence** of a concept → put in the plan: a **code-derived** surface list (routes/pages/exports/reports) × a **domain verdict per surface** (counts / N/A / open); "counts" rows become tracked items.
 
-„vollständig" nie aus Plan/Gedächtnis behaupten — Nenner frisch zählen, `X von Y` melden. Substanz, Trigger-Schwelle + Guard-Template → die Projekt-Konvention-Datei `docs/conventions/spec-completeness.md` (falls vorhanden), §Querschnitts-Weiche.
+Never claim "complete" from plan/memory — count the denominator fresh, report `X of Y`. Substance, trigger threshold + guard template → the project convention file `docs/conventions/spec-completeness.md` (if present), §Cross-cutting fork.
 
-## Plan-Lock — PLAN.md schreiben
+## Plan-lock — writing PLAN.md
 
-Sind alle Entscheidungen getroffen (Plan gelockt, vor Sign-off/Übergang) und läuft die Session in einem **Worktree** → den gelockten Plan als `PLAN.md` in den Worktree-Root schreiben (gitignored seit, reist nicht über git — Konsistenz mit CLAUDE.md „im Worktree planen"). So überlebt der gelockte Plan einen Session-Schnitt und `to-prd` findet seine Default-Quelle. Same-session-Weiterarbeit **ohne** Worktree bleibt erlaubt (Konversation = Quelle); aber bei beabsichtigtem **Session-Schnitt** vor `to-prd` ist die `PLAN.md` Pflicht. (Die `-codex`-Variante schreibt die `PLAN.md` ohnehin schon.)
+Once all decisions are made (plan locked, before sign-off/handoff) and the session runs in a **worktree** → write the locked plan as `PLAN.md` to the worktree root (gitignored since, doesn't travel over git — consistent with CLAUDE.md "plan inside the worktree"). This way the locked plan survives a session cut and `to-prd` finds its default source. Continuing same-session work **without** a worktree stays allowed (conversation = source); but for a deliberate **session cut** before `to-prd`, `PLAN.md` is mandatory. (The `-codex` variant already writes `PLAN.md` anyway.)
 
-## Re-Grill Reconcile — execute-ready (Welle 26)
+## Re-grill reconcile — execute-ready (Wave 26)
 
-Greift, wenn du ein **bereits existierendes Issue re-grillst** (ein Leaf eines gegrillten Epics oder ein Kind eines Ankers) — der häufigste Re-Grill-Pfad, weil Kampagnen-HITL-Slices über `/grill-me → /tdd` routen. Ziel: der gewurzelte Teilgraph tritt **execute-ready** aus, nie stiller Drift. (grill-me hat keinen Doku-Layer — CONTEXT.md/ADR entfallen; Kern-Regeln identisch zu grill-with-docs §„Re-Grill Reconcile".)
+Applies when you **re-grill an issue that already exists** (a leaf of a grilled epic, or a child of an anchor) — the most common re-grill path, since campaign HITL slices route via `/grill-me → /tdd`. Goal: the rooted sub-graph comes out **execute-ready**, never silent drift. (grill-me has no docs layer — CONTEXT.md/ADR don't apply; core rules identical to grill-with-docs §"Re-Grill Reconcile".)
 
-1. **Parent-Anker-Entscheidungen ZUERST lesen** — Anker-Body + dessen PRD/Key-Decisions holen, die Seam-Entscheidung **von dort** nehmen. Architektur **nicht** aus dem Leaf neu herleiten (Lehre: ein Leaf, dessen zentrale Entscheidung nie gelesen wurde, wurde durch Frage-Runden re-litigiert). Atomar-Leaf → eigener Body/PRD ist die Referenz.
-2. **Leaf auf inneren Widerspruch prüfen**: ein Body, der sich selbst („kein neues UI" + „baue Namensfeld") oder die Anker-Entscheidung widerspricht → **kein Execute**. Ebenso ein Leaf, das *„finaler Schnitt hängt an #X"* via `<!-- final-cut-depends-on: #X -->` sagt, wo **#X geschlossen** ist, ohne den Schnitt aufzulösen.
-3. **Bei Drift/Widerspruch:** betroffene Issue(s) updaten, `plan_revision` neu stempeln, korrekten Bucket setzen. Innerer Widerspruch → Leaf auf **HITL**: `ready-for-agent` strippen via `python3 scripts/board-sync.py add --bucket hitl --issue <n>` (Helper bleibt Owner der Workflow-Labels — kein bares `gh issue edit --add-label`), die `headings.vorBau`-Heading ergänzen (Board-Profil `docs/agents/board-sync.md`; <project> aktuell `## Vor Bau zu klären`). Der Drift-Guard blockt dann den Build-Handoff über `target_buildable` — der Widerspruch fließt durch bestehende Mechanik, keine Heuristik im Hook.
-4. **Audit, non-blocking:** `python3 scripts/execute-ready-check.py --issue <n> --mode audit` → sichtbarer Zweizeiler. Das **blockierende** Netz ist der Drift-Guard am Handoff (`.claude/hooks/drift-guard.py`).
+1. **Read parent-anchor decisions FIRST** — fetch the anchor body + its PRD/key decisions, take the seam decision **from there**. Do not re-derive the architecture from the leaf (lesson: a leaf whose central decision was never read got re-litigated through question rounds). For an atomic leaf, its own body/PRD is the reference.
+2. **Check the leaf for internal contradiction**: a body that contradicts itself ("no new UI" + "build a name field") or the anchor decision → **no execute**. Likewise a leaf that says *"final cut depends on #X"* via `<!-- final-cut-depends-on: #X -->` where **#X is closed** without resolving the cut.
+3. **On drift/contradiction:** update the affected issue(s), re-stamp `plan_revision`, set the correct bucket. Internal contradiction → set the leaf to **HITL**: strip `ready-for-agent` via `python3 scripts/board-sync.py add --bucket hitl --issue <n>` (the helper stays the owner of the workflow labels — no bare `gh issue edit --add-label`), add the `headings.vorBau` heading (board profile `docs/agents/board-sync.md`; <project> currently `## Vor Bau zu klären`). The drift-guard then blocks the build handoff via `target_buildable` — the contradiction flows through existing machinery, no heuristic in the hook.
+4. **Audit, non-blocking:** `python3 scripts/execute-ready-check.py --issue <n> --mode audit` → a visible two-liner. The **blocking** net is the drift-guard at handoff (`.claude/hooks/drift-guard.py`).
 
-**Marker** (HTML-Kommentare, grep-bar): `<!-- guard-ack: #<n> r<N> reason:<text> by-user -->`, `<!-- final-cut-depends-on: #<n> -->`, `<!-- handoff-intent: build|grill -->`, `<!-- guard-legacy -->`. Kanonische Tabelle aller Marker: Modul-Docstring von `scripts/execute-ready-check.py`.
+**Markers** (HTML comments, grep-able): `<!-- guard-ack: #<n> r<N> reason:<text> by-user -->`, `<!-- final-cut-depends-on: #<n> -->`, `<!-- handoff-intent: build|grill -->`, `<!-- guard-legacy -->`. Canonical table of all markers: module docstring of `scripts/execute-ready-check.py`.

@@ -1,104 +1,104 @@
 ---
 name: board-to-waves
 disable-model-invocation: false
-description: "Use for sweeping the GitHub backlog board and clustering open issues into thematic Wellen. Reads many open issues, groups candidates, estimates size and risk, and creates cluster/Wave-less candidate stub issues after confirmation. Stops at stubs; use to-prd then to-issues to mature and slice one chosen candidate."
+"description": "Use when sweeping/grooming the GitHub backlog board to cluster open issues into thematic waves (Wellen) — \"lass uns das Board durchgehen\", \"was ist offen und passt zusammen\", \"clustern wir den Backlog\", \"welche Wellen stecken da drin\" — or to spot candidate waves before planning. Reads all open issues, groups them by the Gate+Booster+Splitter heuristic, estimates size/risk + grill-needed per candidate, and after the user confirms creates cluster/Wave-less candidate STUB issues with a To-Do checklist. STOPS at stubs: no PRD, no slicing, no sub-issue links, no promotion (downstream: to-prd matures the stub, to-issues slices + promotes). NOT for maturing/slicing ONE already-chosen candidate (to-prd/to-issues), NOT for per-issue triage labelling (triage), NOT for code comprehension (zoom-out) — this is board-WIDE thematic affinity grouping, not per-issue and not code-reading."
 ---
 
 # board-to-waves
 
-**Board sichten → offene Issues nach Thema clustern → Anker-Stub-Issues.** Systematisiert, wie Welle F entstand: erst geschaut was offen ist und zusammenpasst, dann Themen-Wellen gebildet. Ergebnis landet durable als Anker-Issue auf dem Board (GitHub = SSOT), nicht als Chat-Liste.
+**Survey the board → cluster open issues by theme → anchor stub issues.** Systematizes how Welle F came about: first look at what's open and what fits together, then form thematic waves. Result lands durably as an anchor issue on the board (GitHub = SSOT), not as a chat list.
 
-## Pipeline-Position
+## Pipeline Position
 
 ```
-board-to-waves   Board → Kandidaten-STUB-Issues (cluster/Wave-los, Größe + grill-needed-Flag)   ← HIER
-                         ↓ (<maintainer> wählt Wellen)
-[optional]       dedizierte grill-with-docs Session — nur wenn Flag feuert
+board-to-waves   Board → candidate STUB issues (cluster/wave-less, size + grill-needed flag)   ← HERE
+                         ↓ (<maintainer> picks waves)
+[optional]       dedicated grill-with-docs session — only if the flag fires
                          ↓
-to-prd           reift den Stub zur Draft-PRD (Mode B)
+to-prd           matures the stub into a Draft PRD (Mode B)
                          ↓
-to-issues        schneidet Slices + promotet (setzt type:cluster + Wave bei ≥2 Slices)
+to-issues        slices + promotes (sets type:cluster + Wave at ≥2 slices)
 ```
 
-**Stoppt bei Stubs.** Kein Slice-Plan, keine PRD, kein Sub-Issue-Link, keine Promotion. Ob/wann ein Stub echte Welle wird = separater Schritt (`to-prd → to-issues`), <maintainer>s Call.
+**Stops at stubs.** No slice plan, no PRD, no sub-issue link, no promotion. Whether/when a stub becomes a real wave = separate step (`to-prd → to-issues`), <maintainer>'s call.
 
-Modell: **stärkstes verfügbares Reasoning-Modell für Board-weite Urteilsbildung** (Sichten/Plan/Brainstorm — Cross-Board-Urteil, <maintainer>s Tabelle).
+Model: **strongest available reasoning model for board-wide judgment calls** (survey/plan/brainstorm — cross-board judgment, <maintainer>'s table).
 
-## Wellen-Nummerierung & Registry
+## Wave Numbering & Registry
 
-**Format:** `Welle <N> — <Thema>` (Hybrid: Nummer ordnet, Thema gibt Kontext). **Die Wave-Nummer wird erst bei der `to-issues`-Promotion vergeben** — der board-to-waves-Kandidaten-Stub ist cluster/Wave-los und trägt im Titel noch **kein** `Welle <N> —`-Präfix (`to-issues` setzt es beim Promote).
-**Carrier = Wave-Field (number)** auf dem **Anker** (Pflicht — Source-of-Truth + Board-Sortier-Key, gesetzt bei der Promotion). NICHT Titel-String, NICHT `wave:*`-Label (beide für Wellen deprecated). Member/Sub-Issues bekommen Wave-Field + nativen Parent-Link bei der `to-issues`-Promotion (nicht schon beim Clustern): der Parent-Link trägt die Zuordnung fachlich, das Wave-Field macht sie board-filterbar — ohne Wave-Field taucht ein zugeordnetes Issue fälschlich in der „wave-los"-View (`is:open no:wave -label:"type:cluster"`) auf.
-**N = monotone Auto-Increment-ID:** `max(je vergebene Wave-Nummer) + 1`. Aufsteigend, nie wiederverwendet, nie Buchstaben, nicht retroaktiv umsortiert (wie Issue-Nummern). Lücken sind ok. Die nächste freie Nummer zieht `to-issues` bei der Promotion über den geteilten Board-Sync-Helper (`scripts/board-sync.py` `next-wave`) — board-to-waves vergibt selbst **keine** Wave.
+**Format:** `Welle <N> — <Thema>` (hybrid: number orders, topic gives context). **The wave number is only assigned at `to-issues` promotion** — the board-to-waves candidate stub is cluster/wave-less and carries **no** `Welle <N> —` prefix in the title yet (`to-issues` sets it on promote).
+**Carrier = Wave field (number)** on the **anchor** (mandatory — source of truth + board sort key, set at promotion). NOT the title string, NOT the `wave:*` label (both deprecated for waves). Member/sub-issues get the Wave field + native parent link at `to-issues` promotion (not yet at clustering time): the parent link carries the assignment semantically, the Wave field makes it board-filterable — without the Wave field an assigned issue wrongly shows up in the "wave-less" view (`is:open no:wave -label:"type:cluster"`).
+**N = monotonic auto-increment ID:** `max(assigned wave numbers) + 1`. Ascending, never reused, never letters, never retroactively resorted (like issue numbers). Gaps are fine. `to-issues` pulls the next free number at promotion via the shared board-sync helper (`scripts/board-sync.py` `next-wave`) — board-to-waves itself assigns **no** wave.
 
-**Registry = board-nativ, kein Doku-File:** View Filter `type:cluster`, Sort `Wave` aufsteigend, Spalten Status + Sub-issues-progress. Die Anker-Issues + Wave-Field **sind** die Registry. Aktive Welle = `type:cluster` + Status `In Arbeit`. Wave-Field ≠ `Cluster (G-Nummer)`-Field (Roadmap-G-Cluster, orthogonal). Keine Milestones (Progress macht der Sub-Issue-Rollup).
+**Registry = board-native, no doc file:** view filter `type:cluster`, sort `Wave` ascending, columns Status + sub-issues progress. The anchor issues + Wave field **are** the registry. Active wave = `type:cluster` + status `In Arbeit`. Wave field ≠ `Cluster (G-number)` field (roadmap G-cluster, orthogonal). No milestones (progress comes from the sub-issue rollup).
 
-## Clustering-Heuristik — Gate + Booster + Splitter
+## Clustering Heuristic — Gate + Booster + Splitter
 
-**🚦 Gate (Pflicht — ohne das keine Welle, nur Stapel):** gemeinsamer **roter Faden / Outcome**. Die Issues müssen *ein* Produkt-Ergebnis bedienen (z.B. „Markt-/Partner-Reife" = Welle F).
+**🚦 Gate (mandatory — without it, no wave, just a pile):** shared **through-line / outcome**. The issues must serve *one* product outcome (e.g. "market/partner readiness" = Welle F).
 
-**➕ Booster (je mehr feuern, desto klarer eine Welle):**
-| # | Kriterium | Board-Signal |
+**➕ Boosters (the more that fire, the clearer a wave):**
+| # | Criterion | Board signal |
 |---|---|---|
-| B1 | Code-Nähe / Change-Coupling | gleiche Files/Pfade in Issue-Bodies; historisch co-changed (`git log`) |
-| B2 | Typ-Homogenität | gleiche `type:*` / `dimension:*`-Labels |
-| B3 | Abhängigkeitskette | `blocked`-Label, „blocked by"/gegenseitige Refs |
-| B4 | Gemeinsame Verify-Fläche | gleiche Seite/Surface live testbar |
+| B1 | Code proximity / change coupling | same files/paths in issue bodies; historically co-changed (`git log`) |
+| B2 | Type homogeneity | same `type:*` / `dimension:*` labels |
+| B3 | Dependency chain | `blocked` label, "blocked by" / mutual refs |
+| B4 | Shared verify surface | same page/surface live-testable |
 
-**✂️ Splitter (trennen TROTZ Affinität):**
-- **S1 Zu groß** — > ~7 Slices / nicht in überschaubarer Folge shippbar → in zwei Wellen.
-- **S2 Fremder Parent** — Issue hängt schon unter anderer Welle (GitHub 1-Parent; `to-issues` Link prüft das endgültig).
-- **S3 „Gleicher Typ allein" ≠ Welle** — Typ ist Booster, nie Gate. Sonst wird „alle Refactors" zur Müllhalde.
+**✂️ Splitters (separate DESPITE affinity):**
+- **S1 Too big** — > ~7 slices / not shippable in a manageable sequence → split into two waves.
+- **S2 Foreign parent** — issue already hangs under another wave (GitHub 1-parent; `to-issues` link check is the final word).
+- **S3 "Same type alone" ≠ wave** — type is a booster, never a gate. Otherwise "all refactors" becomes a junk drawer.
 
-**Regel:** Issue → Kandidat X, wenn **Gate(X) erfüllt UND ≥1 Booster feuert** und kein Splitter greift. Sonst: eigener Kandidat oder Rest-Topf „ungeclustert / Einzel-Issue".
+**Rule:** issue → candidate X if **Gate(X) satisfied AND ≥1 booster fires** and no splitter applies. Otherwise: own candidate or leftover bucket "unclustered / standalone issue".
 
-**Sequenz INNERHALB einer Welle** (gehört zu `to-issues`, hier nur notieren): WSJF-lite — sichtbar+low-risk → Logik/Backend → Cleanup; Abhängigkeiten erzwingen Reihenfolge.
+**Sequencing WITHIN a wave** (belongs to `to-issues`, noted here only): WSJF-lite — visible+low-risk → logic/backend → cleanup; dependencies force order.
 
-> Belege: Atlassian/Mountain Goat (Epics/Themes), CodeScene/Tornhill (Change-Coupling), SAFe (WSJF), ProductPlan/Asana (Affinity/Batching).
+> References: Atlassian/Mountain Goat (epics/themes), CodeScene/Tornhill (change coupling), SAFe (WSJF), ProductPlan/Asana (affinity/batching).
 
-## Größe + `grill-needed` (je Kandidat)
+## Size + `grill-needed` (per candidate)
 
-- **Größe + Risiko** als grobe Aufwands-Schätzung (kein fixes Zeit-Commitment): grobe Slice-Zahl, Backend-ja/nein, Modell-Mix, Risiko-Level (Race/Cache/Forecast/Migration → hoch).
-- **`grill-needed`-Flag** — feuert bei: viele Slices ODER fuzzy (Mitglieder sind `type:idea`/`type:research`, nicht entschieden) ODER subsystem-übergreifend ODER offene Produkt-Entscheidungen. = niedrige Entscheidungs-Reife.
-  - **„diese Session"** wenn überschaubar, **„eigene Session"** wenn zu groß/fuzzy für nebenher. Empfehlung in den Stub, **<maintainer>s Call**.
+- **Size + risk** as a rough effort estimate (no fixed time commitment): rough slice count, backend yes/no, model mix, risk level (race/cache/forecast/migration → high).
+- **`grill-needed` flag** — fires when: many slices OR fuzzy (members are `type:idea`/`type:research`, undecided) OR cross-subsystem OR open product decisions. = low decision maturity.
+  - **"this session"** when manageable, **"own session"** when too big/fuzzy to do on the side. Recommendation goes into the stub, **<maintainer>'s call**.
 
 ## Procedure
 
-### 1. Board lesen
+### 1. Read the board
 ```bash
 gh issue list --repo <owner>/<repo> --state open --limit 500 \
   --json number,title,labels,body
 ```
-`--limit 500` (item/issue-list cappt **silent**, `docs/agents/board-sync.md`). Schon-Parent-Issues erkennt man später beim Link — hier reicht Titel/Labels/Body.
+`--limit 500` (item/issue-list caps **silently**, `docs/agents/board-sync.md`). Already-parented issues get recognized later at link time — title/labels/body suffice here.
 
-### 2. Clustern
-Heuristik anwenden. Pro Kandidat festhalten: Thema (Gate-Outcome), Mitglieder (#…), feuernde Booster, Splitter-Checks, Größe+Risiko, `grill-needed`+Wann. Issues die kein Gate+Booster erreichen → Rest-Topf, **nicht** zwangs-clustern.
+### 2. Cluster
+Apply the heuristic. Per candidate, capture: topic (gate outcome), members (#…), firing boosters, splitter checks, size+risk, `grill-needed`+when. Issues that reach no gate+booster → leftover bucket, **do not** force-cluster.
 
-### 3. Kandidaten vorschlagen (<maintainer> wählt)
-Knappe Liste, je Kandidat **welche Kriterien feuerten** sichtbar (Rationale):
+### 3. Propose candidates (<maintainer> chooses)
+Concise list, per candidate **which criteria fired** visible (rationale):
 ```
-Kandidat A „<Outcome>": #a #b #c
-  Gate=<Outcome> · B1 alle Frontend · B2 alle type:refactor
-  Größe ~4 Slices, Risiko niedrig · grill-needed: nein
-Kandidat B „<Outcome>": #x #y …
-  … · grill-needed: ja (eigene Session — subsystem-übergreifend)
-Rest (ungeclustert): #m #n …
+Candidate A "<Outcome>": #a #b #c
+  Gate=<Outcome> · B1 all frontend · B2 all type:refactor
+  Size ~4 slices, risk low · grill-needed: no
+Candidate B "<Outcome>": #x #y …
+  … · grill-needed: yes (own session — cross-subsystem)
+Rest (unclustered): #m #n …
 ```
-**<maintainer> bestätigt**, welche echte Wellen werden. Nur bestätigte → Schritt 4.
+**<maintainer> confirms** which become real waves. Only confirmed → step 4.
 
-### 4. Kandidaten-Stubs anlegen (je bestätigtem Kandidat)
-Body aus `docs/agents/wave-anchor-template.md` **Stufe 1** (Kopf + Cluster-Herkunft + To-Do-Checklist; Slice-Tabelle leer). Body **immer** `--body-file` (`gotchas_gh_body_file`).
+### 4. Create candidate stubs (per confirmed candidate)
+Body from `docs/agents/wave-anchor-template.md` **stage 1** (header + cluster origin + to-do checklist; slice table empty). Body **always** via `--body-file` (`gotchas_gh_body_file`).
 
-**Alle Board-Schreib-Mechaniken (Stub anlegen, ins Board hängen, Status stempeln) laufen über den geteilten Board-Sync-Helper** `scripts/board-sync.py` — keine bare `gh issue create`/`gh project item-*` mehr in dieser Prosa (per Lint erzwungen; Board-Konstanten leben in `docs/agents/board-sync.md`).
+**All board write mechanics (create stub, attach to board, stamp status) go through the shared board-sync helper** `scripts/board-sync.py` — no bare `gh issue create`/`gh project item-*` in this prose (enforced by lint; board constants live in `docs/agents/board-sync.md`).
 
-**Idempotenz — Stub-Marker + search-before-create (Pflicht, VOR dem `create`).** Re-Runs von board-to-waves dürfen **keine** Duplikat-Stubs erzeugen (sonst verwirrt der Duplikat-Stub die Modus-B-Identität in `to-prd`). Spiegelt das `to-prd`-Muster:
-- **Stabiler Stub-Marker** `<!-- wave-stub-source: <thema-slug> -->` als **erste Body-Zeile** jedes Stubs. `<thema-slug>` = kebab-case-Slug des Gate-Outcomes; beim **ersten** Lauf gesetzt, danach **nie** geändert (Identität ≠ Inhalt — der Slug bleibt auffindbar, auch wenn sich Mitglieder/Größe später ändern).
-- **search-before-create** je Kandidat **vor** dem `create`. **Kein** Verlass auf GitHub-Search (indexiert HTML-Kommentare nicht) — bounded lokal:
+**Idempotency — stub marker + search-before-create (mandatory, BEFORE `create`).** Re-runs of board-to-waves must **not** produce duplicate stubs (a duplicate stub would confuse Mode-B identity in `to-prd`). Mirrors the `to-prd` pattern:
+- **Stable stub marker** `<!-- wave-stub-source: <topic-slug> -->` as the **first body line** of every stub. `<topic-slug>` = kebab-case slug of the gate outcome; set on the **first** run, **never** changed after (identity ≠ content — the slug stays findable even if members/size change later).
+- **search-before-create** per candidate **before** the `create`. **No** reliance on GitHub search (doesn't index HTML comments) — bounded, local:
   ```bash
   gh issue list --repo <owner>/<repo> --state open --limit 500 --json number,body,labels
-  # lokal auf `wave-stub-source: <thema-slug>` filtern → 1 Treffer ⇒ skip + melden (Stub existiert); >1 ⇒ STOP + melden; 0 ⇒ create
+  # locally filter on `wave-stub-source: <topic-slug>` → 1 match ⇒ skip + report (stub exists); >1 ⇒ STOP + report; 0 ⇒ create
   ```
 
-**Kandidaten-Stub anlegen (cluster/Wave-los)** — Issue **ohne** `type:cluster` und **ohne** `--wave` (genau ein `type:*` + ein `priority:*`; Titel **ohne** `Welle <N>`-Präfix, da die Wave-Nummer erst bei der Promotion vergeben wird), **mit `--wave-stub`** (durchsuchbarer „wartet auf Planung"-Filter — der HTML-Marker oben ist nur lokal greppbar, GitHub indexiert ihn nicht), ins Board hängen, Status `Triaged` (geclustert, noch nicht geplant). Danach reift `to-prd` den Stub (Mode B) zur Draft-PRD, `to-issues` promotet ihn zum Anker (setzt dann `type:cluster` + Wave, **strippt `wave-stub`** — der Stub verlässt die Planungs-Liste):
+**Create the candidate stub (cluster/wave-less)** — issue **without** `type:cluster` and **without** `--wave` (exactly one `type:*` + one `priority:*`; title **without** a `Welle <N>` prefix, since the wave number is only assigned at promotion), **with `--wave-stub`** (a searchable "awaiting planning" filter — the HTML marker above is only locally greppable, GitHub doesn't index it), attach to the board, status `Triaged` (clustered, not yet planned). `to-prd` then matures the stub (Mode B) into a Draft PRD, `to-issues` promotes it to an anchor (sets `type:cluster` + Wave then, **strips `wave-stub`** — the stub leaves the planning list):
 ```bash
 python3 scripts/board-sync.py create \
   --title "<Outcome/Thema>" \
@@ -107,23 +107,23 @@ python3 scripts/board-sync.py create \
   --wave-stub \
   --status Triaged
 ```
-Gibt `#<STUB_NUM> <URL>` aus. `--dry-run` zeigt die `gh`-Aufrufe ohne Schreiben. (Fuzzy/unentschiedener Kandidat → `type:research` statt `type:feature`.)
+Outputs `#<STUB_NUM> <URL>`. `--dry-run` shows the `gh` calls without writing. (Fuzzy/undecided candidate → `type:research` instead of `type:feature`.)
 
-**Offene Stubs durchsuchen** (= „was muss ich noch planen"): `gh issue list --label wave-stub --state open` bzw. Board-Filter `is:open label:wave-stub`. Bei `to-issues`-Promotion (Welle) **oder** atomar-Publish (`add --bucket`) wird `wave-stub` automatisch gestrippt — kein manueller Edit.
+**Search open stubs** (= "what still needs planning"): `gh issue list --label wave-stub --state open` or board filter `is:open label:wave-stub`. At `to-issues` promotion (wave) **or** atomic publish (`add --bucket`), `wave-stub` is stripped automatically — no manual edit.
 
-**Mitglieds-Issues:** im Stub-Body listen (#…). **Noch kein** Wave-Stempel und **kein** nativer Parent-Link beim Clustern — beides setzt `to-issues` bei der Promotion. Dass die Member bis dahin in der „wave-los"-View (`is:open no:wave`) auftauchen, ist **korrekt**: ein Kandidat ist noch keine committete Welle.
+**Member issues:** list in the stub body (#…). **No** wave stamp and **no** native parent link yet at clustering time — `to-issues` sets both at promotion. That members show up in the "wave-less" view (`is:open no:wave`) until then is **correct**: a candidate isn't a committed wave yet.
 
 ### 5. Output
 ```
-Geclustert: <N> Wellen-Kandidaten, <M> bestätigt → cluster/Wave-lose Stubs angelegt.
-  Kandidat <X> #<STUB_NUM> — #a #b #c · ~4 Slices · grill: nein
-  Kandidat <Y> #<…>       — #x #y   · ~8 Slices · grill: eigene Session
-Rest (ungeclustert): #m #n …
-Nächster Schritt (<maintainer>s Call, getrennt): grill → to-prd (reift den Stub) → to-issues (schneidet + promotet) je gewähltem Kandidaten.
+Clustered: <N> wave candidates, <M> confirmed → cluster/wave-less stubs created.
+  Candidate <X> #<STUB_NUM> — #a #b #c · ~4 slices · grill: no
+  Candidate <Y> #<…>       — #x #y   · ~8 slices · grill: own session
+Rest (unclustered): #m #n …
+Next step (<maintainer>'s call, separate): grill → to-prd (matures the stub) → to-issues (slices + promotes) per chosen candidate.
 ```
 
 ## Notes
-- **Stoppt bei Stubs.** Niemals selbst PRD schreiben, slicen, linken, promoten oder `to-prd`/`to-issues` aufrufen.
-- Abgrenzung: `triage` = pro-Issue-State-Machine; `zoom-out` = Code-Comprehension; `board-to-waves` = board-weite Themen-Affinität. Verschiedene Flughöhen.
-- Rest-Topf ist OK und gewollt — nicht jedes Issue gehört in eine Welle. Zwangs-Clustern verwässert das Gate.
-- Größe/Risiko sind eine grobe Schätzung, kein Commitment. Stub-Empfehlung „Wann grillen" überschreibt <maintainer> jederzeit.
+- **Stops at stubs.** Never write the PRD, slice, link, promote, or call `to-prd`/`to-issues` yourself.
+- Boundary: `triage` = per-issue state machine; `zoom-out` = code comprehension; `board-to-waves` = board-wide thematic affinity. Different altitudes.
+- A leftover bucket is OK and intentional — not every issue belongs in a wave. Force-clustering dilutes the gate.
+- Size/risk are a rough estimate, not a commitment. <maintainer> can override the stub's "when to grill" recommendation at any time.
