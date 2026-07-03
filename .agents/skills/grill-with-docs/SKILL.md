@@ -14,19 +14,19 @@ If a question can be answered by exploring the codebase, explore the codebase in
 
 </what-to-do>
 
-## Verwandte Skills
+## Related skills
 
-**Kein Codebase/`CONTEXT.md` vorhanden oder einfacherer Fall?** → `grill-me` reicht — gleicher Grill ohne den Doku-Layer (CONTEXT.md/ADRs).
+**No codebase/`CONTEXT.md` present, or a simpler case?** → `grill-me` is enough — same grill without the docs layer (CONTEXT.md/ADRs).
 
 <!-- mirror-xform:start codex-escalation -->
-**Hoher Einsatz / schwer reversibel** (Auth, Schema, Concurrency, Migrations, Payments)? Auf der Claude-Code-Surface schließt sich an diesen Grill danach eine Cross-Model-Review durch Codex an — auf dieser Surface nicht verfügbar.
+**High stakes / hard to reverse** (auth, schema, concurrency, migrations, payments)? On the Claude Code surface, this grill is followed by a cross-model review by Codex — not available on this surface.
 <!-- mirror-xform:end -->
 
 <plan-lock>
 
-## Plan-Lock — PLAN.md schreiben
+## Plan-lock — writing PLAN.md
 
-Sind alle Entscheidungen getroffen (Plan gelockt, vor Sign-off/Übergang) und läuft die Session in einem **Worktree** → den gelockten Plan als `PLAN.md` in den Worktree-Root schreiben (gitignored seit, reist nicht über git — Konsistenz mit CLAUDE.md „im Worktree planen"). So überlebt der gelockte Plan einen Session-Schnitt und `to-prd` findet seine Default-Quelle. Same-session-Weiterarbeit **ohne** Worktree bleibt erlaubt (Konversation = Quelle); aber bei beabsichtigtem **Session-Schnitt** vor `to-prd` ist die `PLAN.md` Pflicht. (Die `-codex`-Variante schreibt die `PLAN.md` ohnehin schon.)
+Once all decisions are made (plan locked, before sign-off/handoff) and the session runs in a **worktree** → write the locked plan as `PLAN.md` to the worktree root (gitignored since, doesn't travel over git — consistent with CLAUDE.md "plan inside the worktree"). This way the locked plan survives a session cut and `to-prd` finds its default source. Continuing same-session work **without** a worktree stays allowed (conversation = source); but for a deliberate **session cut** before `to-prd`, `PLAN.md` is mandatory. (The `-codex` variant already writes `PLAN.md` anyway.)
 
 </plan-lock>
 
@@ -111,25 +111,25 @@ A feature that builds on existing features inherits the existing building blocks
 
 A parallel rebuild of something that exists — a simplified UI stand-in, a re-implemented calculation, a second data path — is a defect to surface, never a silent shortcut. (Incident: a share feature shipped rebuilt, simplified renderers across 6 pages because "looks like the page minus chrome" was treated as open design space instead of the default; half the implementation was replaced.)
 
-### Querschnitts-Weiche — Muster vs. Konzept (vor Plan-Lock)
+### Cross-cutting fork — pattern vs. concept (before plan-lock)
 
-Ist die Änderung **querschnittig** (neues Muster/Pattern ODER neue Datenstruktur/Domänen-Unterscheidung, betrifft ≥3 Stellen, ODER „überall / X von Y unterscheiden / migrieren")? Dann **während des Grills** klassifizieren — nicht in die Post-Spec-Self-Critique vertagen (sonst reviewt Codex einen Plan ohne sie):
+Is the change **cross-cutting** (a new pattern OR a new data structure/domain distinction, touching ≥3 places, OR "everywhere / distinguish X of Y / migrate")? Then classify it **during the grill** — don't defer it to the post-spec self-critique (otherwise Codex reviews a plan without it):
 
-- **Muster** (Alt→Neu, z.B. TanStack-Query ersetzt manuelles Laden): der Nenner ist **grep-bar** → in den Plan: Census aller Alt-Stellen + ein `*.guard.test.ts`, der rot bleibt, solange Alt-Stellen außerhalb einer schrumpfenden Allowlist existieren.
-- **Konzept** (neue Unterscheidung, z.B. Projekt↔Kampagne): `grep` findet die **Abwesenheit** eines Konzepts nicht → in den Plan: eine **code-abgeleitete** Flächen-Liste (Routen/Seiten/Exporte/Auswertungen) × **fachliches Verdikt pro Fläche** (zählt / N/A / offen); „zählt"-Zeilen werden getrackte Items. **Bietet das Projekt ein Werkzeug, das diese Flächen-Liste code-abgeleitet erzeugt** (ein „Impact Census" / Blast-Radius-Report, s. die Projekt-Konvention-Datei): **früh fahren und gegen die `X von Y`-Tabelle grillen, nicht gegen Bauchgefühl** — die „NICHT ABGEDECKT"-/Invarianten-Teile (Dynamic-Dispatch, Lifecycle) bleiben Handarbeit.
+- **Pattern** (old→new, e.g. TanStack Query replacing manual loading): the denominator is **grep-able** → put in the plan: a census of all old spots + a `*.guard.test.ts` that stays red as long as old spots exist outside a shrinking allowlist.
+- **Concept** (a new distinction, e.g. Project↔Campaign): `grep` cannot find the **absence** of a concept → put in the plan: a **code-derived** surface list (routes/pages/exports/reports) × a **domain verdict per surface** (counts / N/A / open); "counts" rows become tracked items. **If the project has a tool that generates this surface list from code** (an "Impact Census" / blast-radius report — see the project convention file): **run it early and grill against the `X of Y` table, not against gut feeling** — the "NOT COVERED"/invariant parts (dynamic dispatch, lifecycle) stay manual.
 
-„vollständig" nie aus Plan/Gedächtnis behaupten — Nenner frisch zählen, `X von Y` melden. Substanz, Trigger-Schwelle + Guard-Template → die Projekt-Konvention-Datei `docs/conventions/spec-completeness.md` (falls vorhanden), §Querschnitts-Weiche.
+Never claim "complete" from plan/memory — count the denominator fresh, report `X of Y`. Substance, trigger threshold + guard template → the project convention file `docs/conventions/spec-completeness.md` (if present), §Cross-cutting fork.
 
 </supporting-info>
 
-## Re-Grill Reconcile — execute-ready (Welle 26)
+## Re-grill reconcile — execute-ready (Wave 26)
 
-Triggers when you **re-grill an issue that already exists in the graph** (a leaf of a grilled epic, or a child of an Anker). Goal: leave the rooted sub-graph **execute-ready**, never silently drift.
+Triggers when you **re-grill an issue that already exists in the graph** (a leaf of a grilled epic, or a child of an anchor). Goal: leave the rooted sub-graph **execute-ready**, never silently drift.
 
-1. **Read the Parent-Anker decisions FIRST** — fetch the Anker body + its PRD/Key-Decisions and take the seam decision **from there**. Do **not** re-derive the architecture from the leaf (Lehre: a leaf whose central decision was never read got re-litigated through question-rounds). For an atomar leaf, its own body/PRD is the reference.
-2. **Check the leaf for internal contradiction** (Fix B): a body that contradicts itself ("kein neues UI" + "baue Namensfeld") or the Anker decision → **kein Execute**. Likewise a leaf that says *"finaler Schnitt hängt an #X"* via `<!-- final-cut-depends-on: #X -->` where **#X is closed** without resolving the cut.
-3. **On drift/contradiction:** update the affected issue(s), re-stamp `plan_revision`, set the correct bucket. An internal contradiction → set the leaf to **HITL** (remove `ready-for-agent`, add the `headings.vorBau` heading — board profile `docs/agents/board-sync.md`; <project> currently `## Vor Bau zu klären`); the Drift-Guard then blocks a build-handoff via `target_buildable`. So the contradiction flows through existing machinery — no semantic heuristic in the hook.
-4. **Audit, non-blocking:** `python3 scripts/execute-ready-check.py --issue <n> --mode audit` → visible two-liner. The **blocking** net is the Drift-Guard at handoff (`.claude/hooks/drift-guard.py`).
-5. **Global `-codex` variant** can't change the repo → leave a pointer note ("Issues abgleichen + plan_revision stempeln, repo-seitig"); real enforcement = the repo hook. **Honest bound:** the hook fires at the handoff/session boundary, not at a "grill-exit" event; a same-session global-codex grill → direct `/tdd` (no handoff) is a documented residual (Global-Follow-up).
+1. **Read the parent-anchor decisions FIRST** — fetch the anchor body + its PRD/key decisions and take the seam decision **from there**. Do **not** re-derive the architecture from the leaf (lesson: a leaf whose central decision was never read got re-litigated through question rounds). For an atomic leaf, its own body/PRD is the reference.
+2. **Check the leaf for internal contradiction** (Fix B): a body that contradicts itself ("no new UI" + "build a name field") or the anchor decision → **no execute**. Likewise a leaf that says *"final cut depends on #X"* via `<!-- final-cut-depends-on: #X -->` where **#X is closed** without resolving the cut.
+3. **On drift/contradiction:** update the affected issue(s), re-stamp `plan_revision`, set the correct bucket. An internal contradiction → set the leaf to **HITL** (remove `ready-for-agent`, add the `headings.vorBau` heading — board profile `docs/agents/board-sync.md`; <project> currently `## Vor Bau zu klären`); the drift-guard then blocks a build-handoff via `target_buildable`. So the contradiction flows through existing machinery — no semantic heuristic in the hook.
+4. **Audit, non-blocking:** `python3 scripts/execute-ready-check.py --issue <n> --mode audit` → visible two-liner. The **blocking** net is the drift-guard at handoff (`.claude/hooks/drift-guard.py`).
+5. **Global `-codex` variant** can't change the repo → leave a pointer note ("reconcile the issues + re-stamp plan_revision, repo-side"); real enforcement = the repo hook. **Honest bound:** the hook fires at the handoff/session boundary, not at a "grill-exit" event; a same-session global-codex grill → direct `/tdd` (no handoff) is a documented residual (global follow-up).
 
-**Markers used here** (HTML comments, grep-bar): `<!-- guard-ack: #<n> r<N> reason:<text> by-user -->` (deliberate handoff override), `<!-- final-cut-depends-on: #<n> -->`, `<!-- handoff-intent: build|grill -->`, `<!-- guard-legacy -->` (grandfathered Alt-Anker → warn not block). **Kanonische Tabelle aller Marker:** Modul-Docstring von `scripts/execute-ready-check.py`.
+**Markers used here** (HTML comments, grep-able): `<!-- guard-ack: #<n> r<N> reason:<text> by-user -->` (deliberate handoff override), `<!-- final-cut-depends-on: #<n> -->`, `<!-- handoff-intent: build|grill -->`, `<!-- guard-legacy -->` (grandfathered legacy-anchor → warn not block). **Canonical table of all markers:** module docstring of `scripts/execute-ready-check.py`.

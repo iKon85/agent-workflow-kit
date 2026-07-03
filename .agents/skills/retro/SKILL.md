@@ -1,7 +1,7 @@
 ---
 name: retro
 disable-model-invocation: true
-description: "Use when the user explicitly asks for a retro after a session with PR-activity. Analyzes session friction and proposes concrete config mutations (Memory/Skill/CLAUDE.md/Hook) with per-patch approval. No file is written — findings live in the mutated config."
+"description": "Use when the user explicitly asks for a retro after a session with PR-activity. Analyzes session friction and proposes concrete config mutations (Memory/Skill/CLAUDE.md/Hook) with per-patch approval. No file is written — findings live in the mutated config."
 ---
 
 # Retro — In-Session Deep-Dive
@@ -12,26 +12,26 @@ Trigger: user types `/retro` (optionally with a PR/Issue number, e.g. `/retro 27
 
 A retro is a session-contained vehicle for surfacing friction and turning it into concrete config improvements. The retro itself is NOT a persistent artifact — the artifact is the **change** to Memory, Skill, CLAUDE.md, or a Hook. If nothing should change, nothing is persisted.
 
-## Symmetrie-Prinzip (Pflicht)
+## Symmetry Principle (mandatory)
 
-**Retro-Input = User-Friction + Agent-Friction. Beide gleichberechtigt.**
+**Retro input = user friction + agent friction. Both equally weighted.**
 
-Der User beschreibt seine Pains in Alltagssprache. Der ausführende Agent bringt parallel die eigenen Session-Pains aus dem Tool-Call-Trace ein. **Beides** geht durch die Analyse-Pipeline. Der Agent analysiert (Root-Cause + Konfig-Komponente) und schlägt Maßnahmen vor. User stimmt pro Patch ab.
+The user describes their pains in plain language. The executing agent contributes its own session pains from the tool-call trace in parallel. **Both** go through the analysis pipeline. The agent analyzes (root cause + config component) and proposes measures. The user votes per patch.
 
-Niemals ist die Retro nur "Agent fragt User nach Friction". Das wäre der falsche Eingangspunkt — der User sieht oft nur Symptome, der Agent sieht im Trace die echten Tool-Call-Failures, Memory-Stalls, Hook-Misses und Skill-Konflikte.
+The retro is never just "agent asks user about friction". That would be the wrong entry point — the user often only sees symptoms, while the agent sees the real tool-call failures, memory stalls, hook misses, and skill conflicts in the trace.
 
 ## Why this exists
 
 Two purposes:
 
 1. **Feature-level learning** — capture friction while it is fresh so the same trap is not stepped into next session.
-2. **Konfig-Health surveillance** — accumulate evidence that a CLAUDE.md rule, Skill, Memory note, or Hook is outdated, missing, or actively in the way. Each retro is the trigger source for incremental config cleanup.
+2. **Config-health surveillance** — accumulate evidence that a CLAUDE.md rule, Skill, Memory note, or Hook is outdated, missing, or actively in the way. Each retro is the trigger source for incremental config cleanup.
 
 The previous file-based workflow (`pr-retro-stub.py` hook + filled retro files in `.claude/retros/` + batch-PR) was removed because filed retros are read by no one — only the config mutations matter.
 
 ## Process
 
-### 1. Detect PR-Kontext
+### 1. Detect PR context
 
 Two signals:
 
@@ -40,169 +40,170 @@ Two signals:
 
 If neither yields a number, ask the user:
 
-> "Kein PR-Kontext detected — trotzdem Retro? Wenn ja, nenn mir Issue/PR-Nummer oder sag 'keine'."
+> "No PR context detected — run the retro anyway? If yes, give me the issue/PR number or say 'none'."
 
-User may skip (silent exit), give a number, or say "keine" (proceed without a PR/Issue anchor).
+User may skip (silent exit), give a number, or say "none" (proceed without a PR/issue anchor).
 
-### 2a. User-Friction-Probe (eine Frage, Outcome-Sprache)
+### 2a. User friction probe (one question, outcome language)
 
 Ask exactly:
 
-> "War Friction in der Session? Wenn ja, in 1-2 Sätzen: was war's?"
+> "Was there friction in the session? If yes, in 1-2 sentences: what was it?"
 
-User-Beschreibung in **Alltagssprache** erwartbar ("Worktree-Setup ist ärgerlich", "LSP zickt rum"). Es ist **Aufgabe des Agents**, daraus die technische Root-Cause + Konfig-Komponente abzuleiten — NIEMALS soll der Agent den User danach fragen.
+A plain-language description is expected ("worktree setup is annoying", "LSP is acting up"). It is the **agent's job** to derive the technical root cause + config component from it — the agent should NEVER ask the user for that.
 
-### 2b. Agent-Friction-Self-Probe (Pflicht, parallel zu 2a)
+### 2b. Agent friction self-probe (mandatory, parallel to 2a)
 
-Der ausführende Agent scannt die Session selbst auf Friction. Pflicht-Check-Liste:
+The executing agent scans the session itself for friction. Mandatory checklist:
 
-- Welche Tool-Calls schlugen fehl oder mussten retried werden? (Permission-Denials, Edit-vor-Read-Errors, Bash-Pipe-Aborts)
-- Welche Memories haben sich beim Hinschauen als stale erwiesen? (Inhalt widerspricht heutigem Code)
-- Welche Pre-Commit-/Hook-Checks brauchten Workarounds?
-- Welche Skill-Schritte waren widersprüchlich zu CLAUDE.md? (z.B. plugin-skill sagt npm install, CLAUDE.md sagt pnpm)
-- Welche Bash-Calls liefen mit CWD-Drift / sequentieller Permission-Approval / fehlendem absoluten Pfad?
-- Welche `<system-reminder>`-Spam-Muster traten wiederholt auf?
+- Which tool calls failed or had to be retried? (permission denials, edit-before-read errors, bash-pipe aborts)
+- Which memories turned out to be stale on inspection? (content contradicts today's code)
+- Which pre-commit/hook checks needed workarounds?
+- Which skill steps contradicted CLAUDE.md? (e.g. a plugin skill says npm install, CLAUDE.md says pnpm)
+- Which bash calls ran with CWD drift / sequential permission approval / missing absolute path?
+- Which `<system-reminder>` spam patterns recurred?
 
-Eigene Findings explizit als **"<Agent>-Finding: …"** im Output markieren, gleichberechtigt zu User-Findings. Beispiele: **"Codex-Finding: …"** auf Codex, **"Claude-Finding: …"** auf Claude.
+Mark own findings explicitly as **"<Agent>-Finding: …"** in the output, on equal footing with user findings. Examples: **"Codex-Finding: …"** on Codex, **"Claude-Finding: …"** on Claude.
 
-### 2c. Memory-Sweep-Probe (Pflicht, falls Threshold gerissen — nur wenn ein Memory-Verzeichnis existiert)
+### 2c. Memory sweep probe (mandatory if threshold breached — only if a memory directory exists)
 
-Erst Existenz prüfen — Consumer ohne Claude-Auto-Memory (z.B. reine Codex-Installation) haben kein Memory-Verzeichnis:
-
-```bash
-test -d "$HOME/.claude/projects/<project>/memory" && echo present || echo absent
-```
-
-Verzeichnis fehlt → ein Satz im Output: "Memory-Sweep-Probe: kein Memory-Verzeichnis (kein Claude-Auto-Memory) — übersprungen." Kein Patch-Vorschlag, Step gilt als erfüllt. Sonst weiter:
-
-Empirisch zählen — aktives Memory-Set + Index-Größe:
+First check existence — consumers without Claude auto-memory (e.g. a pure Codex install) have no memory directory. Derive the path portably (project slug = absolute main-tree path with `/`→`-`; worktree-safe via the git common dir, fallback `pwd`):
 
 ```bash
-ls -1 "$HOME/.claude/projects/<project>/memory/"*.md \
-  | grep -v '/MEMORY\.md$' | wc -l
-wc -l "$HOME/.claude/projects/<project>/memory/MEMORY.md"
+PROJ_ROOT=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null | xargs -r dirname)
+MEMDIR="$HOME/.claude/projects/$(printf '%s' "${PROJ_ROOT:-$(pwd)}" | tr '/' '-')/memory"
+test -d "$MEMDIR" && echo present || echo absent
 ```
 
-Threshold-Trigger (einer reicht):
-- Aktives Memory-Set ≥ 65 Files (Sweep-Trigger über dem CLAUDE.md-Ziel „aktives Set <35" — feuert nur bei echtem Bloat, nicht auf einem gesund-aber-vollen Set; realer aktiver Stand ~50–61, content-checked alle aktiv---/Retro)
-- MEMORY.md > 120 Zeilen
+Directory missing → one sentence in the output: "Memory sweep probe: no memory directory (no Claude auto-memory) — skipped." No patch proposal, step counts as satisfied. Otherwise continue:
 
-Wenn Trigger gerissen:
-- Im Output ein Satz: "Memory-Sweep-Probe: N aktive Memory-Files, X Zeilen MEMORY.md — über Token-Hygiene-Ziel (<35 Files)."
-- Konfig-Patch-Vorschlag in Step 3 mitgeben:
-  "Patch X — Memory-Set über <35. Veraltete/erledigte Memories identifizieren + löschen (prune-on-touch). Vor jedem Löschen Inhalt prüfen; gelöschte Memory-Files nach `archive/` verschieben (statt hart löschen), damit Recovery möglich bleibt. **Wirkt auf:** Memory · **Gewicht:** niedrig (Hygiene, punktuell)."
-  Wie jeder Step-4-Patch trägt auch dieser die `Wirkt auf / Gewicht`-Zeile (3b/Step 4).
+Count empirically — active memory set + index size:
 
-Wenn 0 Trigger:
-- Ein-Zeiler im Output: "Memory-Sweep ok (N Files / X Zeilen)."
-- Kein Patch-Vorschlag.
+```bash
+ls -1 "$MEMDIR/"*.md | grep -v '/MEMORY\.md$' | wc -l
+wc -l "$MEMDIR/MEMORY.md"
+```
 
-**Skip-Erlaubnis:** nur bei fehlendem Memory-Verzeichnis (s.o.) — sonst keine, Sweep-Probe läuft auf jedem Retro.
+Threshold trigger (either is enough):
+- Active memory set ≥ 65 files (sweep trigger above the CLAUDE.md target "active set <35" — fires only on real bloat, not a healthy-but-full set; tuned across retros)
+- MEMORY.md > 120 lines
 
-**Warum hier (Pflicht-Step, nicht nur Memory):** Memory ist passiv (nur wenn der Agent dran denkt); `/retro` läuft routinemäßig nach PR-Activity und ist das natürliche Enforcement-Vehikel. Der Eintrag muss VOR der symmetrischen Analyse passieren, damit er ggf. als Patch-Vorschlag in den Flow einfließt.
+If the trigger is breached:
+- One sentence in the output: "Memory sweep probe: N active memory files, X lines MEMORY.md — over the token-hygiene target (<35 files)."
+- Include a config patch proposal in step 3:
+  "Patch X — memory set over <35. Identify + delete stale/completed memories (prune-on-touch). Check content before every deletion; move deleted memory files to `archive/` (instead of hard-deleting) so recovery stays possible. **Affects:** memory · **Weight:** low (hygiene, isolated)."
+  Like every step-4 patch, this one also carries the `Affects / Weight` line (3b/step 4).
 
-**Threshold-Tuning:** Sweep-Trigger = ≥65 Files / >120 Zeilen MEMORY.md (Ziel bleibt „aktives Set <35", Trigger liegt mit Headroom darüber, damit gesund-volle Sets nicht auf jedem Retro feuern); Schwelle schrittweise 39→46→50→60→65 nachjustiert über---/Retros, jeweils weil ein legitim-volles Set (0 sicher löschbar) erneut auslöste — bei erneutem Leerlauf-Fund weiter anheben.
+If 0 triggers:
+- One-liner in the output: "Memory sweep ok (N files / X lines)."
+- No patch proposal.
 
-### 3. Symmetrische Analyse (Agent eigenständig)
+**Skip allowance:** only when the memory directory is missing (see above) — otherwise none, the sweep probe runs on every retro.
 
-Für **jeden** Friction-Punkt (User-gemeldet UND selbst-gefunden) analysiert der Agent:
+**Why here (mandatory step, not just memory):** memory is passive (only fires if the agent thinks of it); `/retro` runs routinely after PR activity and is the natural enforcement vehicle. The entry must happen BEFORE the symmetric analysis so it can flow into the process as a patch proposal if needed.
 
-- **Root-Cause:** Welcher Tool-Call / Memory / Hook / Skill war konkret involviert?
-- **Konfig-Komponente:** Welche Mutation würde das nächste Mal verhindern? (Memory / Skill / CLAUDE.md / Hook / Helper-Script / Issue / nichts)
-- **Wiederholbar oder einmalig?** Einmalige Vorfälle → kein Patch nötig.
+**Threshold tuning:** sweep trigger = ≥65 files / >120 lines MEMORY.md (target stays "active set <35", trigger sits with headroom above it so healthy-full sets don't fire on every retro); threshold tuned upward across retros — raise further on the next empty-handed hit.
 
-Wenn die User-Beschreibung in Step 2a mehrdeutig ist, darf der Agent **EINE** klärende Outcome-Frage stellen — z.B. "an welcher Stelle war's am ärgerlichsten — beim Setup, mitten in der Arbeit, oder beim Cleanup?". Niemals Multiple-Choice mit Memory-Namen, Hook-Paths, oder Konfig-Klassen.
+### 3. Symmetric analysis (agent, on its own)
 
-### 3b. Ziel + Gewicht bestimmen (Schwellen-Leiter)
+For **every** friction point (user-reported AND self-found), the agent analyzes:
 
-Bevor du in Step 4 einen Patch formulierst, ordne **jede** Friktion auf der Schwellen-Leiter ein. **Gewicht** = wie durabel/weitreichend die Regel ist (steuert die sichtbare Patch-Zeile in Step 4 + die Approval-Tiefe des Users). **Ziel** = wohin der Patch physisch geht.
+- **Root cause:** which tool call / memory / hook / skill was concretely involved?
+- **Config component:** which mutation would prevent it next time? (memory / skill / CLAUDE.md / hook / helper script / issue / nothing)
+- **Repeatable or one-off?** One-off incidents → no patch needed.
 
-| Gewicht | Ziel (Tier) | Wann |
+If the user's description in step 2a is ambiguous, the agent may ask **ONE** clarifying outcome question — e.g. "where was it most annoying — during setup, mid-work, or during cleanup?". Never multiple-choice with memory names, hook paths, or config classes.
+
+### 3b. Determine target + weight (threshold ladder)
+
+Before formulating a patch in step 4, place **every** friction point on the threshold ladder. **Weight** = how durable/far-reaching the rule is (drives the visible patch line in step 4 + the user's approval depth). **Target** = where the patch physically goes.
+
+| Weight | Target (tier) | When |
 |---|---|---|
-| **hoch** | CLAUDE.md / Hard Rule (oder durabler Hook) | durabel + querschnittig + **incident-backed**; gilt **über alle Phasen** (auch ohne Spec — im Bau, bei Git, beim Deploy) |
-| **mittel** | `spec-self-critique` (Projekt-Check) | wiederkehrender **spec-struktureller** Defekt, **vor dem Bau aus der Spec fangbar** |
-| **niedrig** | Memory | punktueller Infra-/Domänen-Gotcha (Fakt zum Recall, kein Muster) |
-| **minimal** | Inline-Notiz / „nichts" | One-off, kein Muster, kein durables Konfig-Artefakt |
+| **high** | CLAUDE.md / hard rule (or durable hook) | durable + cross-cutting + **incident-backed**; applies **across all phases** (even without a spec — during build, git, deploy) |
+| **medium** | `spec-self-critique` (project check) | recurring **spec-structural** defect, **catchable from the spec before building** |
+| **low** | Memory | isolated infra/domain gotcha (a fact to recall, not a pattern) |
+| **minimal** | Inline note / "nothing" | one-off, no pattern, no durable config artifact |
 
-**Domänen-/Glossar-Lücke** (der Defekt läge im **Grill-Input**, nicht in der Spec-Struktur — ein Begriff war unscharf/fehlte, bevor überhaupt eine Spec entstand) → Ziel `CONTEXT.md` / `docs/adr/`, **Gewicht mittel**. So erreichen Learn-Findings erstmals den **Plan-START** (das, was `grill-with-docs` liest), nicht nur das Spec-Gate. Abgrenzung zu `spec-self-critique` (auch mittel): dort sitzt ein **struktureller** Spec-Defekt; hier eine **inhaltliche** Domänen-/Begriffs-Lücke.
+**Domain/glossary gap** (the defect sits in the **grill input**, not the spec structure — a term was fuzzy/missing before a spec even existed) → target `CONTEXT.md` / `docs/adr/`, **weight medium**. This way learning findings reach the **plan START** (what `grill-with-docs` reads) for the first time, not just the spec gate. Boundary to `spec-self-critique` (also medium): that one holds a **structural** spec defect; this one a **substantive** domain/term gap.
 
-**Grenzfall hoch vs mittel — Zwei-Stufen-Test (CLAUDE.md vs `spec-self-critique`):**
-1. **Phasen-Reichweite zuerst:** „Hätte ein Blick auf die SPEC *vor* dem Bauen die Friktion verhindert?" → **Ja** = Spec-Qualitäts-Loch → `spec-self-critique` (mittel). → **Nein, gilt immer/phasenübergreifend** → CLAUDE.md-Kandidat.
-2. **Incident-Gate für die hoch-Stufe:** CLAUDE.md / Hard-Rule **nur** wenn durabel + querschnittig + **mind. einmal real schiefgegangen** (incident-backed). Reine Einmal-Beobachtung ohne Recurrence → runter auf Memory/inline, **nicht** Hard-Rule.
+**Borderline high vs medium — two-stage test (CLAUDE.md vs `spec-self-critique`):**
+1. **Phase reach first:** "Would looking at the SPEC *before* building have prevented the friction?" → **Yes** = spec quality hole → `spec-self-critique` (medium). → **No, applies always/cross-phase** → CLAUDE.md candidate.
+2. **Incident gate for the high tier:** CLAUDE.md / hard rule **only** if durable + cross-cutting + **went wrong for real at least once** (incident-backed). A pure one-off observation without recurrence → downgrade to memory/inline, **not** a hard rule.
 
-**Grenzfall mittel vs niedrig:** Im Zweifel gewinnt **mittel** (aktives Spec-Gate schlägt passiven Memory-Recall) — ein nach `niedrig`/Memory fehlgeroutetes Spec-struktur-Finding sitzt in passivem Recall und feuert beim nächsten Spec **nie wieder**, ein mittel-Finding im `spec-self-critique`-Layer feuert garantiert.
+**Borderline medium vs low:** when in doubt, **medium** wins (an active spec gate beats passive memory recall) — a spec-structural finding mis-routed to `low`/memory sits in passive recall and **never** fires again at the next spec, while a medium finding in the `spec-self-critique` layer fires guaranteed.
 
-**Tier sagt wohin grob, Klasse sagt welche Datei.** Bei einem **Skill**-Ziel entscheidet das Klassen-Routing in Step 4 („Klasse zuerst") **welche** Datei — z.B. ein „mittel → `spec-self-critique`"-Patch landet (publizierte Klasse) im **Projekt-Layer** `docs/agents/skills/spec-self-critique.md`, nicht im Gerüst.
+**Tier says roughly where, class says which file.** For a **skill** target, the class routing in step 4 ("class first") decides **which** file — e.g. a "medium → `spec-self-critique`" patch (published class) lands in the **project layer** `docs/agents/skills/spec-self-critique.md`, not the scaffolding.
 
-**GitHub-Issue ist KEIN Gewicht-Tier.** Ein echter Follow-up = Arbeit zum Tracken → `python3 scripts/board-sync.py create` (Step-4-Tabelle), **orthogonal** zur Leiter; sein „Gewicht" richtet sich nach dem Follow-up-Scope. Die Leiter klassifiziert **Konfig-Patches**, nicht „mach ein Ticket draus".
+**A GitHub issue is NOT a weight tier.** A real follow-up = work to track → `python3 scripts/board-sync.py create` (step-4 table), **orthogonal** to the ladder; its "weight" follows the follow-up scope. The ladder classifies **config patches**, not "turn it into a ticket".
 
-**Ziel fehlt im Projekt — zwei Fälle scharf trennen:**
-- **(a) Tier-Skill ganz fehlt** (z.B. Fremd-Projekt ohne `spec-self-critique`): kein durables Spec-Time-Gate da. **Memory ist KEIN Ersatz** — passiver Recall fängt keinen wiederkehrenden Spec-Defekt vor dem Bau. Ehrlich melden: *„für dieses Tier gibt es in diesem Projekt kein durables Ziel"* + `/setup-workflow`-Follow-up vorschlagen. **Kein Fake-Guard via Memory.**
-- **(b) Skill da, Projekt-Layer-Datei fehlt** (`docs/agents/skills/<skill>.md`): **anlegen / anhängen** — das ist das normale retro-Sink-Verhalten, das `spec-self-critique` Step 0 ohnehin erwartet. **Kein** Downgrade.
+**Target missing in the project — separate two cases cleanly:**
+- **(a) Tier skill missing entirely** (e.g. a foreign project without `spec-self-critique`): no durable spec-time gate exists. **Memory is NOT a substitute** — passive recall doesn't catch a recurring spec defect before building. Report honestly: *"this project has no durable target for this tier"* + propose a `/setup-workflow` follow-up. **No fake guard via memory.**
+- **(b) Skill exists, project-layer file missing** (`docs/agents/skills/<skill>.md`): **create / append** — that is the normal retro-sink behavior that `spec-self-critique` step 0 expects anyway. **No** downgrade.
 
-### 4. Patch-Vorschläge (konkrete Empfehlung, keine Multiple-Choice mit Tech-Refs)
+### 4. Patch proposals (concrete recommendation, no multiple-choice with tech refs)
 
-**Generalisierungs-Check ZUERST (Pflicht, vor dem Formulieren) — Klasse statt Symptom.** Bevor du einen Patch schneidest, abstrahiere eine Ebene hoch: *„Wovon ist dieser Vorfall ein BEISPIEL?"* Der Patch deckt die **Klasse / das Prinzip** (alle Szenarien, in denen derselbe Mechanismus beißt) — der konkrete Vorfall ist nur das **Beispiel**, nicht der Scope. Symptom-enge Patches (genau-dieser-eine-Trigger) verfehlen die nächste Variante derselben Klasse, und der User muss nachsteuern. **ABER Klasse ≠ Spekulation:** nimm nur **verifizierte** Mitglieder der Klasse auf (Verify-First), strukturiere **erweiterbar** statt mit ungeprüften Mustern vollzupacken — zu breit (ungeprüft) ist derselbe Fehler wie zu eng, nur andersrum. (Retro: „blocke `(`" = Symptom → „Shim verarbeitet Regex anders als echtes ripgrep" = Klasse; aber `\d` bewusst NICHT aufgenommen, weil es auf ripgrep funktioniert = unverifizierter Breaker.)
+**Generalization check FIRST (mandatory, before formulating) — class, not symptom.** Before cutting a patch, abstract one level up: *"What is this incident an EXAMPLE of?"* The patch covers the **class / principle** (every scenario where the same mechanism bites) — the concrete incident is only the **example**, not the scope. Symptom-tight patches (exactly-this-one-trigger) miss the next variant of the same class, forcing the user to steer again. **BUT class ≠ speculation:** only include **verified** members of the class (verify-first), structure it **extensibly** instead of stuffing in unproven patterns — too broad (unverified) is the same mistake as too narrow, just inverted. (retro: an over-narrow symptom patch was widened to the correct class, while an unverified pattern was deliberately left out.)
 
-Für jeden Friction-Punkt: Der Agent formuliert **eine konkrete Empfehlung** mit kurzer Begründung in Alltagssprache. Format:
+For every friction point: the agent formulates **one concrete recommendation** with a short rationale in plain language. Format:
 
-> **Patch X — [eine Zeile Was].**
-> **Warum:** [eine Zeile, warum es die Friction beseitigt].
-> **Was sich ändert:** [eine Zeile sichtbarer Effekt].
-> **Wirkt auf:** [Ziel in Alltagssprache] · **Gewicht:** [hoch / mittel / niedrig / minimal] — [kurze Begründung aus der Leiter (3b)].
+> **Patch X — [one line: what].**
+> **Why:** [one line, why it removes the friction].
+> **What changes:** [one line, visible effect].
+> **Affects:** [target in plain language] · **Weight:** [high / medium / low / minimal] — [short rationale from the ladder (3b)].
 
-**Jeder Patch trägt die `Wirkt auf / Gewicht`-Zeile** (aus 3b) — auch der Memory-Sweep-Patch aus Step 2c (Wirkt auf: Memory · Gewicht: niedrig). Das Gewicht steuert die Approval-Tiefe: „hoch / CLAUDE.md" = durable Always-on-Regel, mehr Prüfung wert; „minimal / inline" = Wegwerf. Wording in Alltagssprache (kein Tech-Jargon im User-Blick).
+**Every patch carries the `Affects / Weight` line** (from 3b) — including the memory-sweep patch from step 2c (Affects: memory · Weight: low). The weight drives approval depth: "high / CLAUDE.md" = durable always-on rule, worth more scrutiny; "minimal / inline" = throwaway. Wording in plain language (no tech jargon in the user-facing view).
 
-Optional dazu der präsentierte Diff/Script/Edit als Code-Block (für die Sichtprüfung), aber NICHT als Multiple-Choice-Option mit tech-Vokabular.
+Optionally present the diff/script/edit as a code block (for visual review), but NOT as a multiple-choice option with tech vocabulary.
 
-Mögliche Mutation-Targets (intern für Claude, NICHT im User-Output auflisten):
+Possible mutation targets (internal for Claude, do NOT list in user-facing output):
 
 | Mutation type | Where |
 |---|---|
-| Neue/geänderte Memory-Note | `~/.claude/projects/<project>/memory/<slug>.md` (plus `MEMORY.md`-Index updaten) |
-| CLAUDE.md-Rule-Anpassung | `CLAUDE.md` (Hard Rules section) |
-| Skill-Verbesserung (generisch-portabel) | `.claude/skills/<skill>/SKILL.md` |
-| Projektspezifische Skill-Lore (`generic`/`vendored`-Skill) | `docs/agents/skills/<skill>.md` (Projekt-Layer) |
-| Neuer/geänderter Hook | `.claude/hooks/<name>.py` + Test |
-| Neues Helper-Script | `scripts/<name>.sh` (+ tracked `.claude/settings.json` Whitelist —: `.local.json` propagiert nicht in Worktrees) |
-| Neues GitHub-Issue | `python3 scripts/board-sync.py create` |
-| "Nichts machen" | einmaliger Vorfall, kein Recurrence-Risiko |
+| New/changed memory note | `~/.claude/projects/<project>/memory/<slug>.md` (plus update the `MEMORY.md` index) |
+| CLAUDE.md rule adjustment | `CLAUDE.md` (Hard Rules section) |
+| Skill improvement (generic/portable) | `.claude/skills/<skill>/SKILL.md` |
+| Project-specific skill lore (`generic`/`vendored` skill) | `docs/agents/skills/<skill>.md` (project layer) |
+| New/changed hook | `.claude/hooks/<name>.py` + test |
+| New helper script | `scripts/<name>.sh` (+ tracked `.claude/settings.json` allowlist —: `.local.json` doesn't propagate to worktrees) |
+| New GitHub issue | `python3 scripts/board-sync.py create` |
+| "Do nothing" | one-off incident, no recurrence risk |
 
-**Skill-Patch-Routing (Klasse zuerst).** Zielt ein Patch auf ein Skill, ZUERST `.claude/skills/skill-manifest.json` **best-effort** lesen. Publizierte Klassen (`generic`/`vendored`): **projektspezifische** Lore → `docs/agents/skills/<skill>.md` (Projekt-Layer), **generisch-portable** Verbesserung → `.claude/skills/<skill>/SKILL.md`. `project-private`: Skill-Dir ist ok. **Manifest fehlt** (Fremd-Install) → safe-default: Lore nach `docs/agents/skills/<skill>.md`, NIE in ein publiziertes Skill-Dir. (Hält publizierte Skills self-contained; z.B. `spec-self-critique` ist `generic` → seine projektspezifischen Checks gehören in den Projekt-Layer, nicht ins Gerüst.)
+**Skill patch routing (class first).** If a patch targets a skill, FIRST read `.claude/skills/skill-manifest.json` **best-effort**. Published classes (`generic`/`vendored`): **project-specific** lore → `docs/agents/skills/<skill>.md` (project layer), **generic/portable** improvement → `.claude/skills/<skill>/SKILL.md`. `project-private`: the skill dir is fine. **Manifest missing** (foreign install) → safe default: lore goes to `docs/agents/skills/<skill>.md`, NEVER into a published skill dir. (Keeps published skills self-contained; e.g. `spec-self-critique` is `generic` → its project-specific checks belong in the project layer, not the scaffolding.)
 
-### 5. Per-Patch-Approval (Ja / Nein / Modifizieren)
+### 5. Per-patch approval (yes / no / modify)
 
-Pro Patch:
+Per patch:
 
-> "Patch X — [Was-Zeile]. Übernehmen? (Ja / Nein / Modifizieren)"
+> "Patch X — [what line]. Apply? (Yes / No / Modify)"
 
 <!-- mirror-xform:start codex-user-input-mechanism -->
-Frage den User direkt; wenn ein strukturierter User-Input-Mechanismus verfügbar ist, nutze ihn mit ≤3 Optionen. Optionen-Labels in Alltagssprache, **niemals Memory-Slugs oder Hook-Paths in den Labels**. Bei "Modifizieren" frag in Alltagssprache nach, was anders sein soll.
+Ask the user directly; if a structured user-input mechanism is available, use it with ≤3 options. Option labels in plain language, **never memory slugs or hook paths in the labels**. On "Modify", ask in plain language what should be different.
 <!-- mirror-xform:end -->
 
-### 6. Umsetzung
+### 6. Implementation
 
 For each approved patch, execute the mutation immediately (Edit / Write / Bash). Do NOT batch — apply one at a time so the user can interrupt.
 
 ### 7. Exit
 
-Die Retro ist **opt-in** (User triggert `/retro`); ich **biete sie vor der PR-Erstellung an**, erzwinge sie nie. Wird sie gemacht, dann vor PR (nicht erst nach Merge). Nach allen Patches:
+The retro is **opt-in** (user triggers `/retro`); it is **offered before PR creation**, never enforced. If done, it happens before the PR (not after merge). After all patches:
 
-1. In 2-3 Sätzen zusammenfassen, was geändert + was deferiert wurde.
-2. Eine **`## Retro / Meta-Findings`-Sektion in den PR-Body** falten — in den noch zu erstellenden PR, oder via `gh pr edit` wenn schon offen: die ehrliche Friction-Analyse (User- **und** Agent-Findings) + die angewandten Patches.
-3. Repo-Datei-Patches (CLAUDE.md/Hook/Skill/Script) werden **als Teil des Slice-PR committet**; Memory-Patches sind Filesystem-only (nicht im PR).
+1. Summarize in 2-3 sentences what changed + what was deferred.
+2. Fold a **`## Retro / Meta-Findings` section into the PR body** — into the PR still to be created, or via `gh pr edit` if already open: the honest friction analysis (user **and** agent findings) + the applied patches.
+3. Repo file patches (CLAUDE.md/hook/skill/script) get **committed as part of the slice PR**; memory patches are filesystem-only (not in the PR).
 
-Niemals eine Datei in `.claude/retros/` anlegen.
+Never create a file in `.claude/retros/`.
 
 ## What NOT to do
 
 - **Do NOT create files in `.claude/retros/`.** The directory is historical archive only.
-- **Repo-Datei-Patches gehören in den Slice-PR** (Retro läuft VOR PR-Erstellung) — committen + Findings als Meta-Sektion in den PR-Body. Nur Memory/Filesystem-Patches bleiben uncommitted.
+- **Repo file patches belong in the slice PR** (the retro runs BEFORE PR creation) — commit them + add findings as a meta section in the PR body. Only memory/filesystem patches stay uncommitted.
 - **Do NOT skip the friction probe.** If you don't ask explicitly, you may silently invent friction that wasn't there.
-- **Do NOT propose patches without user approval.** Every config mutation gets explicit ja/nein.
+- **Do NOT propose patches without user approval.** Every config mutation gets explicit yes/no.
 
 ## Format conventions
 
 - German prose for user-facing questions and summaries (project convention).
-- Umlaute korrekt (ä, ö, ü, ß — nie ae/oe/ue/ss in Prosa).
-- File-Links als `[name](pfad)`, klickbar in <maintainer>'s VSCode.
+- Correct umlauts (ä, ö, ü, ß — never ae/oe/ue/ss in prose).
+- File links as `[name](path)`, clickable in <maintainer>'s VS Code.

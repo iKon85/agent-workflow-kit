@@ -5,7 +5,7 @@ description: "Disciplined diagnosis loop for hard bugs and performance regressio
 
 # Diagnose
 
-> **Skill-Identität (nicht verwirren lassen):** Ordner `diagnose` + Invocation `/diagnose` = Matt Pococks Upstream-Skill **`diagnosing-bugs`**. Upstream hat `diagnose` → `diagnosing-bugs` umbenannt; wir behalten den Ordnernamen `diagnose` bewusst bei (Invocation-Stabilität `/diagnose`). Inhalt = Upstream `diagnosing-bugs` @ `7a83a3a`, lokal adaptiert (Description mit voller Trigger-Abdeckung behalten). Provenance/Rename-Ledger: `docs/agents/provenance.md` (§Re-Sync-Log), im Projekt-Root.
+> **Skill identity (don't get confused):** the folder `diagnose` + invocation `/diagnose` map to Matt Pocock's upstream skill **`diagnosing-bugs`**. Upstream renamed `diagnose` → `diagnosing-bugs`; we deliberately keep the folder name `diagnose` (invocation stability `/diagnose`). Content = upstream `diagnosing-bugs` @ `7a83a3a`, locally adapted (description kept with full trigger coverage). Provenance/rename ledger: `docs/agents/provenance.md` (§Re-Sync-Log), at the project root.
 
 A discipline for hard bugs. Skip phases only when explicitly justified.
 

@@ -57,7 +57,7 @@ An independent second model catches what one model rationalises. Read-only, boun
 <!-- mirror-xform:start codex-escalation -->
 - **`/grill-me-codex` / `/grill-with-docs-codex`** — run the grill (Act 1), then a *different* model (Codex) adversarially reviews the locked plan (Act 2) before any code.
 <!-- mirror-xform:end -->
-- **`/codex-review`** (nur Claude Code) — standalone: you already have a plan, just want the cross-model stress-test.
+- **`/codex-review`** (Claude Code only) — standalone: you already have a plan, just want the cross-model stress-test.
 
 ## Codebase health
 
@@ -72,17 +72,17 @@ Model-invoked references that run *beneath* the other skills — each the single
 
 - **`/domain-modeling`** — sharpen the project's *domain* language: challenge a fuzzy term, resolve an overloaded word, record a hard-to-reverse decision as an ADR. The active discipline `/grill-with-docs` drives to keep `CONTEXT.md` a clean glossary. (ADR conventions: `docs/adr/README.md`.)
 - **`/codebase-design`** — the deep-module vocabulary (module, interface, depth, seam, adapter, leverage, locality) for designing a module's *shape*. `/tdd` and `/improve-codebase-architecture` both speak it.
-- **`/write-a-skill`** (nur Claude Code) — reference for writing and editing skills well (invocation, information hierarchy, progressive disclosure, leading words, pruning, failure modes). *This router is itself an instance of its "router skill" pattern.*
+- **`/write-a-skill`** (Claude Code only) — reference for writing and editing skills well (invocation, information hierarchy, progressive disclosure, leading words, pruning, failure modes). *This router is itself an instance of its "router skill" pattern.*
 
 ## Land
 
 - **`/wrapup`** — the land-and-clean closeout: make the branch landable, enforce the PR-body contract, merge, reconcile the board, sweep merged branches, surface what's still open. Does not replace live verification — verify the user outcome first.
-- The **pre-commit / pre-push gate** fires automatically (installed once via `/git-guardrails-claude-code` / `/setup-pre-commit`, beide nur Claude Code), blocking a broken commit/push.
+- The **pre-commit / pre-push gate** fires automatically (installed once via `/git-guardrails-claude-code` / `/setup-pre-commit`, both Claude Code only), blocking a broken commit/push.
 
 ## Learn
 
 - **`/retro`** — in-session post-mortem that proposes concrete changes to rules, skills, or hooks, each with per-patch approval.
-- **`/write-a-skill`** (nur Claude Code) — turn a move you keep repeating into a reusable skill (see Vocabulary).
+- **`/write-a-skill`** (Claude Code only) — turn a move you keep repeating into a reusable skill (see Vocabulary).
 
 ## Crossing sessions
 

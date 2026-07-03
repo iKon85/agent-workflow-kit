@@ -39,9 +39,9 @@ Every comment or issue posted to the issue tracker during triage **must** start 
 - exactly one category `type:*` (table above)
 - `priority:high` / `priority:medium` / `priority:low`
 
-Wave assignment is **not** a triage step. Wellen entstehen über `board-to-waves`
-(Clustering → Anker mit Wave-Number-Field, Mitgliedschaft via Parent-Link). Kein
-per-Issue `wave:*`-Label — deprecated.
+Wave assignment is **not** a triage step. Waves originate via `board-to-waves`
+(clustering → anchor with a Wave-number field, membership via parent link). No
+per-issue `wave:*` label — deprecated.
 
 ### State labels (two are in active use)
 

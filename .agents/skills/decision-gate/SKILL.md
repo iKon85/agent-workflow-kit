@@ -1,6 +1,6 @@
 ---
 name: decision-gate
-description: "Resolve a bounded trade-off choice or a targeted research gap with read-only investigation, a documented weigh-up, and a reasoned decision. Use when a plan or slice hinges on a concrete \"which option\" choice or a \"need to research this first\" gap that is above a binary yes/no fact (verify-spike) but below a high-stakes, hard-to-reverse, ADR-worthy decision (grill-with-docs). Output is a trade-off table plus a justified pick sunk into an ADR/issue/comment. NOT for binary fact-checks (verify-spike), open-ended design feel (prototype), or bug root-cause (diagnose)."
+"description": "Resolve a bounded trade-off choice or a targeted research gap with read-only investigation, a documented weigh-up, and a reasoned decision. Use when a plan or slice hinges on a concrete \"which option\" choice or a \"need to research this first\" gap that is above a binary yes/no fact (verify-spike) but below a high-stakes, hard-to-reverse, ADR-worthy decision (grill-with-docs-codex). Output is a trade-off table plus a justified pick sunk into an ADR/issue/comment. NOT for binary fact-checks (verify-spike), open-ended design feel (prototype), or bug root-cause (diagnose)."
 ---
 
 # Decision Gate
@@ -37,7 +37,7 @@ Threshold check, both directions: if the choice is **binary and empirically sett
 
 1. **Read-only.** No schema changes, no migrations, no writes to a shared/prod resource. Research and measurement only; a DB question hits a read or a scratch row.
 2. **Evidence per cell, not assertion.** "Option A is faster/cleaner" is not a trade-off — the measured number, the `file:line`, the doc is. A table of adjectives is an unresearched guess in a table costume.
-3. **Decide — do not just survey.** The output is a *pick with reasons*, not a neutral menu. Name what you traded away so the runner-up's strengths are on record.
+3. **Decide — do not just survey.** The output is a *pick with reasons*, not a neutral menu. Name what you traded away so the runner-up's strengths are on record. A genuine tie on the criteria that matter is a finding, not a license to coin-flip: default to the most reversible option and say why, or surface the tie to the user as an outcome question.
 4. **Scope honestly.** The decision holds for the options and context you weighed. State that scope so a new option or a changed constraint re-opens the gate instead of inheriting a stale pick.
 <!-- mirror-xform:start codex-escalation -->
 5. **Respect the threshold.** Mid-gate, if it turns high-stakes or hard-to-reverse → stop and escalate to `grill-with-docs`; if it collapses to one binary fact → drop to `verify-spike`. The gate is for the bounded middle, not a place to quietly settle a big decision.

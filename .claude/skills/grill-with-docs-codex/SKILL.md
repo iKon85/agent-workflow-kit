@@ -102,18 +102,18 @@ If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](
 
 </supporting-info>
 
-### Lifecycle-Vollständigkeit bei Multi-Phase-Plänen
+### Lifecycle completeness for multi-phase plans
 
-Ist der Plan ein **Multi-Phase-Pattern** (expand-contract, dual-write, Backfill, gestaffelter Rollout)? Dann **alle Phasen explizit aufzählen** (z.B. expand → read-switch → write-switch → contract), markieren welche in DIESEM Plan vs. **deferred** sind, und prüfen welcher **Ordering-Guard** Phase N vor Phase N-1 verhindert. Eine aufgeschobene Phase, die nur als Code-Kommentar lebt, ist ein Befund — sie gehört als Tracking-Issue ins Board (CLAUDE.md §Backlog-Workflow „Aufgeschobene Phase = sofort Tracking-Issue"). Welle 39: read-switch gebaut, write-switch nur kommentiert, das Contraction-Issue sprang voraus → Frame-Edits live verschattet.
+Is the plan a **multi-phase pattern** (expand-contract, dual-write, backfill, staged rollout)? Then **enumerate all phases explicitly** (e.g. expand → read-switch → write-switch → contract), mark which are in THIS plan vs. **deferred**, and check which **ordering guard** prevents phase N before phase N-1. A deferred phase that lives only as a code comment is a finding — it belongs in the board as a tracking issue (CLAUDE.md §Backlog-Workflow "deferred phase = tracking issue immediately"). Incident precedent: a read-switch was built, the write-switch only commented, and the contraction issue jumped ahead → live edits got shadowed.
 
-### Querschnitts-Weiche — Muster vs. Konzept
+### Cross-cutting fork — pattern vs. concept
 
-Ist die Änderung **querschnittig** (neues Muster/Pattern ODER neue Datenstruktur/Domänen-Unterscheidung, betrifft ≥3 Stellen, ODER „überall / X von Y unterscheiden / migrieren")? Dann **während des Grills** klassifizieren — nicht in die Post-Spec-Self-Critique vertagen; die Klassifizierung wird Teil des `PLAN.md`, den Codex in Act 2 reviewt:
+Is the change **cross-cutting** (a new pattern OR a new data structure/domain distinction, touching ≥3 places, OR "everywhere / distinguish X of Y / migrate")? Then classify it **during the grill** — don't defer it to the post-spec self-critique; the classification becomes part of the `PLAN.md` that Codex reviews in Act 2:
 
-- **Muster** (Alt→Neu, z.B. TanStack-Query ersetzt manuelles Laden): der Nenner ist **grep-bar** → in den Plan: Census aller Alt-Stellen + ein `*.guard.test.ts`, der rot bleibt, solange Alt-Stellen außerhalb einer schrumpfenden Allowlist existieren.
-- **Konzept** (neue Unterscheidung, z.B. Projekt↔Kampagne): `grep` findet die **Abwesenheit** eines Konzepts nicht → in den Plan: eine **code-abgeleitete** Flächen-Liste (Routen/Seiten/Exporte/Auswertungen) × **fachliches Verdikt pro Fläche** (zählt / N/A / offen); „zählt"-Zeilen werden getrackte Items. **Bietet das Projekt ein Werkzeug, das diese Flächen-Liste code-abgeleitet erzeugt** (ein „Impact Census" / Blast-Radius-Report, s. die Projekt-Konvention-Datei): **früh fahren und gegen die `X von Y`-Tabelle grillen, nicht gegen Bauchgefühl** — die „NICHT ABGEDECKT"-/Invarianten-Teile (Dynamic-Dispatch, Lifecycle) bleiben Handarbeit.
+- **Pattern** (old→new, e.g. TanStack Query replacing manual loading): the denominator is **grep-able** → put in the plan: a census of all old spots + a `*.guard.test.ts` that stays red as long as old spots exist outside a shrinking allowlist.
+- **Concept** (a new distinction, e.g. Project↔Campaign): `grep` cannot find the **absence** of a concept → put in the plan: a **code-derived** surface list (routes/pages/exports/reports) × a **domain verdict per surface** (counts / N/A / open); "counts" rows become tracked items. **If the project has a tool that generates this surface list from code** (an "Impact Census" / blast-radius report — see the project convention file): **run it early and grill against the `X of Y` table, not against gut feeling** — the "NOT COVERED"/invariant parts (dynamic dispatch, lifecycle) stay manual.
 
-„vollständig" nie aus Plan/Gedächtnis behaupten — Nenner frisch zählen, `X von Y` melden. Substanz, Trigger-Schwelle + Guard-Template → die Projekt-Konvention-Datei `docs/conventions/spec-completeness.md` (falls vorhanden), §Querschnitts-Weiche.
+Never claim "complete" from plan/memory — count the denominator fresh, report `X of Y`. Substance, trigger threshold + guard template → the project convention file `docs/conventions/spec-completeness.md` (if present), §Cross-cutting fork.
 
 ### Handoff to Act 2
 
