@@ -25,6 +25,29 @@ This is the "Architecture Decisions — best-practice first" rule at small scale
 Threshold check, both directions: if the choice is **binary and empirically settleable**, drop down to `verify-spike`. If it is **high-stakes or hard-to-reverse** (a central seam, a one-way door, an ADR), escalate up to `grill-with-docs-codex` — do not let a real architecture decision hide in a decision-gate.
 <!-- mirror-xform:end -->
 
+## Placement — which altitude owns a decision
+
+Deciding *when* to run a decision-gate is one question; deciding *where a choice
+gets resolved* is a separate one. This skill is the **single owner** of that
+placement rule — `to-waves`'s program-grill agenda, `to-issues`'s gate-slice
+placement note, and a `validate-graph` structural-suspicion warning all
+**reference** this rule; none of them re-state it.
+
+> A decision is resolved at the altitude whose cut it changes — at that
+> altitude's lock point, never as a work item inside it.
+
+- A phase/wave cut → resolved at the program's macro-grill, before the wave
+  plan locks.
+- A slice cut → resolved at the feature-grill (`grill-with-docs`/`to-prd`/
+  `to-issues`), before the slice table locks.
+- A question local to one slice → a gate slice (this skill or `verify-spike`)
+  or an inline call — it never needs to escalate upward.
+
+A structure-bearing decision surfacing **inside** a build slice — a gate slice
+whose dependents reach outside its own slice or wave — is a misplacement, not
+a normal case: push it back up to the altitude whose cut it actually changes,
+instead of quietly resolving it wherever it happened to surface.
+
 ## Steps
 
 1. **Frame the options and the criteria.** Name the competing approaches (or the single unresearched approach) as a short list, and the axes the choice turns on — e.g. complexity, blast radius, performance, reversibility, fit with existing patterns. Write down what "good" looks like on each axis *before* you research, so the pick is not retrofitted to a foregone conclusion.

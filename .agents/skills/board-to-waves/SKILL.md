@@ -22,6 +22,8 @@ to-issues        slices + promotes (sets type:cluster + Wave at ≥2 slices)
 
 **Stops at stubs.** No slice plan, no PRD, no sub-issue link, no promotion. Whether/when a stub becomes a real wave = separate step (`to-prd → to-issues`), <maintainer>'s call.
 
+**S4 exit — no stub at all.** A candidate that trips the `scale-check` altitude criteria (Splitter S4 below) skips the stub step entirely — it is reported as an escalation, pointing at `scale-check` (→ a program grill → `to-prd` program mode → `to-waves`), never at `to-prd`/`to-issues` directly. Still <maintainer>'s call, still no board write here.
+
 Model: **strongest available reasoning model for board-wide judgment calls** (survey/plan/brainstorm — cross-board judgment, <maintainer>'s table).
 
 ## Wave Numbering & Registry
@@ -48,6 +50,7 @@ Model: **strongest available reasoning model for board-wide judgment calls** (su
 - **S1 Too big** — > ~7 slices / not shippable in a manageable sequence → split into two waves.
 - **S2 Foreign parent** — issue already hangs under another wave (GitHub 1-parent; `to-issues` link check is the final word).
 - **S3 "Same type alone" ≠ wave** — type is a booster, never a gate. Otherwise "all refactors" becomes a junk drawer.
+- **S4 Programm-Verdacht** — the candidate trips the `scale-check` altitude criteria (`.claude/skills/scale-check/SKILL.md` § "Altitude criteria (the single source of truth)" — referenced here, **never** re-forked; e.g. staged delivery + several subsystems that each stand on their own) → **escalate to the Program route instead of creating a candidate stub**: report it in the candidate list (§3/§5) pointing at `scale-check` (grill once into a Program-PRD with a Wellenplan, then `to-waves` unfolds it), not `to-prd`/`to-issues`. The bottom-up Wave-stamping rule above is unaffected — an escalated candidate is still just a proposal, not yet a committed wave, exactly like any other candidate.
 
 **Rule:** issue → candidate X if **Gate(X) satisfied AND ≥1 booster fires** and no splitter applies. Otherwise: own candidate or leftover bucket "unclustered / standalone issue".
 
@@ -81,9 +84,11 @@ Candidate A "<Outcome>": #a #b #c
   Size ~4 slices, risk low · grill-needed: no
 Candidate B "<Outcome>": #x #y …
   … · grill-needed: yes (own session — cross-subsystem)
+Candidate C "<Outcome>": #p #q #r #s …
+  … · trips scale-check C1+C2 → Programm-Verdacht (S4) — escalate to `scale-check`, no stub here
 Rest (unclustered): #m #n …
 ```
-**<maintainer> confirms** which become real waves. Only confirmed → step 4.
+**<maintainer> confirms** which become real waves. Only confirmed → step 4 (an S4-flagged candidate is routed to `scale-check` instead, not step 4).
 
 ### 4. Create candidate stubs (per confirmed candidate)
 Body from `docs/agents/wave-anchor-template.md` **stage 1** (header + cluster origin + to-do checklist; slice table empty). Body **always** via `--body-file` (`gotchas_gh_body_file`).
@@ -118,8 +123,9 @@ Outputs `#<STUB_NUM> <URL>`. `--dry-run` shows the `gh` calls without writing. (
 Clustered: <N> wave candidates, <M> confirmed → cluster/wave-less stubs created.
   Candidate <X> #<STUB_NUM> — #a #b #c · ~4 slices · grill: no
   Candidate <Y> #<…>       — #x #y   · ~8 slices · grill: own session
+Escalated (Programm-Verdacht, S4): #<p> #<q> … — routed to `scale-check`, no stub created
 Rest (unclustered): #m #n …
-Next step (<maintainer>'s call, separate): grill → to-prd (matures the stub) → to-issues (slices + promotes) per chosen candidate.
+Next step (<maintainer>'s call, separate): grill → to-prd (matures the stub) → to-issues (slices + promotes) per chosen candidate; an escalated candidate instead starts at `scale-check`.
 ```
 
 ## Notes

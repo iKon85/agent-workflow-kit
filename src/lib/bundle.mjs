@@ -11,6 +11,21 @@ export const HELPER_FILES = [
   // Pure Slices-table logic imported by board-sync.py for `anchor-sync` —
   // library (imported, not run) → 0o644. MUST ship or board-sync.py ImportErrors.
   { path: 'scripts/anchor_table.py', kind: 'script', mode: 0o644 },
+  // Programm-Graph module for `board-sync.py validate-graph` — split by
+  // concern (parse/validate) across three files, all libraries (imported, not
+  // run) → 0o644. MUST ship together or board-sync.py ImportErrors.
+  { path: 'scripts/program_graph.py', kind: 'script', mode: 0o644 },
+  { path: 'scripts/program_graph_parse.py', kind: 'script', mode: 0o644 },
+  { path: 'scripts/program_graph_validate.py', kind: 'script', mode: 0o644 },
+  // Pure node-kind classifier imported by execute-ready-check.py —
+  // library (imported, not run) → 0o644. MUST ship or execute-ready-check.py ImportErrors.
+  { path: 'scripts/node_kind.py', kind: 'script', mode: 0o644 },
+  // stamp-batch / field-value / promote-guard logic for board-sync.py —
+  // library (imported, not run) → 0o644. MUST ship or board-sync.py ImportErrors.
+  { path: 'scripts/board_fields.py', kind: 'script', mode: 0o644 },
+  // Wellenplan Status-resync for board-sync.py's `program-sync` —
+  // library (imported, not run) → 0o644. MUST ship or board-sync.py ImportErrors.
+  { path: 'scripts/program_sync.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/board-sync.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/execute-ready-check.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/pr-body-check.py', kind: 'script', mode: 0o755 },

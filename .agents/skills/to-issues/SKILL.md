@@ -90,10 +90,12 @@ Iterate until the user approves the breakdown.
 
 ### 5. Publish — promote-or-atomic (contract)
 
-The canonical source is a **Draft-PRD** issue from `to-prd` (carries `plan_revision`, `<!-- prd: awaiting-decomposition -->`, exactly one `type:*` + one `priority:*`, **no** `type:cluster`/Wave). But `to-issues` is **provenance-independent**: it re-derives readiness from the **artefact** (§3b), never from which tool produced it.
+**Cluster/Wave discriminator (identical wording — `to-prd` §2 / `to-issues` §5):** `type:cluster` (label) always stops. A Wave number also stops, **unless** the target carries the `wave-stub` label — a Wave-stamped `wave-stub` issue is a **Stufe-1p Program-stub** (`to-waves`-published, native parent = a Program-PRD) and remains a **valid target**. A Wave-stamped issue **without** `wave-stub` (an already-assigned leaf, or a drifted item) is still a hard stop.
+
+The canonical source is a **Draft-PRD** issue from `to-prd` (carries `plan_revision`, `<!-- prd: awaiting-decomposition -->`, exactly one `type:*` + one `priority:*`, **no** `type:cluster`, and no Wave **unless** the discriminator's `wave-stub` exception applies — a Program-stub's per-wave-start content pass writes this same shape into an already Wave-stamped stub, `to-prd` §2). But `to-issues` is **provenance-independent**: it re-derives readiness from the **artefact** (§3b), never from which tool produced it.
 
 **Cold entry on an already-existing issue.** The source can also be a **raw issue**, an **external PRD embedded in an issue**, or a **mechanical file bundle** — without the `to-prd` markers. Then a **cold-entry preflight applies before anything is mutated:**
-- **Hard-stop** if the issue already carries `type:cluster` **or** a Wave → it is already an anchor, does not belong in a fresh promote (report + abort).
+- **Hard-stop per the discriminator above** — `type:cluster` always; Wave only when the issue is **not** a `wave-stub` (the exception is already an intended promote target — `promote` reuses its pre-stamped Wave number, §5a below).
 - **Normalize labels** (mirroring `to-prd`'s normalization): exactly **one `type:*` + one `priority:*`**; `needs-info`/`ready-for-agent` **stripped** until the final bucket assignment (§5c).
 - **Synthesize missing `to-prd` markers in place** (never assume them): `plan_revision r1` at the body head, render the Tier-2 anchor body from the template. Surface `source`/`synthesized` in the §7 audit.
 - **§4 user approval also applies here** — the synthesized slice table is shown + iterated, **never** published silently (see §4).
@@ -112,8 +114,16 @@ How it is published depends on the decomposition test (applies to **every** sour
 #### 5a. PROMOTE (≥2 slices)
 
 ```bash
-# 1. allocate an explicit Wave first (no in-promote race) — needed for BOTH title + body render
-WAVE=$(python3 scripts/board-sync.py next-wave)
+# 1. allocate the Wave number — needed for BOTH title + body render. An ordinary
+#    board-to-waves stub (Stufe 1, cluster/Wave-less) gets a FRESH one; a Stufe-1p
+#    Program-stub was already stamped with one by to-waves at publish — reuse
+#    it, never re-allocate (promote's mismatch guard refuses a DIFFERENT number):
+CURRENT=$(python3 scripts/board-sync.py field-value --issue <prd#> --field wave)
+if [ "$CURRENT" = "unset" ]; then
+  WAVE=$(python3 scripts/board-sync.py next-wave)   # Stufe-1 stub — allocate fresh
+else
+  WAVE="$CURRENT"                                    # Stufe-1p Program-stub — reuse
+fi
 
 # 2. render the Tier-2 anchor body from docs/agents/wave-anchor-template.md into /tmp/anchor.md:
 #    body header `**Welle $WAVE — <Thema>**`, **plan_revision:** r<N> at top (before the first
@@ -148,10 +158,11 @@ python3 scripts/board-sync.py link --parent <prd#> --child <new#>
 - The anchor body comes from **`docs/agents/wave-anchor-template.md` (Tier 2)** — filled Slices table + collapsible PRD; **the embedded PRD inside `<details>` has ALL its markers stripped** (`plan_revision`/`prd-source-id`/`prd-content-fp`/`awaiting-decomposition`) — the anchor carries its own at the head; a duplicate `plan_revision` triggers `[DENY] plan_revision multiple` (Retro). Reference output.
 - Promoted children carry the title prefix **`Welle N / Slice X — <outcome>`**.
 - Fresh children each have exactly one parent → the one-parent constraint is never violated. `link` refuses a foreign-parent re-parent (exits non-zero — drift, never silent).
-- **Member reconcile when promoting a `board-to-waves` stub (mandatory — Retro, corrected by).** The pipeline never runs directly `board-to-waves → to-issues` — it always goes through the intermediate step `board-to-waves` (stub) → [optional grill] → `to-prd` (Draft-PRD) → `to-issues` (publish). `board-to-waves` sets **no** native sub-issue links at clustering time (the Wave field + parent link are only created here, at THIS promotion) — **the reconcile input is the member issues listed in the stub-body `#…` list** (read the body, e.g. `gh issue view <anchor#> --json body`), **not** `children-of <stub#>`: that finds nothing before the first promotion (no native link exists yet). These members MUST be reconciled during the publish pass, or they end up sitting next to the fresh slices → **duplicates + execute-ready `DENY`** (the anchor's child set must equal the slice set; a legacy member without `plan_revision`/bucket denies the §7 audit). Rule per member:
-  - **1:1 mapping (member ⇒ exactly one slice)** → **reuse the member issue as the slice** (lift its body to the slice contract, **then** set `link` — the link does not exist before this promotion), **not** create-fresh + close-old.
+- **Member reconcile when promoting a stub (mandatory — Retro, corrected by; extended to the top-down origin).** The pipeline never runs directly `board-to-waves → to-issues` — it always goes through the intermediate step `board-to-waves` (stub) → [optional grill] → `to-prd` (Draft-PRD) → `to-issues` (publish); the top-down origin is `scale-check → grill → to-prd (program mode) → to-waves` (stub) → `to-issues` (publish). **The reconcile input is the union of the member issues listed in the stub-body `#…` list AND `children-of <stub#>`** (read the body, e.g. `gh issue view <anchor#> --json body`, plus `python3 scripts/board-sync.py children-of <stub#>`) — covering both origins: a bottom-up `board-to-waves` stub sets **no** native sub-issue link at clustering time, so `children-of` finds nothing before this promotion and only the body list matters; a top-down Stufe-1p Program-stub **already** has native children — the slice leaves `to-waves` pre-created at publish (`to-waves` SKILL.md §4) — which `children-of` returns even before this promotion, on top of any body-listed **adopted** references (`to-waves`'s Adopt Path). These members MUST be reconciled during the publish pass, or they end up sitting next to the fresh slices → **duplicates + execute-ready `DENY`** (the anchor's child set must equal the slice set; a legacy member without `plan_revision`/bucket denies the §7 audit). Rule per member:
+  - **1:1 mapping (member ⇒ exactly one slice)** → **reuse the member issue as the slice** (lift its body to the slice contract, **then** set `link` if it doesn't exist yet — a Stufe-1p member's `link` already exists from `to-waves`'s publish, so this is a no-op there, not a fresh `link` call), **not** create-fresh + close-old. **Reuse finalization — three things in the SAME publish pass, not a follow-up:** (1) stamp the `**Part of:** Welle <N> · Anchor #<prd#>` line into its body (§5d template); (2) apply the Wave field stamp if not already set (a bottom-up member has none yet; a Stufe-1p member already carries it from `to-waves`'s publish — idempotent no-op there); (3) finalize its bucket (`add --bucket afk|hitl`, §5c).
   - **Split/merge (member ⇒ multiple slices, or multiple members ⇒ one slice) OR a fresh slice with no member** → close the superseded member(s) as **"superseded by Slice #<n>"** (mapping comment); if a member exceptionally already carries a native link (e.g. from an earlier partial run of the same promotion), first `unlink` it via `python3 scripts/board-sync.py unlink --parent <anchor#> --child <member#>` (parent-checked + idempotent; **never** bare `gh api removeSubIssue`), then `gh issue close <member#> -c "…"`.
   - **Before publishing**, read the member issues listed in the stub body and decide the reuse-vs-close branch per member — not reactively at the §7 audit DENY. (Incident Retro: 12 slices were created fresh before 8 members with 1:1/1:N mappings were reconciled after the fact; `board-sync unlink` didn't exist yet then, it does now.)
+- **Program-PRD status flip (first promotion only).** If the promoted stub's native parent is a Program-PRD (`<!-- prd: program -->` marker or the `labels.programType` label, distinct from `<prd#>` above — call its issue number `<program-prd#>`) still at Status `Spec`, this is the program's **first** wave promotion — flip the Program-PRD's Status to `In Arbeit` alongside the stub's own promote (`python3 scripts/board-sync.py add --issue <program-prd#> --status 'In Arbeit'`). A Program-PRD already at `In Arbeit` (a later wave's promotion) needs no further flip — check-then-set, idempotent, monotone forward only (mirrors the Wellenplan `Status` column's own monotone regeneration in `program-sync`).
 
 #### 5b. ATOMIC (1 slice)
 
@@ -178,6 +189,8 @@ Every child **and** the atomic leaf sits in **exactly one** bucket:
 | **HITL** (grill first) | **absent** | `Spec` | mandatory `headings.vorBau` heading (board profile `docs/agents/board-sync.md`; <project> currently `## Vor Bau zu klären`) with the open questions known from the macro-grill |
 
 Status alone cannot discriminate (both are `Spec`) — the **label** does. The helper's `--hitl` flag rejects a `ready-for-agent` label mechanically. Authority = `scripts/execute-ready-check.py` (`parse_bucket`) — the checker wins on a mismatch.
+
+**Gate slices (🔬/📐) are AFK.** A `🔬` Verify-Spike or `📐` Trade-off/Research gate slice is **read-only** (a fact question, or a bounded trade-off + read-only research) — an agent can run it solo, so it carries `ready-for-agent` like any other AFK slice; `blocked_by` on its dependent build slice is what protects the gate-before-build ordering (§3b/§4), not the HITL bucket. Only a `🧭` Design-Grill gate slice is HITL (it needs the human in the grill). A gate slice's **placement** — which altitude/layer it lands on — follows `decision-gate`'s placement rule (owned there, referenced here).
 
 #### 5d. Issue body template (each child / atomic leaf)
 
@@ -247,7 +260,7 @@ python3 scripts/board-sync.py children-of "$PARENT"              # the full chil
 
 ### 7. Execute-ready exit assertion + audit (non-blocking)
 
-After publishing/reconciling, run the shared checker (the same logic the **blocking** Drift-Guard uses at handoff — Slice 1g shipped it):
+After publishing/reconciling, run the shared checker (the same logic the **blocking** Drift-Guard uses at handoff):
 
 ```bash
 python3 scripts/execute-ready-check.py --issue <anchor-or-leaf#> --mode audit

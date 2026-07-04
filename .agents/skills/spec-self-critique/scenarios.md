@@ -17,6 +17,15 @@ Violates 2. Expected: *"Punkt 2: widersprüchliche TTL (60s vs 600s) — vereinh
 
 Violates 3. Expected: *"Punkt 3: zu groß für einen Plan — in Sub-Specs zerlegen."*
 
+## Point 3 (Program-Altitude) — a wave outgrows the band
+> "`<!-- prd: program -->` Program-PRD. Wellenplan: Welle 1 covers 9 slices
+> across two subsystems; Welle 2 covers 3 slices."
+
+Violates 3 at Program-Altitude (a wave over the 2–7 slice band needs
+splitting into two waves; the PRD itself stays unsplit). Expected: *"Punkt 3
+(Programm-Altitude): Welle 1 mit 9 Slices sprengt den 2–7-Rahmen — in zwei
+Wellen aufgeteilt; das PRD selbst bleibt ungesplittet."*
+
 ## Point 4 — ambiguity
 > "When the request fails, retry it a few times before giving up."
 
@@ -61,3 +70,13 @@ Violates 11 (`0.5 < 0.6 < 0.9` stays monotone → property does NOT fire). Expec
 > "Slices: 1) Config UI · 2) Backend resolver · 3) Wire-up."
 
 Violates 12 (layer names, no tracer-bullet, no traced outcome slice). Expected: *"Punkt 12: Layer-Namen statt Tracer-Bullets — als '<Aktion> → <sichtbares Ergebnis>' umformuliert; erste Outcome-Slice gegen Code getrace't."*
+
+## Point 12 (Program-Altitude) — layer-cut waves
+> "`<!-- prd: program -->` Program-PRD. Wellenplan: Welle 3 — 'Backend-Migration'. Welle 4 — 'Frontend-Rollout'."
+
+Violates 12 at Program-Altitude (layer-cut waves, not outcome tracers; no
+enabler/closing pairing named). Expected: *"Punkt 12 (Programm-Altitude):
+'Backend-Migration'/'Frontend-Rollout' sind Layer-Schnitte, keine
+Outcome-Tracer — Welle 3 als Enabler benannt (abgeschnittene Hälfte:
+sichtbares Frontend-Verhalten) mit Welle 4 als schließender Outcome-Welle,
+oder zu echten Outcome-Wellen umgeschnitten."*

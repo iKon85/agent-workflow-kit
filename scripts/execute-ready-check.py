@@ -41,6 +41,8 @@ grep-bar HTML comments living in issue/PR/handoff bodies):
   <!-- final-cut-depends-on: #<n> -->                    leaf's final cut hangs on #n; #n CLOSED → block
   <!-- annahme-drift: {"target":"#<n>",...} -->          drift propagation — consumed by wrapup Step 5e
                                                          (NOT parsed here)
+  <!-- prd: program -->                                  Programm-PRD marker (node_kind.py) — this
+                                                         target roots at itself, never lifts
 
 Audit log: .claude/logs/execute-ready-check.log
 """
@@ -53,6 +55,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from board_config import ConfigError, load_board_config  # noqa: E402
+from node_kind import ANCHOR, LEAF, PROGRAM, ROOT_KINDS, WAVE_STUB, classify_node  # noqa: E402,F401
 
 # Project-specific label + heading come from the board profile (no inline
 # constants → published kit stays project-neutral).
@@ -77,6 +80,18 @@ GUARD_LEGACY_RE = re.compile(r"<!--\s*guard-legacy\s*-->")
 HANDOFF_INTENT_RE = re.compile(r"<!--\s*handoff-intent:\s*(build|grill)\s*-->")
 GRILL_CMD_RE = re.compile(r"/grill(?:-me|-with-docs)?(?:-codex)?\b")
 READY_LABEL = _CFG["labels"]["readyForAgent"]
+# Read defensively: `labels.programType` (a filterable Programm-PRD label) is
+# added by a LATER slice — this checker must keep working before that
+# key exists, so `program` classification is 100% marker-driven (node_kind.py).
+CLUSTER_TYPE_LABEL = _CFG["labels"].get("clusterType")
+WAVE_STUB_LABEL = _CFG["labels"].get("waveStub")
+
+
+def classify(node: dict) -> str:
+    """Node kind (program|anchor|wave_stub|leaf) bound to this repo's board
+    profile — see node_kind.py for the precedence rules."""
+    return classify_node(node, cluster_type_label=CLUSTER_TYPE_LABEL,
+                         wave_stub_label=WAVE_STUB_LABEL)
 
 
 # NOTE: log() + _run() below are intentional small isolation copies of
@@ -194,11 +209,25 @@ def evaluate_anchor_shape(body: str) -> list[str]:
 # --- pure coherence ---------------------------------------------------------
 def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
                    intent="build", closed_lookup=None, truncated=False,
-                   target_is_anchor=False) -> dict:
+                   root_kind=None) -> dict:
     """Evaluate the rooted local graph. Nodes are dicts {number, body, labels}.
 
-    parent=None  → atomar leaf (graph = [target]).
-    parent given → anchor + its children (siblings, incl. target if target is a child).
+    parent=None        → atomar leaf (graph = [target]).
+    parent given        → target's local root + its children (siblings, incl.
+                          target if target is a child of that root).
+    root_kind=None       → target was LIFTED to `parent` (a real, different
+                          parent) or is the atomar leaf above — target_kind
+                          resolves to "leaf".
+    root_kind=ANCHOR/PROGRAM → target IS its own root (`parent` == `target`,
+                          `siblings` == target's own children) — an anchor or
+                          Programm-PRD never lifts to a native parent it might
+                          also have.
+
+    Each CHILD in `siblings` is classified independently (`classify_node`):
+    only LEAF children go through the bucket + plan_revision-match checks —
+    an anchor/wave_stub/program child carries neither a bucket nor a shared
+    plan_revision domain with its parent, and is audited on its own terms
+    when IT is the checker's target (rooted at itself via ROOT_KINDS).
     """
     violations = []
     closed_lookup = closed_lookup or {}
@@ -216,7 +245,7 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
         if parse_bucket(target["labels"], target["body"]) == "ambiguous" \
                 and not is_legacy(target["body"]):
             violations.append(f"#{target['number']}: ambiguous bucket (ready-for-agent vs Vor Bau zu klären)")
-        target_kind = "leaf"
+        target_kind = LEAF
     else:
         # Anchor tagged <!-- guard-legacy --> grandfathers the whole rooted graph
         # (Q4=A: tag once → free). Constrained: pre-convention classes
@@ -230,6 +259,10 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
         if READY_LABEL in (parent["labels"] or []):
             violations.append(f"#{parent['number']} (anchor): ready-for-agent on an anchor")
         for child in (siblings or []):
+            if classify(child) != LEAF:
+                # anchor/wave_stub/program sibling — no bucket, no shared
+                # plan_revision domain with `parent`.
+                continue
             crev, cst = check_rev_ok(child, "", suppress_rev_status=anchor_legacy)
             legacy = is_legacy(child["body"])
             child_closed = (child.get("state") or "").upper() == "CLOSED"
@@ -238,7 +271,7 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
                 violations.append(f"#{child['number']}: ambiguous bucket")
             if cst == "ok" and ast == "ok" and crev != arev and not legacy and not anchor_legacy:
                 violations.append(f"#{child['number']}: plan_revision r{crev} != anchor r{arev}")
-        target_kind = "anchor" if target_is_anchor else "leaf"
+        target_kind = root_kind if root_kind in ROOT_KINDS else LEAF
 
     # Fix B (b): final-cut dependency closed without resolution
     fc = parse_final_cut_depends(target["body"])
@@ -257,7 +290,7 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
     if truncated:
         violations.append("graph too large for guard (>100 children) — cannot prove completeness")
 
-    if target_kind == "anchor":
+    if target_kind in ROOT_KINDS:
         target_buildable = True
     else:
         target_buildable = parse_bucket(target["labels"], target["body"]) == "afk"
@@ -265,13 +298,15 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
     graph_coherent = len(violations) == 0
     deny_recommended = (not graph_coherent) or (
         mode == "handoff" and intent == "build"
-        and target_kind == "leaf" and not target_buildable
+        and target_kind == LEAF and not target_buildable
     )
-    # Non-blocking, audit-only, anchor-only. Intentionally NOT part of
+    # Non-blocking, audit-only, anchor-only (a Programm-PRD's body follows
+    # PROGRAM-PRD-FORMAT, not wave-anchor-template — the shape check would
+    # only produce spurious nudges there). Intentionally NOT part of
     # graph_coherent/deny_recommended (see evaluate_anchor_shape docstring).
     shape_warnings = (
         evaluate_anchor_shape(target["body"])
-        if mode == "audit" and target_kind == "anchor"
+        if mode == "audit" and target_kind == ANCHOR
         else []
     )
     return {
@@ -345,7 +380,6 @@ def build_and_evaluate(issue_number: int, mode: str, intent: str,
                 "deny_recommended": True, "grandfathered": None, "shape_warnings": [],
                 "violations": [f"#{issue_number}: could not verify via gh (network/auth) — fail-closed"]}
 
-    parent_n = fetch_parent(issue_number)
     closed_lookup = {}
     fc = parse_final_cut_depends(target["body"])
     if fc is not None:
@@ -358,15 +392,23 @@ def build_and_evaluate(issue_number: int, mode: str, intent: str,
         else:
             closed_lookup[fc] = "closed" if st.get("state", "").upper() == "CLOSED" else "open"
 
-    if parent_n is None:
+    node_kind = classify(target)
+    if node_kind in ROOT_KINDS:
+        # An anchor or a Programm-PRD is its OWN root — it never lifts to a
+        # native parent it might also have (a Welle-Anker under a PRD, or the
+        # PRD itself).. `fetch_parent` is intentionally never called here.
         children, truncated = fetch_children(issue_number)
-        if children:
-            siblings = [fetch_issue(c) for c in children]
-            if any(s is None for s in siblings):
-                return _fail_closed(issue_number, "child fetch failed")
-            return evaluate_graph(target, parent=target, siblings=siblings, mode=mode,
-                                  intent=intent, closed_lookup=closed_lookup,
-                                  truncated=truncated, target_is_anchor=True)
+        siblings = [fetch_issue(c) for c in children] if children else []
+        if any(s is None for s in siblings):
+            return _fail_closed(issue_number, "child fetch failed")
+        return evaluate_graph(target, parent=target, siblings=siblings, mode=mode,
+                              intent=intent, closed_lookup=closed_lookup,
+                              truncated=truncated, root_kind=node_kind)
+
+    # leaf / wave_stub — lift to the native parent if one exists (2-level
+    # rooted-local model), else atomar leaf.
+    parent_n = fetch_parent(issue_number)
+    if parent_n is None:
         return evaluate_graph(target, mode=mode, intent=intent, closed_lookup=closed_lookup)
 
     parent = fetch_issue(parent_n)
