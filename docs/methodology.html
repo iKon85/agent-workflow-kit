@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-workflow-kit — Methodology</title>
+<style>
+  :root {
+    --page-bg: #F5F1E8;
+    --surface: #FAFAF7;
+    --ink: #1F2532;
+    --muted: #5B6579;
+    --border: #E8E4D8;
+    --accentD48;
+    --accent-deep: #5C5630;
+    --accent-light: #F4EFD9;
+    --baseline: #5B6579;
+
+    --program: #4A6280;      --program-bg: #DDE3EC;  --program-text: #2F4258;
+    --phase:   #8A95A6;      --phase-bg:   #E8EBF0;  --phase-text:   #5B6579;
+    --wave:    #5C7A4A;      --wave-bg:    #E8EDE0;  --wave-text:    #3D5230;
+    --slice:   #C2902B;      --slice-bg:   #F2E5C7;  --slice-text:   #7A5B1D;
+    --gate:    #A8432D;      --gate-bg:    #F2DAD0;  --gate-text:    #6E2B1D;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page-bg: #1F2532; --surface: #2E3548; --ink: #F5F1E8; --muted: #A6B0BF;
+      --border: rgba(255,255,255,0.14); --accent: #B5A86B; --accent-deepD48;
+      --accent-light: #2D2A1C; --baseline: #8A95A6;
+
+      --programB2; --program-bg: #2E3850; --program-text: #8FA9C4;
+      --phase:   #8A95A6; --phase-bg:   #2A3142; --phase-text:   #9CA6B5;
+      --wave:    #82A36C; --wave-bg:    #2A3A26; --wave-text:    #94B57E;
+      --slice:   #DBAC4F; --slice-bg:   #3A3220; --slice-text:   #DBAC4F;
+      --gate:    #D9554F; --gate-bg:    #3A2620; --gate-text:    #EC8780;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg: #1F2532; --surface: #2E3548; --ink: #F5F1E8; --muted: #A6B0BF;
+    --border: rgba(255,255,255,0.14); --accent: #B5A86B; --accent-deepD48;
+    --accent-light: #2D2A1C; --baseline: #8A95A6;
+    --programB2; --program-bg: #2E3850; --program-text: #8FA9C4;
+    --phase:   #8A95A6; --phase-bg:   #2A3142; --phase-text:   #9CA6B5;
+    --wave:    #82A36C; --wave-bg:    #2A3A26; --wave-text:    #94B57E;
+    --slice:   #DBAC4F; --slice-bg:   #3A3220; --slice-text:   #DBAC4F;
+    --gate:    #D9554F; --gate-bg:    #3A2620; --gate-text:    #EC8780;
+  }
+  :root[data-theme="light"] {
+    --page-bg: #F5F1E8; --surface: #FAFAF7; --ink: #1F2532; --muted: #5B6579;
+    --border: #E8E4D8; --accentD48; --accent-deep: #5C5630;
+    --accent-light: #F4EFD9; --baseline: #5B6579;
+    --program: #4A6280; --program-bg: #DDE3EC; --program-text: #2F4258;
+    --phase:   #8A95A6; --phase-bg:   #E8EBF0; --phase-text:   #5B6579;
+    --wave:    #5C7A4A; --wave-bg:    #E8EDE0; --wave-text:    #3D5230;
+    --slice:   #C2902B; --slice-bg:   #F2E5C7; --slice-text:   #7A5B1D;
+    --gate:    #A8432D; --gate-bg:    #F2DAD0; --gate-text:    #6E2B1D;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    background: var(--page-bg);
+    color: var(--ink);
+    font-family: Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
+    font-size: 17px;
+    line-height: 1.65;
+    overflow-x: hidden; /* the page itself never scrolls sideways */
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 44px 24px 96px; }
+
+  h1, h2, h3, h4, nav, .u { font-family: system-ui, "Segoe UI", -apple-system, sans-serif; }
+  h1 { font-size: 2.15rem; font-weight: 650; letter-spacing: -0.015em; line-height: 1.15; text-wrap: balance; margin: 0 0 10px; }
+  h2 { font-size: 1.4rem; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 6px; }
+  h3 { font-size: 1.08rem; font-weight: 650; margin: 28px 0 6px; }
+  h4 { font-size: 0.98rem; font-weight: 650; margin: 0; }
+  p { margin: 0 0 1em; max-width: 70ch; }
+  a { color: var(--accent-deep); }
+  .lede { font-size: 1.12rem; color: var(--muted); max-width: 62ch; }
+
+  .eyebrow {
+    font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+    font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px;
+  }
+
+  /* jump nav */
+  nav.jump { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 22px 0 8px; font-size: 0.85rem; }
+  nav.jump a { color: var(--muted); text-decoration: none; border-bottom: 1px dashed var(--border); padding-bottom: 1px; }
+  nav.jump a:hover { color: var(--accent-deep); border-color: var(--accent-deep); }
+
+  section { margin-top: 68px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; flex-wrap: wrap; }
+  .sec-num {
+    font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 3px; padding: 1px 7px; white-space: nowrap;
+  }
+  .sec-sub { color: var(--muted); margin-bottom: 24px; max-width: 66ch; }
+
+  .term {
+    font-family: ui-monospace, Menlo, monospace; font-size: 0.85em;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px;
+  }
+
+  /* legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 20px; }
+  .key { display: flex; align-items: center; gap: 7px; font-family: system-ui, sans-serif; font-size: 0.82rem; color: var(--muted); }
+  .dot { width: 11px; height: 11px; border-radius: 3px; background: var(--c); flex: none; }
+
+  /* ---------- Level 0: altitude ladder ---------- */
+  .ladder { display: flex; flex-direction: column; gap: 0; margin: 30px 0 8px; }
+  .rung {
+    display: grid; grid-template-columns: 112px 1fr auto; gap: 18px; align-items: center;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 16px 20px;
+    page-break-inside: avoid;
+  }
+  .rung .name { font-family: system-ui, "Segoe UI", sans-serif; font-weight: 650; color: var(--c); font-size: 1.05rem; }
+  .rung .name::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; background: var(--c); margin-right: 9px; }
+  .rung .what { font-size: 0.95rem; color: var(--ink); }
+  .rung .what em { color: var(--muted); font-style: normal; }
+  .rung .arte { font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem; color: var(--muted); text-align: right; white-space: nowrap; }
+  .rung-program { --c: var(--program); background: linear-gradient(to right, var(--program-bg), var(--surface) 42%); }
+  .rung-phase   { --c: var(--phase);   background: linear-gradient(to right, var(--phase-bg), var(--surface) 42%);   margin-left: 32px; }
+  .rung-wave    { --c: var(--wave);    background: linear-gradient(to right, var(--wave-bg), var(--surface) 42%);    margin-left: 64px; }
+  .rung-slice   { --c: var(--slice);   background: linear-gradient(to right, var(--slice-bg), var(--surface) 42%);   margin-left: 96px; }
+  .card-join { font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem; color: var(--muted); padding: 5px 0 5px 24px; }
+  .rung-phase + .card-join { padding-left: 56px; }
+  .rung-wave + .card-join { padding-left: 88px; }
+  .ladder-note { font-size: 0.9rem; color: var(--muted); max-width: 62ch; }
+
+  /* ---------- Level 1: routes ---------- */
+  .diagram-scroll { overflow-x: auto; }
+  .lane {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 18px 22px 20px; margin-bottom: 16px; page-break-inside: avoid;
+  }
+  .lane.onramp { border-style: dashed; }
+  .lane-title { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+  .lane-tag {
+    font-family: ui-monospace, Menlo, monospace; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--program-text); background: var(--program-bg); border-radius: 3px; padding: 2px 8px;
+  }
+  .lane-tag.gate { color: var(--gate-text); background: var(--gate-bg); }
+  .lane-tag.wave { color: var(--wave-text); background: var(--wave-bg); }
+  .lane-tag.slice { color: var(--slice-text); background: var(--slice-bg); }
+  .lane h4 { display: inline; font-size: 1rem; }
+  .lane p.desc { font-size: 0.92rem; color: var(--muted); margin: 6px 0 14px; max-width: 64ch; }
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 4px; }
+  .chain.mini { gap: 6px 3px; margin: 10px 0; }
+  .station {
+    font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem;
+    background: var(--soft, var(--page-bg)); color: var(--sc, var(--ink));
+    border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; white-space: nowrap;
+  }
+  .chain.mini .station { font-size: 0.74rem; padding: 4px 8px; }
+  .station.plain { --soft: var(--page-bg); --sc: var(--muted); font-style: italic; }
+  .st-program { --soft: var(--program-bg); --sc: var(--program-text); border-color: color-mix(in srgb, var(--program) 40%, var(--border)); }
+  .st-phase   { --soft: var(--phase-bg);   --sc: var(--phase-text);   border-color: color-mix(in srgb, var(--phase) 40%, var(--border)); }
+  .st-wave    { --soft: var(--wave-bg);    --sc: var(--wave-text);    border-color: color-mix(in srgb, var(--wave) 40%, var(--border)); }
+  .st-slice   { --soft: var(--slice-bg);   --sc: var(--slice-text);   border-color: color-mix(in srgb, var(--slice) 40%, var(--border)); }
+  .st-gate    { --soft: var(--gate-bg);    --sc: var(--gate-text);    border-color: color-mix(in srgb, var(--gate) 50%, var(--border)); font-weight: 600; }
+  .arrow { color: var(--muted); font-family: system-ui, sans-serif; font-size: 0.85rem; padding: 0 2px; user-select: none; }
+  .decision { font-size: 0.78rem; color: var(--muted); font-style: italic; padding: 0 4px; white-space: nowrap; }
+  .converge {
+    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);
+    font-size: 0.92rem; color: var(--muted); max-width: 66ch;
+  }
+  .converge strong { color: var(--wave-text); font-family: system-ui, sans-serif; font-weight: 650; }
+  .subhead { margin: 34px 0 4px; }
+  .subhead h3 { margin: 0 0 4px; }
+
+  /* ---------- Level 2: mechanic stations ---------- */
+  details.mech {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
+    margin-bottom: 12px; overflow: hidden; page-break-inside: avoid;
+  }
+  .mech .m-dot { width: 11px; height: 11px; border-radius: 3px; background: var(--mc); flex: none; }
+  details.mech summary {
+    cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    list-style: none; font-family: system-ui, "Segoe UI", sans-serif;
+  }
+  details.mech summary::-webkit-details-marker { display: none; }
+  details.mech summary:focus-visible { outline: 2px solid var(--mc); outline-offset: -2px; }
+  .mech .m-title { font-weight: 650; font-size: 0.98rem; }
+  .mech .m-hint { color: var(--muted); font-size: 0.85rem; margin-left: auto; text-align: right; }
+  .mech .m-caret { color: var(--muted); transition: transform 0.15s; font-size: 0.8rem; }
+  details[open] .m-caret { transform: rotate(90deg); }
+  @media (prefers-reduced-motion: reduce) { .mech .m-caret { transition: none; } }
+  .mech .m-body { padding: 2px 20px 18px; border-top: 1px solid var(--border); }
+  .mech .m-body p { font-size: 0.95rem; }
+  .mech-program { --mc: var(--program); }
+  .mech-phase   { --mc: var(--phase); }
+  .mech-wave    { --mc: var(--wave); }
+  .mech-slice   { --mc: var(--slice); }
+  .mech-gate    { --mc: var(--gate); }
+  .plain { background: var(--page-bg); border-radius: 5px; padding: 10px 14px; margin: 12px 0; font-size: 0.92rem; }
+  .plain b { font-family: system-ui, sans-serif; font-weight: 650; font-size: 0.78rem; letter-spacing: 0.04em; color: var(--muted); }
+
+  footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--muted); }
+
+  @media print {
+    body { font-size: 12.5px; }
+    nav.jump { display: none; }
+    .mech .m-body { display: block !important; } /* every station reads fully on paper */
+    .mech .m-caret { display: none; }
+    a { color: inherit; text-decoration: none; }
+  }
+  @media (max-width: 640px) {
+    .rung { grid-template-columns: 1fr; gap: 4px; padding: 13px 16px; }
+    .rung .arte { text-align: left; }
+    .rung-phase { margin-left: 12px; } .rung-wave { margin-left: 24px; } .rung-slice { margin-left: 36px; }
+    .card-join, .rung-phase + .card-join, .rung-wave + .card-join { padding-left: 16px; }
+    .mech .m-hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">agent-workflow-kit · methodology</div>
+  <h1>Plan big things without losing the small ones</h1>
+  <p class="lede">The kit plans work at four altitudes and moves it through the same four phases every time — plan, execute, land, learn. Every altitude answers one question, produces one artifact, and hands a well-defined object to the level below, so a one-line idea and a ten-wave build program travel the same road.</p>
+
+  <nav class="jump" aria-label="Page sections">
+    <a href="#level-0">Level 0 — The altitude model</a>
+    <a href="#level-1">Level 1 — The route map</a>
+    <a href="#level-2">Level 2 — How it stays honest</a>
+  </nav>
+
+  <div class="legend">
+    <span class="key"><span class="dot" style="--c: var(--program)"></span> Program</span>
+    <span class="key"><span class="dot" style="--c: var(--phase)"></span> Phase</span>
+    <span class="key"><span class="dot" style="--c: var(--wave)"></span> Wave</span>
+    <span class="key"><span class="dot" style="--c: var(--slice)"></span> Slice</span>
+    <span class="key"><span class="dot" style="--c: var(--gate)"></span> Gate / checkpoint</span>
+  </div>
+
+  <!-- ================= LEVEL 0 ================= -->
+  <section id="level-0">
+    <div class="sec-head"><span class="sec-num">Level 0</span><h2>The altitude model</h2></div>
+    <p class="sec-sub">Four sizes of intent, one containment chain. Nothing here is a new tool — each rung is an <span class="term">issue</span> (a tracked unit of work in your issue tracker) or a field on one, with a fixed template. Colour follows altitude on every diagram on this page: the same blue-grey always means Program, the same amber always means Slice.</p>
+
+    <div class="ladder">
+      <div class="rung rung-program">
+        <span class="name">Program</span>
+        <span class="what">The whole undertaking. <em>Described once, in one Program document with a wave plan attached.</em></span>
+        <span class="arte">issue · type:program</span>
+      </div>
+      <div class="card-join">contains 1 : n</div>
+      <div class="rung rung-phase">
+        <span class="name">Phase</span>
+        <span class="what">An acceptance bracket around a handful of waves. <em>A board field and a checklist line — never its own issue. Optional.</em></span>
+        <span class="arte">board field · P1 / P2 / …</span>
+      </div>
+      <div class="card-join">brackets 1 : a few</div>
+      <div class="rung rung-wave">
+        <span class="name">Wave</span>
+        <span class="what">The working unit: one outcome, a small set of slices, one gate. <em>Unchanged — exactly the wave you already build today.</em></span>
+        <span class="arte">anchor issue · Wave N</span>
+      </div>
+      <div class="card-join">ships as 1 : a few</div>
+      <div class="rung rung-slice">
+        <span class="name">Slice</span>
+        <span class="what">One build session, one pull request, one visible result.</span>
+        <span class="arte">sub-issue · one PR</span>
+      </div>
+    </div>
+    <p class="ladder-note">Phase is the only optional rung — plenty of programs run without one, and every feature that never needed a Program at all still ends at the same Wave → Slice bottom two rungs.</p>
+  </section>
+
+  <!-- ================= LEVEL 1 ================= -->
+  <section id="level-1">
+    <div class="sec-head"><span class="sec-num">Level 1</span><h2>The route map</h2></div>
+    <p class="sec-sub">There is no single front door. Work enters wherever it actually starts, and every door funnels toward the same shape. Below are the two roads that lead there — the everyday route almost everything takes, and the road for work too big to fit in one wave.</p>
+
+    <div class="subhead"><h3>1a — One shape, many doors</h3></div>
+    <p class="desc" style="max-width:68ch">A vague idea, a plan you already wrote, a backlog, or a raw <span class="term">issue</span> — every entry funnels into the same shaped artefact: a <span class="term">PRD</span> (a short planning document — Product Requirements Document) that, once sliced, becomes either one atomic issue or a <span class="term">wave anchor</span> (a tracking issue with linked child slices). Grilling — a relentless interview that sharpens a fuzzy idea into a clear requirement — is optional and scales with the stakes.</p>
+
+    <div class="lane" style="margin-bottom:22px;">
+      <div class="diagram-scroll">
+        <div class="chain">
+          <span class="station plain">idea</span><span class="arrow">/</span>
+          <span class="station plain">plan</span><span class="arrow">/</span>
+          <span class="station plain">backlog</span><span class="arrow">/</span>
+          <span class="station plain">issue</span><span class="arrow">→</span>
+          <span class="station st-wave">grill-with-docs</span><span class="arrow">→</span>
+          <span class="station st-wave">to-prd</span><span class="arrow">→</span>
+          <span class="station st-wave">to-issues</span>
+          <span class="decision">(1 slice → atomic issue · several → wave anchor)</span><span class="arrow">→</span>
+          <span class="station st-gate">gate — verify-spike / decision-gate</span>
+          <span class="decision">(only if a slice hinges on an unknown)</span><span class="arrow">→</span>
+          <span class="station st-slice">tdd</span><span class="arrow">→</span>
+          <span class="station st-slice">wrapup</span><span class="arrow">→</span>
+          <span class="station st-program">retro</span>
+        </div>
+      </div>
+      <p class="converge" style="margin-top:12px;border-top:none;padding-top:0;">Sharpen only as deep as the work deserves: skip the grill for a mechanical change, run it lightly for a normal feature, escalate to a cross-model review for something hard to reverse. You approve the slice breakdown before anything is published — this funnel never writes to the board behind your back.</p>
+    </div>
+
+    <div class="lane onramp">
+      <div class="lane-title"><span class="lane-tag slice">on-ramp</span><h4>Work that doesn't start as an idea</h4></div>
+      <p class="desc">Two doors sit outside the planning funnel and feed straight into the build layer instead:</p>
+      <div class="chain mini">
+        <span class="station plain">bugs / requests piling up</span><span class="arrow">→</span>
+        <span class="station st-slice">triage</span><span class="arrow">→</span>
+        <span class="station st-wave">to-issues</span>
+      </div>
+      <div class="chain mini">
+        <span class="station plain">something's broken</span><span class="arrow">→</span>
+        <span class="station st-slice">diagnose</span>
+        <span class="decision">(reproduce → isolate → fix → prove)</span><span class="arrow">→</span>
+        <span class="station st-slice">tdd</span>
+      </div>
+    </div>
+
+    <div class="subhead"><h3>1b — When the work outgrows one wave</h3></div>
+    <p class="desc" style="max-width:68ch">The Program route is <strong>one strand</strong> within this map, not a separate system: it plans several waves at once, then hands each one down into the exact same build → land → learn spine as 1a. Use it only when the size is genuinely unclear — a new build, a big cross-cutting change, several independently-shippable stages.</p>
+
+    <div class="lane" style="--c: var(--program)">
+      <div class="lane-title"><span class="lane-tag">top-down</span><h4>You know it's big</h4></div>
+      <p class="desc"><span class="term">scale-check</span> asks a handful of plain-language questions and names the size. A big undertaking gets grilled once, written down once as a Program document with a wave plan attached, and unfolded into named, numbered waves — bracketed by phases where the program has real acceptance stages — after you approve a full preview in chat.</p>
+      <div class="diagram-scroll">
+        <div class="chain">
+          <span class="station st-program">scale-check</span><span class="arrow">→</span>
+          <span class="station st-program">grill</span><span class="arrow">→</span>
+          <span class="station st-program">Program document</span><span class="arrow">→</span>
+          <span class="station st-gate">preview gate</span><span class="arrow">→</span>
+          <span class="station st-wave">to-waves</span><span class="arrow">→</span>
+          <span class="station st-phase">phases stamped</span><span class="arrow">+</span>
+          <span class="station st-wave">Wave 1…n + slices</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="lane" style="--c: var(--wave)">
+      <div class="lane-title"><span class="lane-tag wave">execution rhythm</span><h4>Then the rhythm takes over</h4></div>
+      <p class="desc">Waves are built in plan order, one at a time — through the identical <span class="term">tdd</span> → <span class="term">wrapup</span> → <span class="term">retro</span> spine as 1a. Every wave ends at its own outcome gate; when the last wave of a phase lands, the matching phase gate is ticked on the Program document. The program issue closes last, by hand, once everything under it is done.</p>
+      <div class="diagram-scroll">
+        <div class="chain">
+          <span class="station st-wave">build Wave n</span><span class="arrow">→</span>
+          <span class="station st-gate">wave gate</span><span class="arrow">→</span>
+          <span class="station st-wave">next wave…</span><span class="arrow">→</span>
+          <span class="station st-gate">phase gate P1 ✓</span><span class="arrow">→</span>
+          <span class="station st-program">program Done</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="lane" style="--c: var(--slice)">
+      <div class="lane-title"><span class="lane-tag slice">bottom-up</span><h4>It grew on the board</h4></div>
+      <p class="desc">Loose issues cluster into wave candidates. A candidate is not a commitment — it gets a real number only when you promote it. If a cluster of candidates starts looking like a program on its own, the kit says so and escalates instead of spraying out more small stubs.</p>
+      <div class="diagram-scroll">
+        <div class="chain">
+          <span class="station st-slice">board issues</span><span class="arrow">→</span>
+          <span class="station st-slice">board-to-waves</span><span class="arrow">→</span>
+          <span class="station st-wave">wave stub</span>
+          <span class="decision">(a placeholder issue reserving a wave's number)</span><span class="arrow">→</span>
+          <span class="station st-gate">your call</span><span class="arrow">→</span>
+          <span class="station st-wave">promote</span>
+        </div>
+      </div>
+      <div class="converge">Both routes meet here: <strong>one wave anchor, a few slice sub-issues, one outcome gate</strong> — built, verified, and landed slice by slice, exactly like every wave always has been.</div>
+    </div>
+  </section>
+
+  <!-- ================= LEVEL 2 ================= -->
+  <section id="level-2">
+    <div class="sec-head"><span class="sec-num">Level 2</span><h2>How it stays honest</h2></div>
+    <p class="sec-sub">Six mechanics carry the promises above. Each folds open into the detail that backs the one-sentence claim next to it.</p>
+
+    <details class="mech mech-gate">
+      <summary>
+        <span class="m-caret">▶</span><span class="m-dot"></span>
+        <span class="m-title">Gates — a decision lives at the level it can still change</span>
+        <span class="m-hint">placement rule</span>
+      </summary>
+      <div class="m-body">
+        <div class="chain mini">
+          <span class="station st-program">Program / Wave shape</span><span class="arrow">→</span>
+          <span class="station plain">settled during the grill</span>
+        </div>
+        <div class="chain mini">
+          <span class="station st-slice">a single slice hinges on an unknown</span><span class="arrow">→</span>
+          <span class="station st-gate">verify-spike / decision-gate</span><span class="arrow">→</span>
+          <span class="station st-slice">tdd</span>
+        </div>
+        <div class="plain"><b>IN PLAIN TERMS</b><br>Big decisions get made where they can still reshape everything; small decisions ride along with only the one slice they affect.</div>
+        <p>A gate slice does read-only research — it never writes code — and is sequenced before the build slice it blocks, so the build never waits on a moving target. A call that's genuinely hard to reverse escalates one step further, to a cross-model review, before it locks in.</p>
+      </div>
+    </details>
+
+    <details class="mech mech-wave">
+      <summary>
+        <span class="m-caret">▶</span><span class="m-dot"></span>
+        <span class="m-title">Late binding — a wave's content is written just before it starts</span>
+        <span class="m-hint">to-prd Mode B · self-critique</span>
+      </summary>
+      <div class="m-body">
+        <div class="chain mini">
+          <span class="station st-program">Program document</span>
+          <span class="decision">(wave headlines, months ahead)</span><span class="arrow">→</span>
+          <span class="station st-wave">wave stub</span>
+          <span class="decision">(name + slice skeleton only)</span><span class="arrow">→</span>
+          <span class="station st-wave">fresh write-up</span>
+          <span class="decision">(the week the wave starts)</span>
+        </div>
+        <div class="plain"><b>IN PLAIN TERMS</b><br>You never build from a stale spec — the plan names the destination early; the route is drawn right before you set off.</div>
+        <p>The wave's actual scope and acceptance criteria are authored fresh at start time, using everything learned since the plan was written. A self-critique pass runs on that write-up before anyone approves it, and a wave already known to be high-stakes gets a deeper pass than a routine one.</p>
+      </div>
+    </details>
+
+    <details class="mech mech-program">
+      <summary>
+        <span class="m-caret">▶</span><span class="m-dot"></span>
+        <span class="m-title">Drift propagation — what one wave learns reaches the others</span>
+        <span class="m-hint">append-only · never silent</span>
+      </summary>
+      <div class="m-body">
+        <div class="chain mini">
+          <span class="station st-wave">Wave 3 — an assumption flips</span><span class="arrow">→</span>
+          <span class="station st-wave">Wave 7 (note waiting)</span><span class="arrow">+</span>
+          <span class="station st-program">Program document (note waiting)</span>
+        </div>
+        <div class="plain"><b>IN PLAIN TERMS</b><br>A discovery in an early wave doesn't wait for someone to remember it later — it's already sitting there as a note when the later wave opens.</div>
+        <p>Notes are appended, never rewritten into a plan's tables. Only a genuine change to the wave plan itself — a wave added, scope moved between waves — takes the slower, structural path in the next mechanic. A wave's outcome gate is not considered cleared until any drift addressed to it has been read.</p>
+      </div>
+    </details>
+
+    <details class="mech mech-phase">
+      <summary>
+        <span class="m-caret">▶</span><span class="m-dot"></span>
+        <span class="m-title">Revision loop — a stale stub stops loudly instead of building quietly wrong</span>
+        <span class="m-hint">program-revision marker</span>
+      </summary>
+      <div class="m-body">
+        <div class="chain mini">
+          <span class="station st-wave">wave stub — stamped r1</span><span class="arrow">vs.</span>
+          <span class="station st-program">plan revised → r2</span><span class="arrow">→</span>
+          <span class="station st-gate">stop: refresh before building</span>
+        </div>
+        <div class="plain"><b>IN PLAIN TERMS</b><br>If the plan changed after a stub was written, the kit stops you before you build the outdated version, instead of you finding out later.</div>
+        <p>Every wave stub is stamped with the Program document's revision number the day it's created. Revising the plan after that — inserting a wave, moving a scope item — re-unfolds only the difference (new waves added, existing ones matched, orphans flagged) and re-stamps every stub the change actually touches, so the marker and the plan agree again.</p>
+      </div>
+    </details>
+
+    <details class="mech mech-wave">
+      <summary>
+        <span class="m-caret">▶</span><span class="m-dot"></span>
+        <span class="m-title">program-sync — the plan is a living table, not a snapshot</span>
+        <span class="m-hint">status only · never rewinds</span>
+      </summary>
+      <div class="m-body">
+        <div class="chain mini">
+          <span class="station st-slice">board — real status</span><span class="arrow">→</span>
+          <span class="station st-wave">sync</span><span class="arrow">→</span>
+          <span class="station st-program">wave-plan table — status column</span>
+        </div>
+        <div class="plain"><b>IN PLAIN TERMS</b><br>The plan document updates its own status column from what actually happened on the board, instead of drifting out of sync with a hand-typed guess.</div>
+        <p>Only the status column is regenerated, and only forward — a wave already marked done never reverts to open. The plan's own columns and any handwritten notes are left exactly as written. A dry run shows the change before anything is written, the same discipline the kit already uses to keep a wave anchor's slice table current.</p>
+      </div>
+    </details>
+
+    <details class="mech mech-slice">
+      <summary>
+        <span class="m-caret">▶</span><span class="m-dot"></span>
+        <span class="m-title">Completeness — counted, not remembered</span>
+        <span class="m-hint">coverage X of Y</span>
+      </summary>
+      <div class="m-body">
+        <div class="chain mini">
+          <span class="station st-slice">scope items S1…Sn</span><span class="arrow">→</span>
+          <span class="station st-wave">carried by ≥1 wave? <em style="font-style:normal;color:var(--muted)">[count]</em></span>
+        </div>
+        <div class="chain mini">
+          <span class="station st-wave">wave → slice → gate</span><span class="arrow">→</span>
+          <span class="station st-gate">chain closes without a gap? <em style="font-style:normal;color:var(--muted)">[count]</em></span>
+        </div>
+        <div class="plain"><b>IN PLAIN TERMS</b><br>Nobody has to remember whether everything is covered — the tool counts it and shows the number before anyone approves.</div>
+        <p>Both counts appear at the same zero-write preview gate that shows the whole wave plan: how many scope items are carried by a wave (coverage), and whether every wave's chain down to a gated slice closes without a gap (rollup). Nothing is written to the board until both counts are shown and approved — the preview reads the plan, it never touches it.</p>
+      </div>
+    </details>
+  </section>
+
+  <footer>
+    Every rung, route, and mechanic on this page maps to a real skill or script shipped in this kit — see the README for how to install and run them.
+  </footer>
+</div>
+</body>
+</html>

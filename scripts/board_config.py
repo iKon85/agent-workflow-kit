@@ -104,3 +104,23 @@ def load_board_config(path=None) -> dict:
         raise ConfigError(f"{p}: the board-sync:profile block must be a JSON object.")
     _check_required(cfg, str(p))
     return cfg
+
+
+# --- optional Programm-Flughöhe keys ------------------------------------------
+# `fields.phase` and `labels.programType` are deliberately NOT in _REQUIRED_PATHS
+# — Phasen are optional per the program-altitude design (§2) and a Program-PRD's
+# type label has a literal default, so an existing consumer profile without
+# either key keeps loading unchanged (no migration forced by this slice).
+def phase_field_id(cfg: dict):
+    """The `fields.phase.id` (a Projects-v2 single-select field id), or None when
+    the profile hasn't configured a Phase field yet. Callers must degrade to a
+    visible skip/hint on None, never a KeyError (mirrors `validate-graph`'s
+    existing defensive read of this same optional key)."""
+    return (cfg.get("fields", {}).get("phase") or {}).get("id")
+
+
+def program_type_label(cfg: dict) -> str:
+    """The `labels.programType` label, or the literal default `"type:program"`
+    when the profile hasn't set one — a Program-PRD's board-filterable type
+    label (the `<!-- prd: program -->` body marker is not filterable)."""
+    return cfg.get("labels", {}).get("programType", "type:program")

@@ -1,7 +1,7 @@
 ---
 name: to-prd
 disable-model-invocation: true
-description: "Turn a locked plan (PLAN.md in the worktree, conversation context, or an externally-authored spec) into a Draft-PRD issue on the project board, then run spec-self-critique. Use after a grill (grill-me / grill-with-docs / their -codex variants) when you want to publish the PRD. Two modes — create fresh, or reuse an existing cluster/Wave-less issue. Does NOT decompose into slices (that is to-issues) and does NOT set type:cluster / Wave (that is to-issues promotion)."
+description: "Turn a locked plan (PLAN.md in the worktree, conversation context, or an externally-authored spec) into a Draft-PRD issue on the project board, then run spec-self-critique. Use after a grill (grill-me / grill-with-docs / their -codex variants) when you want to publish the PRD. Three modes — create fresh, reuse an existing cluster/Wave-less issue, or auto-detect a Program-PRD from a plan's Wellenplan chapter. Does NOT decompose into slices (that is to-issues) and does NOT set type:cluster / Wave (that is to-issues promotion)."
 ---
 
 # to-prd — Draft PRD to the Board
@@ -30,11 +30,16 @@ If a `PLAN.md` exists in the worktree, it's the source; otherwise conversation/e
 No user flag — auto:
 - **Mode A (fresh):** no target issue → to-prd creates a new Draft-PRD.
 - **Mode B (reuse):** a **cluster/Wave-less** issue already exists (an earlier Draft-PRD on re-run, or a de-cored `board-to-waves` candidate stub) → to-prd writes the PRD **into that issue** (no duplicate).
+- **Mode program (auto-detected, no flag, same as A/B):** the plan/source carries a `## Wellenplan` chapter (the machine-parsable table `.claude/skills/to-prd/PROGRAM-PRD-FORMAT.md` defines) → to-prd writes a **Program-PRD** per that format instead of the regular `<prd-template>` below (§4b), stamps `<!-- prd: program -->` instead of `<!-- prd: awaiting-decomposition -->` (§4), and the §8 audit line names the mode loudly (`mode=program`). Detection is purely content-based — a program-mode write can still be a fresh create (Mode A) or a reuse (Mode B); the Wellenplan chapter flips the format/marker/label, not the target-selection logic.
 
-**Hard stop before any write:** the target issue carries `type:cluster` (label) OR a Wave number → **abort** and report: "cluster/Wave anchor is not a to-prd target — belongs on the Wave-model/`to-issues` path". to-prd **never sets** cluster/Wave and **never strips** them — it only ever operates on cluster/Wave-less issues. Wave lives in the Projects-v2 **field**, not as a label → read the board item before writing:
+**Cluster/Wave discriminator (identical wording — `to-prd` §2 / `to-issues` §5):** `type:cluster` (label) always stops. A Wave number also stops, **unless** the target carries the `wave-stub` label — a Wave-stamped `wave-stub` issue is a **Stufe-1p Program-stub** (`to-waves`-published, native parent = a Program-PRD) and remains a **valid target**. A Wave-stamped issue **without** `wave-stub` (an already-assigned leaf, or a drifted item) is still a hard stop.
+
+**Hard stop before any write:** per the discriminator above → **abort** and report: "cluster/Wave anchor is not a to-prd target — belongs on the Wave-model/`to-issues` path". to-prd **never sets** cluster/Wave and **never strips** them — it only ever operates on cluster/Wave-less issues, or on a `wave-stub`-labeled Stufe-1p stub (the exception above — this is how `to-waves`'s per-wave-start content pass writes into a wave stub, `to-waves` SKILL.md §7). Wave lives in the Projects-v2 **field**, not as a label → read the board item + its labels before writing:
 ```bash
-gh project item-list 1 --owner <owner> --limit 500 --format json   # check target's Wave/cluster membership
+gh project item-list 1 --owner <owner> --limit 500 --format json   # check target's Wave/cluster/wave-stub membership
 ```
+
+**Programm-Verdacht net (a plan without a Wellenplan chapter, but oversized).** When the source carries **no** `## Wellenplan` chapter but its scope trips the `scale-check` altitude criteria (owned at `.claude/skills/scale-check/SKILL.md` § "Altitude criteria (the single source of truth)" — referenced here, **never** re-forked) — e.g. **staged delivery across >~7 slices** or **several subsystems that each stand on their own** — to-prd does **not** silently write a plain Feature-PRD. It surfaces a loud hint first: "Programm-Verdacht — scale-check-Kriterien prüfen", catching a mis-entry below the program altitude before the Feature-PRD write proceeds. Only after that hint is seen (confirmed as a Feature by the doubt-default, or re-routed through `scale-check`/a program grill) does the write continue.
 
 ## 3. Target identity — identity ≠ content
 
@@ -61,11 +66,17 @@ gh project item-list 1 --owner <owner> --limit 500 --format json   # check targe
      # Mode B: gh issue edit <target> --body-file <prd.md>  +  board-sync.py add --issue <target> --status Spec
      ```
    - **Mode B — explicit status flip:** writing the PRD into a `board-to-waves` stub, `board-sync.py add --issue <target> --status Spec` flips the board status **Triaged → Spec** (the stub was at Triaged; a Draft PRD sits at Spec).
+   - **mode=program's `type:*`:** the Program-PRD's one `type:*` label is the profile's `labels.programType` value (`board_config.program_type_label()`, literal default `type:program` when unset) — never `type:feature` **and** `type:program` together (the "exactly one `type:*`" invariant is unchanged, program mode just uses a different vocabulary member). `type_labels_to_strip` protects this label from ever being stripped at promote (a Program-PRD is never itself a promote target).
 4. **Body markers (top of the PRD body):**
    - `**plan_revision:** r1`
    - `<!-- prd: awaiting-decomposition -->` — durable distinguishability marker: makes "PRD awaiting `to-issues`" board-discoverable **without** a new label (status `Spec` alone also covers planned anchors/other specs).
+   - **mode=program:** `<!-- prd: program -->` **instead of** `awaiting-decomposition` — the program-altitude counterpart marker (never both on the same issue).
    - `<!-- prd-source-id: <id> -->` + `<!-- prd-content-fp: <hash> -->` (see step 3).
-5. **Mode B label normalization:** if the reused issue carries wrong/multiple `type:*`, missing `priority:*`, `ready-for-agent`, or `needs-info` → **normalize onto the PRD contract** (exactly one `type:*`, one `priority:*`, no `ready-for-agent`/`needs-info`). Exception `type:cluster`/Wave → **no** normalization, **hard stop** (step 2).
+5. **Mode B label normalization:** if the reused issue carries wrong/multiple `type:*`, missing `priority:*`, `ready-for-agent`, or `needs-info` → **normalize onto the PRD contract** (exactly one `type:*`, one `priority:*`, no `ready-for-agent`/`needs-info`). Exception per the discriminator (§2): `type:cluster` always, or Wave **without** `wave-stub` → **no** normalization, **hard stop** (step 2); a `wave-stub`-labeled Stufe-1p target normalizes normally — it is a valid Mode B target.
+
+## 4b. Program-PRD body (mode=program)
+
+mode=program writes the Program-PRD per `.claude/skills/to-prd/PROGRAM-PRD-FORMAT.md` instead of the `<prd-template>` below — a **parallel** grammar for the program altitude, not a replacement (a Feature-PRD keeps using `<prd-template>` unchanged). It carries: the `## Scope` chapter with stable Scope-Item IDs (`S1`, `S2`, …), the machine-parsable `## Wellenplan` table (`Welle | Status | Name | Phase | Slices | Gate | covers`), the `## Phasen-Gates` checklist (only when the program uses phases), the `## Slices` per-slice detail chapter (one `####` section per planned slice, per `SLICE-METADATA-FORMAT.md`'s grammar), and the Abbruch-Konvention. `scripts/program_graph.py` (`board-sync.py validate-graph`) is the parser — to-prd writes the shape, it does not itself validate the graph (that is `to-waves`'s job, run once the Program-PRD exists).
 
 ## 5. `spec-self-critique` — mandatory next step
 
@@ -76,22 +87,31 @@ to-prd has `disable-model-invocation: true` and can't literally invoke a skill. 
 - **`plan_revision` parse:** counter `r<N>`; missing/malformed → treat as `r1` + warn. **Body-changing** = a non-empty diff over the **canonical PRD sections** (Problem/Solution/User-Stories/Implementation-Decisions/Testing), **excluding** metadata markers, the child-drift section, and critique output. An identical plan re-run does **not** bump.
 - **R1 — no children:** update body instead of duplicating; bump `plan_revision` only on a body-changing run; critique re-runs.
 - **R2 — children/cluster exist:** update body + bump + **flag durably** — a **`## Child Drift (as of r<N>)`** section in the body (not ephemeral chat output) lists children + their revision. **No** child mutation (= `to-issues`/1d), **no** blocking guard (= 1g).
+- **Program-stub exception to R2 (Stufe-1p pre-created skeleton):** if the Mode B target is a `wave-stub`-labeled Stufe-1p Program-stub (native parent = a Program-PRD), its existing native children are the **slice leaves `to-waves` pre-created** for this wave — that is the program's **expected skeleton**, not R2's `## Child Drift` finding, as long as they match the Program-Graph's `Wellenplan` row for this wave. A mismatch (a missing or a foreign child) is `validate-graph`'s finding to raise, not this reconcile heuristic's — to-prd Mode B does not re-derive graph conformance itself. An ordinary Mode B target (a plain cluster/Wave-less reuse, or a `board-to-waves` candidate stub) keeps the unmodified R2 behavior.
 - **Child discovery:** native sub-issues (via `python3 scripts/board-sync.py parent-of <#>` / rollup) are the authoritative set; report native-vs-body-listed mismatches in the drift section.
 
 ## 7. Execute-ready assertion (exit)
 
 - **Before the write (gate):** target carries cluster/Wave → **fail before write** (hard stop, step 2) — never "reconcile after the write".
-- **After the write:** assert that the Draft PRD **exists as a board item** (status write = `Spec`), exactly **one** `type:*` + **one** `priority:*`, **no** `ready-for-agent`, **no** `type:cluster` + **no** Wave (defensive against accidental mutation), carries `plan_revision` + `awaiting-decomposition` + `prd-source-id`, body complete (critique ran). = an unambiguous "PRD-awaiting-decomposition" state (neither AFK leaf nor HITL child — that's `to-issues`'s call).
+- **After the write:** assert that the Draft PRD **exists as a board item** (status write = `Spec`), exactly **one** `type:*` + **one** `priority:*`, **no** `ready-for-agent`, **no** `type:cluster` + **no** Wave (defensive against accidental mutation), carries `plan_revision` + `awaiting-decomposition` + `prd-source-id`, body complete (critique ran). = an unambiguous "PRD-awaiting-decomposition" state (neither AFK leaf nor HITL child — that's `to-issues`'s call). mode=program asserts the same shape with its own markers: `plan_revision` + `<!-- prd: program -->` + `prd-source-id`, the profile's `programType` label (default `type:program`) as the one `type:*`, still no `ready-for-agent`, still no `type:cluster`/Wave — a Program-PRD is exactly as "awaiting further work" as a Feature-PRD, just at a higher altitude (its own lifecycle, §9).
 
 ## 8. Audit block (visible output)
 
 ```
-to-prd: mode=<A|B> target=#<n> <created|updated> rev <old>→<new>
+to-prd: mode=<A|B|program> target=#<n> <created|updated> rev <old>→<new>
   status=Spec  labels=<type:*, priority:*>  cluster/Wave=none
   source=<plan|conversation|external>  synthesized=<marker-list | none>  readiness=<ok | open-questions>
   child-drift=<none | #a(r1) #b(r1) …>
 ```
-`source` = where the input came from (make cold start visible anchor). `synthesized` = which markers `to-prd` freshly set (e.g. `prd-source-id`). `readiness=open-questions` ⇔ the PRD carries a non-empty `## Open Questions` section.
+`source` = where the input came from (make cold start visible anchor). `synthesized` = which markers `to-prd` freshly set (e.g. `prd-source-id`). `readiness=open-questions` ⇔ the PRD carries a non-empty `## Open Questions` section. For `mode=program`, `labels` shows the profile's `programType` value (default `type:program`) as the one `type:*`, and `cluster/Wave=none` still holds for the Program-PRD itself.
+
+## 9. Program-PRD lifecycle (mode=program only)
+
+A Program-PRD's board Status travels a longer arc than a Feature-PRD's:
+
+- **`Spec`** — set here, at the mode=program write (§4's board sync, same as any Draft-PRD).
+- **`In Arbeit`** — flipped by `to-issues`, at the **first** wave-stub promotion under this PRD (not by to-prd itself; a re-run of to-prd on an already-`In Arbeit` Program-PRD leaves the status untouched).
+- **`Done`** — set **manually**, by the maintainer, at the program's last Phasen-Gate. `closes` **never** targets a Program-PRD (same close-protection contract as any Welle-Anchor, `to-waves` §8) — it is closed last, by hand, once every wave/stub/leaf under it is done (or, on an abort, closed per the Abbruch-Konvention in `PROGRAM-PRD-FORMAT.md`).
 
 <prd-template>
 

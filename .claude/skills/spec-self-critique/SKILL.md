@@ -21,6 +21,31 @@ First, check whether a project layer exists: from the project root, look for `do
 
 > **Routing — keep this skeleton clean.** Project-specific checks, incidents, and grep patterns belong in the project layer (`docs/agents/skills/spec-self-critique.md`), **NOT here**. `/retro` appends new project-specific lore to the project layer, never into this generic skeleton.
 
+## Altitude — a portable kit concept
+
+The generic skeleton recognizes two spec altitudes: a **Feature-PRD** (the
+default — every point above and below assumes this) and a **Program-PRD**
+(marked `<!-- prd: program -->`, produced by the kit's `scale-check` →
+`grill-with-docs` → `to-prd` program route — a native anchor over a
+multi-wave `## Wellenplan`). This is a **portable kit concept**, not a
+project-specific rule, so it stays **in this generic skeleton** — the
+"project-specific → project layer" routing rule above is about *this
+project's* incidents/grep patterns, not about a kit-wide spec shape the
+skill itself already knows.
+
+Two points read differently at Program-Altitude — both get a dedicated
+fixture in `scenarios.md`:
+
+- **Point 3 (Scope)** at `prd: program`: scope is not "small enough for one
+  plan" — it is "each wave holds 2–7 slices; the program splits via its wave
+  plan, the PRD itself is never split."
+- **Point 12 (Vertical-slice completeness)** at `prd: program`: reads against
+  **Wellenplan rows**, not a slice/PR table — each wave is an outcome
+  cut/tracer, never a layer cut ("a backend wave" is the anti-pattern); an
+  enabler wave names the half it cuts off and the outcome wave that closes it.
+
+Every other point runs unchanged at either altitude.
+
 ## How to invoke
 
 Read the most recently written/edited spec in full. Walk the 12-point checklist (points 1–12; **8b/8c are sub-checks of point 8**, not main points). Per point:
@@ -55,6 +80,9 @@ Do sections contradict each other? Does the architecture match the feature descr
 
 **3. Scope check**
 Small enough for **one** implementation plan, or must it split into sub-specs?
+**At Program-Altitude** (`prd: program`) this reads differently — see
+"Altitude" above: each wave holds 2–7 slices, the program splits via its wave
+plan, and the PRD itself is never split.
 
 **4. Ambiguity check**
 Could a requirement be read two ways? If so, pick one interpretation and make it explicit.
@@ -106,6 +134,10 @@ No conventions directory / no blocks (e.g. a fresh project) → **soft skip** (n
 - (b) each byte-neutral/infra slice names its **omitted half** + the **closing follow-up slice** (otherwise the connecting path falls between two slices);
 - (c) the first outcome slice after ≥1 prep slice is traced against the code with a concrete value (`grep`/Read), not trusted as "config-driven".
 *Correction:* reword/split a layer-only slice; pull in a new slice for an uncovered half.
+**At Program-Altitude** (`prd: program`), apply (a)–(c) analogously to
+**Wellenplan rows** instead of a slice table — see "Altitude" above: each wave
+is an outcome cut/tracer, never a layer cut, and an enabler wave names both
+the half it omits and the outcome wave that closes it.
 
 **Gate home.** This skill runs **automatically as the mandatory last step of `to-prd`** (on the Draft-PRD) — the visible two-line summary is required **before** the user-review question. The **slice-completeness gate (point 12)** additionally sits in `to-issues`. The skill stays **standalone-callable** for manual spec/PLAN reviews.
 

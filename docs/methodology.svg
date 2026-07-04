@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 680" xmlns="http://www.w3.org/2000/svg" role="img" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>agent-workflow-kit methodology: the Program to Phase to Wave to Slice altitude ladder, and the two routes (a planned top-down Program route and a grown bottom-up board route) that both fund the same Wave-and-Slices build spine.</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8A95A6"/>
+    </marker>
+  </defs>
+
+  <!-- canvas -->
+  <rect x="0" y="0" width="960" height="680" rx="16" fill="#1F2532"/>
+
+  <!-- header -->
+  <text x="40" y="36" font-size="12" letter-spacing="2" fill="#8A95A6">AGENT-WORKFLOW-KIT · METHODOLOGY</text>
+
+  <!-- ===================== Level 0 — altitude ladder ===================== -->
+  <text x="40" y="62" font-size="13" fill="#A6B0BF">Level 0 — one containment chain, four altitudes</text>
+
+  <!-- Program -->
+  <rect x="40" y="72" width="880" height="46" rx="7" fill="#2E3850"/>
+  <rect x="40" y="72" width="6" height="46" rx="3" fill="B2"/>
+  <text x="62" y="100" font-size="16" font-weight="700" fill="#8FA9C4">Program</text>
+  <text x="180" y="100" font-size="13.5" fill="#A6B0BF">The whole undertaking — one document, one wave plan.</text>
+  <text x="880" y="100" font-size="11" fill="#8A95A6" text-anchor="end">issue · type:program</text>
+
+  <!-- Phase -->
+  <rect x="76" y="130" width="808" height="46" rx="7" fill="#2A3142"/>
+  <rect x="76" y="130" width="6" height="46" rx="3" fill="#8A95A6"/>
+  <text x="98" y="158" font-size="16" font-weight="700" fill="#9CA6B5">Phase</text>
+  <text x="200" y="158" font-size="13.5" fill="#A6B0BF">An acceptance bracket around a few waves. Optional.</text>
+  <text x="884" y="158" font-size="11" fill="#8A95A6" text-anchor="end">board field</text>
+
+  <!-- Wave -->
+  <rect x="112" y="188" width="736" height="46" rx="7" fill="#2A3A26"/>
+  <rect x="112" y="188" width="6" height="46" rx="3" fill="#82A36C"/>
+  <text x="134" y="216" font-size="16" font-weight="700" fill="#94B57E">Wave</text>
+  <text x="222" y="216" font-size="13.5" fill="#A6B0BF">One outcome, a few slices, one gate — unchanged.</text>
+  <text x="848" y="216" font-size="11" fill="#8A95A6" text-anchor="end">anchor issue</text>
+
+  <!-- Slice -->
+  <rect x="148" y="246" width="664" height="46" rx="7" fill="#3A3220"/>
+  <rect x="148" y="246" width="6" height="46" rx="3" fill="#DBAC4F"/>
+  <text x="170" y="274" font-size="16" font-weight="700" fill="#DBAC4F">Slice</text>
+  <text x="258" y="274" font-size="13.5" fill="#A6B0BF">One build session, one pull request, one result.</text>
+  <text x="812" y="274" font-size="11" fill="#8A95A6" text-anchor="end">sub-issue · one PR</text>
+
+  <!-- ===================== Level 1 — two roads, one spine ===================== -->
+  <text x="40" y="332" font-size="13" fill="#A6B0BF">Level 1 — two roads fund the same build spine</text>
+
+  <!-- top branch: planned top-down -->
+  <rect x="350" y="350" width="260" height="40" rx="7" fill="#2E3850" stroke="B2" stroke-width="1.2"/>
+  <text x="480" y="375" font-size="12.5" fill="#8FA9C4" text-anchor="middle">scale-check → grill → to-waves</text>
+  <line x1="480" y1="390" x2="553" y2="430" stroke="#8A95A6" stroke-width="1.4" marker-end="url(#arrow)"/>
+
+  <!-- main spine -->
+  <g font-size="13">
+    <rect x="40" y="432" width="150" height="56" rx="7" fill="#2E3548" stroke="#3C4356"/>
+    <text x="115" y="465" fill="#A6B0BF" text-anchor="middle">idea · plan · issue</text>
+
+    <text x="202" y="465" fill="#8A95A6" text-anchor="middle" font-size="16">→</text>
+
+    <rect x="214" y="432" width="230" height="56" rx="7" fill="#2A3A26" stroke="#82A36C"/>
+    <text x="329" y="460" fill="#94B57E" text-anchor="middle">grill-with-docs → to-prd</text>
+    <text x="329" y="477" fill="#94B57E" text-anchor="middle">→ to-issues</text>
+
+    <text x="456" y="465" fill="#8A95A6" text-anchor="middle" font-size="16">→</text>
+
+    <rect x="468" y="425" width="170" height="70" rx="8" fill="#2A3A26" stroke="#94B57E" stroke-width="2"/>
+    <text x="553" y="455" fill="#94B57E" text-anchor="middle" font-weight="700">Wave</text>
+    <text x="553" y="475" fill="#94B57E" text-anchor="middle" font-weight="700">+ Slices</text>
+
+    <text x="650" y="465" fill="#8A95A6" text-anchor="middle" font-size="16">→</text>
+
+    <rect x="662" y="432" width="90" height="56" rx="7" fill="#3A3220" stroke="#DBAC4F"/>
+    <text x="707" y="465" fill="#DBAC4F" text-anchor="middle">tdd</text>
+
+    <text x="764" y="465" fill="#8A95A6" text-anchor="middle" font-size="16">→</text>
+
+    <rect x="776" y="432" width="150" height="56" rx="7" fill="#2E3548" stroke="#3C4356"/>
+    <text x="851" y="460" fill="#A6B0BF" text-anchor="middle">wrapup</text>
+    <text x="851" y="477" fill="#A6B0BF" text-anchor="middle">→ retro</text>
+  </g>
+
+  <!-- bottom branch: grown bottom-up -->
+  <line x1="480" y1="560" x2="553" y2="493" stroke="#8A95A6" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <rect x="350" y="560" width="260" height="40" rx="7" fill="#3A3220" stroke="#DBAC4F" stroke-width="1.2"/>
+  <text x="480" y="585" font-size="12.5" fill="#DBAC4F" text-anchor="middle">board-to-waves → promote</text>
+
+  <!-- footer captions -->
+  <text x="40" y="628" font-size="12" fill="#8A95A6">Top: a Program plans several waves at once, gated by a chat preview before anything is written.</text>
+  <text x="40" y="648" font-size="12" fill="#8A95A6">Bottom: loose board issues cluster into a wave candidate and get a number only when promoted.</text>
+  <text x="40" y="668" font-size="12" fill="#8A95A6">Either way, the same Wave + Slices lands through the identical tdd → wrapup → retro spine.</text>
+</svg>

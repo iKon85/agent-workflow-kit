@@ -32,7 +32,17 @@ from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from board_config import ConfigError, load_board_config  # noqa: E402
+from board_config import (  # noqa: E402
+    ConfigError, load_board_config, phase_field_id, program_type_label,
+)
+# stamp-batch / field-value / promote-guards — pure logic, see module docstring.
+from board_fields import (  # noqa: E402
+    build_stamps, chunk_stamps, build_stamp_mutation, parse_batch_response, repair_command,
+    extract_field_value, wave_mismatch_guard, program_prd_refusal,
+)
+# Node-kind classifier — `promote`'s Program-PRD refusal + `program-sync`'s
+# node-kind dispatch guard both need to tell a Program-PRD apart from a Welle-Anker.
+from node_kind import classify_node, PROGRAM  # noqa: E402
 
 # --- Board profile (SSOT: docs/agents/board-sync.md `board-sync:profile`) ----
 # No inline board IDs: board_config reads them from the profile so the published
@@ -59,6 +69,9 @@ READY_FOR_AGENT = _CFG["labels"]["readyForAgent"]
 TYPE_PREFIX = _CFG["labels"]["typePrefix"]
 CLUSTER_TYPE_LABEL = _CFG["labels"]["clusterType"]
 WAVE_STUB_LABEL = _CFG["labels"]["waveStub"]
+# Optional Programm-Flughöhe key (Welle 52) — literal-default getter, so
+# an existing profile without `labels.programType` keeps working unchanged.
+PROGRAM_TYPE_LABEL = program_type_label(_CFG)
 PROJECT_ITEM_LIST_LIMIT = 2000
 GH_TIMEOUT_SECONDS = 15  # a hanging gh prompt must not block a session indefinitely
 
@@ -99,7 +112,15 @@ def _gh(args: list[str]) -> str:
     except subprocess.TimeoutExpired as exc:
         raise GhError(f"gh {' '.join(args)} timed out after {GH_TIMEOUT_SECONDS}s") from exc
     if result.returncode != 0:
-        raise GhError(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
+        # `gh api graphql` exits non-zero when the response body carries GraphQL
+        # `errors` even alongside a partial `data` (stamp-batch's per-alias
+        # failure case) — attach the raw stdout to the exception so a
+        # caller that WANTS that partial body (stamp-batch) can still parse it,
+        # without changing `_gh`'s raise-on-nonzero contract for every other
+        # caller that doesn't look at `.stdout`.
+        err = GhError(f"gh {' '.join(args)} failed: {result.stderr.strip()}")
+        err.stdout = result.stdout
+        raise err
     return result.stdout
 
 
@@ -268,12 +289,16 @@ def bucket_label_args(issue: int, bucket: Optional[str]) -> Optional[list[str]]:
 
 
 def type_labels_to_strip(labels: list[str]) -> list[str]:
-    """Non-cluster `type:*` labels to remove so exactly one `type:*` remains.
+    """Non-cluster, non-program `type:*` labels to remove so exactly one
+    `type:*` remains.
 
     Board convention is one `type:*` per issue; promotion REPLACES the prior
-    type (e.g. type:followup) with type:cluster rather than adding a second.
+    type (e.g. type:followup) with type:cluster rather than adding a second
+   . `PROGRAM_TYPE_LABEL` is excluded too — a Program-PRD's
+    type label must never be caught by this strip, regardless of caller.
     """
-    return [l for l in labels if l.startswith(TYPE_PREFIX) and l != CLUSTER_TYPE_LABEL]
+    return [l for l in labels
+            if l.startswith(TYPE_PREFIX) and l != CLUSTER_TYPE_LABEL and l != PROGRAM_TYPE_LABEL]
 
 
 def promote_label_args(issue: int, strip: Optional[list[str]] = None) -> list[str]:
@@ -357,6 +382,29 @@ def _issue_title(num: int) -> str:
     """Current title of an issue."""
     return _gh(["issue", "view", str(num), "--repo", REPO,
                 "--json", "title", "--jq", ".title"]).strip()
+
+
+# --- field-value: read a Projects-v2 item's current field value ------
+# ID-driven (matches by `fieldId`, never a field NAME) — the profile only ever
+# carries opaque field ids, so this stays consistent with every other read/write
+# in this file instead of introducing a new required "field name" key.
+FIELD_VALUE_QUERY = (
+    "query($owner:String!,$repo:String!,$num:Int!){"
+    "repository(owner:$owner,name:$repo){issue(number:$num){"
+    "projectItems(first:10){nodes{id project{id} "
+    "fieldValues(first:20){nodes{"
+    "... on ProjectV2ItemFieldNumberValue{number field{... on ProjectV2FieldCommon{id}}} "
+    "... on ProjectV2ItemFieldSingleSelectValue{name optionId field{... on ProjectV2FieldCommon{id}}} "
+    "... on ProjectV2ItemFieldTextValue{text field{... on ProjectV2FieldCommon{id}}}"
+    "}}}}}}}}"
+)
+
+
+def _field_value(issue: int, field_id: str) -> Optional[dict]:
+    data = _gh_json(["api", "graphql", "-f", f"query={FIELD_VALUE_QUERY}",
+                     "-F", f"owner={PROJECT_OWNER}", "-F", f"repo={REPO_NAME}",
+                     "-F", f"num={issue}"])
+    return extract_field_value(data, PROJECT_NODE_ID, field_id)
 
 
 def _add_and_stamp(url, wave, status, cluster, spec_path, plan_path, dry_run) -> None:
@@ -490,6 +538,12 @@ def cmd_promote(args) -> int:
     in-promote race window. On a mid-transaction gh failure it prints what was
     already set + an idempotent repair command and exits non-zero (no silent
     half-promote).
+
+    Two guards run before any write (, real path only — a dry-run makes NO
+    gh calls at all, guards included, same contract as every other dry-run
+    branch in this file): a Program-PRD is never a promote target (it is the
+    native anchor OVER Wellen, not itself a Welle), and a stub already stamped
+    with a DIFFERENT Wave than --wave refuses rather than silently overwriting.
     """
     url = f"https://github.com/{REPO}/issues/{args.issue}"
     rename = not args.no_rename
@@ -499,9 +553,24 @@ def cmd_promote(args) -> int:
             print(f"[dry-run] gh issue edit {args.issue} --title 'Welle {args.wave} — <Thema>'")
         _add_and_stamp(url, args.wave, args.status, None, None, None, dry_run=True)
         return 0
+    labels = _issue_type_labels(args.issue)
+    body = _gh(["issue", "view", str(args.issue), "--repo", REPO, "--json", "body", "-q", ".body"])
+    is_program = (classify_node({"body": body, "labels": labels},
+                                cluster_type_label=CLUSTER_TYPE_LABEL,
+                                wave_stub_label=WAVE_STUB_LABEL) == PROGRAM
+                  or PROGRAM_TYPE_LABEL in labels)
+    refusal = program_prd_refusal(is_program, args.issue)
+    if refusal:
+        print(f"error: {refusal}", file=sys.stderr)
+        return 1
+    current = _field_value(args.issue, WAVE_FIELD_ID)
+    mismatch = wave_mismatch_guard(current.get("number") if current else None, args.wave)
+    if mismatch:
+        print(f"error: {mismatch}", file=sys.stderr)
+        return 1
     done: list[str] = []
     try:
-        strip = type_labels_to_strip(_issue_type_labels(args.issue))
+        strip = type_labels_to_strip(labels)
         _gh(promote_label_args(args.issue, strip))
         done.append("type:cluster label"
                     + (f" (stripped {', '.join(strip)})" if strip else ""))
@@ -624,6 +693,160 @@ def cmd_anchor_sync(args) -> int:
     return 0
 
 
+# --- validate-graph: counted Programm-Graph preflight for a Program-PRD
+# All parsing/validation logic lives in program_graph.py (PURE — no gh/board_config);
+# this handler stays thin: load config, read the PRD body + each native wave-stub's
+# body via the existing `_gh` seam, call the module, print the counted report.
+# Read-only by construction (only `_gh` reads, no mutating call on this path at
+# all) — no mutation surface to guard against, regardless of read count.
+from program_graph import (  # noqa: E402
+    validate_program_graph, render_report, parse_wellenplan_table, render_wellenplan_table,
+)
+
+# A wave-stub's revision marker, stamped by to-waves (Welle 52 Slice 4, §6):
+# `<!-- program-revision: rN -->`. Read back here so validate-graph can catch a
+# stub whose plan shape drifted from a since-bumped PRD `plan_revision`.
+_STUB_REVISION_RE = re.compile(r"<!--\s*program-revision:\s*r(\d+)\s*-->")
+
+
+def _fetch_stub_revisions(prd_issue: int) -> list[dict]:
+    """The PRD's native wave-stub children, each with its parsed program-revision
+    (or None if the marker is missing) — `check_revision_coherence`'s input shape
+    (`[{"label": str, "revision": int | None}, …]`). Pre-publish (no children yet)
+    this loop never runs, so `[]` degrades revision-coherence to a no-op — the
+    unchanged green path (Slice 1)."""
+    stubs = []
+    for child in _children_of(prd_issue):
+        body = _gh(["issue", "view", str(child), "--repo", REPO,
+                    "--json", "body", "-q", ".body"])
+        m = _STUB_REVISION_RE.search(body or "")
+        stubs.append({"label": f"#{child}", "revision": int(m.group(1)) if m else None})
+    return stubs
+
+
+def cmd_validate_graph(args) -> int:
+    body = _gh(["issue", "view", str(args.issue), "--repo", REPO,
+                "--json", "body", "-q", ".body"])
+    # Defensive read: `fields.phase` is an optional profile key (Welle 52 Slice 3
+    # adds it) — absent today, so this must degrade to a visible setup-hint finding
+    # inside program_graph, never a KeyError here (CRITICAL RECONCILIATION #2).
+    phase_options = _CFG.get("fields", {}).get("phase", {}).get("options")
+    stub_revisions = _fetch_stub_revisions(args.issue)
+    report = validate_program_graph(body, phase_options=phase_options,
+                                     stub_revisions=stub_revisions)
+    print(render_report(report))
+    return 1 if report.blocking else 0
+
+
+# --- stamp-batch: alias-batched field-writes for N items (Wave/Phase) -
+def cmd_stamp_batch(args) -> int:
+    if args.items_file:
+        items = json.loads(Path(args.items_file).read_text(encoding="utf-8"))
+    else:
+        if not args.item_id:
+            raise ValueError("stamp-batch --issue requires --item-id")
+        items = [{"issue": args.issue, "item_id": args.item_id,
+                  "wave": args.wave, "phase": args.phase}]
+    phase_cfg = _CFG.get("fields", {}).get("phase")
+    stamps, skipped_phase = build_stamps(items, wave_field_id=WAVE_FIELD_ID, phase_cfg=phase_cfg)
+    if skipped_phase:
+        print(f"Phase-Feld nicht konfiguriert (`fields.phase` fehlt im Profil) — "
+              f"{skipped_phase} Phase-Stempel sichtbar übersprungen (kein stiller Verlust)")
+    if not stamps:
+        print("stamp-batch: nothing to stamp")
+        return 0
+    if args.dry_run:
+        for chunk in chunk_stamps(stamps):
+            query, _ = build_stamp_mutation(chunk, PROJECT_NODE_ID)
+            _print_dry(["api", "graphql", "-f", f"query={query}"])
+        return 0
+    succeeded: list = []
+    failed: list = []
+    for chunk in chunk_stamps(stamps):
+        query, alias_map = build_stamp_mutation(chunk, PROJECT_NODE_ID)
+        # Tolerate a non-zero exit that still carries a parseable partial
+        # response (`errors` alongside partial `data` — the batched-mutation
+        # per-alias failure case). A hard CLI/network failure (no recoverable
+        # body) re-raises, same as every other `_gh` caller in this file.
+        try:
+            out = _gh(["api", "graphql", "-f", f"query={query}"])
+        except GhError as exc:
+            out = getattr(exc, "stdout", "") or ""
+            if not out:
+                raise
+        s, f = parse_batch_response(json.loads(out), alias_map)
+        succeeded += s
+        failed += f
+    print(f"stamp-batch: {len(succeeded)} von {len(stamps)} Feld-Stempel gesetzt")
+    for stamp, msg in failed:
+        print(f"  FEHLER #{stamp.issue} {stamp.field_name}: {msg}")
+        print(f"    repair: {repair_command(stamp)}")
+    return 1 if failed else 0
+
+
+# --- field-value: read a project item's current field value ---------
+def cmd_field_value(args) -> int:
+    if args.field == "wave":
+        field_id = WAVE_FIELD_ID
+    else:
+        field_id = phase_field_id(_CFG)
+    if field_id is None:
+        print(f"error: fields.{args.field} not configured in the board profile", file=sys.stderr)
+        return 1
+    value = _field_value(args.issue, field_id)
+    if value is None:
+        print("unset")
+        return 0
+    print(value.get("number", value.get("name", value.get("text"))))
+    return 0
+
+
+# --- program-sync: Wellenplan Status-resync for a Program-PRD -------
+# Own grammar, own command (plan 9b(d): "program-sync statt anchor-sync-Über-
+# ladung") — the actual parse/render/status logic lives in program_sync.py
+# (pure) and program_graph.py's public Wellenplan renderer (Slice 1); this
+# handler stays thin. `_anchor_board_data` is reused as-is: a Program-PRD's
+# native sub-issues are its promoted Wave-Anchor stubs, fetched exactly like
+# an Anchor fetches its Slice sub-issues — no second query needed.
+from program_sync import sync_wellenplan_status, splice_wellenplan_table  # noqa: E402
+
+
+def cmd_program_sync(args) -> int:
+    body = _gh(["issue", "view", str(args.issue), "--repo", REPO, "--json", "body", "-q", ".body"])
+    labels = _issue_type_labels(args.issue)
+    is_program = (classify_node({"body": body, "labels": labels},
+                                cluster_type_label=CLUSTER_TYPE_LABEL,
+                                wave_stub_label=WAVE_STUB_LABEL) == PROGRAM
+                  or PROGRAM_TYPE_LABEL in labels)
+    if not is_program:
+        print(f"error: #{args.issue} is not a Program-PRD (no `<!-- prd: program -->` "
+              f"marker or {PROGRAM_TYPE_LABEL!r} label) — use anchor-sync for a "
+              "Welle-Anker.", file=sys.stderr)
+        return 1
+    waves = parse_wellenplan_table(body)
+    if not waves:
+        print(f"#{args.issue}: no Wellenplan table found — nothing to sync", file=sys.stderr)
+        return 1
+    board = _anchor_board_data(args.issue)
+    new_waves = sync_wellenplan_status(waves, board)
+    include_phase = any(w.phase is not None for w in waves)
+    new_table = render_wellenplan_table(new_waves, include_phase=include_phase)
+    new_body = splice_wellenplan_table(body, new_table)
+    if new_body == body:
+        print(f"#{args.issue}: Wellenplan status already in sync (no drift)")
+        return 0
+    if args.dry_run:
+        print(f"[dry-run] would update #{args.issue} Wellenplan status")
+        print(new_table)
+        return 0
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
+        f.write(new_body)
+        tmp = f.name
+    _gh(["issue", "edit", str(args.issue), "--repo", REPO, "--body-file", tmp])
+    print(f"synced #{args.issue} Wellenplan status from board")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="board-sync.py", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="command", required=True)
@@ -699,6 +922,38 @@ def build_parser() -> argparse.ArgumentParser:
     asy.add_argument("issue", type=int, help="the wave-anchor issue number")
     asy.add_argument("--dry-run", action="store_true")
     asy.set_defaults(func=cmd_anchor_sync)
+
+    vg = sub.add_parser("validate-graph",
+                        help="counted Programm-Graph preflight for a Program-PRD "
+                             "(read-only)")
+    vg.add_argument("--issue", type=int, required=True, help="the Program-PRD issue number")
+    vg.set_defaults(func=cmd_validate_graph)
+
+    sb = sub.add_parser("stamp-batch",
+                        help="alias-batched GraphQL field-stamp (Wave/Phase) for N "
+                             "items, chunked ~30 aliases/request")
+    g_sb = sb.add_mutually_exclusive_group(required=True)
+    g_sb.add_argument("--items-file", help="JSON list of {issue,item_id,wave?,phase?}")
+    g_sb.add_argument("--issue", type=int, help="single-item form — also the repair target")
+    sb.add_argument("--item-id", help="required together with --issue")
+    sb.add_argument("--wave", type=int)
+    sb.add_argument("--phase", help="Phase name, resolved via fields.phase.options")
+    sb.add_argument("--dry-run", action="store_true")
+    sb.set_defaults(func=cmd_stamp_batch)
+
+    fv = sub.add_parser("field-value",
+                        help="read a project field's current value for an issue "
+                             "(— the promote-guard's read side)")
+    fv.add_argument("--issue", type=int, required=True)
+    fv.add_argument("--field", choices=["wave", "phase"], required=True)
+    fv.set_defaults(func=cmd_field_value)
+
+    ps = sub.add_parser("program-sync",
+                        help="regenerate a Program-PRD's Wellenplan Status from the "
+                             "board, in place (; own grammar, not anchor-sync)")
+    ps.add_argument("issue", type=int, help="the Program-PRD issue number")
+    ps.add_argument("--dry-run", action="store_true")
+    ps.set_defaults(func=cmd_program_sync)
     return p
 
 

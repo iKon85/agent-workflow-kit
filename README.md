@@ -165,6 +165,36 @@ An independent second model is a cheap way to catch what one model rationalizes.
 (invoked from Claude Code, which shells out to the Codex CLI) and need the Codex
 CLI installed.
 
+### The altitude model
+
+The four phases above are what you *do*. Underneath them sits a shape for
+*what you're doing it to* — a plan travels through four altitudes, and each
+hands a well-defined object to the level below:
+
+| Altitude | What it is | Artefact |
+|---|---|---|
+| **Program** | The whole undertaking, described once with a wave plan attached. | one PRD issue |
+| **Phase** | An acceptance bracket around a handful of waves. Optional. | a board field |
+| **Wave** | The working unit: one outcome, a few slices, one gate — exactly the wave you already build with the flow above. | one anchor issue |
+| **Slice** | One build session, one pull request, one visible result. | one sub-issue |
+
+Two roads lead to the same wave. **Top-down:** `scale-check` names the size in
+a few plain questions; a big undertaking gets grilled once into a Program PRD
+with a wave plan, and `to-waves` unfolds it into named waves after you approve
+a full preview in chat — zero board writes until you say yes. **Bottom-up:**
+`board-to-waves` clusters loose issues into a wave candidate, which earns a
+real number only when you promote it. Either road lands in the *identical*
+wave anchor plus slice sub-issues, built through the same `tdd` → `wrapup` →
+`retro` spine as every other wave.
+
+![The Program-to-Phase-to-Wave-to-Slice altitude ladder, and the two routes — a planned top-down Program route and a grown bottom-up board route — that both fund the same Wave-and-Slices build spine.](docs/methodology.svg)
+
+The full walkthrough — every entry point, the build-layer skills, and the six
+mechanics that keep a multi-wave plan honest (gates, drift propagation, the
+revision loop, `program-sync`, and counted completeness) — lives on one page:
+**[read the methodology →](https://ikon85.github.io/agent-workflow-kit/methodology.html)**
+(also shipped as `docs/methodology.html` in your install, so it works offline too).
+
 ## Configuration
 
 The skills ship the *how*; your repo supplies the *what*. `init` only lays down
@@ -255,6 +285,46 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 `--yes` / `-y` (non-interactive).
 
 ## Release notes
+
+### 0.6.0
+
+- Adds the **Program route**, a top-down altitude above the existing feature
+  funnel for greenfield / multi-wave work: `scale-check` (a plain-language
+  router — 3–6 questions to a Program / Feature / Direct-Slice / Bug verdict)
+  and `to-waves` (unfolds a Program-PRD's Wellenplan into named wave stubs +
+  slice leaves after a chat preview gate — graph-validated, counted, batch-
+  stamped Wave/Phase fields, idempotent/crash-recoverable re-run, and an adopt
+  path for issues a prior bottom-up grooming pass already created).
+- Ships `board-sync.py validate-graph`, a pure, zero-write Program-Graph
+  preflight (cycles, cross-wave backward refs, gate-slice structural-suspicion
+  warnings, capacity, phase-option, and revision-coherence checks, plus two
+  counted completeness axes — scope coverage and the rollup chain) and
+  `program-sync`, which regenerates a Program-PRD's Wellenplan status column
+  from the board (its own grammar, alongside the existing `anchor-sync`).
+- Adds `stamp-batch` (alias-batched GraphQL field writes for N items' Wave/
+  Phase fields in one request, chunked, with a per-alias failure report and a
+  repair command), `field-value` (reads a project field's current value —
+  the `promote` mismatch-guard's read side), and a Program-PRD refusal on
+  `promote` (a Program-PRD is never a promotion target).
+- `execute-ready-check.py` now classifies by an explicit node kind (program /
+  wave-stub / anchor / leaf) instead of a single children+parent heuristic, so
+  a Wave-Anchor parented by a Program-PRD is no longer misjudged.
+- `to-prd`, `to-issues`, and `board-to-waves` gain the matching Program-route
+  deltas: a third `mode=program` PRD shape, a `wave-stub`-label discriminator
+  so a not-yet-promoted wave stub is a valid Hard-Stop exception, and a
+  `board-to-waves` splitter that escalates an oversized candidate to the
+  Program route instead of spraying it into feature-sized stubs.
+- Adds the optional `fields.phase` / `labels.programType` board-profile keys
+  (`fields.phase` mirrors `fields.status`'s `{id, options}` shape; a profile
+  without either key keeps loading unchanged) and documents the Phase-field
+  creation command plus two saved Views (`Program`, `Active Wave`) as one-time
+  manual setup steps `/setup-workflow` cannot provision by itself.
+- Ships the kit's methodology documentation: a self-contained
+  `docs/methodology.html` walkthrough of the full altitude model (Program →
+  Phase → Wave → Slice) and both routes, plus a README methodology chapter
+  with a hand-designed static SVG diagram.
+- Bumps the kit metadata to `0.6.0`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
 
 ### 0.5.0
 
@@ -362,9 +432,9 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**30 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
+**32 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
 grill-with-docs, to-prd, to-issues, board-to-waves, triage, spec-self-critique,
-verify-spike, decision-gate · Execute: tdd, prototype, implement ·
+verify-spike, decision-gate, scale-check, to-waves · Execute: tdd, prototype, implement ·
 Design/diagnose/refactor streams: diagnose, zoom-out,
 improve-codebase-architecture, codebase-design, domain-modeling · Land: wrapup,
 resolving-merge-conflicts, code-review · Learn: retro, write-a-skill · Setup:

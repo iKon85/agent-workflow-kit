@@ -16,6 +16,15 @@ A **flow** is a path through the skills. Most paths run along one **main flow**;
 
 The route most work travels. You have an idea and want it built.
 
+0. **Size unclear? `/scale-check` first.** A new undertaking without a clear
+   size — a new app, a big cross-cutting change, a genuine "where do I even
+   start?" — runs `/scale-check` before anything else: a short plain-language
+   dialog that routes it to a Program, a Feature, a Direct-Slice, or a Bug,
+   and hands back a paste-ready start prompt for the chosen route. **Rule: a
+   new build without a clear size runs `scale-check` first** — never guess
+   the altitude and jump straight into step 1. Skip this step outright when
+   the size is already obvious (a one-line fix, a known bug) — go straight to
+   the entry that fits.
 <!-- mirror-xform:start codex-escalation -->
 1. **`/grill-with-docs`** — sharpen the idea by relentless interview. Start here when you **have a codebase**: it's stateful, retaining what it learns in `CONTEXT.md` and ADRs. (No codebase? Use `/grill-me` — see Standalone.) For high-stakes/hard-to-reverse work, add the cross-model variant **`/grill-with-docs-codex`** (see Cross-model review).
 <!-- mirror-xform:end -->
@@ -31,6 +40,22 @@ The route most work travels. You have an idea and want it built.
 ### Context hygiene
 
 Keep steps 1–4 in **one unbroken context window** — don't compact or clear until after `/to-issues` — so grilling, PRD, and issues build on the same thinking. Each `/implement` then starts fresh from the issue. If a session gets large before `/to-issues`, don't push on degraded — `/handoff` and continue fresh.
+
+## Depth Ladder
+
+Prefer the smallest depth that produces a clear next action.
+
+- **Program:** the size is genuinely unclear — a new app, a big cross-cutting
+  undertaking, several independently-shippable stages. Run `/scale-check`
+  first (it owns the altitude criteria catalog — this router only names it);
+  two or more criteria tripped routes to a program grill → `/to-prd` →
+  `/to-waves`.
+- **Deep:** `/grill-with-docs` followed by `/to-prd` and `/to-issues` when
+  terminology, contracts, rollout order, or ownership are still uncertain.
+- **Medium:** `/to-issues` for a ready artefact that needs slicing.
+- **Light:** direct `/tdd` for a small, well-understood change.
+- **Gate:** insert `/verify-spike` or `/decision-gate` before any depth level
+  when a slice hinges on an unresolved fact or trade-off.
 
 ## Gate-before-build
 

@@ -1,10 +1,11 @@
 # Wave-Anker-Template
 
 Der Body eines Wellen-Anker-Issues. Modell: das war der Tracker, der funktioniert hat.
-**Zwei Reife-Stufen** — Platzhalter `<…>` ersetzen, nicht-zutreffende Zeilen löschen:
+**Reife-Stufen** — Platzhalter `<…>` ersetzen, nicht-zutreffende Zeilen löschen:
 
-- **Stufe 1 (Kandidaten-Stub)** — füllt `board-to-waves`: Kopf bis inkl. To-Do-Checklist. **cluster/Wave-los**, Slice-Tabelle bleibt leer (`⬜ via to-issues`).
-- **Stufe 2 (gereift + promotet)** — füllt `to-prd` (Entscheidungen/PRD-Body) + `to-issues` (Slice-Tabelle + Handoff-Blocks, verknüpft Sub-Issues, Promotion setzt `type:cluster` + Wave). Hakt die To-Dos ab.
+- **Stufe 1 (Kandidaten-Stub, bottom-up)** — füllt `board-to-waves`: Kopf bis inkl. To-Do-Checklist. **cluster/Wave-los**, Slice-Tabelle bleibt leer (`⬜ via to-issues`).
+- **Stufe 1p (Programm-Vorzustand, top-down)** — füllt `to-waves` aus einem Programm-PRD: benannter Stub `Welle <N> — <Thema>` **ab Anlage**, `wave-stub`-Label, **Wave + Phase sofort gestempelt**, nativer Parent = das Programm-PRD, vorerzeugte Slice-Leaves als native Kinder. Unterschied zu Stufe 1: benannt + gestempelt + PRD-Parent statt cluster/Wave-los. Details unten (§ Stufe 1p).
+- **Stufe 2 (gereift + promotet)** — füllt `to-prd` (Entscheidungen/PRD-Body) + `to-issues` (Slice-Tabelle + Handoff-Blocks, verknüpft Sub-Issues, Promotion setzt `type:cluster` + Wave). Hakt die To-Dos ab. Ein Stufe-1p-Stub reift hier genauso (die erste Programm-Stub-Promotion flippt das PRD auf `In Arbeit`).
 
 Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Promotion** (Stufe 2) bekommt der Anker `type:cluster` + **Wave-Field = `<N>`** (monotone Nummer, kein `wave:*`-Label); `type:cluster` **ersetzt** das bisherige `type:*` des Stubs (z.B. `type:followup`) — genau ein `type:*` pro Issue, `board-sync.py promote` strippt das alte; der **Issue-Titel wird zu `Welle <N> — <Thema>`** (das ist das `board-sync.py promote`-Default-Verhalten — `wave_title()` ersetzt jeden alten `Welle X —`-Präfix idempotent und strippt einen führenden Conventional-Commit-Präfix; Opt-out `--no-rename` — **autoritativ ist der `promote`-Code**), und das `Welle <N> — <Thema>` steht **auch** in der **Body-Kopfzeile**. Body **immer** via `--body-file` (`gotchas_gh_body_file`). Nummerierung → [SKILL.md des `board-to-waves`](.claude/skills/board-to-waves/SKILL.md) „Wellen-Nummerierung".
 
@@ -31,6 +32,7 @@ Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Pr
 - [ ] *(nur falls grill-needed=ja, eigene Session)* dedizierte `grill-with-docs`-Session — Domänen-Discovery
 - [ ] **`to-prd`** → Entscheidungen/PRD-Body in diesen Stub schreiben (Mode B); `spec-self-critique` läuft automatisch
 - [ ] **`to-issues`** → Slices schneiden, **pro Slice ein Sub-Issue** (Member-Issue wiederverwenden / neu anlegen), Slice-Tabelle **+ `## Handoff-Startbefehle`-Block je Slice** füllen; bei ≥2 Slices **promoten** (setzt `type:cluster` + Wave) + **alle** Slice-Sub-Issues nativ verknüpfen (vollständig — Slice-Set == Sub-Issue-Set)
+- [ ] **Wellen-Gate** → vor dem Schließen: offene `annahme-drift`-Propagation Richtung Zukunfts-Wellen/-Stubs (und, bei Programm-Zugehörigkeit, dem Programm-PRD) reconciled — kein unbemerktes Drift über die Wellengrenze hinweg (Drift-Checkpoint, `wrapup` Step 5e.2)
 - [ ] **Track** → Rollup ist der Status; Anker zu bei 100 %
 
 ## Entscheidungen — *(`to-prd` füllt; bei Quelle `grill`: „Grill <Datum>, gelockt")*
@@ -74,3 +76,25 @@ Live-Verify: <User-Outcome, DB-/UI-Wert mit Vergleich —>
 PR: <closes #x / refs #self>.
 ```
 </details>
+
+## Stufe 1p — Programm-Vorzustand (top-down, `to-waves`)
+
+`to-waves` legt die Wellen-Stubs eines **Programm-PRD** in genau dieser Form an — der definierte Vorzustand oberhalb der Feature-Route (statt cluster/Wave-los wie Stufe 1):
+
+- **Titel** `Welle <N> — <Thema>` **ab Anlage** (nicht erst bei der Promotion).
+- **Label** `wave-stub`; **Wave + Phase** sofort gestempelt (gebatcht über `stamp-batch`).
+- **Nativer Parent = das Programm-PRD** (3 Ebenen: PRD → Stub → Slice-Leaves). Die vorerzeugten Slice-Leaves hängen als native Kinder unter dem Stub — für `to-prd` Mode B **erwartetes Skelett**, kein Child-Drift.
+- **Idempotenz-Marker im Body** (Kopfzeile, grep-bar, nie geändert):
+
+```
+<!-- program-stub-source: <prd-source-id>/w<N> -->   <!-- stabile Identität: to-waves search-before-create + Delta-Re-Run/Crash-Recovery -->
+<!-- program-revision: rN -->                          <!-- gegen die PRD-plan_revision geprüft; stale Stub blockt laut; der Delta-Re-Run erneuert ihn -->
+```
+
+- **Handoff-Worktree-Zeile konsumenten-neutral** — der Programm-Vorzustand ist Teil der publizierten `to-waves`-Route, daher **kein** projekt-spezifischer Skript-Pfad, sondern:
+
+```
+Worktree: your project's worktree helper, or `git worktree add`
+```
+
+Reifung: der Stub reift bei der **Wellen-Promotion** wie Stufe 2 (`to-prd` Mode B in den Stub + `to-issues`); ungebaute Leaves/Stubs eines abgebrochenen Programms schließen in der Reihenfolge Leaves → Stubs → PRD (Abbruch-Konvention im PROGRAM-PRD-FORMAT).
