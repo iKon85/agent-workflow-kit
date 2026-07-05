@@ -25,7 +25,7 @@ Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Pr
 - **Quelle:** <board-to-waves | externe-prd | rohes-issue | plan | grill> *(provenienz-neutral — die Form ist gleich, egal woher; die folgenden Zeilen soweit zutreffend füllen, nicht-zutreffende löschen)*
 - **Mitglieds-Issues:** #<a> #<b> #<c> … *(gelistet; verknüpft via `to-issues`-Promotion, To-Do unten)*
 - **Warum zusammen (feuernde Kriterien):** Gate=<Outcome> · <B1 Code-Nähe / B2 Typ-Homogenität / B3 Abhängigkeit / B4 Verify-Fläche, soweit zutreffend>
-- **Größe + Risiko:** ~<N> Slices · Backend: <ja/nein> · Modell-Mix: <Sonnet/Opus> · Risiko: <niedrig/mittel/hoch — Grund, z.B. Race/Cache/Forecast/Migration>
+- **Größe + Risiko:** ~<N> Slices · Backend: <ja/nein> · Modell-Mix: <Modell [Effort], z.B. Sonnet [medium] / Opus [high] / gpt-5.5 [medium]> · Risiko: <niedrig/mittel/hoch — Grund, z.B. Race/Cache/Forecast/Migration>
 - **`grill-needed`:** <nein> | <ja — diese Session> | <ja — eigene Session (zu groß/fuzzy)>
 
 ### To-Do (Reifung: grill → to-prd → to-issues)
@@ -50,7 +50,7 @@ Reihenfolge (WSJF-lite): sichtbar + low-risk zuerst → Logik/Backend → Cleanu
 <!-- slice-table:start -->
 | # | Status | Slice | Sub-Issue | Branch | Modell | Gate | Backend? | schließt/refs |
 |---|---|---|---|---|---|---|---|---|
-| 1 | ⬜ | <Slice-Titel> | #<sub> | `feat/<#>-<slug>` | <Sonnet/Opus> | <—/🧭/🔬/📐/📝> | <ja/nein> | <closes #x / refs #y> |
+| 1 | ⬜ | <Slice-Titel> | #<sub> | `feat/<#>-<slug>` | <Modell [Effort]> | <—/🧭/🔬/📐/📝> | <ja/nein> | <closes #x / refs #y> |
 <!-- slice-table:end -->
 
 Status-Legende: ⬜ offen · 🔄 in Arbeit · ✅ merged #<PR>. **Jeder Slice = ein Sub-Issue** (`#<sub>`). **Die volatilen Spalten Status + Branch generiert `board-sync.py anchor-sync <anker#>` aus dem Board** (zwischen den `<!-- slice-table:start/end -->`-Markern; `wrapup` Step 5e.1 ruft es beim Merge) — monoton (kippt nie ein `✅`/`🔄` zurück), driftfrei idempotent; **stabile Plan-Spalten (Slice/Modell/Gate/Backend?/refs) bleiben hand-gepflegt** und überleben verbatim. Fehlende Sub-Issue-Zeilen hängt es an (Gen-b-Split). **Marker nicht löschen** — ohne sie kann `anchor-sync` die Tabelle nicht finden (Erstlauf lokalisiert sie über die `Status`+`Sub-Issue`-Kopfzeile und setzt die Marker selbst). Der native „Sub-issues progress"-Rollup ist die %-Zweitsicht.

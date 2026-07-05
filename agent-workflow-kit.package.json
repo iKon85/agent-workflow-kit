@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.6.0",
+  "kitVersion": "0.6.1",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -78,7 +78,7 @@
       "kind": "skill",
       "ownerSkill": "codex-adapter-sync",
       "surface": "codex",
-      "sha256": "5894e289fddf4d15b56f1721c2e3904fe01d560e532ef28000b48390d8a6366e",
+      "sha256": "3a8ad73c4bfce8c01e561d2dc0c7f0e24d9ac85c1bb2c8c0194a2de278cd6a2d",
       "mode": 420,
       "origin": "kit"
     },
@@ -672,7 +672,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "codex",
-      "sha256": "55deee9585e3ecb7cccc63a9a9e322c2b0122d68fb0ca78d5389ba982328aa48",
+      "sha256": "64d8a544833a7c7e86d4596de7061970c9e649e1f077f04fb48fef6a0857459f",
       "mode": 420,
       "origin": "kit"
     },
@@ -1494,7 +1494,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "claude",
-      "sha256": "bbda801ccb2d87aaadb4cc4100ace66392ad8186633faade3bc3d3d977c41879",
+      "sha256": "01c1239db5ebaeaa1366efb883a9b1c15c8f6e1a1c86088d300f30f3b16bd93e",
       "mode": 420,
       "origin": "kit"
     },
@@ -1546,7 +1546,7 @@
     {
       "path": "docs/agents/wave-anchor-template.md",
       "kind": "template",
-      "sha256": "ae10937e1d90d503200790f91b334cdbd7d97ff84d3c495df35bf0c3aabe3743",
+      "sha256": "6027ecabbb041121f8f077a7a8ba669d3ad66faa566903e261611b807c06b908",
       "mode": 420,
       "origin": "kit"
     },

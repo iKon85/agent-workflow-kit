@@ -25,6 +25,8 @@ Always show the deploy banner **before** the merge (Step 3). No y/n confirmation
 
 **Condition — not a hard contract:** this 3-phase split only pays off **if your harness supports real subagent dispatch with a model param** (here: `spawn_agent` + `model`/`reasoning_effort`). **If your harness can't** → **everything runs inline in the main thread**: phases 1+2+3 in one pass, same steps, same order, same gates — just without the phase switch. The **STOP-back rule is unaffected by this and stays exactly as sharp** (see below): abort on every hard stop, force NOTHING, report the reason explicitly — inline that means the main thread halts at the same point instead of continuing.
 
+**Portable routing rule** (conforms to the routing doctrine mirror in `AGENTS.md`): mechanical, mechanically-verifiable plumbing → cheap tier at low effort (here: `worker` + `gpt-5.4-mini` + `reasoning_effort: low`); judgment calls (secret review, drift confirmation) stay on the main thread.
+
 | Phase | Who | Content |
 |---|---|---|
 | **1 — prep + gates** | **Main thread** (session model) | Pre-flight · retro-exit gate · **Step 0a commit incl. secret review** (security judgment stays here) · **Step 0c.2 assumption-drift propose+confirm**. Collects: `**Retro:**` line text, confirmed `annahme-drift` marker blocks, conventional title/commit context. |

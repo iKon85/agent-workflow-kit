@@ -35,6 +35,8 @@ Always show the deploy banner **before** the merge (Step 3). No y/n confirmation
 
 **Condition — not a hard contract:** the 3-phase split only pays off if the harness supports subagent dispatch with a model param (`Agent` tool + `model: sonnet`). Otherwise **everything runs inline in the main thread** — same steps, same order, same gates, just without the phase switch; the **STOP-back rule stays exactly as sharp** (see below): halt on every hard stop, force NOTHING, report the reason explicitly.
 
+**Portable routing rule** (conforms to a user-level routing doctrine if you carry one): mechanical, mechanically-verifiable plumbing → default tier at low/medium effort (here: Sonnet); judgment calls (secret review, drift confirmation) stay on the main thread / top tier.
+
 | Phase | Who | Content |
 |---|---|---|
 | **1 — prep + gates** | **Main thread** (session model) | Pre-flight · retro-exit gate · **Step 0a commit incl. secret review** (security judgment stays here) · **Step 0c.2 assumption-drift propose+confirm**. Collects: `**Retro:**` line text, confirmed `annahme-drift` marker blocks, conventional title/commit context. |

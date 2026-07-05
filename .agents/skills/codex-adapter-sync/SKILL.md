@@ -70,12 +70,18 @@ Codex adapter side:
    - Leave clearly Claude-only setup, hook, or personal/meta skills out unless
      the user explicitly wants them ported.
    - Translate Claude-specific model delegation instead of copying it
-     literally. In particular, Claude `Agent` dispatches with `model: sonnet`
-     should become Codex `spawn_agent` dispatches with the appropriate
-     `agent_type`; for mechanical coding/git work use a `worker` subagent with
-     `model: gpt-5.4-mini` and `reasoning_effort: low` unless the source skill
-     gives a stronger task-specific reason. Keep user gates, security
-     judgment, and approval decisions in the main thread.
+     literally (tier mapping per your routing doctrine; if the repo carries a
+     Codex mirror table in `AGENTS.md`, keep it in sync). In particular, Claude `Agent` dispatches with
+     `model: sonnet` should become Codex `spawn_agent` dispatches with the
+     appropriate `agent_type`; for mechanical coding/git work use a `worker`
+     subagent with `model: gpt-5.4-mini` and `reasoning_effort: low` unless the
+     source skill gives a stronger task-specific reason. Claude `opus` /
+     judgment-tier dispatches (subtle logic, review/verify verdicts) map to
+     `model: gpt-5.5` with `reasoning_effort: high` (verdicts never below
+     high). Translate Claude `effort:` params to the nearest
+     `reasoning_effort` value (`minimal|low|medium|high|xhigh`; Claude `max`
+     → `xhigh`). Keep user gates, security judgment, and approval decisions
+     in the main thread.
    - Keep dual-surface generic/vendored skill bodies content-synced. When a
      Codex mirror must intentionally differ from the Claude source, bracket the
      source region and the Codex replacement with a matching transform marker
