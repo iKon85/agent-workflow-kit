@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """board_fields.py — batched field-writes + a field-value read for Projects-v2
-items (Welle 52 / Slice 3).
+items.
 
 Three mechanics `board-sync.py` lacked before this slice:
 
   - `stamp-batch` — alias-batched `updateProjectV2ItemFieldValue` mutations
     (~30 aliases/request, chunked) instead of one `gh` call per field per
-    item. `to-waves` (Slice 4) stamps Wave+Phase on 50+ items at publish time;
+    item. `to-waves` stamps Wave+Phase on 50+ items at publish time;
     the existing sequential `stamp_arg_list` path (still the create/add/promote
     fallback for a single item) does not scale to that.
   - `field-value` — read a project item's current field value for an issue.

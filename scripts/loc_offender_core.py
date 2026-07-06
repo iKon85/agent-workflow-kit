@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LoC-offender drive gate — PURE decision core (, Welle 37 N10, ADR-0034).
+"""LoC-offender drive gate — PURE decision core.
 
 The decision logic + structured Loc-Defer parsing. No I/O. The git/subprocess
 adapter + CLI live in loc_offender_gate.py, which imports this module. Splitting

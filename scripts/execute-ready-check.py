@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 execute-ready-check.py — single source of truth for "execute-ready" graph
-coherence (Welle 26 / Slice 1g).
+coherence.
 
 Four callers share this one checker so the parse/coherence rules live + are
 tested ONCE:
