@@ -233,12 +233,13 @@ def check_scope_coverage(graph: ProgramGraph) -> tuple[int, int, list[str]]:
 def check_revision_coherence(plan_revision: Optional[int],
                              stub_revisions: Optional[list[dict]]) -> list[str]:
     """A published Welle-Stub whose `<!-- program-revision: rN -->` marker (stamped
-    by `to-waves`, Welle 52 Slice 4) no longer matches the PRD's plan_revision is
-    stale — it blocks loudly instead of silently building from an outdated plan.
+    by `to-waves`) no longer matches the PRD's plan_revision is stale — it blocks
+    loudly instead of silently building from an outdated plan.
 
     `stub_revisions` (`[{"label": str, "revision": int | None}, …]`) is pre-fetched
-    by the caller (this module stays I/O-free); Slice 1's CLI passes `[]` (no stubs
-    pre-publish), Slice 3/4 wire in the real fetch via the same signature."""
+    by the caller (this module stays I/O-free); the CLI passes `[]` when no stubs
+    are fetched pre-publish, and callers wire in the real fetch via the same
+    signature."""
     if not stub_revisions:
         return []
     if plan_revision is None:

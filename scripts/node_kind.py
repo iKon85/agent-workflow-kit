@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """node_kind.py — pure node-kind classifier shared by execute-ready-check.py
-(Welle 52 / Slice 2).
+.
 
 execute-ready-check.py used to infer "is this an anchor?" structurally (no
 native parent + has children). That heuristic breaks the moment an anchor gets
@@ -29,7 +29,7 @@ the node's own labels/body — never off its position in the graph:
 ROOT_KINDS = {program, anchor}: execute-ready-check.py evaluates these at
 their OWN local root (their own children as siblings) and never lifts them to
 a real parent, even when one exists. The multi-level, programme-wide graph
-validation is validate-graph's job (Welle 52 / Slice 1) — this stays
+validation is validate-graph's job — this stays
 rooted-local (target + at most one level of children).
 
 Pure + I/O-free by design (mirrors anchor_table.py) — directly unit-tested

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LoC-offender drive gate — git/subprocess adapter + CLI (, ADR-0034).
+"""LoC-offender drive gate — git/subprocess adapter + CLI.
 
 Thin shell over the pure core in loc_offender_core.py. Invoked by .githooks/pre-push
 as `loc_offender_gate.py --check --head <local_sha> [--base-ref <ref>]`, once per

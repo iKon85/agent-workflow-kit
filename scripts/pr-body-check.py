@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 pr-body-check.py — mechanical guard for the PR-body conventions that were until
-now prose-only (Welle 26 / Slice 8).
+now prose-only.
 
 Called by `wrapup` Step 0c AFTER the PR has been created/reused, BEFORE the
 merge gate. Turns three instruction-only rules into a check that actually fires:
@@ -163,7 +163,7 @@ def check_pr_body(body: str, issue: int, parent, is_anchor: bool = False):
     if not RETRO_RE.search(body):
         violations.append(
             "Pflichtzeile `**Retro:** gefahren — …` oder "
-            "`**Retro:** übersprungen — <Grund>` fehlt (Format aus Slice 7).")
+            "`**Retro:** übersprungen — <Grund>` fehlt.")
 
     return violations
 

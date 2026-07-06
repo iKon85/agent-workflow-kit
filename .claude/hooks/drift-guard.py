@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Drift-Guard — PreToolUse block on Write|Edit|MultiEdit of a handoff doc when the
-linked GitHub issue's rooted graph is not execute-ready (Welle 26 / Slice 1g).
+linked GitHub issue's rooted graph is not execute-ready.
 
 Why a hook (not skill prose): the `handoff` skill AND the global
 `grill-with-docs-codex` live OUTSIDE the repo. Only a repo-side hook fires

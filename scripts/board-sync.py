@@ -69,7 +69,7 @@ READY_FOR_AGENT = _CFG["labels"]["readyForAgent"]
 TYPE_PREFIX = _CFG["labels"]["typePrefix"]
 CLUSTER_TYPE_LABEL = _CFG["labels"]["clusterType"]
 WAVE_STUB_LABEL = _CFG["labels"]["waveStub"]
-# Optional Programm-Flughöhe key (Welle 52) — literal-default getter, so
+# Optional Programm-Flughöhe key — literal-default getter, so
 # an existing profile without `labels.programType` keeps working unchanged.
 PROGRAM_TYPE_LABEL = program_type_label(_CFG)
 PROJECT_ITEM_LIST_LIMIT = 2000
@@ -714,7 +714,7 @@ def _fetch_stub_revisions(prd_issue: int) -> list[dict]:
     (or None if the marker is missing) — `check_revision_coherence`'s input shape
     (`[{"label": str, "revision": int | None}, …]`). Pre-publish (no children yet)
     this loop never runs, so `[]` degrades revision-coherence to a no-op — the
-    unchanged green path (Slice 1)."""
+    unchanged green path."""
     stubs = []
     for child in _children_of(prd_issue):
         body = _gh(["issue", "view", str(child), "--repo", REPO,
@@ -804,7 +804,7 @@ def cmd_field_value(args) -> int:
 # --- program-sync: Wellenplan Status-resync for a Program-PRD -------
 # Own grammar, own command (plan 9b(d): "program-sync statt anchor-sync-Über-
 # ladung") — the actual parse/render/status logic lives in program_sync.py
-# (pure) and program_graph.py's public Wellenplan renderer (Slice 1); this
+# (pure) and program_graph.py's public Wellenplan renderer; this
 # handler stays thin. `_anchor_board_data` is reused as-is: a Program-PRD's
 # native sub-issues are its promoted Wave-Anchor stubs, fetched exactly like
 # an Anchor fetches its Slice sub-issues — no second query needed.

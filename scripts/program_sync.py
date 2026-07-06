@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """program_sync.py — Wellenplan Status-resync for `board-sync.py program-sync`
-(Welle 52; plan step 9b(d); Status column amendment).
+(plan step 9b(d); Status column amendment).
 
 A Program-PRD's `## Wellenplan` table is its OWN grammar (Welle/Status/Name/
-Slices/Gate/covers — Slice 1, `program_graph_parse.py`), one level above a
+Slices/Gate/covers — parsed by `program_graph_parse.py`), one level above a
 Welle-Anchor's own Slices-table. `anchor-sync` (`anchor_table.py`) already
 regenerates an Anchor's Slice-row Status/Branch from its native sub-issues;
 `program-sync` does the SAME KIND of thing one graph level up — a PRD's native
@@ -21,7 +21,7 @@ hand annotations there always survive verbatim, and Status is the only column
 
 PURE — no gh / no I/O / no board_config. Only imports `WaveRow` from
 `program_graph`'s public facade (never re-implementing the Wellenplan
-parser/renderer — Slice 1 owns that grammar).
+parser/renderer — `program_graph_parse.py` owns that grammar).
 """
 from __future__ import annotations
 

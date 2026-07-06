@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.6.1",
+  "kitVersion": "0.6.2",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -704,7 +704,7 @@
     {
       "path": ".claude/hooks/drift-guard.py",
       "kind": "hook",
-      "sha256": "cf5306968ebb5022089df271b1e333d9846f6c8ffdbc9c3364182300402cf12e",
+      "sha256": "370fc4ec5871cc78d02bf931c7c334dd0344314208d4a3c753aac4f3328c0c1b",
       "mode": 493,
       "origin": "kit"
     },
@@ -1567,63 +1567,63 @@
     {
       "path": "scripts/board_fields.py",
       "kind": "script",
-      "sha256": "5c98a0b8d5de4131dc78696cfac131a3e78e79130b433a6b22e2d72bb6cf7cc2",
+      "sha256": "d16500fe7c251893efaef3417ad566b341313da7180627c47c34f7e39c402e1d",
       "mode": 420,
       "origin": "kit"
     },
     {
       "path": "scripts/board-sync.py",
       "kind": "script",
-      "sha256": "edea9ff3c6341e4701d2e36b5052a2e80e52b3ea942d1fde028ce2e7afe7e068",
+      "sha256": "f8d997defdd0ac672f90863685489432e04f5587d21f04085610a008754e3121",
       "mode": 493,
       "origin": "kit"
     },
     {
       "path": "scripts/execute-ready-check.py",
       "kind": "script",
-      "sha256": "952f9a1b11ffe11cb97b6a44eef580eb7b3edb6820987b067f8c137c83a34f48",
+      "sha256": "9a20b96f26aa3d224405a83cb77dba9edd3ddfbadc6b55da88335caf3313e4e6",
       "mode": 493,
       "origin": "kit"
     },
     {
       "path": "scripts/loc_offender_core.py",
       "kind": "script",
-      "sha256": "8da6377b1b46dcd3d945f2afe7535da58284319e552dac7bc5bb558dca430afc",
+      "sha256": "eb1addc46f9f64bb0d5dd50e2eecc859a46ad16eb3b7b21150e3d291db1e6495",
       "mode": 420,
       "origin": "kit"
     },
     {
       "path": "scripts/loc_offender_gate.py",
       "kind": "script",
-      "sha256": "4ebab78d1d65d384bfd87fe355324fe83146abc1b686bb27accb1415fa379d9d",
+      "sha256": "3e96b180bbe922c85ea511da94f118b6d8d8937bc000c8a31b1a88bac211545e",
       "mode": 493,
       "origin": "kit"
     },
     {
       "path": "scripts/node_kind.py",
       "kind": "script",
-      "sha256": "1a4800c137fef0bcd6896f432f4dd58ac6e44f4a50e2540dce993a9712ca0cee",
+      "sha256": "92e7a7205539e7a9b52488b790b56088e7cb87d460f130d07c1e0ccdbe10137a",
       "mode": 420,
       "origin": "kit"
     },
     {
       "path": "scripts/pr-body-check.py",
       "kind": "script",
-      "sha256": "b0037f32ab81483774a3d6ea5a315975b547677e7f68522403fac803d6bc9eb9",
+      "sha256": "fd4fe050c4db485e07d7ff25fa4a029c8b05c96a58ab432ae6d4120b72f11581",
       "mode": 493,
       "origin": "kit"
     },
     {
       "path": "scripts/program_graph_parse.py",
       "kind": "script",
-      "sha256": "f2dd79c939efbd0bcda4a1dc04106a5c6401df3c4b173f178a6fd5c07511517b",
+      "sha256": "cfe8a78774fdcb17f18d3d4aaa7cd823d689c2b911a329e07b781dcc9298a849",
       "mode": 420,
       "origin": "kit"
     },
     {
       "path": "scripts/program_graph_validate.py",
       "kind": "script",
-      "sha256": "2a53c321f13abb5b21222feb3acf1e17ae4b9cdab26664f9406ed3600972dfbc",
+      "sha256": "583c85ee8ba5608cf1c976fc1866bae043783653fae0678dc44809958db3282c",
       "mode": 420,
       "origin": "kit"
     },
@@ -1637,7 +1637,7 @@
     {
       "path": "scripts/program_sync.py",
       "kind": "script",
-      "sha256": "fd2fd9ce28e4a9cb71cee70e90c74bc3bf0f1718389e9c05eb9d9be7056bffc3",
+      "sha256": "9ba4fc5493d4f2e7d7cbbed45558caa8cc815010cc93e2ac6ed7d80a98526c00",
       "mode": 420,
       "origin": "kit"
     }

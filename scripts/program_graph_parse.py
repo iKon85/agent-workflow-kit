@@ -13,7 +13,7 @@ node kinds — but the same markdown mechanics, so the parse/render primitives a
 shared rather than re-implemented design decision).
 
 The Wellenplan-table renderer lives here too (parser↔renderer roundtrip pair,
-consumed later by `program-sync`, Welle 52 Slice 3).
+consumed later by `program-sync`).
 """
 from __future__ import annotations
 
