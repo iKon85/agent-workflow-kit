@@ -32,7 +32,7 @@ Model: **strongest available reasoning model for board-wide judgment calls** (su
 **Carrier = Wave field (number)** on the **anchor** (mandatory — source of truth + board sort key, set at promotion). NOT the title string, NOT the `wave:*` label (both deprecated for waves). Member/sub-issues get the Wave field + native parent link at `to-issues` promotion (not yet at clustering time): the parent link carries the assignment semantically, the Wave field makes it board-filterable — without the Wave field an assigned issue wrongly shows up in the "wave-less" view (`is:open no:wave -label:"type:cluster"`).
 **N = monotonic auto-increment ID:** `max(assigned wave numbers) + 1`. Ascending, never reused, never letters, never retroactively resorted (like issue numbers). Gaps are fine. `to-issues` pulls the next free number at promotion via the shared board-sync helper (`scripts/board-sync.py` `next-wave`) — board-to-waves itself assigns **no** wave.
 
-**Registry = board-native, no doc file:** view filter `type:cluster`, sort `Wave` ascending, columns Status + sub-issues progress. The anchor issues + Wave field **are** the registry. Active wave = `type:cluster` + status `In Arbeit`. Wave field ≠ `Cluster (G-number)` field (roadmap G-cluster, orthogonal). No milestones (progress comes from the sub-issue rollup).
+**Registry = board-native, no doc file:** view filter `type:cluster`, sort `Wave` ascending, columns Status + sub-issues progress. The anchor issues + Wave field **are** the registry. Active wave = `type:cluster` + the in-progress-role status. Wave field ≠ `Cluster (G-number)` field (roadmap G-cluster, orthogonal). No milestones (progress comes from the sub-issue rollup).
 
 ## Clustering Heuristic — Gate + Booster + Splitter
 
@@ -103,14 +103,14 @@ Body from `docs/agents/wave-anchor-template.md` **stage 1** (header + cluster or
   # locally filter on `wave-stub-source: <topic-slug>` → 1 match ⇒ skip + report (stub exists); >1 ⇒ STOP + report; 0 ⇒ create
   ```
 
-**Create the candidate stub (cluster/wave-less)** — issue **without** `type:cluster` and **without** `--wave` (exactly one `type:*` + one `priority:*`; title **without** a `Welle <N>` prefix, since the wave number is only assigned at promotion), **with `--wave-stub`** (a searchable "awaiting planning" filter — the HTML marker above is only locally greppable, GitHub doesn't index it), attach to the board, status `Triaged` (clustered, not yet planned). `to-prd` then matures the stub (Mode B) into a Draft PRD, `to-issues` promotes it to an anchor (sets `type:cluster` + Wave then, **strips `wave-stub`** — the stub leaves the planning list):
+**Create the candidate stub (cluster/wave-less)** — issue **without** `type:cluster` and **without** `--wave` (exactly one `type:*` + one `priority:*`; title **without** a `Welle <N>` prefix, since the wave number is only assigned at promotion), **with `--wave-stub`** (a searchable "awaiting planning" filter — the HTML marker above is only locally greppable, GitHub doesn't index it), attach to the board, triaged-role status (clustered, not yet planned). `to-prd` then matures the stub (Mode B) into a Draft PRD, `to-issues` promotes it to an anchor (sets `type:cluster` + Wave then, **strips `wave-stub`** — the stub leaves the planning list):
 ```bash
 python3 scripts/board-sync.py create \
   --title "<Outcome/Thema>" \
   --body-file <stub.md> \
   --label "type:feature" --label "priority:medium" \
   --wave-stub \
-  --status Triaged
+  --status-role triaged
 ```
 Outputs `#<STUB_NUM> <URL>`. `--dry-run` shows the `gh` calls without writing. (Fuzzy/undecided candidate → `type:research` instead of `type:feature`.)
 

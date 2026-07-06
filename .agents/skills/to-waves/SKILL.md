@@ -85,15 +85,15 @@ the numbering is deterministic; only the field stamps are batched):
    the revision marker — see §6). Not yet Wave/Phase-stamped (that is step 4).
    ```bash
    python3 scripts/board-sync.py create --title "Welle <N> — <Name>" \
-     --body-file <stub.md> --wave-stub --status Spec
+     --body-file <stub.md> --wave-stub --status-role spec
    ```
 2. **Slice leaves.** One per slice under each wave, native parent = its stub. Created
-   with Status Spec and **no** `ready-for-agent` (a leaf is not buildable until its
+   with the spec-role status and **no** `ready-for-agent` (a leaf is not buildable until its
    wave is promoted — the ordering guard stays unambiguous). Body = the slice's
    `## Slices` section carried forward per `SLICE-METADATA-FORMAT.md` (metadata block +
    the outcome/placeholder skeleton, sharpened only at promotion).
    ```bash
-   python3 scripts/board-sync.py create --title "<slice title>" --body-file <leaf.md> --status Spec
+   python3 scripts/board-sync.py create --title "<slice title>" --body-file <leaf.md> --status-role spec
    ```
 3. **Sub-issue links.** Link each stub under the PRD and each leaf under its stub.
    `link` is one-parent-checked + idempotent (a foreign parent is reported, never
@@ -130,7 +130,7 @@ bottom-up → program transition rains duplicates. Adoption:
   `ready-for-agent` and `wave-stub` (a leaf is not buildable until its wave is
   promoted) while the **body is kept** as the source content:
   ```bash
-  python3 scripts/board-sync.py add --issue <n> --status Spec --bucket hitl
+  python3 scripts/board-sync.py add --issue <n> --status-role spec --bucket hitl
   ```
 - **Re-parent under the stub** with `link` (one-parent-checked — a foreign parent is
   reported, not overwritten). Resolve a reported conflict by hand: unlink the old

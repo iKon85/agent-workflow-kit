@@ -91,7 +91,7 @@ def require_col_index(headers: list[str], name: str) -> int:
     exact/tolerant-match. Never let a silent None flow downstream and get
     misread as "no row has this column": that used to make merge_slice_rows
     treat every board sub-issue as missing and append it as a duplicate row,
-    on every run (, proven by a 2026-07-02 double-run)."""
+    on every run (proven by a 2026-07-02 double-run)."""
     idx = col_index(headers, name)
     if idx is None:
         raise ValueError(
@@ -108,14 +108,20 @@ def first_subissue_num(cell: str) -> Optional[int]:
 
 
 # --- volatile-cell refresh (board → cell) ------------------------------------
-def status_token_from_board(entry: dict) -> str:
+def status_token_from_board(entry: dict, roles: dict) -> str:
     """Canonical Status token from board state: ✅ #<PR> (merged) · 🔄 (open PR or
-    In Arbeit/Review) · ⬜ (otherwise)."""
+    an in-flight board status) · ⬜ (otherwise).
+
+    Which status NAMES count as in-flight comes from the profile's role map
+    (`roles["inProgress"]`/`roles["review"]`) — passed in as a plain
+    dict so this module stays pure (no board_config import). Empty roles →
+    board-status names can't be interpreted (⬜), PR signals still work."""
     prs = entry.get("prs") or []
     merged = [p for p in prs if p.get("state") == "MERGED"]
     if merged:
         return f"✅ #{merged[-1]['number']}"
-    if [p for p in prs if p.get("state") == "OPEN"] or entry.get("status") in ("In Arbeit", "Review"):
+    active = {roles.get("inProgress"), roles.get("review")} - {None}
+    if [p for p in prs if p.get("state") == "OPEN"] or entry.get("status") in active:
         return "🔄"
     return "⬜"
 
@@ -133,7 +139,7 @@ def _status_rank(base: str) -> int:
     return _STATUS_RANK.get(base, -1)
 
 
-def refresh_status_cell(existing: str, entry: dict) -> str:
+def refresh_status_cell(existing: str, entry: dict, roles: dict) -> str:
     """Refresh a Status cell from the board, MONOTONICALLY (never regress).
 
     Keep the existing cell verbatim when the board agrees (preserves hand
@@ -141,7 +147,7 @@ def refresh_status_cell(existing: str, entry: dict) -> str:
     slices `Part of` the anchor stay OPEN while a part merges, so the board shows no
     closing PR; a human ✅ must not flip back to ⬜. Only an advance (⬜→🔄→✅, or a
     corrected merge-PR number) replaces the cell."""
-    token = status_token_from_board(entry)
+    token = status_token_from_board(entry, roles)
     base = status_base(existing)
     if _status_rank(token) < _status_rank(base):
         return existing
@@ -169,7 +175,7 @@ def refresh_branch_cell(existing: str, entry: dict) -> str:
 
 
 def merge_slice_rows(headers: list[str], rows: list[list[str]],
-                     board: dict) -> tuple[list[list[str]], list[int]]:
+                     board: dict, roles: dict) -> tuple[list[list[str]], list[int]]:
     """Refresh Status/Branch per row from board (keyed by the Sub-Issue cell's first
     #n) and append board sub-issues missing from the table. Returns (rows, appended).
     Rows whose sub-issue is absent from the board stay verbatim.
@@ -195,7 +201,7 @@ def merge_slice_rows(headers: list[str], rows: list[list[str]],
         sub = first_subissue_num(row[si]) if si < len(row) else None
         if sub is not None and sub in board:
             if st < len(row):
-                row[st] = refresh_status_cell(row[st], board[sub])
+                row[st] = refresh_status_cell(row[st], board[sub], roles)
             if br is not None and br < len(row):
                 row[br] = refresh_branch_cell(row[br], board[sub])
         out.append(row)
@@ -205,7 +211,7 @@ def merge_slice_rows(headers: list[str], rows: list[list[str]],
             continue
         new = [""] * len(headers)
         new[si] = f"#{sub}"
-        new[st] = status_token_from_board(entry)
+        new[st] = status_token_from_board(entry, roles)
         if br is not None:
             head = branch_from_board(entry)
             if head:
@@ -267,9 +273,13 @@ def splice_slice_table(body: str, table_str: str) -> str:
     return result + "\n" if body.endswith("\n") else result
 
 
-def extract_anchor_board_data(data: dict) -> dict:
+def extract_anchor_board_data(data: dict, status_field_id: str) -> dict:
     """{sub-issue number: {title, status, prs:[{number,state,headRefName}]}} from the
-    anchor sub-issues GraphQL response."""
+    anchor sub-issues GraphQL response.
+
+    The status is matched by FIELD ID (`status_field_id` from the profile),
+    not by the display name "Status" — a consumer board may call the field
+    anything (mirrors the SessionStart hook's field-ID match)."""
     issue = (data.get("data") or {}).get("repository", {}).get("issue")
     nodes = ((issue or {}).get("subIssues") or {}).get("nodes") or []
     out: dict = {}
@@ -277,9 +287,11 @@ def extract_anchor_board_data(data: dict) -> dict:
         prs = ((n.get("closedByPullRequestsReferences") or {}).get("nodes")) or []
         status = None
         for it in ((n.get("projectItems") or {}).get("nodes") or []):
-            s = it.get("s") or it.get("status")
-            if s and s.get("name"):
-                status = s["name"]
+            for fv in ((it.get("fieldValues") or {}).get("nodes") or []):
+                if (fv.get("field") or {}).get("id") == status_field_id and fv.get("name"):
+                    status = fv["name"]
+                    break
+            if status:
                 break
         out[n["number"]] = {
             "title": n.get("title", ""),

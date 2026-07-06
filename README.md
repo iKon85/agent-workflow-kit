@@ -232,7 +232,8 @@ marked `<!-- board-sync:profile -->`:
   "fields": {
     "status": {
       "id": "<status-field-id>",
-      "options": { "Spec": "<option-id>", "In Progress": "<option-id>", "Done": "<option-id>" }
+      "options": { "Spec": "<option-id>", "In Progress": "<option-id>", "Done": "<option-id>" },
+      "roles": { "spec": "Spec", "inProgress": "In Progress", "done": "Done" }
     },
     "wave": "<wave-field-id>",
     "cluster": "<cluster-field-id>",
@@ -255,6 +256,11 @@ marked `<!-- board-sync:profile -->`:
 you rarely touch this by hand. Point a script at an alternate profile with the
 `BOARD_SYNC_PROFILE` environment variable. Labels, branch prefixes, and headings
 are *yours* to rename — the scripts read whatever the profile says.
+
+Status stage names are yours too: scripts and skills address stages by semantic
+**role** (`fields.status.roles`: `idea/triaged/spec/inProgress/review/done` →
+your option names, e.g. `board-sync.py add --status-role spec`), so a board in
+any language works — map each role once, rename an option with one profile edit.
 
 ### What's yours vs. the kit's
 
