@@ -29,6 +29,10 @@ export const HELPER_FILES = [
   { path: 'scripts/board-sync.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/execute-ready-check.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/pr-body-check.py', kind: 'script', mode: 0o755 },
+  // Mechanical executor for /wrapup (preflight/commit/land) — replaced the
+  // Sonnet phase-2 subagent. Imports board_config + anchor_table
+  // (both shipped above). Invokable CLI → 0o755.
+  { path: 'scripts/wrapup-land.py', kind: 'script', mode: 0o755 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
   // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
   // hooks ImportError on arrival.
