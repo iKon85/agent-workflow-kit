@@ -672,7 +672,7 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "codex",
-      "sha256": "64d8a544833a7c7e86d4596de7061970c9e649e1f077f04fb48fef6a0857459f",
+      "sha256": "fb51657f6f67078a1b486d0945c2919cdd360318d8fe1b0d3e6e7058d7ccde39",
       "mode": 420,
       "origin": "kit"
     },
@@ -1494,7 +1494,16 @@
       "kind": "skill",
       "ownerSkill": "wrapup",
       "surface": "claude",
-      "sha256": "01c1239db5ebaeaa1366efb883a9b1c15c8f6e1a1c86088d300f30f3b16bd93e",
+      "sha256": "469855b28a6676a8e6d736d04e22cb2f3e7ecdf8f533fe7a8296d1d56f380235",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/wrapup/SOURCES.txt",
+      "kind": "skill",
+      "ownerSkill": "wrapup",
+      "surface": "claude",
+      "sha256": "4ff05f7dc5330c8cd162d46f5f07f427beda02297bcb86e7cad0acf53b2e869d",
       "mode": 420,
       "origin": "kit"
     },
@@ -1639,6 +1648,13 @@
       "kind": "script",
       "sha256": "28ec2b2a14f909e8c8d56cf84bd15f802709ec7156ba3e0ae19663ffc14af61e",
       "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/wrapup-land.py",
+      "kind": "script",
+      "sha256": "7016115fea4db397fc65d155b6a698538a2169a5f2476f4e6a5a738cf574dfec",
+      "mode": 493,
       "origin": "kit"
     }
   ]
