@@ -48,7 +48,7 @@ per-issue `wave:*` label — deprecated.
 - `needs-info` — waiting on reporter for more information
 - `ready-for-agent` — fully specified, ready for an AFK agent
 
-**Board status is authoritative** for everything else (Idee → Triaged → Spec → In Arbeit → Review → Done). State labels are not used for `needs-triage`, `ready-for-human`, or `wontfix` — those states live in the board or are handled by closing the issue.
+**Board status is authoritative** for everything else (the role arc idea → triaged → spec → inProgress → review → done, names per the profile's `fields.status.roles`). State labels are not used for `needs-triage`, `ready-for-human`, or `wontfix` — those states live in the board or are handled by closing the issue.
 
 `ready-for-human` does not exist in this project — all implementation is done by Claude. If an issue genuinely requires <maintainer>'s judgment before Claude can act, mark it `needs-info` and ask the specific question.
 
@@ -66,7 +66,7 @@ The maintainer invokes `/triage` and describes what they want in natural languag
 Query the issue tracker and present three buckets, oldest first:
 
 1. **Incomplete labels** — missing `type:*` or `priority:*`.
-2. **Board status `Idee`** — not yet triaged.
+2. **Board status at the idea role** — not yet triaged.
 3. **`needs-info` with reporter activity since the last triage notes** — needs re-evaluation.
 
 Show counts and a one-line summary per issue. Let the maintainer pick.
@@ -91,7 +91,7 @@ Show counts and a one-line summary per issue. Let the maintainer pick.
 
 After every state change make sure the issue is on the board and its Status reflects the outcome — one call:
 ```bash
-python3 scripts/board-sync.py add --issue <number> --status Triaged
+python3 scripts/board-sync.py add --issue <number> --status-role triaged
 ```
 `add` puts the issue on the board **and** stamps the Status field in one step. Board project + field IDs are the SSOT in `docs/agents/board-sync.md` (read from the project root — Memory is invisible to Codex-side agents). Wave is **not** set here — that happens in `board-to-waves` clustering.
 

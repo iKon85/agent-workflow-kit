@@ -124,3 +124,24 @@ def program_type_label(cfg: dict) -> str:
     when the profile hasn't set one — a Program-PRD's board-filterable type
     label (the `<!-- prd: program -->` body marker is not filterable)."""
     return cfg.get("labels", {}).get("programType", "type:program")
+
+
+# The semantic role keys of the workflow — schema, not
+# vocabulary; stable once shipped, extend additively, never rename. Single
+# home so CLI `choices`, docs, and future consumers reference one list.
+STATUS_ROLE_KEYS = ("idea", "triaged", "spec", "inProgress", "review", "done")
+
+
+def status_roles(cfg: dict) -> dict:
+    """The `fields.status.roles` map: semantic role keys (`idea`,
+    `triaged`, `spec`, `inProgress`, `review`, `done`) → this board's own
+    status option NAMES. This is where the workflow's status vocabulary lives —
+    scripts read roles, never option-name literals, so any board language works.
+
+    Optional (not in _REQUIRED_PATHS, like `fields.phase`): a profile without
+    the key returns an EMPTY DICT — deliberately no language default in code
+    (a German default would leak vocabulary into consumer installs, an English
+    one would be silently wrong for German boards). Callers degrade visibly:
+    passive paths (SessionStart hook, status-token sync) log a skip/hint;
+    explicit `--status-role` CLI calls fail loud with a migration snippet."""
+    return (cfg.get("fields", {}).get("status") or {}).get("roles") or {}

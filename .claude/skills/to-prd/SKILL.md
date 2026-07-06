@@ -62,10 +62,10 @@ gh project item-list 1 --owner <owner> --limit 500 --format json   # check targe
    - Board sync via helper:
      ```bash
      python3 scripts/board-sync.py create --title "<PRD title>" --body-file <prd.md> \
-       --label type:feature --label priority:medium --status Spec        # Mode A
-     # Mode B: gh issue edit <target> --body-file <prd.md>  +  board-sync.py add --issue <target> --status Spec
+       --label type:feature --label priority:medium --status-role spec   # Mode A
+     # Mode B: gh issue edit <target> --body-file <prd.md>  +  board-sync.py add --issue <target> --status-role spec
      ```
-   - **Mode B — explicit status flip:** writing the PRD into a `board-to-waves` stub, `board-sync.py add --issue <target> --status Spec` flips the board status **Triaged → Spec** (the stub was at Triaged; a Draft PRD sits at Spec).
+   - **Mode B — explicit status flip:** writing the PRD into a `board-to-waves` stub, `board-sync.py add --issue <target> --status-role spec` flips the board status **triaged → spec** (role names; the stub sat at the triaged-role status, a Draft PRD sits at the spec-role status).
    - **mode=program's `type:*`:** the Program-PRD's one `type:*` label is the profile's `labels.programType` value (`board_config.program_type_label()`, literal default `type:program` when unset) — never `type:feature` **and** `type:program` together (the "exactly one `type:*`" invariant is unchanged, program mode just uses a different vocabulary member). `type_labels_to_strip` protects this label from ever being stripped at promote (a Program-PRD is never itself a promote target).
 4. **Body markers (top of the PRD body):**
    - `**plan_revision:** r1`
@@ -109,9 +109,9 @@ to-prd: mode=<A|B|program> target=#<n> <created|updated> rev <old>→<new>
 
 A Program-PRD's board Status travels a longer arc than a Feature-PRD's:
 
-- **`Spec`** — set here, at the mode=program write (§4's board sync, same as any Draft-PRD).
-- **`In Arbeit`** — flipped by `to-issues`, at the **first** wave-stub promotion under this PRD (not by to-prd itself; a re-run of to-prd on an already-`In Arbeit` Program-PRD leaves the status untouched).
-- **`Done`** — set **manually**, by the maintainer, at the program's last Phasen-Gate. `closes` **never** targets a Program-PRD (same close-protection contract as any Welle-Anchor, `to-waves` §8) — it is closed last, by hand, once every wave/stub/leaf under it is done (or, on an abort, closed per the Abbruch-Konvention in `PROGRAM-PRD-FORMAT.md`).
+- **spec role** — set here, at the mode=program write (§4's board sync, same as any Draft-PRD).
+- **in-progress role** — flipped by `to-issues`, at the **first** wave-stub promotion under this PRD (not by to-prd itself; a re-run of to-prd on an already-in-progress Program-PRD leaves the status untouched).
+- **done role** — set **manually**, by the maintainer, at the program's last Phasen-Gate. `closes` **never** targets a Program-PRD (same close-protection contract as any Welle-Anchor, `to-waves` §8) — it is closed last, by hand, once every wave/stub/leaf under it is done (or, on an abort, closed per the Abbruch-Konvention in `PROGRAM-PRD-FORMAT.md`).
 
 <prd-template>
 

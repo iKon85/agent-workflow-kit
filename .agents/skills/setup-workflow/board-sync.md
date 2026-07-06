@@ -36,7 +36,15 @@ The optional `wrapup` block is a wrapup-only switch, not a board field: `wrapup.
   "fields": {
     "status": {
       "id": "<fill>",
-      "options": { "<stage>": "<option-id>" }
+      "options": { "<stage>": "<option-id>" },
+      "roles": {
+        "idea": "Idea",
+        "triaged": "Triaged",
+        "spec": "Spec",
+        "inProgress": "In Progress",
+        "review": "Review",
+        "done": "Done"
+      }
     },
     "wave": "<fill / omit>",
     "cluster": "<fill / omit>",
@@ -69,9 +77,25 @@ The optional `wrapup` block is a wrapup-only switch, not a board field: `wrapup.
 }
 ```
 
+### Status roles (`fields.status.roles`)
+
+The scripts and skills never hardcode status option NAMES — they address stages
+by semantic **role** (`idea` / `triaged` / `spec` / `inProgress` / `review` /
+`done`) and resolve the name via this map (e.g. `board-sync.py add
+--status-role spec`, the SessionStart auto-transition, the wave/anchor status
+icons). The seeded values above are the **recommended English defaults**: name
+your board's Status options exactly like that and nothing needs editing. A
+board in another language (or with different stage names) maps each role to
+its own option name once — e.g. `"inProgress": "En cours"` — and everything
+follows; renaming an option later is one edit here. A role you don't have
+(e.g. no `idea` stage) may simply be omitted. A profile **without** the whole
+`roles` map keeps loading: the auto-transition hook and status icons degrade
+with a visible hint, and `--status-role` commands fail with the exact snippet
+to add.
+
 ## If the IDs are not yet filled (stub)
 
-1. Create a GitHub-Projects (v2) board for this owner and add the fields above (at minimum a `Status` single-select with your stage options).
+1. Create a GitHub-Projects (v2) board for this owner and add the fields above (at minimum a `Status` single-select with your stage options — the recommended stage names are `Idea, Triaged, Spec, In Progress, Review, Done`, matching the seeded `roles` defaults).
 2. Ensure `gh` has the scopes: `gh auth refresh -s project,read:project`.
 3. Re-run `/setup-workflow` — it discovers the board (`gh project field-list`) and fills the IDs here automatically.
 

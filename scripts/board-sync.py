@@ -34,6 +34,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from board_config import (  # noqa: E402
     ConfigError, load_board_config, phase_field_id, program_type_label,
+    status_roles, STATUS_ROLE_KEYS,
 )
 # stamp-batch / field-value / promote-guards — pure logic, see module docstring.
 from board_fields import (  # noqa: E402
@@ -72,6 +73,21 @@ WAVE_STUB_LABEL = _CFG["labels"]["waveStub"]
 # Optional Programm-Flughöhe key — literal-default getter, so
 # an existing profile without `labels.programType` keeps working unchanged.
 PROGRAM_TYPE_LABEL = program_type_label(_CFG)
+# Optional semantic role map — empty dict when the profile has no
+# `fields.status.roles` yet; role-consuming paths degrade visibly (see
+# `_status_roles_or_hint` / `resolve_status_role`), never crash.
+STATUS_ROLES = status_roles(_CFG)
+
+
+def _status_roles_or_hint(context: str) -> dict:
+    """STATUS_ROLES, with a one-line stderr hint when the profile has no role
+    map — status-name-based signals then read as 'open' (⬜) while PR-based
+    signals keep working; the sync itself proceeds."""
+    if not STATUS_ROLES:
+        print(f"hint: {context}: no fields.status.roles in the board profile — "
+              "board-status names can't be interpreted (PR signals still work); "
+              "add the roles map (see docs/agents/board-sync.md)", file=sys.stderr)
+    return STATUS_ROLES
 PROJECT_ITEM_LIST_LIMIT = 2000
 GH_TIMEOUT_SECONDS = 15  # a hanging gh prompt must not block a session indefinitely
 
@@ -187,6 +203,30 @@ def resolve_status_option(name: str) -> str:
     if name not in STATUS_OPTIONS:
         raise ValueError(f"unknown status {name!r}; valid: {', '.join(STATUS_OPTIONS)}")
     return STATUS_OPTIONS[name]
+
+
+_ROLES_MIGRATION_SNIPPET = (
+    'no fields.status.roles in the board profile — add it to the profile block '
+    'in docs/agents/board-sync.md, mapping each role to YOUR board\'s status '
+    'option names (any language), e.g.:\n'
+    '  "roles": {\n'
+    '    "idea": "Idea", "triaged": "Triaged", "spec": "Spec",\n'
+    '    "inProgress": "In Progress", "review": "Review", "done": "Done"\n'
+    '  }')
+
+
+def resolve_status_role(role: str, roles: dict) -> str:
+    """Option NAME for a semantic role key, via the profile's roles map.
+    Fails loud + instructive (missing map → migration snippet; unset role →
+    the configured roles) — an explicit --status-role call never guesses."""
+    if not roles:
+        raise ValueError(_ROLES_MIGRATION_SNIPPET)
+    name = roles.get(role)
+    if not name:
+        raise ValueError(
+            f"status role {role!r} not set in fields.status.roles; "
+            f"configured roles: {', '.join(sorted(roles))}")
+    return name
 
 
 def stamp_arg_list(item_id, wave, status, cluster, spec_path, plan_path) -> list[list[str]]:
@@ -396,7 +436,7 @@ FIELD_VALUE_QUERY = (
     "... on ProjectV2ItemFieldNumberValue{number field{... on ProjectV2FieldCommon{id}}} "
     "... on ProjectV2ItemFieldSingleSelectValue{name optionId field{... on ProjectV2FieldCommon{id}}} "
     "... on ProjectV2ItemFieldTextValue{text field{... on ProjectV2FieldCommon{id}}}"
-    "}}}}}}}}"
+    "}}}}}}}"
 )
 
 
@@ -539,7 +579,7 @@ def cmd_promote(args) -> int:
     already set + an idempotent repair command and exits non-zero (no silent
     half-promote).
 
-    Two guards run before any write (, real path only — a dry-run makes NO
+    Two guards run before any write (real path only — a dry-run makes NO
     gh calls at all, guards included, same contract as every other dry-run
     branch in this file): a Program-PRD is never a promote target (it is the
     native anchor OVER Wellen, not itself a Welle), and a stub already stamped
@@ -647,15 +687,18 @@ from anchor_table import (  # noqa: E402
     extract_anchor_board_data,
 )
 
+# Status fetched generically and matched by FIELD ID in the extractor
+# — no `fieldValueByName(name:"Status")`, a consumer's field may be named anything.
 ANCHOR_SLICES_QUERY = (
     "query($owner:String!,$repo:String!,$num:Int!){"
     "repository(owner:$owner,name:$repo){issue(number:$num){"
     "subIssues(first:100){nodes{number title "
     "closedByPullRequestsReferences(first:10,includeClosedPrs:true)"
     "{nodes{number state headRefName}} "
-    "projectItems(first:10){nodes{s:fieldValueByName(name:\"Status\")"
-    "{... on ProjectV2ItemFieldSingleSelectValue{name}}}}"
-    "}}}}}"
+    "projectItems(first:10){nodes{fieldValues(first:20){nodes{"
+    "... on ProjectV2ItemFieldSingleSelectValue{name "
+    "field{... on ProjectV2SingleSelectField{id}}}"
+    "}}}}}}}}}"
 )
 
 
@@ -664,7 +707,7 @@ def _anchor_board_data(num: int) -> dict:
                      "-f", f"query={ANCHOR_SLICES_QUERY}",
                      "-F", f"owner={PROJECT_OWNER}", "-F", f"repo={REPO_NAME}",
                      "-F", f"num={num}"])
-    return extract_anchor_board_data(data)
+    return extract_anchor_board_data(data, STATUS_FIELD_ID)
 
 
 def cmd_anchor_sync(args) -> int:
@@ -674,7 +717,8 @@ def cmd_anchor_sync(args) -> int:
     if not headers:
         print(f"#{args.issue}: no slice table found — nothing to sync", file=sys.stderr)
         return 1
-    new_rows, appended = merge_slice_rows(headers, rows, board)
+    new_rows, appended = merge_slice_rows(headers, rows, board,
+                                          _status_roles_or_hint("anchor-sync"))
     new_body = splice_slice_table(body, render_pipe_table(headers, new_rows))
     appended_note = (f"; +{len(appended)} new sub-issue row(s): "
                      f"{', '.join('#' + str(s) for s in appended)}" if appended else "")
@@ -828,7 +872,8 @@ def cmd_program_sync(args) -> int:
         print(f"#{args.issue}: no Wellenplan table found — nothing to sync", file=sys.stderr)
         return 1
     board = _anchor_board_data(args.issue)
-    new_waves = sync_wellenplan_status(waves, board)
+    new_waves = sync_wellenplan_status(waves, board,
+                                       _status_roles_or_hint("program-sync"))
     include_phase = any(w.phase is not None for w in waves)
     new_table = render_wellenplan_table(new_waves, include_phase=include_phase)
     new_body = splice_wellenplan_table(body, new_table)
@@ -845,6 +890,15 @@ def cmd_program_sync(args) -> int:
     _gh(["issue", "edit", str(args.issue), "--repo", REPO, "--body-file", tmp])
     print(f"synced #{args.issue} Wellenplan status from board")
     return 0
+
+
+def _add_status_flags(sp) -> None:
+    """The shared --status / --status-role pair (mutually exclusive) on every
+    status-writing subcommand — one wiring point, three subcommands."""
+    g = sp.add_mutually_exclusive_group()
+    g.add_argument("--status", choices=list(STATUS_OPTIONS))
+    g.add_argument("--status-role", dest="status_role", choices=list(STATUS_ROLE_KEYS),
+                   help="semantic role resolved via the profile's fields.status.roles")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -882,7 +936,7 @@ def build_parser() -> argparse.ArgumentParser:
     cr.add_argument("--body-file", required=True)
     cr.add_argument("--label", action="append", help="repeatable")
     cr.add_argument("--wave", type=int)
-    cr.add_argument("--status", choices=list(STATUS_OPTIONS))
+    _add_status_flags(cr)
     cr.add_argument("--cluster")
     cr.add_argument("--hitl", action="store_true",
                     help="mark slice HITL — rejects a ready-for-agent label")
@@ -896,7 +950,7 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--issue", type=int, required=True)
     pr.add_argument("--wave", type=int, required=True,
                     help="explicit Wave (read `next-wave` first — no in-promote race)")
-    pr.add_argument("--status", choices=list(STATUS_OPTIONS))
+    _add_status_flags(pr)
     pr.add_argument("--no-rename", action="store_true",
                     help="keep the title as-is (skip the `Welle <N> — ` prefix)")
     pr.add_argument("--dry-run", action="store_true")
@@ -907,7 +961,7 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--issue", type=int)
     g.add_argument("--url")
     ad.add_argument("--wave", type=int)
-    ad.add_argument("--status", choices=list(STATUS_OPTIONS))
+    _add_status_flags(ad)
     ad.add_argument("--cluster")
     ad.add_argument("--spec-path", dest="spec_path")
     ad.add_argument("--plan-path", dest="plan_path")
@@ -950,7 +1004,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     ps = sub.add_parser("program-sync",
                         help="regenerate a Program-PRD's Wellenplan Status from the "
-                             "board, in place (; own grammar, not anchor-sync)")
+                             "board, in place (own grammar, not anchor-sync)")
     ps.add_argument("issue", type=int, help="the Program-PRD issue number")
     ps.add_argument("--dry-run", action="store_true")
     ps.set_defaults(func=cmd_program_sync)
@@ -960,6 +1014,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[list[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if getattr(args, "status_role", None):
+            args.status = resolve_status_role(args.status_role, STATUS_ROLES)
         return args.func(args)
     except (ValueError, GhError) as exc:
         print(f"error: {exc}", file=sys.stderr)

@@ -46,18 +46,24 @@ def extract_wave_number_from_title(title: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 
-def wave_status_token(entry: Optional[dict]) -> str:
-    """⬜ (no matching native child yet — not promoted) · 🔄 (In Arbeit/Review) ·
-    ✅ (Done). Deliberately NOT `anchor_table.status_token_from_board` — a
-    Wave-Anchor issue is never `closes`-referenced by a PR (board-sync.md
-    convention: `closes` never targets an Anker), so a Wave's completion is
-    read off its OWN board Status field, not a merged-PR check."""
+def wave_status_token(entry: Optional[dict], roles: dict) -> str:
+    """⬜ (no matching native child yet — not promoted) · 🔄 (an in-flight
+    board status) · ✅ (the done-role status). Deliberately NOT
+    `anchor_table.status_token_from_board` — a Wave-Anchor issue is never
+    `closes`-referenced by a PR (board-sync.md convention: `closes` never
+    targets an Anker), so a Wave's completion is read off its OWN board Status
+    field, not a merged-PR check.
+
+    Status NAMES come from the profile's role map (`roles["done"]`,
+    `roles["inProgress"]`/`roles["review"]`), passed as a plain dict so
+    this module stays pure. Empty roles → every status reads as ⬜ (the
+    monotone refresh never regresses a hand-set cell)."""
     if entry is None:
         return "⬜"
     status = entry.get("status")
-    if status == "Done":
+    if status and status == roles.get("done"):
         return "✅"
-    if status in ("In Arbeit", "Review"):
+    if status and status in ({roles.get("inProgress"), roles.get("review")} - {None}):
         return "🔄"
     return "⬜"
 
@@ -75,7 +81,7 @@ def refresh_wave_status(existing_status: str, token: str) -> str:
     return existing_status if existing_status == token else token
 
 
-def sync_wellenplan_status(waves: list[WaveRow], board: dict) -> list[WaveRow]:
+def sync_wellenplan_status(waves: list[WaveRow], board: dict, roles: dict) -> list[WaveRow]:
     """A fresh `WaveRow` list with each row's `status` field refreshed from
     `board` — the SAME `{issue: {title, status, prs}}` shape
     `anchor_table.extract_anchor_board_data` already produces (no second query,
@@ -89,7 +95,7 @@ def sync_wellenplan_status(waves: list[WaveRow], board: dict) -> list[WaveRow]:
         n = extract_wave_number_from_title(entry.get("title", ""))
         if n is not None:
             by_wave_number[n] = entry
-    return [replace(w, status=refresh_wave_status(w.status, wave_status_token(by_wave_number.get(w.number))))
+    return [replace(w, status=refresh_wave_status(w.status, wave_status_token(by_wave_number.get(w.number), roles)))
             for w in waves]
 
 

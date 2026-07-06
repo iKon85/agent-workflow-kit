@@ -5,7 +5,8 @@ feat/<#>- or fix/<#>-.
 
 Wired as SessionStart hook. Idempotent + scoped:
   - only the project + status field named in the board profile
-  - only transitions {Idee, Triaged, Spec} -> In Arbeit (whitelist)
+  - only transitions {idea, triaged, spec} roles -> inProgress role (whitelist,
+    names resolved via the profile's fields.status.roles map —)
   - silent on every failure (never blocks session start)
 
 Board-specific values (project ids, status option ids, repo slug) are NOT
@@ -30,15 +31,29 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 from _hook_utils import log, run_with_status as run  # noqa: E402
-from board_config import load_board_config, ConfigError  # noqa: E402
+from board_config import load_board_config, status_roles, ConfigError  # noqa: E402
 
-# Status vocabulary = shipped workflow convention (German status names match the
-# board-sync.md options /setup-workflow seeds). Opaque project/field ids come
-# from the profile at runtime (see main).
-ALLOWED_FROM = {"Idee", "Triaged", "Spec"}
-TARGET_STATUS = "In Arbeit"
+# The transition is derived from the profile's semantic role map — the hook
+# carries role KEYS (schema), never status-name vocabulary.
+_FROM_ROLES = ("idea", "triaged", "spec")
+_TARGET_ROLE = "inProgress"
 BRANCH_RE = re.compile(r"^(?:feat|fix)/([0-9]+)-")
 HOOK_NAME = "board-sync"
+
+
+def derive_transition(roles):
+    """(allowed_from_names, target_name) derived from the profile's
+    `fields.status.roles` map, or (None, reason) when the inProgress role is
+    unconfigured (old profile without the map → visible skip, never a crash).
+    Missing from-roles are tolerated — a board without an idea-like stage
+    simply has a smaller whitelist."""
+    target = roles.get(_TARGET_ROLE)
+    if not target:
+        return None, ("status role 'inProgress' not configured — add "
+                      "fields.status.roles to the board profile (see "
+                      "docs/agents/board-sync.md)")
+    allowed = {roles[r] for r in _FROM_ROLES if roles.get(r)}
+    return allowed, target
 
 # Fetch one issue's project items + their single-select field values. Matching
 # the status by FIELD ID (not the display name "Status") keeps it profile-driven.
@@ -119,9 +134,13 @@ def main() -> int:
     proj_number = str(cfg["project"]["number"])
     node_id = cfg["project"]["nodeId"]
     field_id = cfg["fields"]["status"]["id"]
-    target_id = cfg["fields"]["status"]["options"].get(TARGET_STATUS)
+    allowed_from, target_status = derive_transition(status_roles(cfg))
+    if allowed_from is None:
+        log(HOOK_NAME, f"skip: {target_status}")
+        return 0
+    target_id = cfg["fields"]["status"]["options"].get(target_status)
     if not target_id:
-        log(HOOK_NAME, f"skip: status {TARGET_STATUS!r} not in board profile options")
+        log(HOOK_NAME, f"skip: status {target_status!r} (role 'inProgress') not in board profile options")
         return 0
 
     if args.issue:
@@ -142,12 +161,12 @@ def main() -> int:
         log(HOOK_NAME, f"branch={branch} issue={issue_num} skip: {current}")
         return 0
 
-    if current not in ALLOWED_FROM:
+    if current not in allowed_from:
         log(HOOK_NAME, f"branch={branch} issue={issue_num} item={item_id} status={current} skip: not in whitelist")
         return 0
 
     if args.dry_run:
-        log(HOOK_NAME, f"branch={branch} issue={issue_num} item={item_id} before={current} DRY-RUN would set {TARGET_STATUS!r}")
+        log(HOOK_NAME, f"branch={branch} issue={issue_num} item={item_id} before={current} DRY-RUN would set {target_status!r}")
         return 0
 
     rc, _ = run([
@@ -158,7 +177,7 @@ def main() -> int:
         "--single-select-option-id", target_id,
     ])
     if rc == 0:
-        log(HOOK_NAME, f"branch={branch} issue={issue_num} item={item_id} before={current} after={TARGET_STATUS}")
+        log(HOOK_NAME, f"branch={branch} issue={issue_num} item={item_id} before={current} after={target_status}")
     else:
         log(HOOK_NAME, f"branch={branch} issue={issue_num} item={item_id} before={current} ERROR: item-edit failed")
     return 0
