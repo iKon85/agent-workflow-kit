@@ -1,0 +1,69 @@
+# Publishes the /docs static site to GitHub Pages via a workflow we control.
+#
+# Why this exists instead of the auto "Deploy from a branch" flow:
+# actions/deploy-pages@v5 intermittently hard-fails with
+# "Deployment failed, try again later." — a GitHub Pages backend transient,
+# not a repo problem (github.com/orgs/community/discussions/200823). The
+# auto-generated pages-build-deployment workflow is not editable, so every
+# flake needed a manual re-trigger. Here we own the deploy step and retry it
+# natively (continue-on-error + a follow-up attempt), so transients self-heal.
+#
+# Static HTML only (no Jekyll) — the artifact is docs/ uploaded as-is.
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two Pages deploys at once; never cancel an in-flight deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy3.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy1.outputs.page_url }}
+    steps:
+      # Attempt 1 — tolerate a transient backend failure and fall through.
+      - name: Deploy (attempt 1)
+        id: deploy1
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Backoff before attempt 2
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 30
+      - name: Deploy (attempt 2)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Backoff before attempt 3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 60
+      # Final attempt — NOT tolerated: if this fails too, the job goes red so
+      # a genuinely stuck backend (not a one-off flake) is still visible.
+      - name: Deploy (attempt 3)
+        id: deploy3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        uses: actions/deploy-pages@v5
