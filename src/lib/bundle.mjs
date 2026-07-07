@@ -38,10 +38,18 @@ export const HELPER_FILES = [
   // hooks ImportError on arrival.
   { path: '.claude/hooks/_hook_utils.py', kind: 'hook', mode: 0o644 },
   { path: '.claude/hooks/drift-guard.py', kind: 'hook', mode: 0o755 },
+  // SessionStart skill-freshness drift-hint (audit-skills names it). For each
+  // <skill>/SOURCES.txt it flags sources newer in git than the SKILL.md. Imports
+  // _hook_utils (shipped above); stdlib-only otherwise. Executable hook → 0o755.
+  { path: '.claude/hooks/skill-drift-hint.py', kind: 'hook', mode: 0o755 },
   // Board-status pickup hook — profile-driven (reads project/field/status ids
   // from the consumer-seeded board profile), so it ships portably. /tdd names it.
   { path: '.claude/hooks/sync-board-status.py', kind: 'hook', mode: 0o755 },
   { path: 'docs/agents/wave-anchor-template.md', kind: 'template', mode: 0o644 },
+  // Part-0–5 security-audit runbook skeleton (the security-audit skill names it).
+  // The stack-coupled checklist is deliberately NOT shipped — this template is the
+  // generic structure a consumer copies + fills stack-specifically. Prose → 0o644.
+  { path: 'docs/agents/security-audit-runbook-template.md', kind: 'template', mode: 0o644 },
   // Opt-in LoC-offender drive gate (setup-workflow §7b names it). Both are
   // stdlib-only and profile-driven (threshold + offenders read from the
   // consumer-seeded max-lines-allowlist.json), so they ship portably. The gate
@@ -59,6 +67,11 @@ export const STUB_TARGETS = [
   'docs/agents/triage-labels.md',
   'docs/agents/domain.md',
   'docs/agents/skills/spec-self-critique.md',
+  'docs/agents/skills/orchestrate-wave.md',
+  'docs/agents/skills/local-ci.md',
+  'docs/agents/skills/git-worktree-recover.md',
+  'docs/agents/skills/audit-skills.md',
+  'docs/agents/skills/security-audit.md',
   'docs/conventions/spec-completeness.md',
 ];
 

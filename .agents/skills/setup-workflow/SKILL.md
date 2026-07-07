@@ -19,6 +19,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `docs/agents/domain.md` | `CONTEXT.md`/ADR layout the domain skills read (Section C) |
 | `docs/agents/board-sync.md` | GitHub-Projects field-IDs + board profile — **only meaningful for a GitHub tracker** (Section D) |
 | `docs/agents/skills/spec-self-critique.md` | per-point enrichment skeleton; `/retro` appends here (Section E) |
+| `docs/agents/skills/orchestrate-wave.md` | `orchestrate-wave` project layer (setup / commands / verify / login / landing) the wave-landing skill probes at runtime (Section E) |
 | `docs/conventions/spec-completeness.md` | a valid `## Self-Critique-Check` convention seed (Section E) |
 | `docs/agents/code-review.md` | Standards-source pointers + adjacent-review-tooling notes the `code-review` skill's Standards axis reads (Section I) |
 | `## Workflow` in CLAUDE.md **and** AGENTS.md | generic entry-point map seeded from [workflow-overview.md](./workflow-overview.md) (Section F + Write) |
@@ -105,6 +106,7 @@ Seed `docs/agents/domain.md` from [domain.md](./domain.md).
 These are **structured-but-empty** crusts that `/retro` grows; do not ask the user to fill them now.
 
 - `docs/agents/skills/spec-self-critique.md` — seed the 12 per-point headings from [spec-self-critique-seed.md](./spec-self-critique-seed.md) so `/retro` has stable append anchors and `spec-self-critique` finds its project layer (suppressing the "layer absent" warning) without inventing project content.
+- `docs/agents/skills/orchestrate-wave.md` — seed the named `§`-section headings from [orchestrate-wave-seed.md](./orchestrate-wave-seed.md) so the `orchestrate-wave` skill's Phase-0 probe finds its project layer. The sections ship **empty** (the exact commands / tunnel / login can't be guessed) → the skill treats an unfilled seed as "layer absent" and runs its generic fallback until the project fills them. A filled section is a manual project-maintenance edit, not something this run invents.
 - `docs/conventions/spec-completeness.md` — seed **one valid** `## Self-Critique-Check` block (Trigger/Check/Korrektur) from [spec-completeness-seed.md](./spec-completeness-seed.md). A convention file *without* a valid block makes `spec-self-critique` point 8 warn — an empty file is worse than none.
 
 > **Handoff drift-guard (`.claude/hooks/drift-guard.py`).** The repo ships a PreToolUse hook that blocks a `.handoff/*.md` Write when the linked issue's rooted graph is not execute-ready (it delegates all coherence to `scripts/execute-ready-check.py --mode handoff`). It self-filters to `.handoff/*.md` and fires **only once handoff docs exist** — a freshly scaffolded project carries the guard but has nothing to guard yet (silently inoperative until the first `.handoff/` write). This scaffold only **documents** the interplay; it does **not** build new mechanics. Once the project starts emitting handoffs, writes land in `.handoff/` and the guard activates automatically.

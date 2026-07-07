@@ -11,6 +11,7 @@ Use this section as the entry-point map for agent-assisted work. The individual 
 - **Existing plan, PRD, or ready issue:** use `to-issues` to split it into independently buildable tracer-bullet slices.
 - **A Program-PRD with a wave plan:** use `to-waves` to unfold it into named wave stubs + slice leaves on the board, after a chat preview gate that shows the whole plan before any write.
 - **A backlog of open issues needs clustering into themed waves:** use `board-to-waves`.
+- **A whole wave anchor (file-disjoint slices, specs already locked) to build, verify and land end-to-end — often AFK:** use `orchestrate-wave` — it dispatches implementers per slice, integrates serially, verifies centrally, and lands. (A single slice just goes to `tdd`.)
 - **Bugs or requests piling up that you didn't create:** use `triage` to move them into agent-ready issues.
 - **Bug or regression:** use `diagnose` to reproduce, minimize, hypothesize, instrument, fix, and regression-test.
 - **A design question needs a runnable answer (state, business logic, a UI you have to see):** spike it with `prototype`, then fold what you learned back in.

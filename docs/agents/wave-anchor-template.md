@@ -1,100 +1,100 @@
-# Wave-Anker-Template
+# Wave Anchor Template
 
-Der Body eines Wellen-Anker-Issues. Modell: das war der Tracker, der funktioniert hat.
-**Reife-Stufen** — Platzhalter `<…>` ersetzen, nicht-zutreffende Zeilen löschen:
+The body of a wave-anchor issue. Model: this is the tracker that worked.
+**Maturity stages** — replace `<…>` placeholders, delete lines that don't apply:
 
-- **Stufe 1 (Kandidaten-Stub, bottom-up)** — füllt `board-to-waves`: Kopf bis inkl. To-Do-Checklist. **cluster/Wave-los**, Slice-Tabelle bleibt leer (`⬜ via to-issues`).
-- **Stufe 1p (Programm-Vorzustand, top-down)** — füllt `to-waves` aus einem Programm-PRD: benannter Stub `Welle <N> — <Thema>` **ab Anlage**, `wave-stub`-Label, **Wave + Phase sofort gestempelt**, nativer Parent = das Programm-PRD, vorerzeugte Slice-Leaves als native Kinder. Unterschied zu Stufe 1: benannt + gestempelt + PRD-Parent statt cluster/Wave-los. Details unten (§ Stufe 1p).
-- **Stufe 2 (gereift + promotet)** — füllt `to-prd` (Entscheidungen/PRD-Body) + `to-issues` (Slice-Tabelle + Handoff-Blocks, verknüpft Sub-Issues, Promotion setzt `type:cluster` + Wave). Hakt die To-Dos ab. Ein Stufe-1p-Stub reift hier genauso (die erste Programm-Stub-Promotion flippt das PRD auf den In-Progress-Status, `roles.inProgress`).
+- **Stage 1 (candidate stub, bottom-up)** — filled by `board-to-waves`: header through the To-Do checklist. **No cluster/Wave** yet, Slice table stays empty (`⬜ via to-issues`).
+- **Stage 1p (program pre-state, top-down)** — filled by `to-waves` from a Program PRD: a named stub `Welle <N> — <Topic>` **from creation**, `wave-stub` label, **Wave + Phase stamped immediately**, native parent = the Program PRD, pre-generated Slice leaves as native children. Difference from Stage 1: named + stamped + PRD-parent instead of no cluster/Wave. Details below (§ Stage 1p).
+- **Stage 2 (matured + promoted)** — filled by `to-prd` (Decisions/PRD body) + `to-issues` (Slice table + handoff blocks, links sub-issues, promotion sets `type:cluster` + Wave). Checks off the To-Dos. A Stage-1p stub matures the same way here (the first program-stub promotion flips the PRD to the in-progress status, `roles.inProgress`).
 
-Der **Kandidaten-Stub** (Stufe 1) ist cluster/Wave-los. Bei der **`to-issues`-Promotion** (Stufe 2) bekommt der Anker `type:cluster` + **Wave-Field = `<N>`** (monotone Nummer, kein `wave:*`-Label); `type:cluster` **ersetzt** das bisherige `type:*` des Stubs (z.B. `type:followup`) — genau ein `type:*` pro Issue, `board-sync.py promote` strippt das alte; der **Issue-Titel wird zu `Welle <N> — <Thema>`** (das ist das `board-sync.py promote`-Default-Verhalten — `wave_title()` ersetzt jeden alten `Welle X —`-Präfix idempotent und strippt einen führenden Conventional-Commit-Präfix; Opt-out `--no-rename` — **autoritativ ist der `promote`-Code**), und das `Welle <N> — <Thema>` steht **auch** in der **Body-Kopfzeile**. Body **immer** via `--body-file` (`gotchas_gh_body_file`). Nummerierung → [SKILL.md des `board-to-waves`](.claude/skills/board-to-waves/SKILL.md) „Wellen-Nummerierung".
+The **candidate stub** (Stage 1) has no cluster/Wave. On **`to-issues` promotion** (Stage 2) the anchor gets `type:cluster` + **Wave field = `<N>`** (monotone number, no `wave:*` label); `type:cluster` **replaces** the stub's previous `type:*` (e.g. `type:followup`) — exactly one `type:*` per issue, `board-sync.py promote` strips the old one; the **issue title becomes `Welle <N> — <Topic>`** (this is `board-sync.py promote`'s default behavior — `wave_title()` idempotently replaces any existing `Welle X —` prefix and strips a leading conventional-commit prefix; opt out with `--no-rename` — **the `promote` code is authoritative**), and the `Welle <N> — <Topic>` string also appears in the **body's top line**. Body **always** via `--body-file` (`gotchas_gh_body_file`). Numbering → [the `board-to-waves` SKILL.md](.claude/skills/board-to-waves/SKILL.md) "Wave numbering".
 
 ---
---- TEMPLATE AB HIER (alles oben drüber ist Anleitung, nicht ins Issue kopieren) ---
+--- TEMPLATE STARTS HERE (everything above is guidance, don't copy it into the issue) ---
 
-<!-- wave-stub-source: <thema-slug> -->   <!-- Stufe 1: stabiler Idempotenz-Marker, board-to-waves search-before-create; kebab-case-Slug des Gate-Outcomes, nie geändert -->
+<!-- wave-stub-source: <topic-slug> -->   <!-- Stage 1: stable idempotency marker, board-to-waves search-before-create; kebab-case slug of the gate outcome, never changed -->
 <!-- prd-source-id: <#> -->
-**plan_revision:** r<N>        <!-- Stufe 2: bei der Promotion gestempelt (vor dem ersten Heading — der execute-ready-Checker verlangt ihn dort, sonst denied der Post-Promote-Audit den Anker) -->
+**plan_revision:** r<N>        <!-- Stage 2: stamped at promotion (before the first heading — the execute-ready checker requires it there, otherwise the post-promote audit denies the anchor) -->
 
-**Welle <N> — <Kurzbeschreibung>.** Roter Faden: <Gate — das gemeinsame Outcome, das diese Issues zur Welle macht>.
+**Welle <N> — <Short description>.** Common thread: <Gate — the shared outcome that makes these issues a wave>.
 
-> 📍 **Execution-Tracker (Stand <Datum>).** Dieses Issue ist Single-Source-of-Truth für „wo stehen wir, was kommt als Nächstes". Jede Sub-Session ankert hier.
+> 📍 **Execution tracker (as of <Date>).** This issue is the single source of truth for "where do we stand, what's next". Every sub-session anchors here.
 
-## Herkunft
+## Origin
 
-- **Quelle:** <board-to-waves | externe-prd | rohes-issue | plan | grill> *(provenienz-neutral — die Form ist gleich, egal woher; die folgenden Zeilen soweit zutreffend füllen, nicht-zutreffende löschen)*
-- **Mitglieds-Issues:** #<a> #<b> #<c> … *(gelistet; verknüpft via `to-issues`-Promotion, To-Do unten)*
-- **Warum zusammen (feuernde Kriterien):** Gate=<Outcome> · <B1 Code-Nähe / B2 Typ-Homogenität / B3 Abhängigkeit / B4 Verify-Fläche, soweit zutreffend>
-- **Größe + Risiko:** ~<N> Slices · Backend: <ja/nein> · Modell-Mix: <Modell [Effort], z.B. Sonnet [medium] / Opus [high] / gpt-5.5 [medium]> · Risiko: <niedrig/mittel/hoch — Grund, z.B. Race/Cache/Forecast/Migration>
-- **`grill-needed`:** <nein> | <ja — diese Session> | <ja — eigene Session (zu groß/fuzzy)>
+- **Source:** <board-to-waves | external-prd | raw-issue | plan | grill> *(provenance-neutral — the shape is the same regardless of origin; fill the following lines where they apply, delete where they don't)*
+- **Member issues:** #<a> #<b> #<c> … *(listed; linked via `to-issues` promotion, To-Do below)*
+- **Why together (firing criteria):** Gate=<Outcome> · <B1 code proximity / B2 type homogeneity / B3 dependency / B4 verify surface, where applicable>
+- **Size + risk:** ~<N> slices · Backend: <yes/no> · Model mix: <Model [Effort], e.g. Sonnet [medium] / Opus [high] / gpt-5.5 [medium]> · Risk: <low/medium/high — reason, e.g. race/cache/forecast/migration>
+- **`grill-needed`:** <no> | <yes — this session> | <yes — own session (too big/fuzzy)>
 
-### To-Do (Reifung: grill → to-prd → to-issues)
-- [ ] *(nur falls grill-needed=ja, eigene Session)* dedizierte `grill-with-docs`-Session — Domänen-Discovery
-- [ ] **`to-prd`** → Entscheidungen/PRD-Body in diesen Stub schreiben (Mode B); `spec-self-critique` läuft automatisch
-- [ ] **`to-issues`** → Slices schneiden, **pro Slice ein Sub-Issue** (Member-Issue wiederverwenden / neu anlegen), Slice-Tabelle **+ `## Handoff-Startbefehle`-Block je Slice** füllen; bei ≥2 Slices **promoten** (setzt `type:cluster` + Wave) + **alle** Slice-Sub-Issues nativ verknüpfen (vollständig — Slice-Set == Sub-Issue-Set)
-- [ ] **Wellen-Gate** → vor dem Schließen: offene `annahme-drift`-Propagation Richtung Zukunfts-Wellen/-Stubs (und, bei Programm-Zugehörigkeit, dem Programm-PRD) reconciled — kein unbemerktes Drift über die Wellengrenze hinweg (Drift-Checkpoint, `wrapup` Step 5e.2)
-- [ ] **Track** → Rollup ist der Status; Anker zu bei 100 %
+### To-Do (maturation: grill → to-prd → to-issues)
+- [ ] *(only if grill-needed=yes, own session)* dedicated `grill-with-docs` session — domain discovery
+- [ ] **`to-prd`** → write decisions/PRD body into this stub (Mode B); `spec-self-critique` runs automatically
+- [ ] **`to-issues`** → cut slices, **one sub-issue per slice** (reuse member issue / create new), fill the slice table **+ a `## Handoff Start Commands` block per slice**; at ≥2 slices **promote** (sets `type:cluster` + Wave) + link **all** slice sub-issues natively (complete — slice set == sub-issue set)
+- [ ] **Wave gate** → before closing: reconcile any open `annahme-drift` propagation toward future waves/stubs (and, if part of a program, the Program PRD) — no unnoticed drift across the wave boundary (drift checkpoint, `wrapup` Step 5e.2)
+- [ ] **Track** → rollup is the status; anchor closes at 100%
 
-## Entscheidungen — *(`to-prd` füllt; bei Quelle `grill`: „Grill <Datum>, gelockt")*
+## Decisions — *(`to-prd` fills; for source `grill`: "Grill <Date>, locked")*
 
-| Item | Entscheidung |
+| Item | Decision |
 |---|---|
-| <Issue/Thema> | <Was genau, in Outcome-Sprache> |
+| <Issue/Topic> | <What exactly, in outcome language> |
 
-**Artefakte:** <CONTEXT.md-Terme / docs/adr/<nnnn>-…md, falls im Grill entstanden>
+**Artifacts:** <CONTEXT.md terms / docs/adr/<nnnn>-…md, if produced during the grill>
 
-## Slices (vertikal, je 1 PR/Session) — *(`to-issues` füllt)*
+## Slices (vertical, 1 PR/session each) — *(`to-issues` fills)*
 
-Reihenfolge (WSJF-lite): sichtbar + low-risk zuerst → Logik/Backend → Cleanup. Abhängigkeiten erzwingen Reihenfolge.
+Order (WSJF-lite): visible + low-risk first → logic/backend → cleanup. Dependencies force ordering.
 
 <!-- slice-table:start -->
-| # | Status | Slice | Sub-Issue | Branch | Modell | Gate | Backend? | schließt/refs |
+| # | Status | Slice | Sub-Issue | Branch | Model | Gate | Backend? | closes/refs |
 |---|---|---|---|---|---|---|---|---|
-| 1 | ⬜ | <Slice-Titel> | #<sub> | `feat/<#>-<slug>` | <Modell [Effort]> | <—/🧭/🔬/📐/📝> | <ja/nein> | <closes #x / refs #y> |
+| 1 | ⬜ | <Slice title> | #<sub> | `feat/<#>-<slug>` | <Model [Effort]> | <—/🧭/🔬/📐/📝> | <yes/no> | <closes #x / refs #y> |
 <!-- slice-table:end -->
 
-Status-Legende: ⬜ offen · 🔄 in Arbeit · ✅ merged #<PR>. **Jeder Slice = ein Sub-Issue** (`#<sub>`). **Die volatilen Spalten Status + Branch generiert `board-sync.py anchor-sync <anker#>` aus dem Board** (zwischen den `<!-- slice-table:start/end -->`-Markern; `wrapup` Step 5e.1 ruft es beim Merge) — monoton (kippt nie ein `✅`/`🔄` zurück), driftfrei idempotent; **stabile Plan-Spalten (Slice/Modell/Gate/Backend?/refs) bleiben hand-gepflegt** und überleben verbatim. Fehlende Sub-Issue-Zeilen hängt es an (Gen-b-Split). **Marker nicht löschen** — ohne sie kann `anchor-sync` die Tabelle nicht finden (Erstlauf lokalisiert sie über die `Status`+`Sub-Issue`-Kopfzeile und setzt die Marker selbst). Der native „Sub-issues progress"-Rollup ist die %-Zweitsicht.
+Status legend: ⬜ open · 🔄 in progress · ✅ merged #<PR>. **Every slice = one sub-issue** (`#<sub>`). **The volatile Status + Branch columns are generated by `board-sync.py anchor-sync <anchor#>` from the board** (between the `<!-- slice-table:start/end -->` markers; `wrapup` Step 5e.1 calls it on merge) — monotone (never flips a `✅`/`🔄` back), drift-free idempotent; **stable plan columns (Slice/Model/Gate/Backend?/refs) stay hand-maintained** and survive verbatim. It appends missing sub-issue rows (gen-b split). **Don't delete the markers** — without them `anchor-sync` can't locate the table (the first run locates it via the `Status`+`Sub-Issue` header row and sets the markers itself). The native "Sub-issues progress" rollup is the secondary %-view.
 
-**Gate-Legende (Retro):** `—` AFK-Bau (`/tdd`) · 🧭 Design-Grill (`grill-with-docs-codex`, ADR) · 🔬 Verify-Spike (read-only Faktenfrage) · 📐 Abwägung/Research (Trade-off/Research, read-only, unter Grill-Schwelle) · 📝 Review-Notiz (kein Bau-Slice). Ein Gate-Slice (🧭/🔬/📐) steht **vor** seinem abhängigen Bau-Slice (gate-before-build) + blockt ihn.
+**Gate legend (retro):** `—` AFK build (`/tdd`) · 🧭 design grill (`grill-with-docs-codex`, ADR) · 🔬 verify spike (read-only fact question) · 📐 trade-off/research (read-only, below grill threshold) · 📝 review note (not a build slice). A gate slice (🧭/🔬/📐) sits **before** its dependent build slice (gate-before-build) and blocks it.
 
-**Schließbedingungen:** <Issue #x → nach welchen Slices> · <…> · Anker #<self> → alle Slices merged + native Sub-Issues 100 %.
+**Closing conditions:** <Issue #x → after which slices> · <…> · Anchor #<self> → all slices merged + native sub-issues 100%.
 
-**Mid-Wave entdeckte Follow-ups** → als **Slice-Zeile in diese Tabelle** einplanen (Zwischenslice an der richtigen Sequenz-Position, oder ans Ende) + eigenes Sub-Issue (nativ verknüpft, zählt im Rollup). **Keine** separate Follow-ups-Tabelle — die wäre in der Slice-Sicht unsichtbar.
+**Mid-wave discovered follow-ups** → schedule as a **slice row in this table** (an intermediate slice at the right sequence position, or at the end) + its own sub-issue (natively linked, counts in the rollup). **No** separate follow-ups table — that would be invisible in the slice view.
 
-**Parallel-Hinweis:** echtes Parallel nur mit Worktree pro Strang. Slices die Files teilen → seriell.
+**Parallel note:** true parallelism only with a worktree per strand. Slices that share files → serial.
 
-## Handoff-Startbefehle (pro Slice, paste-ready) — *(`to-issues` füllt)*
+## Handoff Start Commands (per slice, paste-ready) — *(`to-issues` fills)*
 
-<details><summary>Slice 1 — <Titel> · empf. <Modell></summary>
+<details><summary>Slice 1 — <Title> · recommended <Model></summary>
 
 ```
-Welle <N> · Slice 1 (<refs/closes>, Parent #<self>). Lies #<self> für Kontext/Entscheidung.
+Welle <N> · Slice 1 (<refs/closes>, Parent #<self>). Read #<self> for context/decisions.
 Worktree: ./scripts/setup-worktree.sh <#> <slug>
-Scope (<N> Dateien) — PFLICHTFELD, Blast-Radius-Schätzung am Schnitt; Bau-Session prüft sie gegen ihren Recon-Befund, >2×-Abweichung → STOP:
-- <konkrete Datei + Änderung>
-Live-Verify: <User-Outcome, DB-/UI-Wert mit Vergleich —>
+Scope (<N> files) — REQUIRED FIELD, blast-radius estimate at cut time; the build session checks it against its own recon findings, >2x deviation → STOP:
+- <concrete file + change>
+Live-verify: <user outcome, DB/UI value with comparison —>
 PR: <closes #x / refs #self>.
 ```
 </details>
 
-## Stufe 1p — Programm-Vorzustand (top-down, `to-waves`)
+## Stage 1p — Program pre-state (top-down, `to-waves`)
 
-`to-waves` legt die Wellen-Stubs eines **Programm-PRD** in genau dieser Form an — der definierte Vorzustand oberhalb der Feature-Route (statt cluster/Wave-los wie Stufe 1):
+`to-waves` creates a **Program PRD**'s wave stubs in exactly this shape — the defined pre-state above the feature route (instead of no cluster/Wave like Stage 1):
 
-- **Titel** `Welle <N> — <Thema>` **ab Anlage** (nicht erst bei der Promotion).
-- **Label** `wave-stub`; **Wave + Phase** sofort gestempelt (gebatcht über `stamp-batch`).
-- **Nativer Parent = das Programm-PRD** (3 Ebenen: PRD → Stub → Slice-Leaves). Die vorerzeugten Slice-Leaves hängen als native Kinder unter dem Stub — für `to-prd` Mode B **erwartetes Skelett**, kein Child-Drift.
-- **Idempotenz-Marker im Body** (Kopfzeile, grep-bar, nie geändert):
+- **Title** `Welle <N> — <Topic>` **from creation** (not only at promotion).
+- **Label** `wave-stub`; **Wave + Phase** stamped immediately (batched via `stamp-batch`).
+- **Native parent = the Program PRD** (3 levels: PRD → Stub → Slice leaves). The pre-generated Slice leaves hang as native children under the stub — for `to-prd` Mode B the **expected skeleton**, no child drift.
+- **Idempotency marker in the body** (top line, grep-able, never changed):
 
 ```
-<!-- program-stub-source: <prd-source-id>/w<N> -->   <!-- stabile Identität: to-waves search-before-create + Delta-Re-Run/Crash-Recovery -->
-<!-- program-revision: rN -->                          <!-- gegen die PRD-plan_revision geprüft; stale Stub blockt laut; der Delta-Re-Run erneuert ihn -->
+<!-- program-stub-source: <prd-source-id>/w<N> -->   <!-- stable identity: to-waves search-before-create + delta re-run/crash recovery -->
+<!-- program-revision: rN -->                          <!-- checked against the PRD's plan_revision; a stale stub blocks loudly; the delta re-run refreshes it -->
 ```
 
-- **Handoff-Worktree-Zeile konsumenten-neutral** — der Programm-Vorzustand ist Teil der publizierten `to-waves`-Route, daher **kein** projekt-spezifischer Skript-Pfad, sondern:
+- **Handoff worktree line stays consumer-neutral** — the program pre-state is part of the published `to-waves` route, so **no** project-specific script path, but instead:
 
 ```
 Worktree: your project's worktree helper, or `git worktree add`
 ```
 
-Reifung: der Stub reift bei der **Wellen-Promotion** wie Stufe 2 (`to-prd` Mode B in den Stub + `to-issues`); ungebaute Leaves/Stubs eines abgebrochenen Programms schließen in der Reihenfolge Leaves → Stubs → PRD (Abbruch-Konvention im PROGRAM-PRD-FORMAT).
+Maturation: the stub matures at **wave promotion** like Stage 2 (`to-prd` Mode B into the stub + `to-issues`); unbuilt leaves/stubs of an abandoned program close in the order leaves → stubs → PRD (abandonment convention in the PROGRAM-PRD-FORMAT).

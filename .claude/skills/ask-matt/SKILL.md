@@ -74,6 +74,7 @@ A starting situation that generates work, then merges onto the main flow.
 - **Bugs and requests piling up** → **`/triage`**. Moves issues through triage and produces agent-ready issues that `/implement` later picks up. Only for issues **you didn't create** — `/to-issues` output is already agent-ready, don't triage it.
 - **Something's broken** → **`/diagnose`**. For the hard ones: the bug that resists a first glance, the intermittent flake, the regression between two known-good states. Refuses to theorise until it has a **tight feedback loop** — one command that already goes red on *this* bug — then fixes with a regression test. Its post-mortem hands off to **`/improve-codebase-architecture`** when the finding is that there's no good seam.
 - **A backlog to cluster** → **`/board-to-waves`**. Groups an existing board into themed waves when you need to *find* the next wave rather than start fresh.
+- **A whole wave to LAND** → **`/orchestrate-wave`**. When a wave anchor (file-disjoint slices, specs already locked) is ready to build, verify and land end-to-end — often AFK: it dispatches an implementer per slice in its own worktree, integrates serially, verifies centrally, and lands the wave. The execute-and-land node of the wave ladder (`scale-check` → `to-waves`/`board-to-waves` → `orchestrate-wave`). A single slice just goes to `/tdd`.
 
 ## Cross-model review (Codex)
 
@@ -90,6 +91,7 @@ Not feature work — upkeep.
 
 - **`/improve-codebase-architecture`** — run in spare moments to keep the codebase good for agents. Surfaces **deepening opportunities**; picking one _generates an idea_ for the main flow at `/grill-with-docs`.
 - **`/zoom-out`** — step back from the diff to the structure when a change is fighting the codebase; recon that becomes a planned slice or guides a refactor in place.
+- **`/security-audit`** — a whole-app, application-layer security audit run as an independent two-model pass (two models audit the same code separately, then the remediation plan is hardened before any fix). Run before a release or after the attack surface changes (new endpoint, new input source, auth change, dependency bump). Infra hardening (ports/TLS/SSH/backups) is audited separately.
 
 ## Vocabulary underneath
 
@@ -102,11 +104,13 @@ Model-invoked references that run *beneath* the other skills — each the single
 ## Land
 
 - **`/wrapup`** — the land-and-clean closeout: make the branch landable, enforce the PR-body contract, merge, reconcile the board, sweep merged branches, surface what's still open. Does not replace live verification — verify the user outcome first.
+- **`/local-ci`** — the pre-PR gate: run the repo's local CI (fast static guards + the full gate) before opening a PR. When your host can't enforce a required status check at merge (a Free-plan private repo has no branch protection), the gate has to be local — this is it.
 - The **pre-commit / pre-push gate** fires automatically (installed once via `/git-guardrails-claude-code` / `/setup-pre-commit`, both Claude Code only), blocking a broken commit/push.
 
 ## Learn
 
 - **`/retro`** — in-session post-mortem that proposes concrete changes to rules, skills, or hooks, each with per-patch approval.
+- **`/audit-skills`** — the anti-drift audit: check the repo's own skills against code/doc reality and fix the rot (dead paths, stale line numbers, broken cross-refs). Run it periodically or when a SessionStart drift-hint flags a skill whose declared source moved.
 - **`/write-a-skill`** (Claude Code only) — turn a move you keep repeating into a reusable skill (see Vocabulary).
 
 ## Crossing sessions
@@ -121,6 +125,7 @@ Off the main flow entirely.
 - **`/grill-me`** — the same relentless interview as `/grill-with-docs`, but for when you have **no codebase**. Stateless — saves nothing locally.
 - **`/prototype`** — a small throwaway program that answers one design question (does this state model feel right; what should this UI look like). Keep the answer, delete the code.
 - **`/resolving-merge-conflicts`** — a disciplined loop for an in-progress merge/rebase conflict: understand each side's intent, preserve both where possible, always resolve (never `--abort`).
+- **`/git-worktree-recover`** — reflog recovery for a branch mix-up: a commit landed on the wrong branch, the branch switched unexpectedly, or work looks lost. Finds the misplaced commit, moves it to the right branch, and sets up a clean worktree.
 - **`/spec-self-critique`** — red-team your own spec before committing to build it.
 
 ## Precondition
@@ -129,5 +134,5 @@ Off the main flow entirely.
 
 ## Repo-specific skills
 
-This repo also carries **project-private domain/tooling skills** (data layer, migrations, forecast/risk logic, brand, wave orchestration, blast-radius census, security audit, local CI, …) that don't ship in the kit. For those, see the **project-skill table in `CLAUDE.md`** — they're model-invoked and fire on their own triggers.
+This repo also carries **project-private domain/tooling skills** (data layer, migrations, forecast/risk logic, brand, blast-radius census, …) that don't ship in the kit. For those, see the **project-skill table in `CLAUDE.md`** — they're model-invoked and fire on their own triggers.
 </content>
