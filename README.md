@@ -187,6 +187,13 @@ real number only when you promote it. Either road lands in the *identical*
 wave anchor plus slice sub-issues, built through the same `tdd` → `wrapup` →
 `retro` spine as every other wave.
 
+When the slices are file-disjoint and their specs are locked, **`orchestrate-wave`**
+lands the whole anchor end-to-end — often AFK: it dispatches an implementer per
+slice into its own worktree, integrates serially, verifies centrally, and lands
+the wave. It's the execute-and-land node of the wave ladder (`scale-check` →
+`to-waves` / `board-to-waves` → `orchestrate-wave`); a single slice still just
+goes to `tdd`.
+
 ![The Program-to-Phase-to-Wave-to-Slice altitude ladder, and the two routes — a planned top-down Program route and a grown bottom-up board route — that both fund the same Wave-and-Slices build spine.](docs/methodology.svg)
 
 The full walkthrough — every entry point, the build-layer skills, and the six
@@ -438,12 +445,12 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**32 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
+**37 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
 grill-with-docs, to-prd, to-issues, board-to-waves, triage, spec-self-critique,
-verify-spike, decision-gate, scale-check, to-waves · Execute: tdd, prototype, implement ·
+verify-spike, decision-gate, scale-check, to-waves · Execute: tdd, prototype, implement, orchestrate-wave ·
 Design/diagnose/refactor streams: diagnose, zoom-out,
-improve-codebase-architecture, codebase-design, domain-modeling · Land: wrapup,
-resolving-merge-conflicts, code-review · Learn: retro, write-a-skill · Setup:
+improve-codebase-architecture, codebase-design, domain-modeling, security-audit · Land: wrapup,
+resolving-merge-conflicts, code-review, local-ci, git-worktree-recover · Learn: retro, audit-skills, write-a-skill · Setup:
 setup-workflow, git-guardrails, setup-pre-commit · Codex review: grill-me-codex,
 grill-with-docs-codex, codex-review),
 installed for both surfaces — `.claude/skills`
@@ -454,9 +461,10 @@ skip these on a Codex-first repo): `write-a-skill`, `git-guardrails-claude-code`
 `setup-pre-commit`, `grill-me-codex`, `grill-with-docs-codex`, `codex-review`.
 
 **Helper scripts** — `board_config.py` (profile loader), `board-sync.py`,
-`execute-ready-check.py`, `pr-body-check.py`, the handoff drift-guard and
-board-status hooks (Claude only — wired via `.claude/settings.json`, no Codex
-mirror), the opt-in LoC-offender gate, and a wave-anchor template.
+`execute-ready-check.py`, `pr-body-check.py`, the handoff drift-guard, the
+skill-drift-hint and board-status hooks (Claude only — wired via
+`.claude/settings.json`, no Codex mirror), the opt-in LoC-offender gate, and the
+wave-anchor + security-audit-runbook templates.
 
 This kit deliberately ships without a test suite (a leaner `npx` payload) — the
 scripts and skills are tested in the maintainer's private source repo they're
@@ -479,7 +487,7 @@ your repo.
 - The `grill-*-codex` / `codex-review` cross-model review is by **Chase AI**
   (https://github.com/chaseai-yt/grill-me-codex), MIT.
 - `retro`, `wrapup`, `spec-self-critique`, `board-to-waves`, `verify-spike`,
-  `decision-gate`, `codex-adapter-sync`, `code-review` are original work.
+  `decision-gate`, `codex-adapter-sync`, `code-review`, `orchestrate-wave` are original work.
 
 Full origin + license of every skill is in [PROVENANCE.md](PROVENANCE.md).
 

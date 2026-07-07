@@ -1,12 +1,12 @@
 {
-  "kitVersion": "0.6.2",
+  "kitVersion": "0.7.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
       "kind": "skill",
       "ownerSkill": "ask-matt",
       "surface": "codex",
-      "sha256": "76a33a0d5c5e3d29f86a4d24480aa05e3c756fc9afac402eea63fd9d90624631",
+      "sha256": "a139247f1f2dfdda4987504839fe3b9ad79d532e698f02ebf719849287b4af37",
       "mode": 420,
       "origin": "kit"
     },
@@ -16,6 +16,15 @@
       "ownerSkill": "ask-matt",
       "surface": "codex",
       "sha256": "7cb8510364c9540b4db99746a70c8483d12ac56dd1b9aa71afa7ec06e40cb0a8",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/audit-skills/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "audit-skills",
+      "surface": "codex",
+      "sha256": "f99bfc88bf23ad8279583653bdd7b63dcdcff010227258e4adf9e8df69384f7f",
       "mode": 420,
       "origin": "kit"
     },
@@ -151,6 +160,15 @@
       "ownerSkill": "domain-modeling",
       "surface": "codex",
       "sha256": "54e3b6cfdcb64a23008cd179a20d52b4c15cc97b378661f8a28dc569902792ac",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/git-worktree-recover/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "git-worktree-recover",
+      "surface": "codex",
+      "sha256": "71e043456586a59ddb83fb3fb1f98c8c269cd7575ade8616238bdb7e07fba4ba",
       "mode": 420,
       "origin": "kit"
     },
@@ -299,6 +317,33 @@
       "origin": "kit"
     },
     {
+      "path": ".agents/skills/local-ci/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "local-ci",
+      "surface": "codex",
+      "sha256": "bec1a01930e493676988cb7de220270a6988c27df3fc0880b49cf988d17c4c28",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/orchestrate-wave/references/builder-contract.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "codex",
+      "sha256": "8d4d919ebcf55bd0e22bea1512e1e23753925062d4b72fcbd22e7d711e12661e",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/orchestrate-wave/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "codex",
+      "sha256": "2560c0ddc2569241ce58d16f2560f6e08a8a0bb68feb92f8d891bb3ce90195f0",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".agents/skills/prototype/LOGIC.md",
       "kind": "skill",
       "ownerSkill": "prototype",
@@ -371,6 +416,15 @@
       "origin": "kit"
     },
     {
+      "path": ".agents/skills/security-audit/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "security-audit",
+      "surface": "codex",
+      "sha256": "86f1eb3afd4d71fec8d39e2fbf9c7b69f257e8f6742ea03151fe161a3e5e71e1",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".agents/skills/setup-workflow/board-sync.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
@@ -425,11 +479,20 @@
       "origin": "kit"
     },
     {
+      "path": ".agents/skills/setup-workflow/orchestrate-wave-seed.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "codex",
+      "sha256": "d93aeb681e64c6ff109979934167446e75b2a599410b85be074fc89719ee3338",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".agents/skills/setup-workflow/SKILL.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "6d5d39a261b2fc9e8a5c695e275c7329e5e4aca1443a891709143230b0296ace",
+      "sha256": "ea0b75ccd1579820a09e7c8d4c151126aa0be7a0be6b76b23599fadebb44b554",
       "mode": 420,
       "origin": "kit"
     },
@@ -474,7 +537,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "fc3439fc174d513a3b6eaed766eed9522722142cd3c61e9ded47e67e4765c355",
+      "sha256": "931b42b3adcaab834f27ae3181dcfc894ab5a42989f23943e6c2914ebac95136",
       "mode": 420,
       "origin": "kit"
     },
@@ -564,7 +627,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "codex",
-      "sha256": "a002550cf9389aa9951913366d568211b4dbf588fd52ecf2f638cc8b34cfd6b6",
+      "sha256": "607d68578e84268d56fbf34e4c8a125da327f39ea7ca60689f8a7b5cbcb9d22c",
       "mode": 420,
       "origin": "kit"
     },
@@ -709,6 +772,13 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/hooks/skill-drift-hint.py",
+      "kind": "hook",
+      "sha256": "4842e1c6dfd1042eb924d9cc36a8aa5d0c5a1e95f71e33a82db3322dc9d13fd0",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/hooks/sync-board-status.py",
       "kind": "hook",
       "sha256": "98ac3afb9212e40985d319899bcb0582973b8ed7397bb95bde5fdb764c105dbf",
@@ -720,7 +790,7 @@
       "kind": "skill",
       "ownerSkill": "ask-matt",
       "surface": "claude",
-      "sha256": "e8fa65ac1ecf1c2b22cbb526a27c020868955752db61cebc06109b375e6efd6e",
+      "sha256": "6cb1b9c766d25f29e682e39045c9cf3a538c721bc2d21b6a61c9e558248ca277",
       "mode": 420,
       "origin": "kit"
     },
@@ -730,6 +800,15 @@
       "ownerSkill": "ask-matt",
       "surface": "claude",
       "sha256": "7cb8510364c9540b4db99746a70c8483d12ac56dd1b9aa71afa7ec06e40cb0a8",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/audit-skills/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "audit-skills",
+      "surface": "claude",
+      "sha256": "80ab0f1910914f4bcb375bf63aa66a1297a0b873082d7cc4f386d0d931e6015f",
       "mode": 420,
       "origin": "kit"
     },
@@ -901,6 +980,15 @@
       "ownerSkill": "git-guardrails-claude-code",
       "surface": "claude",
       "sha256": "cd395ceb65bfeb9f826b13e539afc391521d4b83d1e6f1af65220085e9e9e7e1",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/git-worktree-recover/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "git-worktree-recover",
+      "surface": "claude",
+      "sha256": "435c3a32a0c31dbefc774d8f6caa30cae9f23026930292ea0c364d2115ed3e52",
       "mode": 420,
       "origin": "kit"
     },
@@ -1103,6 +1191,33 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/local-ci/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "local-ci",
+      "surface": "claude",
+      "sha256": "054fdd664c71875e965d9f362fff34beedf13c4cf9a840be57758792e0d8755d",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/orchestrate-wave/references/builder-contract.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "claude",
+      "sha256": "8d4d919ebcf55bd0e22bea1512e1e23753925062d4b72fcbd22e7d711e12661e",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/orchestrate-wave/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "claude",
+      "sha256": "26605dc0b28186d090a7f6501328dfb260584f1616014194f1572767d1bfd68d",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/prototype/LOGIC.md",
       "kind": "skill",
       "ownerSkill": "prototype",
@@ -1171,6 +1286,15 @@
       "ownerSkill": "scale-check",
       "surface": "claude",
       "sha256": "aa5f96503278e831c0229cdec4ba057d245c6dfa202296cbe0f236328bc67bf4",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/security-audit/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "security-audit",
+      "surface": "claude",
+      "sha256": "b6785a3ef25c70faf59fb94ab1790f8e159ecceeafe75ea20287439ce9d01006",
       "mode": 420,
       "origin": "kit"
     },
@@ -1247,11 +1371,20 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/setup-workflow/orchestrate-wave-seed.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "claude",
+      "sha256": "d93aeb681e64c6ff109979934167446e75b2a599410b85be074fc89719ee3338",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/setup-workflow/SKILL.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "6d5d39a261b2fc9e8a5c695e275c7329e5e4aca1443a891709143230b0296ace",
+      "sha256": "ea0b75ccd1579820a09e7c8d4c151126aa0be7a0be6b76b23599fadebb44b554",
       "mode": 420,
       "origin": "kit"
     },
@@ -1296,7 +1429,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "fc3439fc174d513a3b6eaed766eed9522722142cd3c61e9ded47e67e4765c355",
+      "sha256": "931b42b3adcaab834f27ae3181dcfc894ab5a42989f23943e6c2914ebac95136",
       "mode": 420,
       "origin": "kit"
     },
@@ -1386,7 +1519,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "claude",
-      "sha256": "50ac9210a4d409e6e7d835c4893a472d256ab610b0f036f4652270be6039bb51",
+      "sha256": "88039b0057cb0a2a8085002b49521f4e37af964490b9da08de361b4468f3abbc",
       "mode": 420,
       "origin": "kit"
     },
@@ -1553,9 +1686,16 @@
       "origin": "kit"
     },
     {
+      "path": "docs/agents/security-audit-runbook-template.md",
+      "kind": "template",
+      "sha256": "754f0b57f4a4ba8ed5ed1fd58d7bd72e3e754a24116fd96c6f596d72b96a7f0c",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "docs/agents/wave-anchor-template.md",
       "kind": "template",
-      "sha256": "b6895bd167cbd6d7988c27859a31b51d53f8df6b5ca8576b9f76a5b6aa2f5171",
+      "sha256": "86fa8b97cc883e6e0982bbca38dd162b190aa368dd2f2bb15452c348998ad024",
       "mode": 420,
       "origin": "kit"
     },
@@ -1590,7 +1730,7 @@
     {
       "path": "scripts/execute-ready-check.py",
       "kind": "script",
-      "sha256": "9a20b96f26aa3d224405a83cb77dba9edd3ddfbadc6b55da88335caf3313e4e6",
+      "sha256": "2905a3b06b1307083ad6dddbf6188d63efd958d8ba50af716cbebba99d3f6bae",
       "mode": 493,
       "origin": "kit"
     },

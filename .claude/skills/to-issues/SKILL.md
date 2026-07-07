@@ -270,7 +270,7 @@ It asserts, for the rooted local graph:
 - every child + the atomic leaf is in **exactly one** bucket (AFK: `ready-for-agent` + complete · HITL: no `ready-for-agent` + the `headings.vorBau` heading, §5c);
 - `plan_revision` stamped and coherent (child == anchor, leaf own); no stale in-between;
 - Parent↔Child consistent (anchor carries no bucket / no `ready-for-agent`);
-- ** Anchor shape** (`## Herkunft`/`## Entscheidungen`/`## Slices` + body header line) — as **`shape_warnings`** (purely non-blocking, **never** flows into `deny_recommended`).
+- ** Anchor shape** (`## Origin`/`## Decisions`/`## Slices` + body header line — legacy German anchors' `## Herkunft`/`## Entscheidungen`/`**Welle N —**` satisfy it too) — as **`shape_warnings`** (purely non-blocking, **never** flows into `deny_recommended`).
 
 If the source was a `wave-stub` stub, briefly confirm the label is gone (the publish mechanic strips it automatically — see §5): `gh issue view <anchor-or-leaf#> --json labels -q '.labels[].name'` shows **no** `wave-stub`. (Not part of `execute-ready-check.py` — its own quick check.)
 

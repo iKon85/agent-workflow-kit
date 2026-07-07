@@ -181,11 +181,16 @@ def is_legacy(body: str) -> bool:
 # section is a loud nudge, never a handoff block — folding it into deny would
 # recreate exactly the provenance-harness rejected. The hard block stays
 # bucket + coherence only.
-_WAVE_HEADER_RE = re.compile(r"\*\*\s*Welle\s+\d+\s*[—–-]", re.IGNORECASE)
-# `## Herkunft` (new) or the legacy `## Cluster-Herkunft` both satisfy the check.
+#
+# The SSOT template (docs/agents/wave-anchor-template.md) went English-only
+# — `Welle`/`Herkunft`/`Entscheidungen` stay accepted so EXISTING
+# German anchors keep auditing clean, and `Wave`/`Origin`/`Decisions` are
+# accepted alongside so anchors built from the now-English template do too.
+_WAVE_HEADER_RE = re.compile(r"\*\*\s*(?:Welle|Wave)\s+\d+\s*[—–-]", re.IGNORECASE)
+# `## Herkunft`/`## Origin` (new) or the legacy `## Cluster-Herkunft` all satisfy the check.
 _SHAPE_SECTIONS = (
-    ("Herkunft", re.compile(r"^#{1,6}\s*(?:Cluster-)?Herkunft\b", re.MULTILINE)),
-    ("Entscheidungen", re.compile(r"^#{1,6}\s*Entscheidungen\b", re.MULTILINE)),
+    ("Herkunft/Origin", re.compile(r"^#{1,6}\s*(?:(?:Cluster-)?Herkunft|Origin)\b", re.MULTILINE)),
+    ("Entscheidungen/Decisions", re.compile(r"^#{1,6}\s*(?:Entscheidungen|Decisions)\b", re.MULTILINE)),
     ("Slices", re.compile(r"^#{1,6}\s*Slices\b", re.MULTILINE)),
 )
 
@@ -199,7 +204,7 @@ def evaluate_anchor_shape(body: str) -> list[str]:
     """
     warnings = []
     if not _WAVE_HEADER_RE.search(body or ""):
-        warnings.append("anchor body header `**Welle N — …**` missing")
+        warnings.append("anchor body header `**Wave N — …**` missing")
     for name, rx in _SHAPE_SECTIONS:
         if not rx.search(body or ""):
             warnings.append(f"anchor section `## {name}` missing")
