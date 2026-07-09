@@ -43,7 +43,7 @@ Model: **strongest available reasoning model for board-wide judgment calls** (su
 |---|---|---|
 | B1 | Code proximity / change coupling | same files/paths in issue bodies; historically co-changed (`git log`) |
 | B2 | Type homogeneity | same `type:*` / `dimension:*` labels |
-| B3 | Dependency chain | `blocked` label, "blocked by" / mutual refs |
+| B3 | Dependency chain | **native blocked-by edges** (`python3 scripts/board-sync.py deps <#>` — the blocking SSOT); secondary: `blocked` label, "blocked by" / mutual body refs (the body section is only the machine mirror) |
 | B4 | Shared verify surface | same page/surface live-testable |
 
 **✂️ Splitters (separate DESPITE affinity):**

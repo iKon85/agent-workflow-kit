@@ -166,10 +166,12 @@ enter outside the plan funnel and feed straight into Execute:
 ### Optional: cross-model review (via Codex)
 
 An independent second model is a cheap way to catch what one model rationalizes.
-**`grill-me-codex` / `grill-with-docs-codex`** run the grill through Codex, and
-**`codex-review`** gets a second-opinion code review. All three are Claude only
-(invoked from Claude Code, which shells out to the Codex CLI) and need the Codex
-CLI installed.
+**`grill-me-codex` / `grill-with-docs-codex`** run the grill through Codex,
+**`codex-review`** gets a second-opinion plan review, and **`codex-build`**
+flips the roles for an optional Act 3 (Codex implements the frozen spec in a
+bounded workspace-write sandbox, Claude verifies the diff and proof). All four
+are Claude only (invoked from Claude Code, which shells out to the Codex CLI)
+and need the Codex CLI installed.
 
 ### The altitude model
 
@@ -304,6 +306,21 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 `--yes` / `-y` (non-interactive).
 
 ## Release notes
+
+### 0.9.0
+
+- Re-syncs the vendored Chase AI `-codex` skills to upstream HEAD (fe37a70):
+  every `codex exec`/`resume` round now echoes the active model before Round 1
+  and runs under a 10-minute overall ceiling in addition to the existing 90s
+  liveness probe.
+- New vendored skill: **`codex-build`** (optional Act 3 — Codex implements a
+  frozen spec, Claude verifies the diff and proof). Locally adapted: upstream's
+  `--yolo` full-access sandbox is replaced by a bounded workspace-write sandbox
+  with a declared allowed-write set enforced after every round.
+- Aligns Act 1 of `grill-me-codex` / `grill-with-docs-codex` with the v1.1.0
+  grill skills (facts-vs-decisions rule + confirmation gate).
+- Bumps the kit metadata to `0.9.0`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
 
 ### 0.8.0
 
@@ -493,20 +510,21 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**39 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
+**40 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
 grill-with-docs, to-prd, to-issues, board-to-waves, triage, spec-self-critique,
 verify-spike, decision-gate, scale-check, to-waves, wayfinder, research · Execute: tdd, prototype, implement, orchestrate-wave ·
 Design/diagnose/refactor streams: diagnose, zoom-out,
 improve-codebase-architecture, codebase-design, domain-modeling, security-audit · Land: wrapup,
 resolving-merge-conflicts, code-review, local-ci, git-worktree-recover · Learn: retro, audit-skills, write-a-skill · Setup:
-setup-workflow, git-guardrails, setup-pre-commit · Codex review: grill-me-codex,
-grill-with-docs-codex, codex-review),
+setup-workflow, git-guardrails, setup-pre-commit · Codex cross-model: grill-me-codex,
+grill-with-docs-codex, codex-review, codex-build),
 installed for both surfaces — `.claude/skills`
 (Claude Code) and `.agents/skills` (Codex) — plus `codex-adapter-sync`
 (Codex-only: keeps the `.agents/skills` mirror in sync with the `.claude/skills`
 source for dual-surface repos). **Claude only** (no `.agents/skills` mirror —
 skip these on a Codex-first repo): `write-a-skill`, `git-guardrails-claude-code`,
-`setup-pre-commit`, `grill-me-codex`, `grill-with-docs-codex`, `codex-review`.
+`setup-pre-commit`, `grill-me-codex`, `grill-with-docs-codex`, `codex-review`,
+`codex-build`.
 
 **Helper scripts** — `board_config.py` (profile loader), `board-sync.py`,
 `execute-ready-check.py`, `pr-body-check.py`, the handoff drift-guard, the
@@ -532,8 +550,8 @@ your repo.
 - Many skills are adapted from **Matt Pocock's skills**
   (https://github.com/mattpocock/skills), MIT — each carries a
   `THIRD-PARTY-NOTICES.md` with its upstream path.
-- The `grill-*-codex` / `codex-review` cross-model review is by **Chase AI**
-  (https://github.com/chaseai-yt/grill-me-codex), MIT.
+- The `grill-*-codex` / `codex-review` / `codex-build` cross-model skills are by
+  **Chase AI** (https://github.com/chaseai-yt/grill-me-codex), MIT.
 - `retro`, `wrapup`, `spec-self-critique`, `board-to-waves`, `verify-spike`,
   `decision-gate`, `codex-adapter-sync`, `code-review`, `orchestrate-wave` are original work.
 

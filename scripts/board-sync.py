@@ -23,6 +23,7 @@ tests never touch the real API.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import re
 import subprocess
@@ -44,6 +45,10 @@ from board_fields import (  # noqa: E402
 # Node-kind classifier — `promote`'s Program-PRD refusal + `program-sync`'s
 # node-kind dispatch guard both need to tell a Program-PRD apart from a Welle-Anker.
 from node_kind import classify_node, PROGRAM  # noqa: E402
+# Blocked-by body mirror — pure render/splice/parse + the shared
+# "open blocker" predicate, shared with the execute-ready drift check;
+# native dependencies (API) are the truth.
+from issue_deps import open_blocker_numbers, splice_blocked_by_section  # noqa: E402
 
 # --- Board profile (SSOT: docs/agents/board-sync.md `board-sync:profile`) ----
 # No inline board IDs: board_config reads them from the profile so the published
@@ -251,6 +256,19 @@ def issue_number_from_url(url: str) -> int:
     return int(url.rstrip("/").rsplit("/", 1)[-1])
 
 
+# --- native issue dependencies ----------------------------------------
+# REST blocked_by endpoints (verified live 2026-07-09): the list response carries
+# FULL issue objects and INCLUDES closed blockers — "blocked" always means
+# "has OPEN blockers" downstream, so extraction keeps the state and the open
+# filter is explicit. Writes take the numeric DATABASE id (`issue.id`), never
+# `#number`/`node_id` — resolution stays encapsulated here (`_db_id`).
+def extract_blockers(data: list) -> list[dict]:
+    """Normalize the REST blocked_by list response to the four fields we use."""
+    return [{"number": it["number"], "id": it["id"],
+             "state": it["state"], "title": it.get("title", "")}
+            for it in (data or [])]
+
+
 # --- Phase-1 LoC-offender marker -------------------------------------
 # At the buildability transition (create with ready-for-agent / add --bucket afk),
 # if the slice's `## Blast-Radius` block names a still-listed offender, plant a
@@ -391,6 +409,12 @@ def title_edit_args(issue: int, title: str) -> list[str]:
 
 
 # --- gh-backed helpers -------------------------------------------------------
+def _blocked_by_list(num: int) -> list[dict]:
+    """Native blocked_by edges of an issue (open AND closed blockers)."""
+    data = _gh_json(["api", f"repos/{REPO}/issues/{num}/dependencies/blocked_by?per_page=100"])
+    return extract_blockers(data)
+
+
 def _parent_of(num: int) -> Optional[int]:
     data = _gh_json(["api", "graphql", "--header", SUB_ISSUES_HEADER,
                      "-f", f"query={PARENT_QUERY}",
@@ -445,6 +469,15 @@ def _field_value(issue: int, field_id: str) -> Optional[dict]:
                      "-F", f"owner={PROJECT_OWNER}", "-F", f"repo={REPO_NAME}",
                      "-F", f"num={issue}"])
     return extract_field_value(data, PROJECT_NODE_ID, field_id)
+
+
+def _write_issue_body(issue: int, new_body: str) -> None:
+    """Write an issue body via a temp file + `gh issue edit --body-file` — the
+    one shared write mechanic for every body-rewriting command in this file."""
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
+        f.write(new_body)
+        tmp = f.name
+    _gh(["issue", "edit", str(issue), "--repo", REPO, "--body-file", tmp])
 
 
 def _add_and_stamp(url, wave, status, cluster, spec_path, plan_path, dry_run) -> None:
@@ -524,6 +557,109 @@ def cmd_unlink(args) -> int:
         return 0
     _gh([*unlink_args, "-f", f"parent={_node_id(args.parent)}", "-f", f"child={_node_id(args.child)}"])
     print(f"unlinked #{args.child} from #{args.parent}")
+    return 0
+
+
+# --- native issue-dependency commands --------------------------------
+def _sync_blocked_by_mirror(issue: int, blockers: list[dict]) -> None:
+    """Rewrite the issue's `## Blocked by` body mirror from the given edge list.
+    No-op when already in sync (anchor-sync's no-drift contract)."""
+    body = _gh(["issue", "view", str(issue), "--repo", REPO, "--json", "body", "-q", ".body"])
+    new_body = splice_blocked_by_section(body, blockers)
+    if new_body == body:
+        print(f"#{issue}: mirror in sync")
+        return
+    _write_issue_body(issue, new_body)
+    print(f"#{issue}: mirror updated")
+
+
+def cmd_dep_add(args) -> int:
+    """Set a native blocked-by edge + refresh the body mirror.
+
+    Idempotent AND self-healing: an existing edge skips the POST but still
+    reconciles the mirror — a failed mirror write is repaired by re-running
+    the same command. Dry-run makes NO gh calls (promote contract).
+    """
+    path = f"repos/{REPO}/issues/{args.issue}/dependencies/blocked_by"
+    if args.dry_run:
+        _print_dry(["api", "--method", "POST", path,
+                    "-F", f"issue_id=<#{args.blocked_by} database-id>"])
+        print(f"[dry-run] would refresh the ## Blocked by mirror of #{args.issue}")
+        return 0
+    existing = _blocked_by_list(args.issue)
+    if args.blocked_by in [b["number"] for b in existing]:
+        print(f"#{args.issue} already blocked by #{args.blocked_by} — skip (idempotent)")
+        _sync_blocked_by_mirror(args.issue, existing)
+        return 0
+    # The write takes the numeric DATABASE id — resolved here, never by the caller.
+    blocker = _gh_json(["api", f"repos/{REPO}/issues/{args.blocked_by}"])
+    _gh(["api", "--method", "POST", path, "-F", f"issue_id={blocker['id']}"])
+    print(f"#{args.issue} now blocked by #{args.blocked_by}")
+    _sync_blocked_by_mirror(args.issue, existing + extract_blockers([blocker]))
+    return 0
+
+
+def cmd_dep_remove(args) -> int:
+    """Remove a native blocked-by edge + refresh the body mirror.
+
+    Idempotent + self-healing like dep-add; the blocker's DATABASE id comes
+    straight from the edge list (path param on DELETE), no extra fetch.
+    """
+    if args.dry_run:
+        _print_dry(["api", "--method", "DELETE",
+                    f"repos/{REPO}/issues/{args.issue}/dependencies/blocked_by/"
+                    f"<#{args.blocked_by} database-id>"])
+        print(f"[dry-run] would refresh the ## Blocked by mirror of #{args.issue}")
+        return 0
+    existing = _blocked_by_list(args.issue)
+    target = next((b for b in existing if b["number"] == args.blocked_by), None)
+    if target is None:
+        print(f"#{args.issue} not blocked by #{args.blocked_by} — skip (idempotent)")
+        _sync_blocked_by_mirror(args.issue, existing)
+        return 0
+    _gh(["api", "--method", "DELETE",
+         f"repos/{REPO}/issues/{args.issue}/dependencies/blocked_by/{target['id']}"])
+    print(f"#{args.issue} no longer blocked by #{args.blocked_by}")
+    _sync_blocked_by_mirror(args.issue,
+                            [b for b in existing if b["number"] != args.blocked_by])
+    return 0
+
+
+def cmd_deps(args) -> int:
+    """Print an issue's native blocked_by edges + the open-blocker count.
+    --json emits the normalized list (execute-ready-check's machine seam)."""
+    blockers = _blocked_by_list(args.issue)
+    if getattr(args, "as_json", False):
+        print(json.dumps(blockers, ensure_ascii=False))
+        return 0
+    if not blockers:
+        print(f"#{args.issue}: no blockers")
+        return 0
+    for b in blockers:
+        print(f"- #{b['number']} ({b['state']}) — {b['title']}".rstrip())
+    print(f"open blockers: {len(open_blocker_numbers(blockers))}")
+    return 0
+
+
+def cmd_frontier(args) -> int:
+    """Buildable frontier of a wave anchor from native edges (orchestrate-wave's
+    reader). Per open sub-issue: FREI (0 open blockers) or BLOCKED by #…;
+    closed sub-issues print as done. ONE GraphQL round-trip — reuses the
+    anchor-sync sub-issues query (state + blockedBy per child), no per-child
+    REST fan-out."""
+    board = _anchor_board_data(args.issue)
+    if not board:
+        print(f"#{args.issue}: no native sub-issues — not a wave anchor?", file=sys.stderr)
+        return 1
+    for child, entry in board.items():
+        if entry.get("state") != "open":
+            print(f"#{child} done")
+            continue
+        blockers = open_blocker_numbers(entry.get("blocked_by") or [])
+        if blockers:
+            print(f"#{child} BLOCKED by {', '.join('#' + str(n) for n in blockers)}")
+        else:
+            print(f"#{child} FREI")
     return 0
 
 
@@ -641,11 +777,7 @@ def _plant_marker_on_existing(issue: int) -> None:
     hits = loc_offender_hits(body, read_offenders())
     if not hits:
         return
-    marked = plant_offender_marker(body, hits)
-    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
-        f.write(marked)
-        tmp = f.name
-    _gh(["issue", "edit", str(issue), "--repo", REPO, "--body-file", tmp])
+    _write_issue_body(issue, plant_offender_marker(body, hits))
 
 
 def cmd_add(args) -> int:
@@ -692,9 +824,10 @@ from anchor_table import (  # noqa: E402
 ANCHOR_SLICES_QUERY = (
     "query($owner:String!,$repo:String!,$num:Int!){"
     "repository(owner:$owner,name:$repo){issue(number:$num){"
-    "subIssues(first:100){nodes{number title "
+    "subIssues(first:100){nodes{number title state "
     "closedByPullRequestsReferences(first:10,includeClosedPrs:true)"
     "{nodes{number state headRefName}} "
+    "blockedBy(first:20){nodes{number state}} "
     "projectItems(first:10){nodes{fieldValues(first:20){nodes{"
     "... on ProjectV2ItemFieldSingleSelectValue{name "
     "field{... on ProjectV2SingleSelectField{id}}}"
@@ -729,10 +862,7 @@ def cmd_anchor_sync(args) -> int:
         print(f"[dry-run] would update #{args.issue} slice table{appended_note}")
         print(render_pipe_table(headers, new_rows))
         return 0
-    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
-        f.write(new_body)
-        tmp = f.name
-    _gh(["issue", "edit", str(args.issue), "--repo", REPO, "--body-file", tmp])
+    _write_issue_body(args.issue, new_body)
     print(f"synced #{args.issue} slice table from board{appended_note}")
     return 0
 
@@ -852,7 +982,9 @@ def cmd_field_value(args) -> int:
 # handler stays thin. `_anchor_board_data` is reused as-is: a Program-PRD's
 # native sub-issues are its promoted Wave-Anchor stubs, fetched exactly like
 # an Anchor fetches its Slice sub-issues — no second query needed.
-from program_sync import sync_wellenplan_status, splice_wellenplan_table  # noqa: E402
+from program_sync import (  # noqa: E402
+    sync_wellenplan_status, splice_wellenplan_table, checkoff_phase_gates,
+)
 
 
 def cmd_program_sync(args) -> int:
@@ -877,18 +1009,21 @@ def cmd_program_sync(args) -> int:
     include_phase = any(w.phase is not None for w in waves)
     new_table = render_wellenplan_table(new_waves, include_phase=include_phase)
     new_body = splice_wellenplan_table(body, new_table)
+    # upward propagation: a phase whose waves are ALL ✅ checks off its
+    # `## Phasen-Gates` entry (monotone, stamped once — see checkoff_phase_gates).
+    new_body, checked_gates = checkoff_phase_gates(
+        new_body, new_waves, datetime.date.today().isoformat())
+    checked_note = (f"; Phasen-Gate(s) abgehakt: {', '.join(checked_gates)}"
+                    if checked_gates else "")
     if new_body == body:
         print(f"#{args.issue}: Wellenplan status already in sync (no drift)")
         return 0
     if args.dry_run:
-        print(f"[dry-run] would update #{args.issue} Wellenplan status")
+        print(f"[dry-run] would update #{args.issue} Wellenplan status{checked_note}")
         print(new_table)
         return 0
-    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
-        f.write(new_body)
-        tmp = f.name
-    _gh(["issue", "edit", str(args.issue), "--repo", REPO, "--body-file", tmp])
-    print(f"synced #{args.issue} Wellenplan status from board")
+    _write_issue_body(args.issue, new_body)
+    print(f"synced #{args.issue} Wellenplan status from board{checked_note}")
     return 0
 
 
@@ -930,6 +1065,33 @@ def build_parser() -> argparse.ArgumentParser:
                     help="report a foreign-parent mismatch but exit 0 (read-only audit)")
     ul.add_argument("--dry-run", action="store_true")
     ul.set_defaults(func=cmd_unlink)
+
+    dp = sub.add_parser("deps", help="print an issue's native blocked_by edges")
+    dp.add_argument("issue", type=int)
+    dp.add_argument("--json", action="store_true", dest="as_json",
+                    help="normalized machine-readable list")
+    dp.set_defaults(func=cmd_deps)
+
+    da = sub.add_parser("dep-add", help="set a native blocked-by edge + body mirror "
+                                        "(idempotent, self-healing)")
+    da.add_argument("--issue", type=int, required=True, help="the BLOCKED issue")
+    da.add_argument("--blocked-by", type=int, required=True, dest="blocked_by",
+                    help="the BLOCKING issue")
+    da.add_argument("--dry-run", action="store_true")
+    da.set_defaults(func=cmd_dep_add)
+
+    dr = sub.add_parser("dep-remove", help="remove a native blocked-by edge + body mirror "
+                                           "(idempotent)")
+    dr.add_argument("--issue", type=int, required=True, help="the BLOCKED issue")
+    dr.add_argument("--blocked-by", type=int, required=True, dest="blocked_by",
+                    help="the BLOCKING issue")
+    dr.add_argument("--dry-run", action="store_true")
+    dr.set_defaults(func=cmd_dep_remove)
+
+    fr = sub.add_parser("frontier", help="buildable frontier of a wave anchor from "
+                                         "native edges: FREI/BLOCKED/done")
+    fr.add_argument("issue", type=int, help="the wave-anchor issue number")
+    fr.set_defaults(func=cmd_frontier)
 
     cr = sub.add_parser("create", help="create an issue + add to board + stamp fields")
     cr.add_argument("--title", required=True)

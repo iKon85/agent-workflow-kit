@@ -2,12 +2,16 @@
 """anchor_table.py — pure Slices-table logic for `board-sync.py anchor-sync`.
 
 A wave-anchor issue body carries a Slices-table that duplicates board-tracked
-volatile data (Status, Branch). Hand-maintenance drifts (: stale branch,
-missing split-row). `anchor-sync` regenerates the volatile cells IN PLACE: the
-table stays ONE combined table, stable plan columns (Slice/Modell/Gate/…) are
-preserved verbatim, and only Status + Branch are refreshed — and only when the
-board DISAGREES, so a no-drift run reproduces the table byte-identically (AC#4)
-while a drifted cell is corrected.
+volatile data. Hand-maintenance drifts (: stale branch, missing split-row).
+`anchor-sync` regenerates the volatile cells IN PLACE: the table stays ONE
+combined table, stable plan columns (Slice/Gate/…) are preserved verbatim, and
+only the volatile cells are refreshed — and only when the board DISAGREES, so a
+no-drift run reproduces the table byte-identically (AC#4) while a drifted cell
+is corrected. Since the canonical table is the lean 6-column form
+`# | Status | Slice | Sub-Issue | Gate | closes/refs` — Status is the only
+volatile column there; legacy anchors with Branch / Blocked-by columns keep
+working because every column is matched by header NAME and refreshed only
+where it exists.
 
 This module is PURE — no gh / no I/O / no board config. The gh-backed fetch and
 the command wiring live in board-sync.py; everything here is directly unit-tested
@@ -174,6 +178,32 @@ def refresh_branch_cell(existing: str, entry: dict) -> str:
     return f"`{head}`"
 
 
+def render_blocked_cell(blocked_by: list) -> str:
+    """Canonical `Blocked by` cell from native edges: open plain, closed with ✓,
+    none → `—`. Machine-owned since (native dependencies are the SSOT)."""
+    if not blocked_by:
+        return "—"
+    ordered = ([b for b in blocked_by if b.get("state") == "open"]
+               + [b for b in blocked_by if b.get("state") != "open"])
+    return ", ".join(f"#{b['number']}" + ("" if b.get("state") == "open" else " ✓")
+                     for b in ordered)
+
+
+def refresh_blocked_cell(existing: str, entry: dict) -> str:
+    """Refresh a `Blocked by` cell from the entry's native edges.
+
+    Edges exist → the cell is machine-owned: replace unless already canonical.
+    No edges → clear only a cell that still carries stale `#n` refs; a plain
+    `—`/empty/prose cell stays verbatim (byte-stable no-drift runs)."""
+    blocked_by = entry.get("blocked_by")
+    if blocked_by is None:
+        return existing
+    canonical = render_blocked_cell(blocked_by)
+    if not blocked_by and not _SUBISSUE_NUM_RE.search(existing or ""):
+        return existing
+    return existing if (existing or "").strip() == canonical else canonical
+
+
 def merge_slice_rows(headers: list[str], rows: list[list[str]],
                      board: dict, roles: dict) -> tuple[list[list[str]], list[int]]:
     """Refresh Status/Branch per row from board (keyed by the Sub-Issue cell's first
@@ -187,6 +217,7 @@ def merge_slice_rows(headers: list[str], rows: list[list[str]],
     si = require_col_index(headers, "Sub-Issue")
     st = require_col_index(headers, "Status")
     br = col_index(headers, "Branch")
+    bl = col_index(headers, "Blocked by")
     slice_i = col_index(headers, "Slice")
     # A board sub-issue counts as present if its #n appears ANYWHERE in the
     # Sub-Issue column — incl. a folded secondary ref like `(schließt)`
@@ -204,6 +235,8 @@ def merge_slice_rows(headers: list[str], rows: list[list[str]],
                 row[st] = refresh_status_cell(row[st], board[sub], roles)
             if br is not None and br < len(row):
                 row[br] = refresh_branch_cell(row[br], board[sub])
+            if bl is not None and bl < len(row):
+                row[bl] = refresh_blocked_cell(row[bl], board[sub])
         out.append(row)
     appended: list[int] = []
     for sub, entry in board.items():
@@ -216,6 +249,8 @@ def merge_slice_rows(headers: list[str], rows: list[list[str]],
             head = branch_from_board(entry)
             if head:
                 new[br] = f"`{head}`"
+        if bl is not None and entry.get("blocked_by") is not None:
+            new[bl] = render_blocked_cell(entry["blocked_by"])
         if slice_i is not None:
             new[slice_i] = entry.get("title", "")
         out.append(new)
@@ -293,10 +328,16 @@ def extract_anchor_board_data(data: dict, status_field_id: str) -> dict:
                     break
             if status:
                 break
+        blocked = ((n.get("blockedBy") or {}).get("nodes")) or []
         out[n["number"]] = {
             "title": n.get("title", ""),
+            "state": (n.get("state") or "").lower(),
             "status": status,
             "prs": [{"number": p["number"], "state": p["state"],
                      "headRefName": p.get("headRefName")} for p in prs],
+            # GraphQL state is UPPERCASE; normalize to the REST lowercase the
+            # dependency helpers use everywhere else.
+            "blocked_by": [{"number": b["number"],
+                            "state": (b.get("state") or "").lower()} for b in blocked],
         }
     return out

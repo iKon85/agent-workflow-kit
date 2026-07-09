@@ -47,7 +47,9 @@ Once `to-waves` publishes the slice as a real issue, the local-id is superseded
 by the issue number everywhere `final-cut-depends-on`-style cross-references are
 used — but the metadata block's five fields keep the same shape (only `wave` and
 `phase` typically survive verbatim; `blocked_by` gets rewritten to `#<n>`
-references by the publish step).
+references by the publish step **and set as native issue-dependency edges**
+(`dep-add`) — the blocking SSOT; the leaf's `## Blocked by` body section is
+their machine-written mirror).
 
 ## Body skeleton
 

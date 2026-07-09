@@ -54,7 +54,7 @@ Even when the slices were already cut upstream (a grill/PRD slice table), do NOT
 - **Seam ownership check (Fix A):** does any slice **replace/unify/retire a central mechanism**? If yes, it MUST be its own 🧊 grill-needed slice — NOT hidden in a behavior-preserving naming/tweak leaf. A byte-neutral slice does not discharge the seam.
 - **Blast-radius threshold:** for each slice, estimate the blast radius (~N files, from recon/grep — not a guess; workflow slices count SKILL.md + adapter mirrors + tests). **≥ 10 estimated files OR not estimable → check for a split.** If the slice stays deliberately large, it MUST be 🧊 **grill-needed** (HITL) with a "why indivisible" justification **in the issue body** — a guideline, not a hard block, but the deviation lives in the body, not in the agent's head. (Incident: a slice cut too coarse ballooned to 34 prod files at execute-recon, an emergency in-build split — no gate at the cut existed.) (Terminology note: this blast radius is a **slice estimate** — ~N files for this one cut — not a project-owned rollout-completeness census (e.g. an-style, code-derived "X of Y" census over all surfaces of a cross-cutting concept, if your repo runs one).)
 <!-- mirror-xform:start codex-escalation -->
-- **Gate type + sequencing (Retro):** every slice that is **not** a clean AFK build gets a gate tag — 🧭 **Design Grill** (a decision with alternatives, hard-to-reverse, ADR-worthy → `grill-with-docs-codex`), 🔬 **Verify Spike** (a pure fact question, read-only), 📐 **Trade-off/Research** (a concrete trade-off choice OR "needs more research", **below** the grill threshold — read-only research + a documented trade-off in the issue), 📝 **Review Note** (a finding, **not** a build slice). A gate slice (🧭/🔬/📐) is cut as its **own slice**, sequenced **before** its dependent build slice, and blocks it (gate-before-build, visible in "Blocked by" + table order). "Needs a decision / open call / research gap" while cutting → gate slice, **never** a blind AFK `/tdd`. (🔬 **Verify Spike** runs via the `verify-spike` skill — read-only fact question, throwaway harness, verdict as ADR/comment, the throwaway deleted. 📐 **Trade-off/Research** runs via the `decision-gate` skill — options + criteria, read-only research/measurement, a documented trade-off table, a reasoned decision as ADR/comment; throwaway measurement code deleted.)
+- **Gate type + sequencing (Retro):** every slice that is **not** a clean AFK build gets a gate tag — 🧭 **Design Grill** (a decision with alternatives, hard-to-reverse, ADR-worthy → `grill-with-docs-codex`), 🔬 **Verify Spike** (a pure fact question, read-only), 📐 **Trade-off/Research** (a concrete trade-off choice OR "needs more research", **below** the grill threshold — read-only research + a documented trade-off in the issue), 📝 **Review Note** (a finding, **not** a build slice). A gate slice (🧭/🔬/📐) is cut as its **own slice**, sequenced **before** its dependent build slice, and blocks it (gate-before-build — published as a **native blocking edge** (§5a step 5), visible in the mirrored "Blocked by" section + table order). "Needs a decision / open call / research gap" while cutting → gate slice, **never** a blind AFK `/tdd`. (🔬 **Verify Spike** runs via the `verify-spike` skill — read-only fact question, throwaway harness, verdict as ADR/comment, the throwaway deleted. 📐 **Trade-off/Research** runs via the `decision-gate` skill — options + criteria, read-only research/measurement, a documented trade-off table, a reasoned decision as ADR/comment; throwaway measurement code deleted.)
 <!-- mirror-xform:end -->
 - **🧭-vs.-📐 discriminator:** if the decision replaces/unifies/retires a **central seam**, is a **one-way door** (hard/costly to reverse), or a **schema migration** → 🧭 Design Grill (ADR-worthy, see Seam Ownership above). Otherwise — a **bounded choice between concrete options**, easily revised → 📐 Trade-off/Research.
 - **Absence-before-build (Retro):** a slice cut as "build feature/page/endpoint/flow X" (or a gate "X gap unclear") MUST cite an **existence grep** — *absent* (`grep <pattern> = 0` across route **and** UI **and** repo) OR *partial* (`exists @<file>, gap = <Y>`). A hedge ("current state unclear → verify during build") is **not** a valid slice state: the check is cheap (minutes), so it happens **at the cut**, not deferred into a gate. (Incident: a gate was cut for a feature that greps already showed built — the gap was deferred instead of resolved.)
@@ -135,20 +135,28 @@ else
   WAVE="$CURRENT"                                    # Stufe-1p Program-stub — reuse
 fi
 
-# 2. render the Tier-2 anchor body from docs/agents/wave-anchor-template.md into /tmp/anchor.md:
+# 2. render the LEAN Tier-2 anchor body from docs/agents/wave-anchor-template.md into /tmp/anchor.md:
 #    body header `**Welle $WAVE — <Thema>**`, **plan_revision:** r<N> at top (before the first
-#    heading), the FILLED Slices table (you know the cut), the full grilled PRD in a collapsible
-#    <details> — **with ALL embedded PRD markers stripped** (`plan_revision`, `prd-source-id`,
-#    `prd-content-fp`, `<!-- prd: awaiting-decomposition -->`): the PRD's own `plan_revision`
-#    otherwise collides with the anchor's `plan_revision` → execute-ready `[DENY] plan_revision
-#    multiple` (Retro). The anchor carries its own markers at the head; the `<details>`
-#    embedding is plain text. The issue TITLE is rewritten to `Welle N — <Thema>` by the promote
-#    step below (step 3) — do NOT set it here; promote prepends the wave prefix (and strips any
-#    `fix:`/`feat:` prefix) idempotently.
+#    heading), the FILLED Slices table (you know the cut), the To-Do checklist collapsed to its
+#    one-line summary. The full grilled PRD does NOT go into the body (: every slice
+#    session's `--json body` read loads the whole body — a <details> block collapses only in
+#    the browser). Save it to /tmp/prd-archive.md instead — **with ALL embedded PRD markers
+#    stripped** (`plan_revision`, `prd-source-id`, `prd-content-fp`,
+#    `<!-- prd: awaiting-decomposition -->`; a stray second `plan_revision` on the issue is
+#    exactly the Retro confusion) — posted as ISSUE COMMENT #1 in step 2b.
+#    The anchor carries its own markers at the head. The issue TITLE is rewritten to
+#    `Welle N — <Thema>` by the promote step below (step 3) — do NOT set it here; promote
+#    prepends the wave prefix (and strips any `fix:`/`feat:` prefix) idempotently.
 #    Rewrite the PRD body via skill-prose gh (body-fill is issue CONTENT, NOT a board write — the
 #    helper owns board state only; cf. test_plan_body_fill_is_not_a_board_sync_op; gh-lint allows a
 #    non-workflow-label `gh issue edit`). Content-edit FIRST so a failure stops before board mutation:
 gh issue edit <prd#> --body-file /tmp/anchor.md
+
+# 2b. archive the full PRD as comment #1 on the anchor: one click away for a human,
+#     loaded only on demand by an agent (`--json body` never fetches comments). First line:
+#     `📄 Full PRD (archive, r<N>) — the body carries navigation/decisions only`.
+#     Idempotent re-run: a comment already starting with `📄 Full PRD (archive` → skip, never duplicate:
+gh issue comment <prd#> --body-file /tmp/prd-archive.md
 
 # 3. set the board state (type:cluster + Wave). If THIS fails AFTER the body edit, the title/body are
 #    already rewritten → STOP, report "board state incomplete (body/title already changed)", and
@@ -162,10 +170,17 @@ python3 scripts/board-sync.py create --title "Welle $WAVE / Slice 1a — <outcom
   --status-role spec --wave "$WAVE"       # AFK: append --label ready-for-agent
                                           # HITL: pass --hitl, never ready-for-agent
 python3 scripts/board-sync.py link --parent <prd#> --child <new#>
+
+# 5. set every blocking edge NATIVELY — one `dep-add` per "Blocked by" relation in
+#    the slice table (gate-before-build edges from §3b/§5c included). Native issue
+#    dependencies are the blocking SSOT where the tracker supports them; the helper
+#    also writes the `## Blocked by` body section as the machine mirror (on a
+#    tracker without native dependencies the body section is the primary record):
+python3 scripts/board-sync.py dep-add --issue <blocked#> --blocked-by <blocker#>
 # → the promoted anchor graph is audited at exit (§7, execute-ready --mode audit, non-blocking)
 ```
 
-- The anchor body comes from **`docs/agents/wave-anchor-template.md` (Tier 2)** — filled Slices table + collapsible PRD; **the embedded PRD inside `<details>` has ALL its markers stripped** (`plan_revision`/`prd-source-id`/`prd-content-fp`/`awaiting-decomposition`) — the anchor carries its own at the head; a duplicate `plan_revision` triggers `[DENY] plan_revision multiple` (Retro). Reference output.
+- The anchor body comes from **`docs/agents/wave-anchor-template.md` (Tier 2)** — lean: filled Slices table (`# | Status | Slice | Sub-Issue | Gate | closes/refs`), NO embedded PRD, NO per-slice handoff blocks. The full PRD (markers stripped: `plan_revision`/`prd-source-id`/`prd-content-fp`/`awaiting-decomposition`) is **issue comment #1**; each slice's paste-ready handoff is **self-contained in its leaf** (§5d).
 - Promoted children carry the title prefix **`Welle N / Slice X — <outcome>`**.
 - Fresh children each have exactly one parent → the one-parent constraint is never violated. `link` refuses a foreign-parent re-parent (exits non-zero — drift, never silent).
 - **Member reconcile when promoting a stub (mandatory — Retro, corrected by; extended to the top-down origin).** The pipeline never runs directly `board-to-waves → to-issues` — it always goes through the intermediate step `board-to-waves` (stub) → [optional grill] → `to-prd` (Draft-PRD) → `to-issues` (publish); the top-down origin is `scale-check → grill → to-prd (program mode) → to-waves` (stub) → `to-issues` (publish). **The reconcile input is the union of the member issues listed in the stub-body `#…` list AND `children-of <stub#>`** (read the body, e.g. `gh issue view <anchor#> --json body`, plus `python3 scripts/board-sync.py children-of <stub#>`) — covering both origins: a bottom-up `board-to-waves` stub sets **no** native sub-issue link at clustering time, so `children-of` finds nothing before this promotion and only the body list matters; a top-down Stufe-1p Program-stub **already** has native children — the slice leaves `to-waves` pre-created at publish (`to-waves` SKILL.md §4) — which `children-of` returns even before this promotion, on top of any body-listed **adopted** references (`to-waves`'s Adopt Path). These members MUST be reconciled during the publish pass, or they end up sitting next to the fresh slices → **duplicates + execute-ready `DENY`** (the anchor's child set must equal the slice set; a legacy member without `plan_revision`/bucket denies the §7 audit). Rule per member:
@@ -200,7 +215,7 @@ Every child **and** the atomic leaf sits in **exactly one** bucket:
 
 Status alone cannot discriminate (both are `Spec`) — the **label** does. The helper's `--hitl` flag rejects a `ready-for-agent` label mechanically. Authority = `scripts/execute-ready-check.py` (`parse_bucket`) — the checker wins on a mismatch.
 
-**Gate slices (🔬/📐) are AFK.** A `🔬` Verify-Spike or `📐` Trade-off/Research gate slice is **read-only** (a fact question, or a bounded trade-off + read-only research) — an agent can run it solo, so it carries `ready-for-agent` like any other AFK slice; `blocked_by` on its dependent build slice is what protects the gate-before-build ordering (§3b/§4), not the HITL bucket. Only a `🧭` Design-Grill gate slice is HITL (it needs the human in the grill). A gate slice's **placement** — which altitude/layer it lands on — follows `decision-gate`'s placement rule (owned there, referenced here).
+**Gate slices (🔬/📐) are AFK.** A `🔬` Verify-Spike or `📐` Trade-off/Research gate slice is **read-only** (a fact question, or a bounded trade-off + read-only research) — an agent can run it solo, so it carries `ready-for-agent` like any other AFK slice; the **native blocked-by edge** on its dependent build slice (set at publish, §5a step 5) is what protects the gate-before-build ordering (§3b/§4), not the HITL bucket. Only a `🧭` Design-Grill gate slice is HITL (it needs the human in the grill). A gate slice's **placement** — which altitude/layer it lands on — follows `decision-gate`'s placement rule (owned there, referenced here).
 
 #### 5d. Issue body template (each child / atomic leaf)
 
@@ -229,6 +244,10 @@ End-to-end behavior of this vertical slice (not layer-by-layer). Avoid file path
 
 ## Blocked by
 Reference the blocking ticket(s), or "None - can start immediately".
+<!-- machine-written MIRROR since: publish sets the edges natively (dep-add,
+     §5a step 5) and the helper maintains this section — never hand-edit it; on
+     conflict the native dependency API is the truth. Tracker without native
+     dependencies → this section is the primary record (kit fallback). -->
 
 ## Vor Bau zu klären   <!-- heading = board profile `headings.vorBau` (docs/agents/board-sync.md); HITL only — the open decisions; omit for AFK -->
 - <open question 1>
@@ -248,8 +267,19 @@ Reference the blocking ticket(s), or "None - can start immediately".
 **Verdict sink:** <ADR / this body / follow-up slice #N>
 
 ## Handoff Start Command
+<!-- SELF-CONTAINED: scope + live-verify live HERE, never as a "see anchor
+     handoff" pointer — the anchor carries no per-slice handoff blocks anymore, and a
+     leaf→anchor→leaf reference loop made every build session read both. -->
 <!-- mirror-xform:start codex-escalation -->
-Scope + Live-Verify + start skill (🧭 Design Grill → `/grill-with-docs-codex`, 🔬 Verify Spike → `/verify-spike`, 📐 Trade-off/Research → `/decision-gate`, AFK → `/tdd`, HITL → `/grill-me → /tdd`).
+```
+Welle <N> · Slice <X> (<closes #x | refs #<prd#>, Parent #<prd#>>). Read #<prd#> for decisions.
+Start skill: 🧭 Design Grill → /grill-with-docs-codex · 🔬 Verify Spike → /verify-spike · 📐 Trade-off/Research → /decision-gate · AFK → /tdd · HITL → /grill-me → /tdd. Recommended model: <Model [Effort]>.
+Worktree: your project's worktree helper, or `git worktree add`
+Scope (<N> files) — REQUIRED FIELD, blast-radius estimate at cut time; the build session checks it against its own recon findings, >2x deviation → STOP:
+- <concrete file + change>
+Live-verify: <user outcome, DB/UI value with comparison>
+PR: <closes #x | Part of #<prd#> — NEVER closes on the anchor>.
+```
 <!-- mirror-xform:end -->
 </issue-template>
 

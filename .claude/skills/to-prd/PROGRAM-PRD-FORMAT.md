@@ -49,11 +49,11 @@ heuristic column-sniffing — a fresh grammar gets a fresh, unambiguous anchor):
 ```
 ## Wellenplan
 <!-- wellenplan:start -->
-| Welle | Status | Name | Phase | Slices | Gate | covers |
-|---|---|---|---|---|---|---|
-| 1 | ⬜ | Fundament | P1 | 1a, 1b | — | S1,S2 |
-| 2 | ⬜ | Helper | P1 | 2a | 📐 | S3 |
-| 3 | ⬜ | Cleanup |  | 3a | — | enabler |
+| Welle | Status | Issue | Name | Phase | Slices | Gate | covers |
+|---|---|---|---|---|---|---|---|
+| 1 | ⬜ | — | Fundament | P1 | 1a, 1b | — | S1,S2 |
+| 2 | ⬜ | — | Helper | P1 | 2a | 📐 | S3 |
+| 3 | ⬜ | — | Cleanup |  | 3a | — | enabler |
 <!-- wellenplan:end -->
 ```
 
@@ -64,7 +64,14 @@ Columns:
 - **Status** — volatile, `⬜` at authoring; regenerated monotonically by
   `program-sync` from the wave's board status (⬜ not-started → 🔄 In
   Arbeit/Review → ✅ Done), never regresses. Not authored by hand and not a
-  `validate-graph` input; the only column `program-sync` rewrites.
+  `validate-graph` input.
+- **Issue** — the navigation link `#<n>` down to the wave's own issue (its
+  stub / promoted Wave-Anchor); author it as `—`. Machine-written:
+  `program-sync` fills it from the board child whose title carries the
+  matching `Welle <N> —` prefix (`to-waves` runs a sync right after publish,
+  `wrapup`'s upward propagation keeps it fresh); once set it is identity —
+  never overwritten. Tolerant-optional on parse like Status; not a
+  `validate-graph` input.
 - **Name** — the wave's short title (becomes `Welle <N> — <Name>` on promotion,
   same `wave_title()` convention as the bottom-up route). Hand-owned prose —
   `program-sync` never touches this cell.
@@ -101,6 +108,13 @@ Only present when the program uses phases (Wellenplan `Phase` column filled):
 Every Phase referenced by a Wellenplan row needs a matching entry here (checked
 by `validate-graph`); an entry naming a Phase no wave uses is a "Checklisten-Waise"
 gap, also surfaced.
+
+**Auto-checkoff:** when every Wellenplan wave carrying a phase reaches
+`✅`, `program-sync` checks that phase's box mechanically (appending
+`— alle Wellen ✅ (<date>)`, monotone — a checked box is never touched again).
+Word each criterion so wave completion IS the criterion; an acceptance judgment
+beyond "all waves merged" belongs in the waves' own gates, not here — the
+checkoff cannot judge prose.
 
 ## `## Slices` — per-slice detail sections
 

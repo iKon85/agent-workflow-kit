@@ -87,16 +87,64 @@ def sync_wellenplan_status(waves: list[WaveRow], board: dict, roles: dict) -> li
     `anchor_table.extract_anchor_board_data` already produces (no second query,
     no second parse: the PRD's native sub-issues — its promoted Wave-Anchor
     stubs — are fetched exactly like an Anchor fetches its Slice sub-issues).
-    Every other WaveRow field (Name/Phase/Slices/Gate/covers/is_enabler) round-
-    trips untouched — those are stable Plan columns (or, for Name, hand-owned
-    prose), never board-derived."""
-    by_wave_number: dict[int, dict] = {}
-    for entry in board.values():
+    The `issue` field (the navigation link to the wave's own issue) is
+    FILLED from the matching board child but never overwritten — once stamped
+    it is identity, a later title rename must not re-point it. Every other
+    WaveRow field (Name/Phase/Slices/Gate/covers/is_enabler) round-trips
+    untouched — those are stable Plan columns (or, for Name, hand-owned prose),
+    never board-derived."""
+    by_wave_number: dict[int, tuple[int, dict]] = {}
+    for issue_no, entry in board.items():
         n = extract_wave_number_from_title(entry.get("title", ""))
         if n is not None:
-            by_wave_number[n] = entry
-    return [replace(w, status=refresh_wave_status(w.status, wave_status_token(by_wave_number.get(w.number), roles)))
-            for w in waves]
+            by_wave_number[n] = (issue_no, entry)
+    out: list[WaveRow] = []
+    for w in waves:
+        hit = by_wave_number.get(w.number)
+        entry = hit[1] if hit else None
+        issue = w.issue if w.issue is not None else (hit[0] if hit else None)
+        out.append(replace(w, issue=issue,
+                           status=refresh_wave_status(w.status, wave_status_token(entry, roles))))
+    return out
+
+
+_PHASE_GATES_HEADING_RE = re.compile(r"^##\s+Phasen-Gates\s*$")
+_H2_LINE_RE = re.compile(r"^##\s+")
+_UNCHECKED_GATE_RE = re.compile(r"^(\s*-\s+\[) (\]\s*(P\d+):.*)$")
+
+
+def checkoff_phase_gates(body: str, waves: list[WaveRow], today: str) -> tuple[str, list[str]]:
+    """Check off `## Phasen-Gates` entries whose phase is mechanically complete —
+    every Wellenplan wave carrying that phase has status ✅ (upward
+    propagation). Monotone + idempotent: only an UNCHECKED box whose phase just
+    completed is flipped (`[ ]` → `[x]`, with an `— alle Wellen ✅ (<today>)`
+    suffix stamped once); a checked box is never touched again, a phase no wave
+    uses is never checked (that is a Checklisten-Waise — validate-graph's
+    finding, not ours). Only lines inside the `## Phasen-Gates` section are
+    considered. Returns (new_body, newly_checked_phase_ids)."""
+    waves_by_phase: dict[str, list[WaveRow]] = {}
+    for w in waves:
+        if w.phase:
+            waves_by_phase.setdefault(w.phase, []).append(w)
+    done_phases = {p for p, ws in waves_by_phase.items()
+                   if all(w.status == "✅" for w in ws)}
+    lines = body.splitlines()
+    in_section = False
+    checked: list[str] = []
+    for i, ln in enumerate(lines):
+        if _PHASE_GATES_HEADING_RE.match(ln):
+            in_section = True
+            continue
+        if in_section and _H2_LINE_RE.match(ln):
+            in_section = False
+        if not in_section:
+            continue
+        m = _UNCHECKED_GATE_RE.match(ln)
+        if m and m.group(3) in done_phases:
+            lines[i] = f"{m.group(1)}x{m.group(2)} — alle Wellen ✅ ({today})"
+            checked.append(m.group(3))
+    new_body = "\n".join(lines) + ("\n" if body.endswith("\n") else "")
+    return new_body, checked
 
 
 def splice_wellenplan_table(body: str, rendered_block: str) -> str:

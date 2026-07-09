@@ -1,11 +1,11 @@
 # Wave Anchor Template
 
-The body of a wave-anchor issue. Model: this is the tracker that worked.
+The body of a wave-anchor issue. Model: this is the tracker that worked — **slimmed in**: the body is read by the agent in every slice session (`--json body` loads ALL of it, a `<details>` block collapses only in the browser), so it carries **navigation + decisions only**. The full PRD is posted as **issue comment #1** on the anchor (one click away for a human, loaded only on demand by an agent); the paste-ready handoff lives **in each slice leaf** (self-contained — no anchor↔leaf circular reference).
 **Maturity stages** — replace `<…>` placeholders, delete lines that don't apply:
 
 - **Stage 1 (candidate stub, bottom-up)** — filled by `board-to-waves`: header through the To-Do checklist. **No cluster/Wave** yet, Slice table stays empty (`⬜ via to-issues`).
 - **Stage 1p (program pre-state, top-down)** — filled by `to-waves` from a Program PRD: a named stub `Welle <N> — <Topic>` **from creation**, `wave-stub` label, **Wave + Phase stamped immediately**, native parent = the Program PRD, pre-generated Slice leaves as native children. Difference from Stage 1: named + stamped + PRD-parent instead of no cluster/Wave. Details below (§ Stage 1p).
-- **Stage 2 (matured + promoted)** — filled by `to-prd` (Decisions/PRD body) + `to-issues` (Slice table + handoff blocks, links sub-issues, promotion sets `type:cluster` + Wave). Checks off the To-Dos. A Stage-1p stub matures the same way here (the first program-stub promotion flips the PRD to the in-progress status, `roles.inProgress`).
+- **Stage 2 (matured + promoted)** — filled by `to-prd` (Decisions body) + `to-issues` (Slice table, links sub-issues, promotion sets `type:cluster` + Wave; the full PRD moves to **issue comment #1**, the To-Do checklist **collapses to its one-line summary**, per-slice handoffs land in the **leaf bodies**). A Stage-1p stub matures the same way here (the first program-stub promotion flips the PRD to the in-progress status, `roles.inProgress`).
 
 The **candidate stub** (Stage 1) has no cluster/Wave. On **`to-issues` promotion** (Stage 2) the anchor gets `type:cluster` + **Wave field = `<N>`** (monotone number, no `wave:*` label); `type:cluster` **replaces** the stub's previous `type:*` (e.g. `type:followup`) — exactly one `type:*` per issue, `board-sync.py promote` strips the old one; the **issue title becomes `Welle <N> — <Topic>`** (this is `board-sync.py promote`'s default behavior — `wave_title()` idempotently replaces any existing `Welle X —` prefix and strips a leading conventional-commit prefix; opt out with `--no-rename` — **the `promote` code is authoritative**), and the `Welle <N> — <Topic>` string also appears in the **body's top line**. Body **always** via `--body-file` (`gotchas_gh_body_file`). Numbering → [the `board-to-waves` SKILL.md](.claude/skills/board-to-waves/SKILL.md) "Wave numbering".
 
@@ -28,10 +28,10 @@ The **candidate stub** (Stage 1) has no cluster/Wave. On **`to-issues` promotion
 - **Size + risk:** ~<N> slices · Backend: <yes/no> · Model mix: <Model [Effort], e.g. Sonnet [medium] / Opus [high] / gpt-5.5 [medium]> · Risk: <low/medium/high — reason, e.g. race/cache/forecast/migration>
 - **`grill-needed`:** <no> | <yes — this session> | <yes — own session (too big/fuzzy)>
 
-### To-Do (maturation: grill → to-prd → to-issues)
+### To-Do (maturation: grill → to-prd → to-issues) — *(Stage 1/1p only; at promotion this whole checklist collapses to ONE line: `Maturation: grill <✓/–> · to-prd ✓ · to-issues ✓ (<Date>) — Wave gate + tracking open`)*
 - [ ] *(only if grill-needed=yes, own session)* dedicated `grill-with-docs` session — domain discovery
 - [ ] **`to-prd`** → write decisions/PRD body into this stub (Mode B); `spec-self-critique` runs automatically
-- [ ] **`to-issues`** → cut slices, **one sub-issue per slice** (reuse member issue / create new), fill the slice table **+ a `## Handoff Start Commands` block per slice**; at ≥2 slices **promote** (sets `type:cluster` + Wave) + link **all** slice sub-issues natively (complete — slice set == sub-issue set)
+- [ ] **`to-issues`** → cut slices, **one sub-issue per slice** (reuse member issue / create new), fill the slice table + a **self-contained `## Handoff Start Command` in each slice leaf** (§5d); at ≥2 slices **promote** (sets `type:cluster` + Wave, moves the PRD to comment #1) + link **all** slice sub-issues natively (complete — slice set == sub-issue set)
 - [ ] **Wave gate** → before closing: reconcile any open `annahme-drift` propagation toward future waves/stubs (and, if part of a program, the Program PRD) — no unnoticed drift across the wave boundary (drift checkpoint, `wrapup` Step 5e.2)
 - [ ] **Track** → rollup is the status; anchor closes at 100%
 
@@ -48,12 +48,12 @@ The **candidate stub** (Stage 1) has no cluster/Wave. On **`to-issues` promotion
 Order (WSJF-lite): visible + low-risk first → logic/backend → cleanup. Dependencies force ordering.
 
 <!-- slice-table:start -->
-| # | Status | Slice | Sub-Issue | Branch | Model | Gate | Backend? | closes/refs |
-|---|---|---|---|---|---|---|---|---|
-| 1 | ⬜ | <Slice title> | #<sub> | `feat/<#>-<slug>` | <Model [Effort]> | <—/🧭/🔬/📐/📝> | <yes/no> | <closes #x / refs #y> |
+| # | Status | Slice | Sub-Issue | Gate | closes/refs |
+|---|---|---|---|---|---|
+| 1 | ⬜ | <Slice title> | #<sub> | <—/🧭/🔬/📐/📝> | <closes #x / refs #y> |
 <!-- slice-table:end -->
 
-Status legend: ⬜ open · 🔄 in progress · ✅ merged #<PR>. **Every slice = one sub-issue** (`#<sub>`). **The volatile Status + Branch columns are generated by `board-sync.py anchor-sync <anchor#>` from the board** (between the `<!-- slice-table:start/end -->` markers; `wrapup` Step 5e.1 calls it on merge) — monotone (never flips a `✅`/`🔄` back), drift-free idempotent; **stable plan columns (Slice/Model/Gate/Backend?/refs) stay hand-maintained** and survive verbatim. It appends missing sub-issue rows (gen-b split). **Don't delete the markers** — without them `anchor-sync` can't locate the table (the first run locates it via the `Status`+`Sub-Issue` header row and sets the markers itself). The native "Sub-issues progress" rollup is the secondary %-view.
+Status legend: ⬜ open · 🔄 in progress · ✅ merged #<PR>. **Every slice = one sub-issue** (`#<sub>`). **The volatile Status column is generated by `board-sync.py anchor-sync <anchor#>` from the board** (between the `<!-- slice-table:start/end -->` markers; `wrapup` Step 5e.1 calls it on merge) — monotone (never flips a `✅`/`🔄` back), drift-free idempotent; **stable plan columns (Slice/Gate/refs) stay hand-maintained** and survive verbatim. It appends missing sub-issue rows (gen-b split). **Don't delete the markers** — without them `anchor-sync` can't locate the table (the first run locates it via the `Status`+`Sub-Issue` header row and sets the markers itself). The native "Sub-issues progress" rollup is the secondary %-view. *(Slimmed in: Branch is derivable from the `feat/<#>-<slug>` convention, the model recommendation lives in the leaf's handoff, Backend? carried no navigation value — legacy anchors that still have those columns keep working, `anchor-sync` matches columns by header name and refreshes Branch/Blocked-by only where the column exists.)*
 
 **Gate legend (retro):** `—` AFK build (`/tdd`) · 🧭 design grill (`grill-with-docs-codex`, ADR) · 🔬 verify spike (read-only fact question) · 📐 trade-off/research (read-only, below grill threshold) · 📝 review note (not a build slice). A gate slice (🧭/🔬/📐) sits **before** its dependent build slice (gate-before-build) and blocks it.
 
@@ -63,19 +63,7 @@ Status legend: ⬜ open · 🔄 in progress · ✅ merged #<PR>. **Every slice =
 
 **Parallel note:** true parallelism only with a worktree per strand. Slices that share files → serial.
 
-## Handoff Start Commands (per slice, paste-ready) — *(`to-issues` fills)*
-
-<details><summary>Slice 1 — <Title> · recommended <Model></summary>
-
-```
-Welle <N> · Slice 1 (<refs/closes>, Parent #<self>). Read #<self> for context/decisions.
-Worktree: ./scripts/setup-worktree.sh <#> <slug>
-Scope (<N> files) — REQUIRED FIELD, blast-radius estimate at cut time; the build session checks it against its own recon findings, >2x deviation → STOP:
-- <concrete file + change>
-Live-verify: <user outcome, DB/UI value with comparison —>
-PR: <closes #x / refs #self>.
-```
-</details>
+**Handoff + PRD live elsewhere:** the paste-ready start command sits **self-contained in each slice leaf** (`to-issues` §5d — scope + live-verify inline, no "see anchor" indirection), and the full grilled PRD is **issue comment #1** on this anchor (posted at promotion; rationale archive, not per-session reading). The anchor body itself ends here.
 
 ## Stage 1p — Program pre-state (top-down, `to-waves`)
 

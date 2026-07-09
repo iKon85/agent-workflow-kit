@@ -56,6 +56,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from board_config import ConfigError, load_board_config  # noqa: E402
 from node_kind import ANCHOR, LEAF, PROGRAM, ROOT_KINDS, WAVE_STUB, classify_node  # noqa: E402,F401
+# Native issue dependencies are the blocking SSOT; the `## Blocked by`
+# body section is only their machine-written mirror (issue_deps.py, shared with
+# board-sync.py). Drift semantics: warn in audit, deny at handoff.
+from issue_deps import open_blocker_numbers, parse_blocked_by_numbers  # noqa: E402
 
 # Project-specific label + heading come from the board profile (no inline
 # constants → published kit stays project-neutral).
@@ -214,7 +218,7 @@ def evaluate_anchor_shape(body: str) -> list[str]:
 # --- pure coherence ---------------------------------------------------------
 def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
                    intent="build", closed_lookup=None, truncated=False,
-                   root_kind=None) -> dict:
+                   root_kind=None, native_blockers=None) -> dict:
     """Evaluate the rooted local graph. Nodes are dicts {number, body, labels}.
 
     parent=None        → atomar leaf (graph = [target]).
@@ -295,6 +299,30 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
     if truncated:
         violations.append("graph too large for guard (>100 children) — cannot prove completeness")
 
+    # Native blocking SSOT. native_blockers ∈ None (not instrumented —
+    # pure-call back-compat) | "unresolved" (gh failed → fail-closed
+    # pattern) | list of {number, state, …}. Being blocked is NOT incoherence:
+    # it gates only a BUILD handoff of a leaf (audit shows it informationally).
+    # Mirror drift: warn in audit, violation (deny) only at handoff.
+    open_blockers: list = []
+    drift_warnings: list = []
+    if native_blockers == "unresolved":
+        violations.append(
+            f"#{target['number']}: native blocked-by edges could not be verified "
+            f"via gh (network/auth) — fail-closed")
+    elif native_blockers is not None:
+        open_blockers = open_blocker_numbers(native_blockers)
+        mirror = set(parse_blocked_by_numbers(target["body"]))
+        native = {b["number"] for b in native_blockers}
+        if mirror != native:
+            msg = (f"#{target['number']}: `## Blocked by` mirror {sorted(mirror)} != "
+                   f"native dependencies {sorted(native)} — API is the truth "
+                   f"(repair: scripts/board-sync.py dep-add/dep-remove)")
+            if mode == "handoff":
+                violations.append(msg)
+            else:
+                drift_warnings.append(msg)
+
     if target_kind in ROOT_KINDS:
         target_buildable = True
     else:
@@ -302,8 +330,8 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
 
     graph_coherent = len(violations) == 0
     deny_recommended = (not graph_coherent) or (
-        mode == "handoff" and intent == "build"
-        and target_kind == LEAF and not target_buildable
+        mode == "handoff" and intent == "build" and target_kind == LEAF
+        and (not target_buildable or bool(open_blockers))
     )
     # Non-blocking, audit-only, anchor-only (a Programm-PRD's body follows
     # PROGRAM-PRD-FORMAT, not wave-anchor-template — the shape check would
@@ -321,6 +349,8 @@ def evaluate_graph(target, parent=None, siblings=None, *, mode="handoff",
         "violations": violations,
         "grandfathered": grandfathered,
         "shape_warnings": shape_warnings,
+        "open_blockers": open_blockers,
+        "drift_warnings": drift_warnings,
     }
 
 
@@ -362,6 +392,18 @@ def fetch_parent(number: int):
         return None
 
 
+def fetch_blocked_by(number: int):
+    """Normalized native blocked-by list via board-sync `deps --json`, or
+    "unresolved" on any failure (fail-closed at the caller pattern)."""
+    rc, out = _run(["python3", "scripts/board-sync.py", "deps", str(number), "--json"])
+    if rc != 0 or not out:
+        return "unresolved"
+    try:
+        return json.loads(out)
+    except json.JSONDecodeError:
+        return "unresolved"
+
+
 def fetch_children(number: int):
     """(child_numbers, truncated). truncated=True if exactly 100 came back
     (board-sync subIssues(first:100) — can't prove completeness)."""
@@ -380,10 +422,7 @@ def build_and_evaluate(issue_number: int, mode: str, intent: str,
     is identified but gh cannot resolve it, recommend deny (the MUSS-property)."""
     target = fetch_issue(issue_number)
     if target is None:
-        log(f"issue={issue_number} gh-fetch-failed → fail-closed deny")
-        return {"graph_coherent": False, "target_buildable": False,
-                "deny_recommended": True, "grandfathered": None, "shape_warnings": [],
-                "violations": [f"#{issue_number}: could not verify via gh (network/auth) — fail-closed"]}
+        return _fail_closed(issue_number, "could not verify via gh (network/auth)")
 
     closed_lookup = {}
     fc = parse_final_cut_depends(target["body"])
@@ -397,6 +436,8 @@ def build_and_evaluate(issue_number: int, mode: str, intent: str,
         else:
             closed_lookup[fc] = "closed" if st.get("state", "").upper() == "CLOSED" else "open"
 
+    native_blockers = fetch_blocked_by(issue_number)
+
     node_kind = classify(target)
     if node_kind in ROOT_KINDS:
         # An anchor or a Programm-PRD is its OWN root — it never lifts to a
@@ -408,13 +449,15 @@ def build_and_evaluate(issue_number: int, mode: str, intent: str,
             return _fail_closed(issue_number, "child fetch failed")
         return evaluate_graph(target, parent=target, siblings=siblings, mode=mode,
                               intent=intent, closed_lookup=closed_lookup,
-                              truncated=truncated, root_kind=node_kind)
+                              truncated=truncated, root_kind=node_kind,
+                              native_blockers=native_blockers)
 
     # leaf / wave_stub — lift to the native parent if one exists (2-level
     # rooted-local model), else atomar leaf.
     parent_n = fetch_parent(issue_number)
     if parent_n is None:
-        return evaluate_graph(target, mode=mode, intent=intent, closed_lookup=closed_lookup)
+        return evaluate_graph(target, mode=mode, intent=intent, closed_lookup=closed_lookup,
+                              native_blockers=native_blockers)
 
     parent = fetch_issue(parent_n)
     if parent is None:
@@ -424,13 +467,15 @@ def build_and_evaluate(issue_number: int, mode: str, intent: str,
     if any(s is None for s in siblings):
         return _fail_closed(issue_number, "sibling fetch failed")
     return evaluate_graph(target, parent=parent, siblings=siblings, mode=mode,
-                          intent=intent, closed_lookup=closed_lookup, truncated=truncated)
+                          intent=intent, closed_lookup=closed_lookup, truncated=truncated,
+                          native_blockers=native_blockers)
 
 
 def _fail_closed(number, why):
     log(f"issue={number} {why} → fail-closed deny")
     return {"graph_coherent": False, "target_buildable": False,
             "deny_recommended": True, "grandfathered": None, "shape_warnings": [],
+            "open_blockers": [], "drift_warnings": [],
             "violations": [f"#{number}: {why} — fail-closed (could not verify graph)"]}
 
 
@@ -457,6 +502,11 @@ def main() -> int:
             print(f"  ℹ legacy graph grandfathered via #{result['grandfathered']}")
         for v in result["violations"]:
             print(f"  - {v}")
+        if result.get("open_blockers"):
+            blocked = ", ".join(f"#{n}" for n in result["open_blockers"])
+            print(f"  ⛔ natively blocked by open {blocked} (gates a build handoff)")
+        for w in result.get("drift_warnings", []):
+            print(f"  ~ drift (non-blocking in audit): {w}")
         for w in result.get("shape_warnings", []):
             print(f"  ~ shape (non-blocking): {w}")
     return 0

@@ -31,7 +31,7 @@ PHASE_GATE_RE = re.compile(r"^-\s+\[([ xX])\]\s*(P\d+):\s*(.+)$")
 WELLENPLAN_START = "<!-- wellenplan:start -->"
 WELLENPLAN_END = "<!-- wellenplan:end -->"
 
-WELLENPLAN_HEADERS = ["Welle", "Status", "Name", "Phase", "Slices", "Gate", "covers"]
+WELLENPLAN_HEADERS = ["Welle", "Status", "Issue", "Name", "Phase", "Slices", "Gate", "covers"]
 _ENABLER = "enabler"
 # Tokens that mean "no value" in an optional cell — shared by the Wellenplan phase
 # and covers cells and the Slice-block phase/blocked_by fields so `—` normalizes
@@ -60,6 +60,11 @@ class WaveRow:
     # columns above — TOLERANT-optional on parse (docs/adr/0054 Folge-Arbeit:
     # one Wellenplan grammar, this is a column within it, not a second table).
     status: str = "⬜"
+    # The promoted Wave-Anchor issue number (`#<n>` cell) — the navigation link
+    # from the program table down to the wave. Machine-written (to-waves
+    # publish / program-sync), `—` pre-publish; TOLERANT-optional like status,
+    # and identity once set (program-sync fills but never overwrites it).
+    issue: Optional[int] = None
 
 
 @dataclass
@@ -158,8 +163,9 @@ def parse_wellenplan_table(body: str) -> list[WaveRow]:
     idx = {name: col_index(headers, name) for name in WELLENPLAN_HEADERS}
     i_phase = idx["Phase"]  # optional column — may be None
     i_status = idx["Status"]  # optional column — may be None, defaults to ⬜
+    i_issue = idx["Issue"]  # optional column — may be None, defaults to no link
     missing = [name for name in WELLENPLAN_HEADERS
-               if name not in ("Phase", "Status") and idx[name] is None]
+               if name not in ("Phase", "Status", "Issue") and idx[name] is None]
     if missing:
         raise ValueError(
             f"Wellenplan table missing column(s) {', '.join(missing)} "
@@ -168,6 +174,7 @@ def parse_wellenplan_table(body: str) -> list[WaveRow]:
     for row in rows:
         cell = lambda i: row[i].strip() if i is not None and i < len(row) else ""
         covers, is_enabler = _parse_covers_cell(cell(idx["covers"]))
+        issue_m = re.search(r"#(\d+)", cell(i_issue))
         out.append(WaveRow(
             number=int(cell(idx["Welle"])),
             name=cell(idx["Name"]),
@@ -177,15 +184,17 @@ def parse_wellenplan_table(body: str) -> list[WaveRow]:
             covers=covers,
             is_enabler=is_enabler,
             status=cell(i_status) or "⬜",
+            issue=int(issue_m.group(1)) if issue_m else None,
         ))
     return out
 
 
 def render_wellenplan_table(waves: list[WaveRow], *, include_phase: bool = True) -> str:
     """Render the Wellenplan table (markers + pipe table) — inverse of
-    `parse_wellenplan_table` (roundtrip pair). `Status` is always emitted (it is
-    always present, unlike `Phase` which is toggled by `include_phase` — the
-    only column `program-sync` ever rewrites)."""
+    `parse_wellenplan_table` (roundtrip pair). `Status` and `Issue` are always
+    emitted (both always present, unlike `Phase` which is toggled by
+    `include_phase`) — the two machine-written columns `program-sync` rewrites
+    (: `Issue` is the navigation link down to the promoted Wave-Anchor)."""
     headers = [h for h in WELLENPLAN_HEADERS if include_phase or h != "Phase"]
     rows = []
     for w in waves:
@@ -193,6 +202,7 @@ def render_wellenplan_table(waves: list[WaveRow], *, include_phase: bool = True)
         cells = {
             "Welle": str(w.number),
             "Status": w.status,
+            "Issue": f"#{w.issue}" if w.issue is not None else "—",
             "Name": w.name,
             "Phase": w.phase or "",
             "Slices": ", ".join(w.slice_ids),

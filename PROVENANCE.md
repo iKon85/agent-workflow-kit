@@ -21,11 +21,13 @@ as a local fork.
 
 Each carries a `THIRD-PARTY-NOTICES.md` with its upstream path.
 
-## Chase AI (MIT) — https://github.com/chaseai-yt/grill-me-codex @ ba71f82e
+## Chase AI (MIT) — https://github.com/chaseai-yt/grill-me-codex @ fe37a70
 
-grill-me-codex, grill-with-docs-codex, codex-review. These add an Act-2
-cross-model Codex review and themselves adapt Matt Pocock's grill-me /
-grill-with-docs (MIT); each carries Chase's `THIRD-PARTY-NOTICES.md`.
+grill-me-codex, grill-with-docs-codex, codex-review, codex-build. The first
+three add an Act-2 cross-model Codex review and themselves adapt Matt Pocock's
+grill-me / grill-with-docs (MIT); codex-build is the Act-3 role-flip (locally
+adapted: bounded workspace-write sandbox instead of upstream's `--yolo`). Each
+carries Chase's `THIRD-PARTY-NOTICES.md`.
 
 ## Own work (MIT, Copyright (c) 2026 Niko (iKon85))
 
