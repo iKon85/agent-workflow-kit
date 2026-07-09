@@ -4,16 +4,18 @@ Origin and license of every skill shipped in this kit. Model: fork-and-own —
 vendored skills are locally adapted; the pinned upstream SHA is for attribution,
 not byte-identity.
 
-## Matt Pocock (MIT) — https://github.com/mattpocock/skills @ 7a83a3a
+## Matt Pocock (MIT) — https://github.com/mattpocock/skills @ d574778
 
 to-prd, to-issues, grill-with-docs, grill-me, tdd, diagnose, zoom-out,
 improve-codebase-architecture, prototype, triage, write-a-skill,
 codebase-design, domain-modeling, implement, resolving-merge-conflicts, ask-matt,
-git-guardrails-claude-code, setup-workflow.
+wayfinder, research, git-guardrails-claude-code, setup-workflow.
 
 Folder↔upstream-name divergence (upstream renamed; local folder kept for
 invocation stability): `diagnose` = upstream `diagnosing-bugs`,
-`write-a-skill` = upstream `writing-great-skills`. `zoom-out` was removed
+`write-a-skill` = upstream `writing-great-skills`, `to-prd` = upstream
+`to-spec`, `to-issues` = upstream `to-tickets` (upstream merged to-issues +
+the short-lived to-plan into to-tickets @ v1.1.0). `zoom-out` was removed
 upstream (attribution pins to its last-seen SHA 2bf7005) and is retained here
 as a local fork.
 

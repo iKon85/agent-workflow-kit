@@ -18,6 +18,7 @@ Use this section as the entry-point map for agent-assisted work. The individual 
 - **Multi-session build from a PRD or issue:** use `implement` to drive `tdd` end-to-end, one red-green slice at a time.
 - **Implementation slice:** use `tdd` for one behavior at a time: RED, GREEN, then refactor.
 - **Finished slice:** use `wrapup` to prepare the branch, PR, and cleanup steps your repo expects.
+- **A huge, foggy effort, too big for one session:** use `wayfinder` — it charts it as a shared map of investigation tickets, resolving one per session.
 
 ## Routing Rule
 

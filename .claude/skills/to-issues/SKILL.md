@@ -5,6 +5,8 @@ description: Break a plan, spec, or PRD into independently-grabbable issues on t
 
 # To Issues
 
+> **Skill identity (don't get confused):** the folder `to-issues` + invocation `/to-issues` map to Matt Pocock's upstream skill **`to-tickets`**. Upstream merged `to-issues` + the short-lived `to-plan` into `to-tickets` (v1.1.0); we deliberately keep the folder name `to-issues` (invocation stability, and issues are this workflow's vocabulary). Content remains our fork, compared against upstream `to-tickets` @ `d574778`. Provenance/rename ledger: `docs/agents/provenance.md` (§Re-Sync-Log), at the project root.
+
 Break a plan into independently-grabbable issues using vertical slices (tracer bullets).
 
 The issue tracker and triage label vocabulary should have been provided to you — run `/setup-workflow` if not.
@@ -33,6 +35,14 @@ Slices may be 'HITL' or 'AFK'. HITL slices require human interaction, such as an
 - A slice MAY be a deliberate PREP / byte-neutral slice (refactor, infra, schema seed) that is NOT end-to-end — but then it MUST name which user-facing half it defers AND which later slice closes it. A deferred half with no named closing slice is a gap: the connective path becomes owned by no slice.
 - **Seam ownership (Fix A):** a PRD decision that **replaces / unifies / retires a central mechanism** ("replaces the X special-path", "unifies Y", "retires Z") MUST become its **own slice**, marked 🧊 **grill-needed** (HITL) — **never** folded implicitly into a behavior-preserving naming/tweak leaf. A behavior-preserving slice (byte-neutral, seed-preserving) does **NOT** discharge a seam replacement. Sister rule to "new architecture layer = first-class slice" (CLAUDE.md ## Workflow). *(Incident: a central seam hid inside a "naming" leaf of a broadly-grilled epic → a full re-plan at a leaf.)*
 </vertical-slice-rules>
+
+**Wide refactors are the exception to vertical slicing.** A **wide refactor** is one mechanical change — rename a DB column, retype a shared symbol, move a helper — whose **blast radius** fans across the whole tree, so a single edit breaks call sites everywhere at once and no vertical slice can land green. Don't force it into a tracer bullet; sequence it as **expand → contract**. An expand→contract sequence is inherently **≥2 slices → PROMOTE to a wave anchor** (§5), never one atomic leaf:
+
+- **Expand** (first slice, blocks all the rest) — add the new form beside the old so nothing breaks yet; both coexist.
+- **Migrate** (one slice per batch, sized by blast radius — per package, per directory) — move the call sites onto the new form, each batch **blocked by** the expand slice. CI stays green batch to batch because the old form still exists. Each migrate-batch PR says **`Part of #<anchor>`, never `closes`** (Backlog-Workflow) — a `closes` would shut the anchor before the sequence finished.
+- **Contract** (final slice, **blocked by every migrate batch**) — delete the old form once no caller remains.
+
+When even a single batch can't stay green on its own, keep the sequence but let the batches share an **integration branch** that they all block, feeding a final **integrate-and-verify** slice — green is promised only there, and that final slice's PR is the one that merges the branch. The migrate batches are precisely how a wide refactor answers the §3b **blast-radius threshold**: the batch boundaries ARE the split. A batch that still lands deliberately large records its "why indivisible" one-liner in the issue body per §3b — a mechanical migrate batch stays AFK (`ready-for-agent`), it is not made HITL just for its file count.
 
 ### 3b. Verify slice completeness (gate — do NOT skip on a pre-cut table)
 
