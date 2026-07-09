@@ -100,6 +100,12 @@ step ran. The routing key is just *"is there an issue yet?"*: a loose artefact
   ADRs (`domain-modeling`) or designing a deep module behind a clean seam
   (`codebase-design`) — these give the grill and the design work a precise, consistent
   vocabulary instead of ad-hoc terms.
+- **`wayfinder` — when the idea is too big for one session.** Charts a foggy,
+  multi-session effort as a shared **map** issue with investigation tickets on
+  your tracker (native blocking renders the frontier visually), resolved one
+  per session until the way to the destination is clear — planning, not doing.
+- **`research`** delegates primary-source reading legwork to a background
+  agent; the findings land as a cited Markdown note in the repo.
 
 You approve the slice breakdown before anything is published — the funnel never
 publishes behind your back.
@@ -299,6 +305,48 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.8.0
+
+- Re-syncs the vendored Matt Pocock skills to upstream **v1.1.0** (fork-and-own:
+  selective merge; local folder names kept for the upstream-renamed skills —
+  `to-prd` = upstream `to-spec`, `to-issues` = upstream `to-tickets`).
+- Two new vendored skills: **`wayfinder`** (chart a huge, foggy effort as a
+  shared map of investigation tickets on your tracker, resolved one per session)
+  and **`research`** (delegate primary-source reading to a background agent;
+  findings land as a cited Markdown note in the repo).
+- Backports the upstream wins: the negation failure mode in `write-a-skill`,
+  the facts-vs-decisions rule + confirmation gate in `grill-me` /
+  `grill-with-docs`, and a wide-refactor (expand–contract) section in
+  `to-issues`.
+- `setup-workflow`'s issue-tracker templates gain **Wayfinding operations**
+  sections (map/ticket/blocking/frontier per tracker) that `wayfinder` consults.
+- Bumps the kit metadata to `0.8.0`. After this PR is merged, publish the
+  matching GitHub release/tag as a separate release step.
+
+### 0.7.0
+
+- Rounds out the execute/land/learn line with five new skills —
+  `orchestrate-wave` (AFK wave landing), `local-ci` (pre-PR local gate),
+  `git-worktree-recover`, `audit-skills` (anti-drift learn step), and
+  `security-audit` (two-model audit + runbook template) — plus the
+  `skill-drift-hint.py` SessionStart hook.
+- English-normalizes the wave-anchor template and hardens
+  `execute-ready-check.py` heading detection. (Full notes: GitHub release v0.7.0.)
+
+### 0.6.2
+
+- Profile-driven board-status **roles**: `fields.status.roles` maps semantic
+  stages to your board's own option names (any language); `board-sync.py`
+  gains `--status-role`; the status field is matched by ID.
+  (Full notes: GitHub release v0.6.2.)
+
+### 0.6.1
+
+- Routing-doctrine sync for the published skills (`wrapup`,
+  `codex-adapter-sync`, wave-anchor model placeholders) — mechanical plumbing
+  routes to the cheap tier, judgment stays on the main thread.
+  (Full notes: GitHub release v0.6.1.)
+
 ### 0.6.0
 
 - Adds the **Program route**, a top-down altitude above the existing feature
@@ -445,9 +493,9 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**37 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
+**39 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
 grill-with-docs, to-prd, to-issues, board-to-waves, triage, spec-self-critique,
-verify-spike, decision-gate, scale-check, to-waves · Execute: tdd, prototype, implement, orchestrate-wave ·
+verify-spike, decision-gate, scale-check, to-waves, wayfinder, research · Execute: tdd, prototype, implement, orchestrate-wave ·
 Design/diagnose/refactor streams: diagnose, zoom-out,
 improve-codebase-architecture, codebase-design, domain-modeling, security-audit · Land: wrapup,
 resolving-merge-conflicts, code-review, local-ci, git-worktree-recover · Learn: retro, audit-skills, write-a-skill · Setup:

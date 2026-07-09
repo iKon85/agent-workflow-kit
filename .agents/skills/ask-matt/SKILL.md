@@ -73,6 +73,7 @@ A starting situation that generates work, then merges onto the main flow.
 
 - **Bugs and requests piling up** → **`/triage`**. Moves issues through triage and produces agent-ready issues that `/implement` later picks up. Only for issues **you didn't create** — `/to-issues` output is already agent-ready, don't triage it.
 - **Something's broken** → **`/diagnose`**. For the hard ones: the bug that resists a first glance, the intermittent flake, the regression between two known-good states. Refuses to theorise until it has a **tight feedback loop** — one command that already goes red on *this* bug — then fixes with a regression test. Its post-mortem hands off to **`/improve-codebase-architecture`** when the finding is that there's no good seam.
+- **A huge, foggy effort too big for one agent session** — a greenfield build or a sprawling feature where the way from here to the destination isn't yet visible, and it's still **pre-spec** (before any grill or PRD) → **`/wayfinder`** (user-invoked). It charts a **shared map** of investigation slices on the tracker and resolves them one at a time — producing **decisions, not deliverables** — until the fog lifts and the route is clear, then merges onto the main flow at **`/to-prd`** (or, if the effort turned out small enough, straight to **`/implement`**). Where `/grill-with-docs` sharpens an idea you can hold in one session, wayfinder is for the one you can't. Once an undertaking has already resolved into several independently-shippable waves, `/scale-check` → `/to-waves` stays the primary route.
 - **A backlog to cluster** → **`/board-to-waves`**. Groups an existing board into themed waves when you need to *find* the next wave rather than start fresh.
 - **A whole wave to LAND** → **`/orchestrate-wave`**. When a wave anchor (file-disjoint slices, specs already locked) is ready to build, verify and land end-to-end — often AFK: it dispatches an implementer per slice in its own worktree, integrates serially, verifies centrally, and lands the wave. The execute-and-land node of the wave ladder (`scale-check` → `to-waves`/`board-to-waves` → `orchestrate-wave`). A single slice just goes to `/tdd`.
 
@@ -124,6 +125,7 @@ Off the main flow entirely.
 
 - **`/grill-me`** — the same relentless interview as `/grill-with-docs`, but for when you have **no codebase**. Stateless — saves nothing locally.
 - **`/prototype`** — a small throwaway program that answers one design question (does this state model feel right; what should this UI look like). Keep the answer, delete the code.
+- **`/research`** — delegate reading/docs legwork to a **background agent**: it investigates a question against **primary sources** and leaves a cited Markdown note in the repo. Keep working while it reads. Model-invoked (also triggerable by name); the note it produces is something to carry *into* the main flow at `/grill-with-docs` — research feeds the thinking, it doesn't replace it.
 - **`/resolving-merge-conflicts`** — a disciplined loop for an in-progress merge/rebase conflict: understand each side's intent, preserve both where possible, always resolve (never `--abort`).
 - **`/git-worktree-recover`** — reflog recovery for a branch mix-up: a commit landed on the wrong branch, the branch switched unexpectedly, or work looks lost. Finds the misplaced commit, moves it to the right branch, and sets up a clean worktree.
 - **`/spec-self-critique`** — red-team your own spec before committing to build it.
@@ -135,4 +137,3 @@ Off the main flow entirely.
 ## Repo-specific skills
 
 This repo also carries **project-private domain/tooling skills** (data layer, migrations, forecast/risk logic, brand, blast-radius census, …) that don't ship in the kit. For those, see the **project-skill table in `CLAUDE.md`** — they're model-invoked and fire on their own triggers.
-</content>

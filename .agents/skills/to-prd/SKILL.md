@@ -6,6 +6,8 @@ description: "Turn a locked plan (PLAN.md in the worktree, conversation context,
 
 # to-prd — Draft PRD to the Board
 
+> **Skill identity (don't get confused):** the folder `to-prd` + invocation `/to-prd` map to Matt Pocock's upstream skill **`to-spec`**. Upstream renamed `to-prd` → `to-spec` (v1.1.0); we deliberately keep the folder name `to-prd` (invocation stability, and PRD is this workflow's vocabulary). Content remains our fork, compared against upstream `to-spec` @ `d574778`. Provenance/rename ledger: `docs/agents/provenance.md` (§Re-Sync-Log), at the project root.
+
 Takes an **already-locked plan** and publishes it as a **Draft-PRD issue**. **Never invents requirements** — only synthesizes what's already decided. Pipeline: `board-to-waves → grill(-with-docs) → to-prd → to-issues`. The **grill sits upstream**; to-prd writes the PRD after the grill. **Slicing + promotion to an anchor (cluster/Wave, child link) = `to-issues`** (future), not here.
 
 Board constants (project node, field/status IDs) + helpers live **consumer-side**: read `docs/agents/board-sync.md` from the project root + use the helper `scripts/board-sync.py` (missing → `/setup-workflow` scaffolds the project layer). Issue body **always** via `--body-file` (inline `--body` with backticks/parens crashes bash).
