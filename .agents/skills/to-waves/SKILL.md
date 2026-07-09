@@ -20,8 +20,8 @@ Issue bodies **always** via `--body-file` (inline `--body` with backticks/parens
 crashes bash).
 
 The two grammars to-waves consumes: the Program-PRD body grammar
-(`.claude/skills/to-prd/PROGRAM-PRD-FORMAT.md` — the 7-column
-`Welle | Status | Name | Phase | Slices | Gate | covers` Wellenplan table) and the
+(`.claude/skills/to-prd/PROGRAM-PRD-FORMAT.md` — the 8-column
+`Welle | Status | Issue | Name | Phase | Slices | Gate | covers` Wellenplan table) and the
 per-slice metadata block (`SLICE-METADATA-FORMAT.md`, next to this file). Read both;
 to-waves does not re-parse them by hand — `scripts/program_graph.py` (via the helper)
 is the parser.
@@ -91,9 +91,12 @@ the numbering is deterministic; only the field stamps are batched):
    with the spec-role status and **no** `ready-for-agent` (a leaf is not buildable until its
    wave is promoted — the ordering guard stays unambiguous). Body = the slice's
    `## Slices` section carried forward per `SLICE-METADATA-FORMAT.md` (metadata block +
-   the outcome/placeholder skeleton, sharpened only at promotion).
+   the outcome/placeholder skeleton, sharpened only at promotion). **Title carries the
+   navigation prefix** `Welle <N> / Slice <local-id> — <title>` — the local-id
+   (`1a`, `1b`, …) encodes the build order, so the sub-issue LIST is navigable by title
+   alone (same convention as `to-issues`' promoted children, `Welle N / Slice X — <outcome>`).
    ```bash
-   python3 scripts/board-sync.py create --title "<slice title>" --body-file <leaf.md> --status-role spec
+   python3 scripts/board-sync.py create --title "Welle <N> / Slice <local-id> — <slice title>" --body-file <leaf.md> --status-role spec
    ```
 3. **Sub-issue links.** Link each stub under the PRD and each leaf under its stub.
    `link` is one-parent-checked + idempotent (a foreign parent is reported, never
@@ -101,6 +104,13 @@ the numbering is deterministic; only the field stamps are batched):
    ```bash
    python3 scripts/board-sync.py link --parent <prd#> --child <stub#>
    python3 scripts/board-sync.py link --parent <stub#> --child <leaf#>
+   ```
+   **Blocking edges — native.** For every leaf whose metadata `blocked_by` names
+   sibling slices (local-ids now resolved to issue numbers), set the edge natively —
+   native issue dependencies are the blocking SSOT; the helper also writes the
+   `## Blocked by` body mirror (idempotent, safe under the §5 re-run):
+   ```bash
+   python3 scripts/board-sync.py dep-add --issue <blocked-leaf#> --blocked-by <blocker-leaf#>
    ```
 4. **Batch-stamp Wave + Phase.** One `stamp-batch` over every stub and leaf. It
    consumes a JSON list of `{issue, item_id, wave, phase}`; assemble it by resolving
@@ -115,7 +125,13 @@ the numbering is deterministic; only the field stamps are batched):
    The counted line `N von M Feld-Stempel gesetzt` is the verification — there is no
    extra read-back pass. Any failed alias prints an idempotent single-item repair
    (`stamp-batch --issue … --item-id … --wave …`); re-run it, a field-set is idempotent.
-5. **Counted completion report + program view link.** Report `X von Y` for each part
+5. **Wellenplan back-link sync.** Run `program-sync` once so the PRD's Wellenplan
+   `Issue` column links each freshly created stub (`#<stub#>`, matched via the
+   `Welle <N> —` title —; idempotent, fills-never-overwrites):
+   ```bash
+   python3 scripts/board-sync.py program-sync <prd#>
+   ```
+6. **Counted completion report + program view link.** Report `X von Y` for each part
    (stubs created, leaves created, issues adopted, field stamps set) and link the
    program board view. Completeness is **counted, never claimed** — the numbers come
    from the create outputs + the `stamp-batch` response, not from memory.
@@ -220,9 +236,13 @@ plan was first written.
 
 ## 9. Live dashboard — program-sync
 
-Between wave events the PRD's Wellenplan **Status** column is regenerated from the
-board (monotone, idempotent — it never regresses a wave's status, and it touches only
-the Status cell; hand-owned Name/Plan cells survive verbatim):
+Between wave events the PRD's Wellenplan **Status** + **Issue** columns are
+regenerated from the board (monotone, idempotent — Status never regresses, Issue
+fills but never overwrites; hand-owned Name/Plan cells survive verbatim), and
+mechanically completed **Phasen-Gates** are checked off (all waves of a phase ✅ →
+`[x]` with an `— alle Wellen ✅ (<date>)` stamp). `wrapup` triggers the same
+sync automatically on every slice merge whose wave anchor has a program parent
+(upward propagation — the program table shows the event, not only the wave):
 
 ```bash
 python3 scripts/board-sync.py program-sync <prd#> --dry-run   # preview the diff first

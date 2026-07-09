@@ -22,7 +22,9 @@ Interview me relentlessly about every aspect of this plan until we reach a share
 
 Ask the questions one at a time, waiting for feedback on each question before continuing. Asking multiple questions at once is bewildering.
 
-If a question can be answered by exploring the codebase, explore the codebase instead.
+If a *fact* can be found by exploring the codebase, look it up rather than asking me. The *decisions*, though, are mine — put each one to me and wait for my answer.
+
+Do not write `PLAN.md` or proceed to Act 2 until I confirm we have reached a shared understanding.
 
 **Coherence default:** a feature that builds on existing features inherits the existing building blocks across every layer (UI components, backend services/calculations, data paths, conventions). The grill locks only the deltas (what is intentionally excluded/restricted/different, each with a reason) and the consumer walk-through (what the receiving user sees/gets). A parallel rebuild of something that exists is a defect, not a design option.
 
@@ -157,6 +159,7 @@ Hand the locked plan to Codex for adversarial review. Mechanics verified end-to-
 - `codex --version` ≥ 0.130 (older CLIs error on the default `gpt-5.5` model).
 - Codex authenticated (`codex login`; ChatGPT account fine). On auth/model error, surface it — don't silently retry.
 - Do NOT pin `-m` (config default is used; `gpt-5.x-codex` variants 400 on ChatGPT-account auth).
+- **Echo the active model before Round 1** so the user can confirm: read the `model` line from `~/.codex/config.toml` (absent = "CLI default"); state it alongside the resolved tunables. If the user objects, stop before burning a round.
 
 ### Tunables (args, else default)
 | Var | Default | Meaning |
@@ -205,14 +208,17 @@ codex exec resume "$THREAD_ID" -c sandbox_mode="read-only" --json \
 ```
 Wrap resume in the **same 90s liveness probe** (background + `wait`). Resume discards the `--json` stream, so probe on the verdict file instead: `BYTES=$(wc -c < $CODEX_TMP/verdict.txt)` plus the `CPU` check — `00:00:00` CPU + empty verdict at 90s → kill, treat as `CODEX-HUNG`, same STOP path as round 1.
 
+**Overall ceiling (both rounds):** the 90s probe catches silent hangs, not long stuck runs. Cap every `codex exec` / `codex exec resume` at **10 minutes** — via Claude Code's Bash tool pass `timeout: 600000` on the tool call (the default 2-minute tool timeout would kill real reviews mid-run); in a plain shell prefix `timeout 600` (macOS: `gtimeout 600` via coreutils). If the ceiling trips, treat it as a failed round: stop and tell the user rather than retrying blind.
+
 ### Each round
 1. Read verdict file; append `## Round <n> — Codex` + critique to `LOG_FILE`.
 2. Last line verdict: `APPROVED` → Resolution (converged); `REVISE` → Claude decides what's worth acting on (final arbiter), revise `PLAN_FILE`, append `### Claude's response` (what changed/rejected + why), increment.
 3. round > `MAX_ROUNDS` → Resolution (deadlock).
 
 ### Resolution (you sign off)
-- **APPROVED:** present final plan + 3-bullet summary of what the two acts improved + round count. Ask before implementing. No code during either act.
+- **APPROVED:** present final plan + 3-bullet summary of what the two acts improved + round count. Ask: implement now — Codex builds it (`/codex-build`), Claude builds it, or stop? No code during either act.
 - **Deadlock (cap hit, no APPROVED):** list unresolved points + Claude's counter-position; hand to user. Don't fake convergence.
+- **Act 3 (optional):** user picks Codex → invoke the `codex-build` skill with `SPEC_FILE=PLAN.md` and the same `LOG_FILE`. Roles flip: Codex writes in a bounded workspace-write sandbox, Claude reviews the diff + runs the proof; build rounds append to the same log.
 
 ---
 

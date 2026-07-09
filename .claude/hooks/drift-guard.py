@@ -137,6 +137,10 @@ def build_block_message(issue: int, intent: str, result: dict) -> str:
         lines.append(f"  · {v}")
     if intent == "build" and not result.get("target_buildable", True) and result.get("graph_coherent"):
         lines.append(f"  · #{issue} ist HITL (gültig, aber nicht baubar) — erst grillen, kein /tdd")
+    if result.get("open_blockers"):
+        blocked = ", ".join(f"#{n}" for n in result["open_blockers"])
+        lines.append(f"  · #{issue} ist nativ blockiert durch offene {blocked} "
+                     f"(Blocking-SSOT = Issue-Dependencies) — erst Blocker landen")
     lines += [
         "",
         "Fix (eines):",

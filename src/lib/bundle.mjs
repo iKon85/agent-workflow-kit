@@ -26,6 +26,11 @@ export const HELPER_FILES = [
   // Wellenplan Status-resync for board-sync.py's `program-sync` —
   // library (imported, not run) → 0o644. MUST ship or board-sync.py ImportErrors.
   { path: 'scripts/program_sync.py', kind: 'script', mode: 0o644 },
+  // Blocked-by body-mirror logic for the native issue-dependency commands
+  // — imported by BOTH board-sync.py (dep-add/dep-remove) and
+  // execute-ready-check.py (drift check). Library (imported, not run) → 0o644.
+  // MUST ship or both ImportError on arrival.
+  { path: 'scripts/issue_deps.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/board-sync.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/execute-ready-check.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/pr-body-check.py', kind: 'script', mode: 0o755 },

@@ -518,6 +518,25 @@ def cmd_land(args) -> dict:
                      "--issue", str(anchor), "--mode", "audit"])
         report["land_sanity"] = (audit.stdout + audit.stderr).strip()[-1500:]
 
+        # Step 5e.1b — upward propagation: a wave anchor inside a program
+        # bubbles the slice event up — the Program-PRD's Wellenplan Status/Issue
+        # cells + mechanically completed Phasen-Gates refresh via program-sync.
+        p = run([sys.executable, bs, "parent-of", str(anchor)])
+        program = p.stdout.strip() if p.returncode == 0 and p.stdout.strip().isdigit() else None
+        if program:
+            pdry = run([sys.executable, bs, "program-sync", str(program), "--dry-run"])
+            pwet = run([sys.executable, bs, "program-sync", str(program)])
+            if "not a Program-PRD" in ((pwet.stderr or "") + (pwet.stdout or "")):
+                report["program_sync"] = {"program": program,
+                                          "skipped": "parent is not a Program-PRD"}
+            else:
+                report["program_sync"] = {
+                    "program": program, "ok": pwet.returncode == 0,
+                    "diff": pdry.stdout.strip()[-2000:],
+                    "error": None if pwet.returncode == 0
+                    else (pwet.stderr or pwet.stdout).strip()[-1000:],
+                }
+
     report["main_sha"] = git(["log", "--oneline", "-1"], cwd=main_tree,
                              check=True).stdout.strip()
     return report

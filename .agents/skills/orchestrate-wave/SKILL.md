@@ -91,6 +91,14 @@ Zero merge conflicts later depends entirely on getting this right.
 - Cut into **waves of fully file-disjoint slices**. Edited-by-≥2 = serialize across
   waves; only-shared-via-import = safe. A new primitive edited by one slice but
   *consumed* by others is NOT a conflict.
+- **Native blocking edges are the frontier authority.** Read the anchor's
+  buildable frontier from the tracker's native issue dependencies:
+  `python3 scripts/board-sync.py frontier <anchor#>` → `FREI` / `BLOCKED by #…` /
+  `done` per sub-issue. A body `## Blocked by` section is only the machine-written
+  MIRROR of those edges (on conflict the API wins) — never derive build order from
+  body text or table order alone. The frontier must AGREE with your Phase-1
+  dependency order; a contradiction is a plan finding to reconcile before dispatch,
+  not a detail.
 - **Reconcile contradictory sub-issue ACs against the plan BEFORE dispatch — the
   plan is authority.** `to-issues` cuts slices independently, so a shared
   append-only file (a query-key registry, a barrel, a shared types module) is often
@@ -108,7 +116,11 @@ carries its verbatim consume-only lines.
 ## Phase 2 — Dispatch one wave in parallel (isolated worktree per implementer)
 
 Phase 2+3 repeat **per disjoint wave** from Phase 1 — the conflict-hub wave first.
-Within ONE wave, all slices dispatch at once. Two per-slice calls first: **(a)
+Within ONE wave, all slices dispatch at once. **Dispatch only `FREI` slices** —
+re-read the native frontier (`frontier <anchor#>`) before each wave; a
+gate-before-build edge clears only when its blocker actually lands (never
+"unblock" by editing body text — remove the edge via `dep-remove` if the plan
+genuinely changed). Two per-slice calls first: **(a)
 inline vs delegate** — a tiny mechanical bit (a rename, a 1-2-line tweak) you do
 yourself — and **(b) tier + effort** (Standing rules → Routing). For each
 delegated slice:
