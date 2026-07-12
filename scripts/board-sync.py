@@ -154,6 +154,41 @@ def _print_dry(args: list[str]) -> None:
 
 
 # --- pure logic (directly unit-tested) ---------------------------------------
+_PROGRAM_CREATE_IDENTITY_RE = re.compile(
+    r"<!--\s*(program-(?:stub|leaf)-source):\s*([^>]+?)\s*-->"
+)
+
+
+def extract_program_create_identity(body: str) -> Optional[str]:
+    """Stable to-waves identity carried by a stub/leaf body, if present."""
+    match = _PROGRAM_CREATE_IDENTITY_RE.search(body)
+    return f"{match.group(1)}: {match.group(2).strip()}" if match else None
+
+
+def _find_open_issue_by_program_identity(body: str) -> Optional[dict]:
+    """Search-before-create for to-waves crash/retry safety.
+
+    GitHub search does not index HTML comments, so fetch the bounded open set and
+    compare the parsed marker locally. More than one match is drift: never pick a
+    winner silently.
+    """
+    identity = extract_program_create_identity(body)
+    if identity is None:
+        return None
+    issues = _gh_json([
+        "issue", "list", "--repo", REPO, "--state", "open", "--limit", "500",
+        "--json", "number,url,body",
+    ])
+    matches = [
+        issue for issue in issues
+        if extract_program_create_identity(issue.get("body") or "") == identity
+    ]
+    if len(matches) > 1:
+        numbers = ", ".join(f"#{issue['number']}" for issue in matches)
+        raise ValueError(f"duplicate {identity} issues: {numbers}")
+    return matches[0] if matches else None
+
+
 def compute_next_wave(items: list[dict]) -> int:
     """Next monotone wave number = max(assigned wave) + 1, or 1 if none."""
     waves = [it.get("wave") for it in items if it.get("wave") is not None]
@@ -666,15 +701,18 @@ def cmd_frontier(args) -> int:
 def cmd_create(args) -> int:
     hitl_guard(getattr(args, "hitl", False), args.label or [])
     labels = list(args.label or [])
+    body = None
     # Phase-1: a ready-for-agent slice whose Blast-Radius names an offender
     # gets the marker planted INTO the body-file BEFORE `gh issue create`, so the
     # issue is never briefly ready-without-marker (no partial-ready window). Skip in
     # dry-run — that path must read no files / make no writes (parity tests).
-    if READY_FOR_AGENT in labels and not args.dry_run:
+    if not args.dry_run:
         body = Path(args.body_file).read_text(encoding="utf-8")
+    if READY_FOR_AGENT in labels and body is not None:
         hits = loc_offender_hits(body, read_offenders())
         if hits:
-            Path(args.body_file).write_text(plant_offender_marker(body, hits), encoding="utf-8")
+            body = plant_offender_marker(body, hits)
+            Path(args.body_file).write_text(body, encoding="utf-8")
     create_args = ["issue", "create", "--repo", REPO, "--title", args.title,
                    "--body-file", args.body_file]
     if getattr(args, "wave_stub", False):
@@ -685,12 +723,18 @@ def cmd_create(args) -> int:
         _print_dry(create_args)
         _add_and_stamp("<new-url>", args.wave, args.status, args.cluster, None, None, dry_run=True)
         return 0
-    url = _gh(create_args).strip().splitlines()[-1]
-    issue_no = issue_number_from_url(url)
-    # Print the number/URL immediately — a board-sync failure below must never
-    # swallow it. A retry without this would blind-recreate a duplicate issue
-    # (the create already succeeded, only the board-sync half failed).
-    print(f"#{issue_no} {url}")
+    existing = _find_open_issue_by_program_identity(body or "")
+    if existing:
+        issue_no = existing["number"]
+        url = existing["url"]
+        print(f"#{issue_no} {url} (existing)")
+    else:
+        url = _gh(create_args).strip().splitlines()[-1]
+        issue_no = issue_number_from_url(url)
+        # Print the number/URL immediately — a board-sync failure below must never
+        # swallow it. A retry without this would blind-recreate a duplicate issue
+        # (the create already succeeded, only the board-sync half failed).
+        print(f"#{issue_no} {url}")
     try:
         _add_and_stamp(url, args.wave, args.status, args.cluster, None, None, dry_run=False)
     except GhError as exc:

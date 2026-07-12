@@ -7,7 +7,7 @@
     "agent-workflow-kit": "src/cli.mjs"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test && python3 scripts/test_board_sync_create_idempotency.py"
   },
   "files": [
     ".claude/",
