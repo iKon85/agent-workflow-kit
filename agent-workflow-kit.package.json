@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.9.0",
+  "kitVersion": "0.10.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -317,6 +317,15 @@
       "origin": "kit"
     },
     {
+      "path": ".agents/skills/kit-release/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "kit-release",
+      "surface": "codex",
+      "sha256": "e24be892d52e29bf1add2a417afb34d17e9e5fa46ba1014ba81b4ad7069f905e",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".agents/skills/local-ci/SKILL.md",
       "kind": "skill",
       "ownerSkill": "local-ci",
@@ -555,7 +564,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "bfdb67effe5f19a54305dc2c4778293dedcaba9f25cf0688d425075f0f90877d",
+      "sha256": "87e5ab578f1c17905b39b9cb39b515e4661f3437d96de919f1b23a5775760c4f",
       "mode": 420,
       "origin": "kit"
     },
@@ -1254,6 +1263,15 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/kit-release/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "kit-release",
+      "surface": "claude",
+      "sha256": "e24be892d52e29bf1add2a417afb34d17e9e5fa46ba1014ba81b4ad7069f905e",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/local-ci/SKILL.md",
       "kind": "skill",
       "ownerSkill": "local-ci",
@@ -1510,7 +1528,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "bfdb67effe5f19a54305dc2c4778293dedcaba9f25cf0688d425075f0f90877d",
+      "sha256": "87e5ab578f1c17905b39b9cb39b515e4661f3437d96de919f1b23a5775760c4f",
       "mode": 420,
       "origin": "kit"
     },
@@ -1841,6 +1859,13 @@
       "origin": "kit"
     },
     {
+      "path": "scripts/kit-release.mjs",
+      "kind": "script",
+      "sha256": "d3148aab63fa670c0a3407d2816d287b7cdeaa130588fb55b6075217da95d3d3",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "scripts/loc_offender_core.py",
       "kind": "script",
       "sha256": "eb1addc46f9f64bb0d5dd50e2eecc859a46ad16eb3b7b21150e3d291db1e6495",
@@ -1893,6 +1918,13 @@
       "path": "scripts/program_sync.py",
       "kind": "script",
       "sha256": "b089604e5c62dcd6d7384a75a5b14a5e447ecfa31af0e59ea47354df9af74f57",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/release-delta-guard.mjs",
+      "kind": "script",
+      "sha256": "37a6f27b350bb98a19a8c53e1f6ee187b3a39c0ff5317141717bf9ab65129bad",
       "mode": 420,
       "origin": "kit"
     },
