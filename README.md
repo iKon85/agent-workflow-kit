@@ -21,6 +21,12 @@ install manifest. The frozen `v0.9.0` manifest remains under `test/fixtures/` as
 the historical golden baseline; current builds intentionally include later SSOT
 changes.
 
+Maintainers prepare releases with `/kit-release`. It derives the shipped delta
+from a fresh manifest, recommends Semver, applies only the confirmed target,
+regenerates the checked-in manifest, and runs the full test and pack gates.
+Landing remains owned by `/wrapup`; publishing the matching npm package and
+GitHub release happens only through the configured post-merge release flow.
+
 These are the skills, helper scripts, and conventions one team actually uses to
 take work from a vague idea to a merged, verified PR with [Claude Code] and
 [Codex]. One `npx` command drops them into any repo; `/setup-workflow` wires
@@ -326,6 +332,15 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.10.0
+
+- added: `.agents/skills/kit-release/SKILL.md`
+- added: `.claude/skills/kit-release/SKILL.md`
+- added: `scripts/kit-release.mjs`
+- added: `scripts/release-delta-guard.mjs`
+- changed: `.agents/skills/setup-workflow/workflow-overview.md`
+- changed: `.claude/skills/setup-workflow/workflow-overview.md`
+
 ### 0.9.0
 
 - Re-syncs the vendored Chase AI `-codex` skills to upstream HEAD (fe37a70):
@@ -529,12 +544,12 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**40 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
+**41 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
 grill-with-docs, to-prd, to-issues, board-to-waves, triage, spec-self-critique,
 verify-spike, decision-gate, scale-check, to-waves, wayfinder, research · Execute: tdd, prototype, implement, orchestrate-wave ·
 Design/diagnose/refactor streams: diagnose, zoom-out,
 improve-codebase-architecture, codebase-design, domain-modeling, security-audit · Land: wrapup,
-resolving-merge-conflicts, code-review, local-ci, git-worktree-recover · Learn: retro, audit-skills, write-a-skill · Setup:
+resolving-merge-conflicts, code-review, local-ci, git-worktree-recover, kit-release · Learn: retro, audit-skills, write-a-skill · Setup:
 setup-workflow, git-guardrails, setup-pre-commit · Codex cross-model: grill-me-codex,
 grill-with-docs-codex, codex-review, codex-build),
 installed for both surfaces — `.claude/skills`
