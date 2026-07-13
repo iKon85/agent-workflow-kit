@@ -1,3 +1,18 @@
 node_modules/
 pnpm-lock.yaml
 dist-kit/
+__pycache__/
+
+# Local Claude/Codex state and personal overrides. Checked-in skills, project
+# config, hooks, and agent definitions remain trackable.
+.claude/settings.local.json
+.claude/settings.local.json.backup
+.codex/*.local.toml
+.codex/agents/*.local.toml
+.codex/auth.json
+.codex/history.jsonl
+.codex/session-*.jsonl
+.codex/logs/
+.codex/cache/
+.codex/tmp/
+.codex-log/
