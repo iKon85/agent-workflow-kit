@@ -38,6 +38,10 @@ export const HELPER_FILES = [
   // Sonnet phase-2 subagent. Imports board_config + anchor_table
   // (both shipped above). Invokable CLI → 0o755.
   { path: 'scripts/wrapup-land.py', kind: 'script', mode: 0o755 },
+  // Deterministic release preparation and its manifest-derived local/CI guard.
+  // Both are invoked through package scripts by /kit-release.
+  { path: 'scripts/kit-release.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/release-delta-guard.mjs', kind: 'script', mode: 0o644 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
   // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
   // hooks ImportError on arrival.
