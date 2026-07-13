@@ -1,0 +1,9 @@
+# Project-scoped Codex defaults for agent-workflow-kit.
+# Keep secrets, provider credentials, auth tokens, and personal overrides out.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "cached"
+
+[sandbox_workspace_write]
+network_access = false
