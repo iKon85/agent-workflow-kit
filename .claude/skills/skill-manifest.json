@@ -1,0 +1,379 @@
+{
+  "schema_version": 1,
+  "description": "Public skill classification and publishing SSOT.",
+  "skills": {
+    "to-prd": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "to-issues": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "grill-with-docs": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "grill-me": {
+      "class": "generic",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "retro": {
+      "class": "generic",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "wrapup": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "verify-spike": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "decision-gate": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "spec-self-critique": {
+      "class": "generic",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "code-review": {
+      "class": "generic",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "setup-workflow": {
+      "class": "generic",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "board-to-waves": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "scale-check": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "to-waves": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "tdd": {
+      "class": "vendored",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "diagnose": {
+      "class": "vendored",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "zoom-out": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "improve-codebase-architecture": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "prototype": {
+      "class": "vendored",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "triage": {
+      "class": "vendored",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "codebase-design": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "domain-modeling": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "implement": {
+      "class": "vendored",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "resolving-merge-conflicts": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "write-a-skill": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "ask-matt": {
+      "class": "vendored",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "wayfinder": {
+      "class": "vendored",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "research": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "git-guardrails-claude-code": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude"
+      ],
+      "provenance": "matt-pocock"
+    },
+    "setup-pre-commit": {
+      "class": "generic",
+      "publish": true,
+      "surfaces": [
+        "claude"
+      ],
+      "provenance": "own"
+    },
+    "grill-me-codex": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude"
+      ],
+      "provenance": "chase"
+    },
+    "grill-with-docs-codex": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude"
+      ],
+      "provenance": "chase"
+    },
+    "codex-review": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude"
+      ],
+      "provenance": "chase"
+    },
+    "codex-build": {
+      "class": "vendored",
+      "publish": true,
+      "surfaces": [
+        "claude"
+      ],
+      "provenance": "chase"
+    },
+    "codex-adapter-sync": {
+      "class": "adapter",
+      "publish": true,
+      "surfaces": [
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "audit-skills": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": false,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "local-ci": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": false,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "orchestrate-wave": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "git-worktree-recover": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": false,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "security-audit": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": false,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    }
+  }
+}

@@ -7,7 +7,11 @@
     "agent-workflow-kit": "src/cli.mjs"
   },
   "scripts": {
-    "test": "node --test && python3 scripts/test_board_sync_create_idempotency.py"
+    "test": "npm run test:node && npm run test:python",
+    "test:node": "node --test",
+    "test:python": "python3 -m unittest discover -s scripts -p 'test_*.py'",
+    "kit:build": "node scripts/build-kit.mjs",
+    "kit:staleness": "node scripts/check-kit-staleness.mjs"
   },
   "files": [
     ".claude/",
@@ -21,6 +25,10 @@
     "PROVENANCE.md"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iKon85/agent-workflow-kit.git"
+  },
   "engines": {
     "node": ">=20"
   },

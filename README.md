@@ -2,6 +2,25 @@
 
 **A complete shipping loop for coding agents — plan → execute → land → learn.**
 
+## Maintainer build
+
+The public repository is the source of truth. A fresh clone needs Node 20 or
+newer, Python 3, and no Python packages:
+
+```sh
+npm install --ignore-scripts
+npm test
+npm run kit:build
+npm run kit:staleness
+npm pack --dry-run
+```
+
+`kit:build` assembles `dist-kit/` only from files in this checkout and writes a
+sha256 manifest. `kit:staleness` compares that fresh manifest with the checked-in
+install manifest. The frozen `v0.9.0` manifest remains under `test/fixtures/` as
+the historical golden baseline; current builds intentionally include later SSOT
+changes.
+
 These are the skills, helper scripts, and conventions one team actually uses to
 take work from a vague idea to a merged, verified PR with [Claude Code] and
 [Codex]. One `npx` command drops them into any repo; `/setup-workflow` wires
