@@ -12,7 +12,7 @@
     },
     {
       "path": ".agents/skills/ask-matt/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "ask-matt",
       "surface": "codex",
       "sha256": "173b8ea98b58554b264268cc9e5b6f92fb5f30f1a4f9957737b8acccbbefc75b",
@@ -75,7 +75,7 @@
     },
     {
       "path": ".agents/skills/codebase-design/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "codebase-design",
       "surface": "codex",
       "sha256": "5b64a20b07c2b64eb7598d16ba637b60a76abd3ffcfd06c2c3633c711507ce8c",
@@ -120,7 +120,7 @@
     },
     {
       "path": ".agents/skills/diagnose/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "diagnose",
       "surface": "codex",
       "sha256": "829a9f1adc6e85ef0d24a9c195652330882ea3b9b583f72d466143efc4321e6a",
@@ -156,7 +156,7 @@
     },
     {
       "path": ".agents/skills/domain-modeling/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "domain-modeling",
       "surface": "codex",
       "sha256": "0e5aab16a10bbe4dc9f8ae26a0b2ef09e854ad7d2bf35bdd2b65fb1c70c8c827",
@@ -183,7 +183,7 @@
     },
     {
       "path": ".agents/skills/grill-me/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "grill-me",
       "surface": "codex",
       "sha256": "f5a78d985a034fd84f7b6411a1eefc19f885d6b927af050cd05b0970d1516402",
@@ -219,7 +219,7 @@
     },
     {
       "path": ".agents/skills/grill-with-docs/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "grill-with-docs",
       "surface": "codex",
       "sha256": "6f89c31d05cc8620bbe384a94fc2ed70bc619064611f33ca0271fcc7fc42afb2",
@@ -237,7 +237,7 @@
     },
     {
       "path": ".agents/skills/implement/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "implement",
       "surface": "codex",
       "sha256": "4d80f9ac4914bd41f7ad2988f37e0eb9beee6bd34788251ef753daacb695ad94",
@@ -309,7 +309,7 @@
     },
     {
       "path": ".agents/skills/improve-codebase-architecture/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "improve-codebase-architecture",
       "surface": "codex",
       "sha256": "7564c9655bd678adab2c472ac3f8ab44a10d4a706decfbcfbc8535b74575fc4f",
@@ -363,7 +363,7 @@
     },
     {
       "path": ".agents/skills/prototype/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "prototype",
       "surface": "codex",
       "sha256": "c8ff935f3d1a554704301dbe8b690cc74e443e1f7e817c287e917e6785e6ba64",
@@ -390,7 +390,7 @@
     },
     {
       "path": ".agents/skills/research/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "research",
       "surface": "codex",
       "sha256": "5de9ee62c1ae4a2a769c6014946b3eb03518e2ca8c07110e0cdeb97c00aca4b1",
@@ -408,7 +408,7 @@
     },
     {
       "path": ".agents/skills/resolving-merge-conflicts/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "resolving-merge-conflicts",
       "surface": "codex",
       "sha256": "287c31d391754b0325b1ac77a8432f0ddaba9b11f713e9cd1365cfa9c9830501",
@@ -534,7 +534,7 @@
     },
     {
       "path": ".agents/skills/setup-workflow/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "sha256": "9a3358b65ab5f677c0905cb3bdd487f90a3c3961e24b19d1ba487c52a797a6ce",
@@ -633,7 +633,7 @@
     },
     {
       "path": ".agents/skills/tdd/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "tdd",
       "surface": "codex",
       "sha256": "08c75a983cc744533f638d68f7c3ee981e4caadac419c6742b85a277df1e29ef",
@@ -651,7 +651,7 @@
     },
     {
       "path": ".agents/skills/to-issues/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "to-issues",
       "surface": "codex",
       "sha256": "06c33d5ea2d04ac67b115f8b24d8e060c8224149f7ffb492d48d34b0118b623b",
@@ -678,7 +678,7 @@
     },
     {
       "path": ".agents/skills/to-prd/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "to-prd",
       "surface": "codex",
       "sha256": "0ade74afd6c6013a6e47dad7c27816f775483c4617e65db5ad6667ce41ed655c",
@@ -732,7 +732,7 @@
     },
     {
       "path": ".agents/skills/triage/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "triage",
       "surface": "codex",
       "sha256": "9dbce56424bab49231247c2f677e661ff948fd98d3c48af82055e7ad37ab5294",
@@ -759,7 +759,7 @@
     },
     {
       "path": ".agents/skills/wayfinder/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "wayfinder",
       "surface": "codex",
       "sha256": "a5f0c6b294ea50f167fbe7c121dc53b43f2590105883edb094ea2cb0721ce95e",
@@ -776,15 +776,6 @@
       "origin": "kit"
     },
     {
-      "path": ".agents/skills/wrapup/SOURCES.txt",
-      "kind": "skill",
-      "ownerSkill": "wrapup",
-      "surface": "codex",
-      "sha256": "4ff05f7dc5330c8cd162d46f5f07f427beda02297bcb86e7cad0acf53b2e869d",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
       "path": ".agents/skills/zoom-out/SKILL.md",
       "kind": "skill",
       "ownerSkill": "zoom-out",
@@ -795,7 +786,7 @@
     },
     {
       "path": ".agents/skills/zoom-out/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "zoom-out",
       "surface": "codex",
       "sha256": "87a6e3845e705204a009b26bab75f09e64d97f2d00e19ccd9ee1da39564dbc69",
@@ -841,7 +832,7 @@
     },
     {
       "path": ".claude/skills/ask-matt/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "ask-matt",
       "surface": "claude",
       "sha256": "173b8ea98b58554b264268cc9e5b6f92fb5f30f1a4f9957737b8acccbbefc75b",
@@ -904,7 +895,7 @@
     },
     {
       "path": ".claude/skills/codebase-design/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "codebase-design",
       "surface": "claude",
       "sha256": "5b64a20b07c2b64eb7598d16ba637b60a76abd3ffcfd06c2c3633c711507ce8c",
@@ -976,7 +967,7 @@
     },
     {
       "path": ".claude/skills/diagnose/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "diagnose",
       "surface": "claude",
       "sha256": "829a9f1adc6e85ef0d24a9c195652330882ea3b9b583f72d466143efc4321e6a",
@@ -1012,7 +1003,7 @@
     },
     {
       "path": ".claude/skills/domain-modeling/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "domain-modeling",
       "surface": "claude",
       "sha256": "0e5aab16a10bbe4dc9f8ae26a0b2ef09e854ad7d2bf35bdd2b65fb1c70c8c827",
@@ -1039,7 +1030,7 @@
     },
     {
       "path": ".claude/skills/git-guardrails-claude-code/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "git-guardrails-claude-code",
       "surface": "claude",
       "sha256": "88c09f363879e7f1d55d5787fc724c800ddf841fc8f1cc1272e53b03639ef8d5",
@@ -1084,7 +1075,7 @@
     },
     {
       "path": ".claude/skills/grill-me/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "grill-me",
       "surface": "claude",
       "sha256": "f5a78d985a034fd84f7b6411a1eefc19f885d6b927af050cd05b0970d1516402",
@@ -1156,7 +1147,7 @@
     },
     {
       "path": ".claude/skills/grill-with-docs/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "grill-with-docs",
       "surface": "claude",
       "sha256": "6f89c31d05cc8620bbe384a94fc2ed70bc619064611f33ca0271fcc7fc42afb2",
@@ -1174,7 +1165,7 @@
     },
     {
       "path": ".claude/skills/implement/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "implement",
       "surface": "claude",
       "sha256": "4d80f9ac4914bd41f7ad2988f37e0eb9beee6bd34788251ef753daacb695ad94",
@@ -1246,7 +1237,7 @@
     },
     {
       "path": ".claude/skills/improve-codebase-architecture/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "improve-codebase-architecture",
       "surface": "claude",
       "sha256": "7564c9655bd678adab2c472ac3f8ab44a10d4a706decfbcfbc8535b74575fc4f",
@@ -1300,7 +1291,7 @@
     },
     {
       "path": ".claude/skills/prototype/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "prototype",
       "surface": "claude",
       "sha256": "c8ff935f3d1a554704301dbe8b690cc74e443e1f7e817c287e917e6785e6ba64",
@@ -1327,7 +1318,7 @@
     },
     {
       "path": ".claude/skills/research/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "research",
       "surface": "claude",
       "sha256": "5de9ee62c1ae4a2a769c6014946b3eb03518e2ca8c07110e0cdeb97c00aca4b1",
@@ -1345,7 +1336,7 @@
     },
     {
       "path": ".claude/skills/resolving-merge-conflicts/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "resolving-merge-conflicts",
       "surface": "claude",
       "sha256": "287c31d391754b0325b1ac77a8432f0ddaba9b11f713e9cd1365cfa9c9830501",
@@ -1489,7 +1480,7 @@
     },
     {
       "path": ".claude/skills/setup-workflow/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "sha256": "9a3358b65ab5f677c0905cb3bdd487f90a3c3961e24b19d1ba487c52a797a6ce",
@@ -1588,7 +1579,7 @@
     },
     {
       "path": ".claude/skills/tdd/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "tdd",
       "surface": "claude",
       "sha256": "08c75a983cc744533f638d68f7c3ee981e4caadac419c6742b85a277df1e29ef",
@@ -1606,7 +1597,7 @@
     },
     {
       "path": ".claude/skills/to-issues/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "to-issues",
       "surface": "claude",
       "sha256": "06c33d5ea2d04ac67b115f8b24d8e060c8224149f7ffb492d48d34b0118b623b",
@@ -1633,7 +1624,7 @@
     },
     {
       "path": ".claude/skills/to-prd/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "to-prd",
       "surface": "claude",
       "sha256": "0ade74afd6c6013a6e47dad7c27816f775483c4617e65db5ad6667ce41ed655c",
@@ -1687,7 +1678,7 @@
     },
     {
       "path": ".claude/skills/triage/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "triage",
       "surface": "claude",
       "sha256": "9dbce56424bab49231247c2f677e661ff948fd98d3c48af82055e7ad37ab5294",
@@ -1714,7 +1705,7 @@
     },
     {
       "path": ".claude/skills/wayfinder/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "wayfinder",
       "surface": "claude",
       "sha256": "a5f0c6b294ea50f167fbe7c121dc53b43f2590105883edb094ea2cb0721ce95e",
@@ -1759,7 +1750,7 @@
     },
     {
       "path": ".claude/skills/write-a-skill/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "write-a-skill",
       "surface": "claude",
       "sha256": "79849c6cad286b69b5946836600b17acc821c6b73a40ea23d7b902df273d33e8",
@@ -1777,7 +1768,7 @@
     },
     {
       "path": ".claude/skills/zoom-out/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
+      "kind": "doc",
       "ownerSkill": "zoom-out",
       "surface": "claude",
       "sha256": "87a6e3845e705204a009b26bab75f09e64d97f2d00e19ccd9ee1da39564dbc69",
@@ -1822,7 +1813,7 @@
     {
       "path": "scripts/board-sync.py",
       "kind": "script",
-      "sha256": "98e7d7a9dea198d0ea8bb3fc9f7d63a5cf621c3d263389c140f33e8bec16926c",
+      "sha256": "99904b65a45cb76e4ca027e73b6c2c016e66bb80c14c4b59e0e8de2e4fd60416",
       "mode": 493,
       "origin": "kit"
     },
