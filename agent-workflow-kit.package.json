@@ -438,7 +438,7 @@
       "kind": "skill",
       "ownerSkill": "scale-check",
       "surface": "codex",
-      "sha256": "aa5f96503278e831c0229cdec4ba057d245c6dfa202296cbe0f236328bc67bf4",
+      "sha256": "80f8d5b4b811afd0bce4546d18170eed8a79ae2ee872b40563814374ea2ad1c2",
       "mode": 420,
       "origin": "kit"
     },
@@ -654,7 +654,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "codex",
-      "sha256": "3cc1f667c0b961f3682bf71e345be9b27b96ab62edb71aa080912418b9344728",
+      "sha256": "3fdd05150f428cf8098e4dd12f67cbc7ebe17fa9ab315e456fd0df70e5c9925d",
       "mode": 420,
       "origin": "kit"
     },
@@ -699,7 +699,7 @@
       "kind": "skill",
       "ownerSkill": "to-waves",
       "surface": "codex",
-      "sha256": "1bbffd3858c9a7fb6873f448579a8d888959ff336572a25eb9780ce55b31a2d7",
+      "sha256": "5ac4fd5d26d6ea2327fc50ad4bcc8f3d8c80186afb976410d8c3e8f3c21d896e",
       "mode": 420,
       "origin": "kit"
     },
@@ -1384,7 +1384,7 @@
       "kind": "skill",
       "ownerSkill": "scale-check",
       "surface": "claude",
-      "sha256": "aa5f96503278e831c0229cdec4ba057d245c6dfa202296cbe0f236328bc67bf4",
+      "sha256": "80f8d5b4b811afd0bce4546d18170eed8a79ae2ee872b40563814374ea2ad1c2",
       "mode": 420,
       "origin": "kit"
     },
@@ -1618,7 +1618,7 @@
       "kind": "skill",
       "ownerSkill": "to-issues",
       "surface": "claude",
-      "sha256": "4a8b4badb99f459d88789ba47f8378602f66be3b7ad1bd0871737e41520dfbb1",
+      "sha256": "5874d4b2d4999bd32a0a90c955467fc4e58e230295cd6ee21936fa30456bda6e",
       "mode": 420,
       "origin": "kit"
     },
@@ -1663,7 +1663,7 @@
       "kind": "skill",
       "ownerSkill": "to-waves",
       "surface": "claude",
-      "sha256": "1bbffd3858c9a7fb6873f448579a8d888959ff336572a25eb9780ce55b31a2d7",
+      "sha256": "5ac4fd5d26d6ea2327fc50ad4bcc8f3d8c80186afb976410d8c3e8f3c21d896e",
       "mode": 420,
       "origin": "kit"
     },

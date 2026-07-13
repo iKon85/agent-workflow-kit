@@ -97,8 +97,10 @@ Tripped altitude criteria: <e.g. C1 staged delivery, C2 multiple subsystems, C4 
    structure-bearing decisions (escalate a single bounded choice to `decision-gate`).
 2. `to-prd` — it auto-detects the program mode from the Wellenplan chapter and writes
    a Program-PRD (native anchor over the waves).
-3. `to-waves` — unfold the wave plan into named wave stubs + slice leaves after the
-   chat preview gate (nothing is written to the board until you approve it).
+3. `to-waves` — after one complete chat preview, materialize the whole Program with
+   **all waves execute-ready by default**: complete slice contracts, buckets,
+   dependencies and handoffs. Decision Gates, Verify Spikes and Design-Grill waves
+   are explicit planned exceptions; generic late-binding cleanup is not.
 ```
 
 ### Feature (0–1 criteria, or any doubt)
@@ -132,7 +134,7 @@ Bug: <what's broken — expected vs. actual>.
 ```
 scale-check: verdict=<Program | Feature | Direct-Slice | Bug>
   criteria tripped=<C1,C2,… | none | n/a (bug/direct)>
-  route=<program grill → to-prd → to-waves | grill-with-docs → to-prd → to-issues | tdd | diagnose>
+  route=<program grill → to-prd → to-waves (all waves execute-ready by default) | grill-with-docs → to-prd → to-issues | tdd | diagnose>
   start-prompt: <the paste-ready block above, filled in>
 ```
 

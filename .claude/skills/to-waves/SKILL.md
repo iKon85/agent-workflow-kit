@@ -1,15 +1,16 @@
 ---
 name: to-waves
 disable-model-invocation: true
-description: "Unfold a Program-PRD's wave plan onto the board — parse + graph-validate it, show the complete Wellenplan as a chat preview before ANY board write, then after approval publish named wave stubs (native parent = the PRD) + slice leaves (native parent = their stub) with Wave and Phase stamped in one batch, and report a counted completion. Idempotent + crash-recoverable on re-run; adopts referenced existing issues instead of duplicating them. Use on a Program-PRD, the native anchor over several waves. NOT for a single-wave feature (to-issues) and NOT for clustering a backlog (board-to-waves)."
+description: "Turn a Program-PRD's wave plan into fully planned, execute-ready wave anchors and slice leaves after one complete chat preview. Validates the graph, publishes every wave, runs the to-prd/spec-self-critique/to-issues maturity contract for each wave, models unresolved work as explicit gates, and audits counted readiness. Idempotent and crash-recoverable. Use on a Program-PRD over several waves. NOT for a single-wave feature (to-issues) or backlog clustering (board-to-waves)."
 ---
 
 # to-waves — Unfold a Program-PRD's wave plan onto the board
 
 Takes a **Program-PRD** — the native Sub-Issue anchor over a multi-wave program
 (Programm → Phase → Welle → Slice) — and turns its `## Wellenplan` chapter into
-**named wave stubs + slice leaves** on the board. Pipeline position:
-`scale-check → grill → to-prd (program mode) → to-waves → …per wave: to-issues`.
+**fully planned wave anchors + slice leaves** on the board. Pipeline position:
+`scale-check → grill → to-prd (program mode) → to-waves`, with the per-wave
+`to-prd → spec-self-critique → to-issues` maturity pass owned inside this run.
 The **grill and to-prd sit upstream**; to-waves runs once the Program-PRD exists.
 It **never invents structure** — it only unfolds what the plan already decided.
 
@@ -70,28 +71,39 @@ Show:
 - The **publish plan**: how many stubs + leaves will be created, which referenced
   existing issues will be **adopted** (§4) rather than created, and which
   Wave/Phase stamps will be applied.
+- The complete per-wave issue contracts that will be materialized: outcome,
+  Blast-Radius, acceptance criteria, AFK/HITL bucket, native dependencies, and
+  self-contained handoff. A placeholder is not preview-complete.
 
-Then ask for approval. Only on an explicit "yes" proceed to §4/§5. On "no", stop —
-no writes happened.
+This complete Program preview is the **single user approval** for the default
+planning run. Only on an explicit "yes" proceed to §4/§5/§7; when a later
+per-wave maturity pass reproduces the approved cut, **do not ask for another per-wave approval**.
+Ask again only when new evidence changes structure or exposes
+a genuinely undecided gate. On "no", stop — no writes happened.
 
 ## 4. Publish — the fixed order
 
 After approval, publish in **exactly this order** (issue CREATES stay sequential so
 the numbering is deterministic; only the field stamps are batched):
 
-1. **Wave stubs — Stufe 1p.** One per Wellenplan row, native parent = the PRD.
+1. **Wave stubs — transient Stufe 1p.** One per Wellenplan row, native parent = the PRD.
    Title `Welle <N> — <Name>`; created with the `wave-stub` label and Status Spec.
    Body = the Stufe-1p stub template (named header, the program idempotency marker,
-   the revision marker — see §6). Not yet Wave/Phase-stamped (that is step 4).
+   the revision marker — see §6). This is a crash-recovery checkpoint inside the
+   run, never its successful terminal state. Not yet Wave/Phase-stamped (step 4).
    ```bash
    python3 scripts/board-sync.py create --title "Welle <N> — <Name>" \
      --body-file <stub.md> --wave-stub --status-role spec
    ```
-2. **Slice leaves.** One per slice under each wave, native parent = its stub. Created
-   with the spec-role status and **no** `ready-for-agent` (a leaf is not buildable until its
+2. **Preliminary slice leaves for multi-slice waves.** Create one per slice under
+   each wave whose approved cut contains ≥2 slices, native parent = its stub. For
+   an exactly-one-slice wave, **do not create a preliminary child**: keep that
+   slice's metadata on the stub so step 6 can turn the stub itself into the atomic
+   executable wave leaf without a duplicate identity. Preliminary children use
+   the spec-role status and **no** `ready-for-agent` (a leaf is not buildable until its
    wave is promoted — the ordering guard stays unambiguous). Body = the slice's
    `## Slices` section carried forward per `SLICE-METADATA-FORMAT.md` (metadata block +
-   the outcome/placeholder skeleton, sharpened only at promotion). **Title carries the
+   the outcome/placeholder skeleton, finalized in step 6). **Title carries the
    navigation prefix** `Welle <N> / Slice <local-id> — <title>` — the local-id
    (`1a`, `1b`, …) encodes the build order, so the sub-issue LIST is navigable by title
    alone (same convention as `to-issues`' promoted children, `Welle N / Slice X — <outcome>`).
@@ -131,10 +143,22 @@ the numbering is deterministic; only the field stamps are batched):
    ```bash
    python3 scripts/board-sync.py program-sync <prd#>
    ```
-6. **Counted completion report + program view link.** Report `X von Y` for each part
-   (stubs created, leaves created, issues adopted, field stamps set) and link the
-   program board view. Completeness is **counted, never claimed** — the numbers come
-   from the create outputs + the `stamp-batch` response, not from memory.
+6. **Mature every wave.** For each stub in dependency order, run the approved
+   Program batch handoff: `to-prd` Mode B writes the per-wave Draft-PRD,
+   `spec-self-critique` hardens it, and `to-issues` promotes/atomizes it while
+   reusing the preliminary leaves. The pass writes complete issue bodies, final
+   AFK/HITL buckets, handoffs, native dependencies, `plan_revision`, and removes
+   `wave-stub`. It inherits the §3 approval when the cut is unchanged.
+7. **Audit every wave.** Run `execute-ready-check.py --mode audit` on every promoted
+   anchor or atomic wave leaf. Any incomplete placeholder, incoherent revision,
+   missing bucket, or child-set mismatch blocks successful completion. **Program completion gate:**
+   Although `to-issues` uses audit mode as an informational handoff check, **do not count that wave as matured** or report
+   Program success until its audit findings are clean.
+8. **Counted completion report + program view link.** Report `X von Y` for each part
+   (stubs created, leaves adopted/created, field stamps set, waves matured, waves
+   execute-ready) and link the program board view. Completeness is **counted, never
+   claimed** — the numbers come from the commands, including the exact line
+   `X von Y Wellen ausführungsreif`.
 
 ## 5. Adopt path — referenced existing issues
 
@@ -176,6 +200,10 @@ A re-run of to-waves on the same program is **delta-apply** and doubles as
   report as **orphaned** (do not auto-close — closing is the abort convention, §8).
   Cross-check the native children (`children-of <prd#>` and each stub) against the
   plan so both origins are covered.
+- **Atomic supersession exception.** A marked preliminary leaf whose local-id maps
+  to the one slice now carried by its atomic stub is not a generic orphan. Route it
+  to `to-issues` §5b cleanup whether it is still linked or was already unlinked by
+  an interrupted run. Search-by-marker is the durable recovery identity.
 - **Crash recovery.** Because create is search-before-create, `link` is idempotent,
   and `stamp-batch` field-sets are idempotent, re-running the whole publish after an
   abort resumes cleanly — already-created issues match, missing ones are created,
@@ -191,7 +219,7 @@ A re-run of to-waves on the same program is **delta-apply** and doubles as
   (the same sanctioned body-write `to-prd` Mode B uses). The mechanism that renews
   coherence is the same one the revision broke — it self-repairs.
 
-## 7. Program-grill agenda + the per-wave-start content pass
+## 7. Program completion contract
 
 to-waves also carries the **program-grill agenda** as a reference chapter — the
 checklist a program grill (upstream) should cover so the wave plan does not rest on
@@ -211,12 +239,22 @@ open switches:
   single bounded choice to `decision-gate` — not deferred into the plan as an open
   task.
 
-**The per-wave-start content pass** is where slice content is sharpened — deliberately
-**just-in-time (Late Binding)**, never ex ante on spec. When a wave is promoted:
-`to-prd` (Mode B, into the wave stub) + `spec-self-critique` are **mandatory**, and
-the depth ladder is **raised for a high-stakes wave** (a design-grill or a
-`decision-gate` before slicing). This is what folds in any drift propagated since the
-plan was first written.
+**Default postcondition:** every published wave is fully planned and passes the
+shared execute-ready audit before this run reports success. Stufe 1p is an
+internal recovery state, not the result presented to the user. **Late Binding is not the default**
+for unfinished issue prose or missing buckets.
+
+Uncertainty is planned, not hidden. A bounded trade-off becomes an explicit
+**Decision Gate**, a factual unknown becomes a **Verify Spike**, and an unresolved
+structure seam becomes a HITL **Design-Grill** slice (or an explicitly named
+planning wave). Place that gate before its dependent build slice and write the
+native blocking edge. The gate issue itself still receives a complete contract and
+handoff; the dependent work is blocked, not vaguely under-planned.
+
+A mandatory human or external setup action follows the same rule: model it as a
+HITL predecessor, never bury it inside a `ready-for-agent` build leaf. If later
+drift invalidates an already planned wave, use the revision/escalation path in §8;
+do not pre-emptively leave every future wave incomplete.
 
 ## 8. Close protection, abort convention, escalation path
 
@@ -255,6 +293,7 @@ python3 scripts/board-sync.py program-sync <prd#>
 to-waves: prd=#<n> preview=<approved|rejected>
   created=<stubs X von Y, leaves X von Y>  adopted=<#a #b … | none>
   stamped=<N von M Wave/Phase>  phase=<stamped | skipped (profile lacks fields.phase)>
+  matured=<X von Y>  execute-ready=<X von Y Wellen ausführungsreif>
   revision=r<N>  renewed-markers=<count | none>  orphaned=<#… | none>
   graph=<ok | blocking: …>  program-view=<url>
 ```
