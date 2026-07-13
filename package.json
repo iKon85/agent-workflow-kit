@@ -1,6 +1,6 @@
 {
   "name": "agent-workflow-kit",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Portable AI-agent workflow skills (plan → execute → land → learn) for Claude Code & Codex — grilling, TDD, diagnosis, two-axis code review, cross-model Codex review, design & domain-modeling, plus a skill router (ask-matt). npx init/update/diff/uninstall.",
   "type": "module",
   "bin": {
@@ -13,7 +13,8 @@
     "kit:build": "node scripts/build-kit.mjs",
     "kit:staleness": "node scripts/check-kit-staleness.mjs",
     "release:prepare": "node scripts/kit-release.mjs",
-    "release:guard": "node scripts/release-delta-guard.mjs"
+    "release:guard": "node scripts/release-delta-guard.mjs",
+    "release:status": "node scripts/release-state.mjs --status"
   },
   "files": [
     ".claude/",

@@ -332,6 +332,13 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.11.0
+
+- added: `scripts/release-parity.mjs`
+- added: `scripts/release-state.mjs`
+- changed: `.agents/skills/kit-release/SKILL.md`
+- changed: `.claude/skills/kit-release/SKILL.md`
+
 ### 0.10.0
 
 - added: `.agents/skills/kit-release/SKILL.md`

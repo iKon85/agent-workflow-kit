@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.10.0",
+  "kitVersion": "0.11.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -321,7 +321,7 @@
       "kind": "skill",
       "ownerSkill": "kit-release",
       "surface": "codex",
-      "sha256": "e24be892d52e29bf1add2a417afb34d17e9e5fa46ba1014ba81b4ad7069f905e",
+      "sha256": "73ed2d0387eb189463a3edc9b87e62b4bd60456dcc7ea02cb775092f11bbba75",
       "mode": 420,
       "origin": "kit"
     },
@@ -1267,7 +1267,7 @@
       "kind": "skill",
       "ownerSkill": "kit-release",
       "surface": "claude",
-      "sha256": "e24be892d52e29bf1add2a417afb34d17e9e5fa46ba1014ba81b4ad7069f905e",
+      "sha256": "73ed2d0387eb189463a3edc9b87e62b4bd60456dcc7ea02cb775092f11bbba75",
       "mode": 420,
       "origin": "kit"
     },
@@ -1925,6 +1925,20 @@
       "path": "scripts/release-delta-guard.mjs",
       "kind": "script",
       "sha256": "37a6f27b350bb98a19a8c53e1f6ee187b3a39c0ff5317141717bf9ab65129bad",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/release-parity.mjs",
+      "kind": "script",
+      "sha256": "faa4a1d1116d58f69c8541a586ebd6076ebc3f7af7809e9e4a53928f49298365",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/release-state.mjs",
+      "kind": "script",
+      "sha256": "e24fdf852eefe6dc268716ba0af789453a95c987d8253c5fab8233fcdc8e7814",
       "mode": 420,
       "origin": "kit"
     },

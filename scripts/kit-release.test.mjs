@@ -13,6 +13,8 @@ test('the install manifest ships both release primitives named by the skill', as
   const paths = manifest.files.map((entry) => entry.path);
   assert.ok(paths.includes('scripts/kit-release.mjs'));
   assert.ok(paths.includes('scripts/release-delta-guard.mjs'));
+  assert.ok(paths.includes('scripts/release-parity.mjs'));
+  assert.ok(paths.includes('scripts/release-state.mjs'));
 });
 
 test('patch, minor, and major confirmations select exactly one target version', () => {

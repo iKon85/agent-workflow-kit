@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14
+          registry-url: 'https://registry.npmjs.org'
+      - name: Use Trusted-Publishing-capable npm
+        run: npm install --global npm@11.5.1
+      - run: npm install --ignore-scripts
+      - run: npm test
+      - run: npm run kit:staleness
+      - name: Publish npm, verify readback, then create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-state.mjs
