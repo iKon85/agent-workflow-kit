@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.16.0",
+  "kitVersion": "0.16.1",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -339,7 +339,7 @@
       "kind": "skill",
       "ownerSkill": "kit-update",
       "surface": "codex",
-      "sha256": "26737ea49ac104260e56fd1604f60249ca1d59f1a2c1f22db55649833d01ebc3",
+      "sha256": "5b7a8c11b5852ee115fa8d3f66a3938d7b4db173a47d711da48abab635b2c261",
       "mode": 420,
       "origin": "kit"
     },
@@ -717,7 +717,7 @@
       "kind": "skill",
       "ownerSkill": "to-prd",
       "surface": "codex",
-      "sha256": "f626fd0f451dd49d14d1d075da787f075853810926c1ace54ffa19152e3d5799",
+      "sha256": "0c7c556dfae2641a452ba5874e2e977b3e6f33d941b40be93b5009cb1d959ff8",
       "mode": 420,
       "origin": "kit"
     },
@@ -857,7 +857,7 @@
     {
       "path": ".claude/hooks/drift-guard.py",
       "kind": "hook",
-      "sha256": "7497ef4bf0ab7acd681510083d10ad79753254bc6f3d435e86d529e2abc61ef3",
+      "sha256": "8a031ff04b7aa11ac7c4713de10634e1d1521ca9fbb82fc458a86f78f6d7d1cf",
       "mode": 493,
       "origin": "kit"
     },
@@ -1321,7 +1321,7 @@
       "kind": "skill",
       "ownerSkill": "kit-update",
       "surface": "claude",
-      "sha256": "26737ea49ac104260e56fd1604f60249ca1d59f1a2c1f22db55649833d01ebc3",
+      "sha256": "5b7a8c11b5852ee115fa8d3f66a3938d7b4db173a47d711da48abab635b2c261",
       "mode": 420,
       "origin": "kit"
     },
@@ -1717,7 +1717,7 @@
       "kind": "skill",
       "ownerSkill": "to-prd",
       "surface": "claude",
-      "sha256": "b9e185d590853296fc0779f55b9dce58aacb424949409905e61f5758532c5009",
+      "sha256": "38352d6e792114cc6c2352c34af841033ccaf06cf34e9ccab1bc76b51a0ca4a1",
       "mode": 420,
       "origin": "kit"
     },

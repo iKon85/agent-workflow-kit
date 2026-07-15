@@ -44,6 +44,19 @@ the matching GitHub release contain the same artifact.
    resume the transaction through the update API's `resumeFrom` option. Do not
    copy staged files into the consumer by hand.
 
+5. Check the optional project census after the update:
+
+   ```sh
+   python3 .claude/hooks/drift-guard.py --census-status
+   ```
+
+   When the report names a newer census builder or `refresh_required`, advise
+   the user to run `$census-update`. The kit updater must never overwrite a
+   consumer-owned census, profile, local scanner, decision, or override. A
+   missing, disabled, unactivated, or temporarily unavailable census remains a
+   visible manual-walk condition and does not invalidate an otherwise verified
+   kit update.
+
 ## State contract
 
 The update API reports `checking -> preview/awaiting_decision -> staging ->

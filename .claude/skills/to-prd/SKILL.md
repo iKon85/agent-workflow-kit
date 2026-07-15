@@ -76,6 +76,24 @@ gh project item-list 1 --owner <owner> --limit 500 --format json   # check targe
    - `<!-- prd-source-id: <id> -->` + `<!-- prd-content-fp: <hash> -->` (see step 3).
 5. **Mode B label normalization:** if the reused issue carries wrong/multiple `type:*`, missing `priority:*`, `ready-for-agent`, or `needs-info` → **normalize onto the PRD contract** (exactly one `type:*`, one `priority:*`, no `ready-for-agent`/`needs-info`). Exception per the discriminator (§2): `type:cluster` always, or Wave **without** `wave-stub` → **no** normalization, **hard stop** (step 2); a `wave-stub`-labeled Stufe-1p target normalizes normally — it is a valid Mode B target.
 
+### Census freshness before a cross-cutting lock
+
+When the PRD claims completeness across several product surfaces, run
+`python3 .claude/hooks/drift-guard.py --census-status` before the board write.
+An activated census reporting `refresh_required` means the cross-cutting PRD
+must not be locked: run `$census-update`, resolve every open surface, and retry.
+`disabled`, `no_census`, `bootstrap`, or `offline` stays visible and fail-open;
+perform and report the existing manual walk instead. This gate does not apply
+to an orthogonal, surface-local PRD.
+
+A justified change-local override may acknowledge only a proven mechanical
+false positive. It must carry `scope: "this change"`, a non-empty `reason`, and
+the exact `topologyFingerprint` reported as `change_binding` by the current
+status check. That binding is valid only for those freshly scanned topology
+facts; a later topology change makes the persisted override stale. The
+override never changes scanner facts, builder/topology fingerprints, open
+verdicts, or state resolution, and therefore cannot green real drift.
+
 ## 4b. Program-PRD body (mode=program)
 
 mode=program writes the Program-PRD per `.claude/skills/to-prd/PROGRAM-PRD-FORMAT.md` instead of the `<prd-template>` below — a **parallel** grammar for the program altitude, not a replacement (a Feature-PRD keeps using `<prd-template>` unchanged). It carries: the `## Scope` chapter with stable Scope-Item IDs (`S1`, `S2`, …), the machine-parsable `## Wellenplan` table (`Welle | Status | Name | Phase | Slices | Gate | covers`), the `## Phasen-Gates` checklist (only when the program uses phases), the `## Slices` per-slice detail chapter (one `####` section per planned slice, per `SLICE-METADATA-FORMAT.md`'s grammar), and the Abbruch-Konvention. `scripts/program_graph.py` (`board-sync.py validate-graph`) is the parser — to-prd writes the shape, it does not itself validate the graph (that is `to-waves`'s job, run once the Program-PRD exists).
