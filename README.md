@@ -332,6 +332,15 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.16.3
+
+- changed: `.agents/skills/grill-me/SKILL.md`
+- changed: `.agents/skills/grill-with-docs/SKILL.md`
+- changed: `.claude/skills/grill-me-codex/SKILL.md`
+- changed: `.claude/skills/grill-me/SKILL.md`
+- changed: `.claude/skills/grill-with-docs-codex/SKILL.md`
+- changed: `.claude/skills/grill-with-docs/SKILL.md`
+
 ### 0.16.2
 
 - Metadata-only release.
