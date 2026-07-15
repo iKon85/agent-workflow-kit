@@ -14,17 +14,21 @@ Accepted gap: Bash redirect / tee / cp into `.handoff/` is not covered — the
 threat model is "skill/agent forgot", not an adversary; handoff writes via Write.
 
 Mechanism: self-filters to `.handoff/*.md`; extracts the issue (content anchor
-first, filename fallback); delegates ALL coherence to scripts/execute-ready-check.py
-(--mode handoff). Deny = exit 2 + stderr (house pattern: enforce-worktree.py,
-block-secrets.py). Override: a deliberate `<!-- guard-ack: #<n> r<N> reason:… by-user -->`
-in the content. fail-closed once a target is parsed (the checker enforces that);
-fail-OPEN when no handoff target is identifiable (not the stale handoff we guard).
+first, filename fallback); delegates graph coherence to
+scripts/execute-ready-check.py (`--mode handoff`) and census state/fingerprint
+evaluation to `scripts/census/index.mjs`. Deny = exit 2 + stderr (house pattern:
+enforce-worktree.py, block-secrets.py). A deliberate
+`<!-- guard-ack: #<n> r<N> reason:… by-user -->` overrides only the graph gate,
+never activated census drift. fail-closed once a target is parsed (the checker
+enforces that); fail-OPEN when no handoff target is identifiable (not the stale
+handoff we guard).
 
 Audit log: .claude/logs/drift-guard.log
 """
 import importlib.util
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -41,6 +45,65 @@ GUARD_ACK_RE = re.compile(r"<!--\s*guard-ack:\s*#?\d+\s+r\d+\s+reason:.+\bby-use
 
 # Load the shared checker (hyphenated filename → importlib). Repo root = parents[2].
 _CHECKER_PATH = Path(__file__).resolve().parents[2] / "scripts" / "execute-ready-check.py"
+_CENSUS_MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "census" / "index.mjs"
+
+_CENSUS_SCAN = r"""
+import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+const { modulePath, repoRoot, profileJson, activeJson } = JSON.parse(readFileSync(0, 'utf8'));
+const {
+  CENSUS_BUILDER_VERSION,
+  CENSUS_VERDICTS,
+  diffCensus,
+  fingerprintCensus,
+  resolveCensusState,
+  scanCensus,
+} = await import(pathToFileURL(modulePath).href);
+const profile = JSON.parse(profileJson);
+const active = activeJson ? JSON.parse(activeJson) : null;
+const behaviorFamilies = (profile.decisions || []).map(({ family, status }) => ({
+  name: family,
+  status,
+}));
+const fresh = await scanCensus({
+  repoRoot,
+  enabled: Boolean(profile.enabled),
+  hasActive: active !== null,
+  behaviorFamilies,
+});
+const calculated = fingerprintCensus(fresh);
+if (calculated.builder !== fresh.fingerprints.builder
+    || calculated.topology !== fresh.fingerprints.topology) {
+  throw new Error('census fingerprint API returned inconsistent facts');
+}
+const reasons = [];
+if (active !== null && active.fingerprints?.builder !== fresh.fingerprints.builder) reasons.push('builder');
+if (active !== null && active.fingerprints?.topology !== fresh.fingerprints.topology) reasons.push('topology');
+const hasOpen = [...fresh.families.surfaces, ...fresh.families.behaviors]
+  .some(({ status }) => status === CENSUS_VERDICTS.open);
+if (hasOpen) reasons.push('open');
+const delta = active === null ? null : diffCensus(active, fresh);
+const denominatorUnchanged = delta !== null
+  && Object.values(delta).every((paths) => paths.length === 0);
+const familiesUnchanged = active !== null
+  && JSON.stringify(active.families) === JSON.stringify(fresh.families);
+const mechanicalFalsePositive = reasons.length === 1
+  && reasons[0] === 'topology'
+  && denominatorUnchanged
+  && familiesUnchanged;
+const state = resolveCensusState({
+  enabled: Boolean(profile.enabled),
+  hasActive: active !== null,
+  hasOpen: hasOpen || reasons.includes('builder') || reasons.includes('topology'),
+});
+process.stdout.write(JSON.stringify({
+  builderVersion: CENSUS_BUILDER_VERSION,
+  fresh: { ...fresh, state },
+  mechanicalFalsePositive,
+  reasons,
+  state,
+}));
+"""
 
 
 _CHECKER = None
@@ -97,7 +160,7 @@ def run_check(issue: int, intent: str) -> dict:
     try:
         checker = _load_checker()
         return checker.build_and_evaluate(issue, "handoff", intent)
-    except Exception as e:
+    except (Exception, SystemExit) as e:
         # checker itself unavailable → fail-closed (a target was identified)
         log(HOOK_NAME, f"checker load/exec failed: {e} → fail-closed")
         return {"deny_recommended": True, "graph_coherent": False,
@@ -108,8 +171,92 @@ def run_check(issue: int, intent: str) -> dict:
 def _infer_intent(content: str) -> str:
     try:
         return _load_checker().infer_intent(content)
-    except Exception:
+    except (Exception, SystemExit):
         return "build"
+
+
+def scan_census_status(repo_root: Path) -> dict:
+    """Scan census facts through the shipped JavaScript API, never a hook-local
+    copy of its state or fingerprint rules."""
+    profile_path = repo_root / ".census" / "profile.json"
+    active_path = repo_root / ".census" / "active.json"
+    profile = profile_path.read_text(encoding="utf-8")
+    active = active_path.read_text(encoding="utf-8") if active_path.exists() else ""
+    completed = subprocess.run(
+        ["node", "--input-type=module", "-e", _CENSUS_SCAN],
+        capture_output=True,
+        check=True,
+        input=json.dumps({
+            "modulePath": str(_CENSUS_MODULE_PATH),
+            "repoRoot": str(repo_root),
+            "profileJson": profile,
+            "activeJson": active,
+        }),
+        text=True,
+        timeout=15,
+    )
+    return json.loads(completed.stdout)
+
+
+def evaluate_census(repo_root: Path) -> dict:
+    """Return the activation-aware handoff verdict.
+
+    Missing/disabled/unactivated/unavailable census remains visible but does not
+    gate ordinary work. Only an activated refresh requirement blocks a build
+    handoff. Consumer overrides are reported and deliberately never fed into
+    scanning, fingerprinting, or state resolution.
+    """
+    profile_path = repo_root / ".census" / "profile.json"
+    active_path = repo_root / ".census" / "active.json"
+    if not profile_path.exists():
+        return {"state": "no_census", "block_handoff": False, "detail": "manual walk required",
+                "reasons": [], "overrides": [], "override_applied": False}
+    try:
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    except Exception as error:
+        return {"state": "failed", "block_handoff": active_path.exists(), "detail": str(error),
+                "reasons": ["profile"], "overrides": [], "override_applied": False}
+    try:
+        result = scan_census_status(repo_root)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return {"state": "offline", "block_handoff": False, "detail": str(error),
+                "reasons": [], "overrides": profile.get("overrides", []), "override_applied": False}
+    except Exception as error:
+        return {"state": "failed", "block_handoff": active_path.exists(), "detail": str(error),
+                "reasons": ["scan"], "overrides": profile.get("overrides", []),
+                "override_applied": False}
+    state = result["state"]
+    activated = active_path.exists()
+    overrides = profile.get("overrides", [])
+    justified_change_local = any(
+        override.get("scope") == "this change" and bool(override.get("reason"))
+        for override in overrides
+        if isinstance(override, dict)
+    )
+    override_applied = result["mechanicalFalsePositive"] and justified_change_local
+    return {
+        "state": state,
+        "block_handoff": activated and state == "refresh_required" and not override_applied,
+        "detail": f"builder {result['builderVersion']}",
+        "reasons": result["reasons"],
+        "overrides": overrides,
+        "override_applied": override_applied,
+    }
+
+
+def build_census_block_message(issue: int, result: dict) -> str:
+    reasons = ", ".join(result.get("reasons", [])) or "activated census is stale"
+    lines = [
+        f"CENSUS — Build-Handoff für #{issue} BLOCKED ({result.get('state', 'refresh_required')}):",
+        "",
+        f"  · {reasons}",
+        "  · run `$census-update` and activate a verified current census",
+    ]
+    if result.get("overrides"):
+        lines += [
+            "  · change-local overrides remain visible but cannot green real drift",
+        ]
+    return "\n".join(lines)
 
 
 def should_block(payload: dict):
@@ -117,14 +264,18 @@ def should_block(payload: dict):
     if not is_handoff_write(payload):
         return False, ""
     content = extract_content(payload)
-    if GUARD_ACK_RE.search(content):
-        log(HOOK_NAME, "guard-ack override present → allow")
-        return False, ""
     issue = extract_issue(payload, content)
     if issue is None:
         log(HOOK_NAME, "no identifiable issue target → fail-open allow")
         return False, ""
     intent = _infer_intent(content)
+    census = evaluate_census(Path.cwd())
+    log(HOOK_NAME, f"census state={census['state']} reasons={census.get('reasons', [])}")
+    if intent == "build" and census.get("block_handoff"):
+        return True, build_census_block_message(issue, census)
+    if GUARD_ACK_RE.search(content):
+        log(HOOK_NAME, "guard-ack override present → allow graph gate only")
+        return False, ""
     result = run_check(issue, intent)
     if result.get("deny_recommended"):
         return True, build_block_message(issue, intent, result)
@@ -155,6 +306,9 @@ def build_block_message(issue: int, intent: str, result: dict) -> str:
 
 
 def main() -> int:
+    if sys.argv[1:] == ["--census-status"]:
+        print(json.dumps(evaluate_census(Path.cwd()), sort_keys=True))
+        return 0
     try:
         payload = json.load(sys.stdin)
     except Exception as e:
