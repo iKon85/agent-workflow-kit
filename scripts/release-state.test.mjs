@@ -4,13 +4,14 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  createCommandAdapter, githubReleaseArgs, inspectRelease, isMissingRelease, reconcileRelease,
+  createCommandAdapter, githubReleaseArgs, inspectRelease, isMissingRelease,
+  npmTarballFilename, reconcileRelease,
 } from './release-state.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const identity = {
-  name: 'agent-workflow-kit', version: '1.2.3',
+  name: '@ikon85/agent-workflow-kit', version: '1.2.3',
   tarballIntegrity: 'sha512-example', manifestSha256: 'abc123',
 };
 
@@ -91,8 +92,15 @@ test('the production publisher explicitly requests npm provenance', async () => 
 
 test('an incomplete GitHub release resumes by uploading the verified registry tarball', () => {
   assert.deepEqual(githubReleaseArgs({
-    exists: true, tag: 'v1.2.3', tarball: '/tmp/agent-workflow-kit-1.2.3.tgz', target: 'abc123',
+    exists: true, tag: 'v1.2.3', tarball: '/tmp/ikon85-agent-workflow-kit-1.2.3.tgz', target: 'abc123',
   }), [
-    'release', 'upload', 'v1.2.3', '/tmp/agent-workflow-kit-1.2.3.tgz', '--clobber',
+    'release', 'upload', 'v1.2.3', '/tmp/ikon85-agent-workflow-kit-1.2.3.tgz', '--clobber',
   ]);
+});
+
+test('a scoped npm identity maps to the registry tarball asset name', () => {
+  assert.equal(
+    npmTarballFilename('@ikon85/agent-workflow-kit', '1.2.3'),
+    'ikon85-agent-workflow-kit-1.2.3.tgz',
+  );
 });

@@ -56,11 +56,17 @@ merge, registry publishing, tags, or release creation.
    release asset have identical version, manifest hash, and tarball integrity.
    The release is complete only at `released`.
 
+   The registry identity is **`@ikon85/agent-workflow-kit`**. The unscoped
+   `agent-workflow-kit` package is owned by another publisher and must never be
+   queried, published, or treated as this repository's release.
+
    Before the first real release, the npm package must name this repository's
    exact `.github/workflows/release.yml` as its GitHub Trusted Publisher. If it
-   is not configured, stop for that one-time maintainer action. Never request,
-   store, or substitute an npm token, and never publish or create a release ad
-   hoc.
+   does not exist yet, stop for a separately confirmed one-time bootstrap
+   publish; npm only permits trust configuration for an existing package. That
+   bootstrap creates the scoped package but does not replace the first real
+   OIDC/provenance release. Never request, store, or substitute an npm token,
+   and never publish or create a release ad hoc beyond that explicit bootstrap.
 
 ## Guard contract
 

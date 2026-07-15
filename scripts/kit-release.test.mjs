@@ -17,6 +17,14 @@ test('the install manifest ships both release primitives named by the skill', as
   assert.ok(paths.includes('scripts/release-state.mjs'));
 });
 
+test('both release skill surfaces name only the owned scoped npm package', async () => {
+  const claude = await readFile(join(REPO, '.claude/skills/kit-release/SKILL.md'), 'utf8');
+  const codex = await readFile(join(REPO, '.agents/skills/kit-release/SKILL.md'), 'utf8');
+  for (const body of [claude, codex]) {
+    assert.match(body, /`@ikon85\/agent-workflow-kit`/);
+  }
+});
+
 test('patch, minor, and major confirmations select exactly one target version', () => {
   assert.equal(nextVersion('1.2.3', 'patch'), '1.2.4');
   assert.equal(nextVersion('1.2.3', 'minor'), '1.3.0');

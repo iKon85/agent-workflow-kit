@@ -10,7 +10,7 @@ import { assertReleaseParity, releaseIdentityFromTarball } from './release-parit
 const exec = promisify(execFile);
 
 const identity = {
-  name: 'agent-workflow-kit',
+  name: '@ikon85/agent-workflow-kit',
   version: '1.2.3',
   tarballIntegrity: 'sha512-example',
   manifestSha256: 'abc123',

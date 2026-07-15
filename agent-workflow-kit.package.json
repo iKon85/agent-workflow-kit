@@ -321,7 +321,7 @@
       "kind": "skill",
       "ownerSkill": "kit-release",
       "surface": "codex",
-      "sha256": "73ed2d0387eb189463a3edc9b87e62b4bd60456dcc7ea02cb775092f11bbba75",
+      "sha256": "d05a4059a19816ff302c119f797f1ea2b71554ecffac7a8f0b919cfe5517d940",
       "mode": 420,
       "origin": "kit"
     },
@@ -1267,7 +1267,7 @@
       "kind": "skill",
       "ownerSkill": "kit-release",
       "surface": "claude",
-      "sha256": "73ed2d0387eb189463a3edc9b87e62b4bd60456dcc7ea02cb775092f11bbba75",
+      "sha256": "d05a4059a19816ff302c119f797f1ea2b71554ecffac7a8f0b919cfe5517d940",
       "mode": 420,
       "origin": "kit"
     },
@@ -1938,7 +1938,7 @@
     {
       "path": "scripts/release-state.mjs",
       "kind": "script",
-      "sha256": "51ef8e5f7698dfb663a2ee66522be48e6aeadbdc5f6cbb34f71443111776cf98",
+      "sha256": "2aae056a8e0e945dbf68298236719c78e22f13dbd8f0c3466b969355d3809058",
       "mode": 420,
       "origin": "kit"
     },

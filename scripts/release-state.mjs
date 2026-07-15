@@ -65,6 +65,10 @@ export function githubReleaseArgs({ exists, tag, tarball, target }) {
   ];
 }
 
+export function npmTarballFilename(name, version) {
+  return `${name.replace(/^@/, '').replaceAll('/', '-')}-${version}.tgz`;
+}
+
 async function packedTarball(run, spec, directory, repoRoot) {
   const { stdout } = await run(
     'npm', ['pack', spec, '--json', '--pack-destination', directory], { cwd: repoRoot },
@@ -104,7 +108,7 @@ function releaseReaders(context) {
       throw error;
     }
     try {
-      const asset = `${identity.name}-${identity.version}.tgz`;
+      const asset = npmTarballFilename(identity.name, identity.version);
       await run('gh', ['release', 'download', tag, '--pattern', asset, '--dir', scratch, '--clobber'], {
         cwd: repoRoot, env,
       });
