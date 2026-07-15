@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.16.2",
+  "kitVersion": "0.16.3",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -186,7 +186,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me",
       "surface": "codex",
-      "sha256": "f50458c12f3d87d060495ff83c8950d81d1918d537eccfabbec8762f1982353b",
+      "sha256": "132cb0e6bf3e1b5b71575f4d2707880c7ffb844ccfa2c71a80270f891d04b724",
       "mode": 420,
       "origin": "kit"
     },
@@ -222,7 +222,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "codex",
-      "sha256": "aebf5b7456ecc80d9c1d2e7ab611b736ed949bf5c464549bb462ca37b883e4c7",
+      "sha256": "06a68913f904ce9bb1b21c86f146a6738b401da07eb57fb3c97a4eec00b58de6",
       "mode": 420,
       "origin": "kit"
     },
@@ -1114,7 +1114,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me-codex",
       "surface": "claude",
-      "sha256": "739a19b4bf176fb9e23479081e308941e77e207641a713f408fb6524c145b73d",
+      "sha256": "ab73dd6b147e05837082db5d5ab68ab118e51e59767a717c8b7a0262cfbd07b5",
       "mode": 420,
       "origin": "kit"
     },
@@ -1132,7 +1132,7 @@
       "kind": "skill",
       "ownerSkill": "grill-me",
       "surface": "claude",
-      "sha256": "939592b2e4dc7fec77a61dc8d08f53fd93c62d8a8883fd83aa70773a9d00b975",
+      "sha256": "01e95acd6abb396c4f4c3ec7980b79f81bbee22d45247e96f1fe130fea3f5dbe",
       "mode": 420,
       "origin": "kit"
     },
@@ -1168,7 +1168,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs-codex",
       "surface": "claude",
-      "sha256": "6704f3e0589f9c0527e4f02383ec7373bcf42ed159088eca331f9dcdebc22faa",
+      "sha256": "5c7635bf31a3dc575762793ae80dfe7a26498aedcf7f1ce0513822ea1ebdb100",
       "mode": 420,
       "origin": "kit"
     },
@@ -1204,7 +1204,7 @@
       "kind": "skill",
       "ownerSkill": "grill-with-docs",
       "surface": "claude",
-      "sha256": "818272989fb59221cabb83f47b6e66c3b06e33b676a04579af9c3a4c9040ec9e",
+      "sha256": "6250d2e64ba1248bbd40dd0c7018ab432eda4010ebc34f6c9eccefd514a1f22b",
       "mode": 420,
       "origin": "kit"
     },
