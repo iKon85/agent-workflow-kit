@@ -29,6 +29,7 @@ import importlib.util
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -50,8 +51,16 @@ _CENSUS_MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "census"
 
 _CENSUS_SCAN = r"""
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-const { modulePath, repoRoot, profileJson, activeJson } = JSON.parse(readFileSync(0, 'utf8'));
+const input = JSON.parse(readFileSync(0, 'utf8'));
+const { modulePath, repoRoot, profileJson, activeJson, localScanners } = input;
+const writeResult = process.stdout.write.bind(process.stdout);
+// Repository-local proof modules are allowed to be noisy. Keep their output
+// captured so neither scanner/test output nor accidentally-read content reaches
+// the hook protocol or the CLI status response.
+process.stdout.write = () => true;
+process.stderr.write = () => true;
 const {
   CENSUS_BUILDER_VERSION,
   CENSUS_VERDICTS,
@@ -78,10 +87,37 @@ if (calculated.builder !== fresh.fingerprints.builder
   throw new Error('census fingerprint API returned inconsistent facts');
 }
 const reasons = [];
+for (const record of localScanners) {
+  const reason = `proof:${record.surface}`;
+  if (record.validationError) {
+    reasons.push(reason);
+    continue;
+  }
+  const test = spawnSync(process.execPath, ['--test', record.testPath], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: 'pipe',
+    timeout: 15000,
+  });
+  if (test.status !== 0 || test.error) {
+    reasons.push(reason);
+    continue;
+  }
+  try {
+    const scannerModule = await import(`${pathToFileURL(record.modulePath).href}?proof=${Date.now()}`);
+    const scanner = scannerModule[record.exportName];
+    const result = typeof scanner === 'function' ? await scanner() : null;
+    if (result === null || typeof result.includes !== 'function'
+        || !result.includes(record.surface)) reasons.push(reason);
+  } catch {
+    reasons.push(reason);
+  }
+}
 if (active !== null && active.fingerprints?.builder !== fresh.fingerprints.builder) reasons.push('builder');
 if (active !== null && active.fingerprints?.topology !== fresh.fingerprints.topology) reasons.push('topology');
-const hasOpen = [...fresh.families.surfaces, ...fresh.families.behaviors]
-  .some(({ status }) => status === CENSUS_VERDICTS.open);
+const hasOpen = reasons.some((reason) => reason.startsWith('proof:'))
+  || [...fresh.families.surfaces, ...fresh.families.behaviors]
+    .some(({ status }) => status === CENSUS_VERDICTS.open);
 if (hasOpen) reasons.push('open');
 const delta = active === null ? null : diffCensus(active, fresh);
 const denominatorUnchanged = delta !== null
@@ -97,7 +133,7 @@ const state = resolveCensusState({
   hasActive: active !== null,
   hasOpen: hasOpen || reasons.includes('builder') || reasons.includes('topology'),
 });
-process.stdout.write(JSON.stringify({
+writeResult(JSON.stringify({
   builderVersion: CENSUS_BUILDER_VERSION,
   changeBinding: fresh.fingerprints.topology,
   fresh: { ...fresh, state },
@@ -109,6 +145,10 @@ process.stdout.write(JSON.stringify({
 
 
 _CHECKER = None
+
+
+class CensusFileError(Exception):
+    """A census control file failed the contained-regular-file contract."""
 
 
 def _load_checker():
@@ -179,6 +219,73 @@ def resolve_handoff_repo_root(payload: dict) -> Path:
     return claimed_root
 
 
+def _path_entry_exists(path: Path) -> bool:
+    """Unlike exists(), count dangling symlinks as present activation state."""
+    try:
+        path.lstat()
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def _contained_regular_file(repo_root: Path, local_path) -> Path | None:
+    """Resolve a readable repo-local regular file without following a final link."""
+    if not isinstance(local_path, str) or not local_path or Path(local_path).is_absolute():
+        return None
+    lexical_root = Path(os.path.abspath(repo_root))
+    candidate = Path(os.path.abspath(lexical_root / local_path))
+    try:
+        candidate.relative_to(lexical_root)
+    except ValueError:
+        return None
+    try:
+        info = candidate.lstat()
+        if not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode):
+            return None
+        if not info.st_mode & (stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH):
+            return None
+        canonical_root = lexical_root.resolve(strict=True)
+        canonical = candidate.resolve(strict=True)
+        canonical.relative_to(canonical_root)
+    except (FileNotFoundError, OSError, RuntimeError, ValueError):
+        return None
+    return candidate
+
+
+def _read_census_control(repo_root: Path, local_path: str) -> str:
+    target = _contained_regular_file(repo_root, local_path)
+    if target is None:
+        raise CensusFileError(f"invalid {Path(local_path).name}")
+    try:
+        return target.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise CensusFileError(f"unreadable {Path(local_path).name}") from error
+
+
+def _validated_local_scanners(repo_root: Path, profile: dict) -> list[dict]:
+    """Convert profile records to proof inputs without exposing unsafe paths."""
+    records = profile.get("localScanners", [])
+    if not isinstance(records, list):
+        records = []
+    validated = []
+    for raw in records:
+        raw = raw if isinstance(raw, dict) else {}
+        surface = raw.get("surface")
+        surface = surface.strip() if isinstance(surface, str) and surface.strip() else "invalid-record"
+        module_path = _contained_regular_file(repo_root, raw.get("module"))
+        test_path = _contained_regular_file(repo_root, raw.get("test"))
+        export_name = raw.get("export")
+        valid_export = isinstance(export_name, str) and bool(export_name.strip())
+        validated.append({
+            "surface": surface,
+            "modulePath": str(module_path) if module_path else "",
+            "testPath": str(test_path) if test_path else "",
+            "exportName": export_name.strip() if valid_export else "",
+            "validationError": not (module_path and test_path and valid_export),
+        })
+    return validated
+
+
 def extract_content(payload: dict) -> str:
     ti = payload.get("tool_input") or {}
     tool = payload.get("tool_name")
@@ -226,13 +333,23 @@ def _infer_intent(content: str) -> str:
         return "build"
 
 
-def scan_census_status(repo_root: Path) -> dict:
+def scan_census_status(repo_root: Path, profile_json=None, active_json=None) -> dict:
     """Scan census facts through the shipped JavaScript API, never a hook-local
     copy of its state or fingerprint rules."""
-    profile_path = repo_root / ".census" / "profile.json"
     active_path = repo_root / ".census" / "active.json"
-    profile = profile_path.read_text(encoding="utf-8")
-    active = active_path.read_text(encoding="utf-8") if active_path.exists() else ""
+    profile = profile_json if profile_json is not None else _read_census_control(
+        repo_root, ".census/profile.json"
+    )
+    active = active_json
+    if active is None:
+        active = _read_census_control(repo_root, ".census/active.json") \
+            if _path_entry_exists(active_path) else ""
+    try:
+        profile_body = json.loads(profile)
+    except (json.JSONDecodeError, TypeError) as error:
+        raise CensusFileError("invalid profile.json") from error
+    if not isinstance(profile_body, dict):
+        raise CensusFileError("invalid profile.json")
     completed = subprocess.run(
         ["node", "--input-type=module", "-e", _CENSUS_SCAN],
         capture_output=True,
@@ -242,6 +359,7 @@ def scan_census_status(repo_root: Path) -> dict:
             "repoRoot": str(repo_root),
             "profileJson": profile,
             "activeJson": active,
+            "localScanners": _validated_local_scanners(repo_root, profile_body),
         }),
         text=True,
         timeout=15,
@@ -259,30 +377,44 @@ def evaluate_census(repo_root: Path) -> dict:
     """
     profile_path = repo_root / ".census" / "profile.json"
     active_path = repo_root / ".census" / "active.json"
-    if not profile_path.exists():
+    profile_present = _path_entry_exists(profile_path)
+    active_present = _path_entry_exists(active_path)
+    if not profile_present:
+        if active_present:
+            return {"state": "failed", "block_handoff": True,
+                    "detail": "active census has no valid profile",
+                    "reasons": ["profile"], "overrides": [], "override_applied": False}
         return {"state": "no_census", "block_handoff": False, "detail": "manual walk required",
                 "reasons": [], "overrides": [], "override_applied": False}
     try:
-        profile = json.loads(profile_path.read_text(encoding="utf-8"))
-    except Exception as error:
-        return {"state": "failed", "block_handoff": active_path.exists(), "detail": str(error),
+        profile_json = _read_census_control(repo_root, ".census/profile.json")
+        profile = json.loads(profile_json)
+        if not isinstance(profile, dict):
+            raise ValueError("profile must be an object")
+    except (CensusFileError, json.JSONDecodeError, ValueError, TypeError):
+        return {"state": "failed", "block_handoff": active_present,
+                "detail": "census profile is invalid or unreadable",
                 "reasons": ["profile"], "overrides": [], "override_applied": False}
     try:
-        result = scan_census_status(repo_root)
+        active_json = _read_census_control(repo_root, ".census/active.json") \
+            if active_present else ""
+        result = scan_census_status(repo_root, profile_json, active_json)
     except (OSError, subprocess.TimeoutExpired) as error:
         return {"state": "offline", "block_handoff": False, "detail": str(error),
                 "reasons": [], "overrides": profile.get("overrides", []), "override_applied": False}
-    except Exception as error:
-        return {"state": "failed", "block_handoff": active_path.exists(), "detail": str(error),
+    except Exception:
+        return {"state": "failed", "block_handoff": active_present,
+                "detail": "census scan or active snapshot is invalid",
                 "reasons": ["scan"], "overrides": profile.get("overrides", []),
                 "override_applied": False}
     state = result["state"]
-    activated = active_path.exists()
+    activated = active_present
     overrides = profile.get("overrides", [])
     change_binding = result["changeBinding"]
     justified_change_local = any(
         override.get("scope") == "this change"
-        and bool(override.get("reason"))
+        and isinstance(override.get("reason"), str)
+        and bool(override.get("reason").strip())
         and override.get("topologyFingerprint") == change_binding
         for override in overrides
         if isinstance(override, dict)

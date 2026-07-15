@@ -28,14 +28,14 @@ class CensusBackstopTest(unittest.TestCase):
         subprocess.run(["git", "add", "."], cwd=root, check=True)
         return temporary, root
 
-    def enable(self, root, overrides=None):
+    def enable(self, root, overrides=None, local_scanners=None):
         census = root / ".census"
         census.mkdir(exist_ok=True)
         (census / "profile.json").write_text(json.dumps({
             "schemaVersion": 1,
             "enabled": True,
             "decisions": [],
-            "localScanners": [],
+            "localScanners": local_scanners or [],
             "overrides": overrides or [],
         }) + "\n", encoding="utf-8")
 
@@ -121,6 +121,179 @@ class CensusBackstopTest(unittest.TestCase):
         self.assertEqual(result["overrides"], [
             {"scope": "this change", "reason": "generated path alias"}
         ])
+
+    def test_override_requires_a_non_empty_text_reason(self):
+        temporary, root = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        self.enable(root)
+        self.activate_current(root)
+        (root / "test").mkdir()
+        (root / "test" / "proof.test.mjs").write_text("// evidence\n", encoding="utf-8")
+        subprocess.run(["git", "add", "test"], cwd=root, check=True)
+        baseline = DRIFT_GUARD.evaluate_census(root)
+        self.assertTrue(baseline["mechanical_false_positive"])
+
+        profile = root / ".census" / "profile.json"
+        body = json.loads(profile.read_text(encoding="utf-8"))
+        for invalid_reason in (True, "", "   "):
+            with self.subTest(reason=invalid_reason):
+                body["overrides"] = [{
+                    "scope": "this change",
+                    "reason": invalid_reason,
+                    "topologyFingerprint": baseline["change_binding"],
+                }]
+                profile.write_text(json.dumps(body) + "\n", encoding="utf-8")
+                result = DRIFT_GUARD.evaluate_census(root)
+                self.assertFalse(result["override_applied"])
+                self.assertTrue(result["block_handoff"])
+
+    def test_profile_and_active_census_files_cannot_follow_foreign_symlinks(self):
+        temporary, root = self.make_repo()
+        foreign_tmp, foreign = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(foreign_tmp.cleanup)
+        census = root / ".census"
+        census.mkdir()
+        foreign_marker = "FOREIGN-CENSUS-CONTENT-MUST-NOT-LEAK"
+        foreign_profile = foreign / "profile.json"
+        foreign_profile.write_text(json.dumps({
+            "enabled": True,
+            "overrides": [{"reason": foreign_marker, "scope": "this change"}],
+        }), encoding="utf-8")
+        (census / "profile.json").symlink_to(foreign_profile)
+        (census / "active.json").write_text("{}\n", encoding="utf-8")
+
+        profile_result = DRIFT_GUARD.evaluate_census(root)
+
+        self.assertEqual((profile_result["state"], profile_result["block_handoff"]),
+                         ("failed", True))
+        self.assertEqual(profile_result["overrides"], [])
+        self.assertNotIn(foreign_marker, json.dumps(profile_result))
+        completed = subprocess.run(
+            [sys.executable, str(HOOKS / "drift-guard.py"), "--census-status"],
+            cwd=root,
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+        self.assertNotIn(foreign_marker, completed.stdout + completed.stderr)
+
+        (census / "profile.json").unlink()
+        self.enable(root)
+        (census / "active.json").unlink()
+        foreign_active = foreign / "active.json"
+        foreign_active.write_text(f'{{"secret":"{foreign_marker}"}}\n', encoding="utf-8")
+        (census / "active.json").symlink_to(foreign_active)
+
+        active_result = DRIFT_GUARD.evaluate_census(root)
+
+        self.assertEqual((active_result["state"], active_result["block_handoff"]),
+                         ("failed", True))
+        self.assertNotIn(foreign_marker, json.dumps(active_result))
+        (census / "profile.json").unlink()
+        missing_profile = DRIFT_GUARD.evaluate_census(root)
+        self.assertEqual((missing_profile["state"], missing_profile["block_handoff"]),
+                         ("failed", True))
+        self.assertNotIn(foreign_marker, json.dumps(missing_profile))
+        self.enable(root)
+        (root / ".handoff").mkdir()
+        payload = {
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(root / ".handoff" / "52.md"),
+                "content": "Build [#52](https://github.com/iKon85/agent-workflow-kit/issues/52)",
+            },
+        }
+        with patch.object(DRIFT_GUARD, "run_check", return_value={"deny_recommended": False}):
+            blocked, message = DRIFT_GUARD.should_block(payload)
+        self.assertTrue(blocked)
+        self.assertIn("failed", message)
+        self.assertNotIn(foreign_marker, message)
+
+    def test_local_scanner_proof_is_required_for_current(self):
+        temporary, root = self.make_repo()
+        foreign_tmp, foreign = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(foreign_tmp.cleanup)
+        module = root / "scanner.mjs"
+        test = root / "scanner.test.mjs"
+        module.write_text("export function scanLocal() { return ['src']; }\n", encoding="utf-8")
+        test.write_text("import { test } from 'node:test'; test('proof', () => {});\n",
+                        encoding="utf-8")
+        subprocess.run(["git", "add", "scanner.mjs", "scanner.test.mjs"], cwd=root, check=True)
+        scanner = {
+            "surface": "src", "module": "scanner.mjs",
+            "export": "scanLocal", "test": "scanner.test.mjs",
+        }
+        self.enable(root, local_scanners=[scanner])
+        self.activate_current(root)
+        self.assertEqual(DRIFT_GUARD.evaluate_census(root)["state"], "current")
+
+        profile_path = root / ".census" / "profile.json"
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        foreign_module = foreign / "foreign.mjs"
+        foreign_module.write_text("export function scanLocal() { return ['src']; }\n",
+                                  encoding="utf-8")
+        foreign_test = foreign / "foreign.test.mjs"
+        foreign_test.write_text(
+            "import { test } from 'node:test'; test('foreign', () => {});\n",
+            encoding="utf-8",
+        )
+        invalid_records = [
+            {**scanner, "module": "missing.mjs"},
+            {**scanner, "module": "../escape.mjs"},
+            {**scanner, "export": "missingExport"},
+            {**scanner, "test": "missing.test.mjs"},
+            {**scanner, "test": "../escape.test.mjs"},
+        ]
+        (root / "scanner-link.mjs").symlink_to(foreign_module)
+        invalid_records.append({**scanner, "module": "scanner-link.mjs"})
+        (root / "foreign-dir-link").symlink_to(foreign, target_is_directory=True)
+        invalid_records.append({**scanner, "module": "foreign-dir-link/foreign.mjs"})
+        (root / "scanner-link.test.mjs").symlink_to(foreign_test)
+        invalid_records.append({**scanner, "test": "scanner-link.test.mjs"})
+        module.write_text("export function scanLocal() { return ['another-surface']; }\n",
+                          encoding="utf-8")
+        invalid_records.append(scanner)
+
+        for index, record in enumerate(invalid_records):
+            with self.subTest(case=index, record=record):
+                if index == len(invalid_records) - 1:
+                    module.write_text(
+                        "export function scanLocal() { return ['another-surface']; }\n",
+                        encoding="utf-8",
+                    )
+                else:
+                    module.write_text(
+                        "export function scanLocal() { return ['src']; }\n", encoding="utf-8"
+                    )
+                profile["localScanners"] = [record]
+                profile_path.write_text(json.dumps(profile) + "\n", encoding="utf-8")
+                result = DRIFT_GUARD.evaluate_census(root)
+                self.assertEqual((result["state"], result["block_handoff"]),
+                                 ("refresh_required", True))
+                self.assertIn("proof:src", result["reasons"])
+
+        module.chmod(0)
+        try:
+            profile["localScanners"] = [scanner]
+            profile_path.write_text(json.dumps(profile) + "\n", encoding="utf-8")
+            unreadable = DRIFT_GUARD.evaluate_census(root)
+            self.assertEqual((unreadable["state"], unreadable["block_handoff"]),
+                             ("refresh_required", True))
+            self.assertIn("proof:src", unreadable["reasons"])
+        finally:
+            module.chmod(0o644)
+
+        module.write_text("export function scanLocal() { return ['src']; }\n", encoding="utf-8")
+        test.write_text("import { test } from 'node:test'; test('proof', () => { throw new Error('no'); });\n",
+                        encoding="utf-8")
+        profile["localScanners"] = [scanner]
+        profile_path.write_text(json.dumps(profile) + "\n", encoding="utf-8")
+        failed_test = DRIFT_GUARD.evaluate_census(root)
+        self.assertEqual((failed_test["state"], failed_test["block_handoff"]),
+                         ("refresh_required", True))
+        self.assertIn("proof:src", failed_test["reasons"])
 
     def test_justified_change_local_override_bypasses_only_evidence_topology_noise(self):
         temporary, root = self.make_repo()
