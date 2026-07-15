@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.15.0",
+  "kitVersion": "0.16.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -488,6 +488,15 @@
       "origin": "kit"
     },
     {
+      "path": ".agents/skills/setup-workflow/census.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "codex",
+      "sha256": "ec80f4ad36073e0c7c903434fa098d24f31b9d9a46ce55623782173ddba2e5f9",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".agents/skills/setup-workflow/code-review.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
@@ -546,7 +555,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "efc7818d98158a85a79f3a652787d2e557552fa5175b32b24916c894388b9b74",
+      "sha256": "91ba30cc08206204c83d189274579471366221ccfe8f2abdf36957ad85ae136b",
       "mode": 420,
       "origin": "kit"
     },
@@ -1479,6 +1488,15 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/setup-workflow/census.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "claude",
+      "sha256": "ec80f4ad36073e0c7c903434fa098d24f31b9d9a46ce55623782173ddba2e5f9",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/setup-workflow/code-review.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
@@ -1537,7 +1555,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "efc7818d98158a85a79f3a652787d2e557552fa5175b32b24916c894388b9b74",
+      "sha256": "91ba30cc08206204c83d189274579471366221ccfe8f2abdf36957ad85ae136b",
       "mode": 420,
       "origin": "kit"
     },
