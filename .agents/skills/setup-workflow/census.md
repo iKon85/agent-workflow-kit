@@ -19,20 +19,23 @@ the result transactionally.
 
 ## Deterministic setup effects
 
-The table below is the machine-checkable reference contract for setup. The
-paths under `retain` are consumer-owned evidence. `hook` and `gate` describe
-kit-owned enforcement wiring, wherever the consumer documents that wiring;
-they are not permission to invent a second setup mechanism.
+The table below is the machine-checkable reference contract for setup. Its
+ordered `operations` are the only effects the setup proof may execute. Choice
+persistence always means `docs/agents/census.md`: the normal setup sentinel is
+the first line and `<!-- census: choice=<yes|later|no> -->` is the second.
+Paths under `retain` are consumer-owned evidence. Enforcement operations refer
+only to kit-owned wiring documented by the consumer; they are not permission to
+invent another census engine.
 
 ```json census-setup-effects
 [
-  {"state":"missing","actor":"setup","choice":"none","profile":"absent","active":"absent","hook":"absent","gate":"absent","selfTest":false,"retain":[],"repeat":"no-write"},
-  {"state":"yes","actor":"setup","choice":"yes","profile":"create-minimal","active":"absent","hook":"absent","gate":"absent","selfTest":true,"retain":[],"repeat":"no-write"},
-  {"state":"later","actor":"setup","choice":"later","profile":"absent","active":"absent","hook":"absent","gate":"absent","selfTest":false,"retain":[],"repeat":"no-write"},
-  {"state":"no","actor":"setup","choice":"no","profile":"absent","active":"absent","hook":"absent","gate":"absent","selfTest":false,"retain":[],"repeat":"no-write"},
-  {"state":"existing","actor":"setup","choice":"existing","profile":"preserve","active":"preserve","hook":"preserve","gate":"preserve","selfTest":false,"retain":["profile","active","scanner","scanner-test"],"repeat":"no-write"},
-  {"state":"explicit-enable","actor":"census-update","choice":"existing","profile":"enable-transactionally","active":"activate-verified","hook":"enable-after-verification","gate":"enable-after-verification","selfTest":false,"retain":["scanner","scanner-test"],"repeat":"no-write"},
-  {"state":"disable","actor":"census-update","choice":"existing","profile":"disable-transactionally","active":"preserve","hook":"remove","gate":"remove","selfTest":false,"retain":["profile","active","scanner","scanner-test"],"repeat":"no-write"}
+  {"state":"missing","actor":"setup","choice":"none","operations":[],"retain":[],"repeat":"no-write"},
+  {"state":"yes","actor":"setup","choice":"yes","operations":["reconcile-choice-doc","reconcile-minimal-profile","derive-state","run-foundation-self-test"],"retain":[],"repeat":"no-write"},
+  {"state":"later","actor":"setup","choice":"later","operations":["reconcile-choice-doc"],"retain":[],"repeat":"no-write"},
+  {"state":"no","actor":"setup","choice":"no","operations":["reconcile-choice-doc","derive-state"],"retain":[],"repeat":"no-write"},
+  {"state":"existing","actor":"setup","choice":"recorded","operations":["adopt-choice-doc","derive-state"],"retain":["choice-doc","profile","active","scanner","scanner-test"],"repeat":"no-write"},
+  {"state":"explicit-enable","actor":"census-update","choice":"recorded","operations":["delegate-census-update","run-census-update-contract"],"retain":["choice-doc","profile","active","scanner","scanner-test"],"repeat":"no-write"},
+  {"state":"disable","actor":"census-update","choice":"recorded","operations":["remove-kit-hook","remove-kit-gate","update-profile-disabled","derive-state"],"retain":["choice-doc","profile-unknown-keys","active","scanner","scanner-test"],"repeat":"no-write"}
 ]
 ```
 
@@ -49,7 +52,8 @@ pre-existing profile remains consumer-owned: preserve unknown keys and do not
 replace its decisions. Never derive `current` from file presence; use
 `resolveCensusState` from `scripts/census/index.mjs`.
 
-Run only the focused census foundation self-test already shipped with the kit.
+Run the focused `scripts/census/state.test.mjs` census foundation self-test
+already shipped with the kit.
 A passing self-test proves the mechanism is available, not that this repository
 has been scanned. Setup must not install pre-commit, pre-push, CI, planning, or
 handoff gates for `yes`, `later`, or `no`.
@@ -57,15 +61,18 @@ handoff gates for `yes`, `later`, or `no`.
 ## Later activation and disable
 
 `later` and `no` are setup choices, not partially active censuses. A later,
-explicit `census-update` invocation is the sole activation route: it may create
-or adopt the profile, then scan and call `activateCensus` only after its normal
-verification succeeds. Setup itself never calls `activateCensus`.
+explicit `census-update` invocation is the sole activation route. Setup
+delegates this route to the shipped `census-update` contract and its focused
+`scripts/test_census_update_contract.test.mjs` proof; it does not reproduce
+activation, snapshots, or enforcement. Setup itself never calls `activateCensus`.
 
-Disable enforcement before changing consumer content. Update the profile
-transactionally to `enabled: false`, verify the derived state is `disabled`,
-and remove only kit-owned gate wiring. Treat local scanners, their tests, the
-profile, and the active snapshot as consumer-owned evidence. List those files
-and ask for separate deletion approval; without that approval, retain them.
+Disable follows the ordered contract: remove the kit-owned hook, remove the
+kit-owned gate, then atomically replace only the profile's `enabled` value with
+`false`, preserving unknown keys, and verify `disabled` through
+`resolveCensusState`. Enforcement removal must finish before any profile
+mutation. Treat the choice document, local scanners, their tests, the profile,
+and the active snapshot as consumer-owned evidence. List those files and ask
+for separate deletion approval; without that approval, retain them.
 Setup never deletes consumer-owned files as part of disable.
 
 ## Setup report

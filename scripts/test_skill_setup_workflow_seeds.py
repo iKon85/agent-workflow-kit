@@ -17,6 +17,7 @@ Run: python3 scripts/test_skill_setup_workflow_seeds.py
 """
 import json
 import re
+import subprocess
 import tempfile
 import time
 import unittest
@@ -69,18 +70,40 @@ def load_census_setup_effects():
     return {row["state"]: row for row in rows}
 
 
+def resolve_census_state(**inputs):
+    """Ask the shipped #49 API for a state; do not duplicate its state machine."""
+    script = (
+        "import { resolveCensusState } from './scripts/census/index.mjs';"
+        "process.stdout.write(resolveCensusState(JSON.parse(process.argv[1])));"
+    )
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script, json.dumps(inputs)],
+        cwd=REPO, check=True, capture_output=True, text=True,
+    )
+    return result.stdout
+
+
+def run_shipped_test(relative_path):
+    """Run a real shipped integration test as proof, without marker files."""
+    subprocess.run(
+        ["node", "--test", relative_path], cwd=REPO, check=True,
+        capture_output=True, text=True,
+    )
+
+
 def apply_census_setup_effect(root, effect, writes):
-    """Execute one prompt contract row against a temporary consumer fixture."""
+    """Reconcile setup-owned files and delegate engine work to #49/#50."""
     paths = {
-        "choice": root / "docs/agents/census-choice",
+        "choice": root / "docs/agents/census.md",
         "profile": root / ".census/profile.json",
         "active": root / ".census/active.json",
         "scanner": root / ".census/local-scanner.mjs",
         "scanner-test": root / ".census/local-scanner.test.mjs",
         "hook": root / ".git/hooks/census-check",
         "gate": root / ".github/workflows/census-check.yml",
-        "self-test": root / ".census/self-test-ran",
     }
+    trace = []
+    states = []
 
     def write_if_changed(path, content):
         data = content.encode("utf-8")
@@ -90,40 +113,78 @@ def apply_census_setup_effect(root, effect, writes):
         path.write_bytes(data)
         writes.append(path.relative_to(root).as_posix())
 
-    def remove_if_present(path):
+    def replace_if_changed(path, content):
+        data = content.encode("utf-8")
+        if path.exists() and path.read_bytes() == data:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        staged = path.with_name(path.name + ".setup-workflow.tmp")
+        staged.write_bytes(data)
+        staged.replace(path)
+        writes.append(path.relative_to(root).as_posix())
+
+    def remove_if_present(path, operation):
         if path.exists():
             path.unlink()
             writes.append(path.relative_to(root).as_posix())
+            trace.append(f"{operation}:removed")
+        else:
+            trace.append(f"{operation}:no-op")
 
-    if effect["choice"] != "none":
-        write_if_changed(paths["choice"], effect["choice"] + "\n")
-
-    profile_action = effect["profile"]
-    if profile_action == "create-minimal":
-        write_if_changed(paths["profile"], json.dumps({
-            "schemaVersion": 1, "enabled": True,
-            "decisions": [], "localScanners": [], "overrides": [],
-        }, sort_keys=True) + "\n")
-    elif profile_action in ("enable-transactionally", "disable-transactionally"):
-        profile = json.loads(paths["profile"].read_text(encoding="utf-8"))
-        profile["enabled"] = profile_action == "enable-transactionally"
-        write_if_changed(paths["profile"], json.dumps(profile, sort_keys=True) + "\n")
-
-    if effect["active"] == "activate-verified":
-        write_if_changed(paths["active"], '{"state":"current","verified":true}\n')
-
-    for kind in ("hook", "gate"):
-        action = effect[kind]
-        if action == "enable-after-verification":
-            if not paths["active"].exists():
-                raise AssertionError("enforcement cannot precede verified activation")
-            write_if_changed(paths[kind], "kit-owned census enforcement\n")
-        elif action == "remove":
-            remove_if_present(paths[kind])
-
-    if effect["selfTest"]:
-        write_if_changed(paths["self-test"], "foundation self-test passed\n")
-    return paths
+    for operation in effect["operations"]:
+        if operation == "reconcile-choice-doc":
+            choice = effect["choice"]
+            if not paths["choice"].exists():
+                content = (
+                    "<!-- setup-workflow: state=filled -->\n"
+                    f"<!-- census: choice={choice} -->\n\n"
+                    + (SKILL / "census.md").read_text(encoding="utf-8")
+                )
+                write_if_changed(paths["choice"], content)
+            trace.append("reconcile-choice-doc")
+        elif operation == "adopt-choice-doc":
+            if not paths["choice"].exists():
+                raise AssertionError("existing census needs a documented census path")
+            trace.append("adopt-choice-doc")
+        elif operation == "reconcile-minimal-profile":
+            if not paths["profile"].exists():
+                write_if_changed(paths["profile"], json.dumps({
+                    "schemaVersion": 1, "enabled": True,
+                    "decisions": [], "localScanners": [], "overrides": [],
+                }, sort_keys=True) + "\n")
+            trace.append("reconcile-minimal-profile")
+        elif operation == "remove-kit-hook":
+            remove_if_present(paths["hook"], operation)
+        elif operation == "remove-kit-gate":
+            remove_if_present(paths["gate"], operation)
+        elif operation == "update-profile-disabled":
+            profile = json.loads(paths["profile"].read_text(encoding="utf-8"))
+            profile["enabled"] = False
+            replace_if_changed(paths["profile"], json.dumps(profile, sort_keys=True) + "\n")
+            trace.append("update-profile-disabled")
+        elif operation == "derive-state":
+            enabled = False
+            if paths["profile"].exists():
+                enabled = json.loads(paths["profile"].read_text(encoding="utf-8"))["enabled"]
+            states.append(resolve_census_state(
+                enabled=enabled, hasActive=paths["active"].exists(),
+            ))
+            trace.append("derive-state")
+        elif operation == "run-foundation-self-test":
+            run_shipped_test("scripts/census/state.test.mjs")
+            trace.append("run-foundation-self-test")
+        elif operation == "delegate-census-update":
+            skill = (REPO / ".claude/skills/census-update/SKILL.md").read_text(encoding="utf-8")
+            for token in ("activateCensus", "resolveCensusState", "scripts/census/index.mjs"):
+                if token not in skill:
+                    raise AssertionError(f"census-update contract missing {token}")
+            trace.append("delegate-census-update")
+        elif operation == "run-census-update-contract":
+            run_shipped_test("scripts/test_census_update_contract.test.mjs")
+            trace.append("run-census-update-contract")
+        else:
+            raise AssertionError(f"unknown census setup operation: {operation}")
+    return paths, trace, states
 
 
 class IdempotencyRule(unittest.TestCase):
@@ -166,7 +227,14 @@ class SeedTemplatesValid(unittest.TestCase):
                 initial = {}
                 if state in ("existing", "explicit-enable", "disable"):
                     initial = {
-                        "profile": b'{"enabled":true,"consumerKey":"keep exactly"}\n',
+                        "choice": (
+                            b'<!-- setup-workflow: state=filled -->\n'
+                            b'<!-- census: choice=yes -->\n\nconsumer notes stay exact\n'
+                        ),
+                        "profile": (
+                            b'{"enabled":true,"consumerKey":"keep exactly",'
+                            b'"decisions":["keep"],"overrides":[{"keep":true}]}\n'
+                        ),
                         "active": b'{"consumerSnapshot":"keep exactly"}\n',
                         "scanner": b"export const consumerScanner = true;\n",
                         "scanner-test": b"consumer scanner test\n",
@@ -176,6 +244,7 @@ class SeedTemplatesValid(unittest.TestCase):
                         initial.pop("active")
                     for name, data in initial.items():
                         path = {
+                            "choice": root / "docs/agents/census.md",
                             "profile": root / ".census/profile.json",
                             "active": root / ".census/active.json",
                             "scanner": root / ".census/local-scanner.mjs",
@@ -192,41 +261,64 @@ class SeedTemplatesValid(unittest.TestCase):
                             path.write_text("kit-owned census enforcement\n", encoding="utf-8")
 
                 writes = []
-                paths = apply_census_setup_effect(root, effect, writes)
+                paths, trace, states = apply_census_setup_effect(root, effect, writes)
 
                 if state == "missing":
                     self.assertEqual(writes, [])
                 if state == "yes":
+                    choice = paths["choice"].read_text(encoding="utf-8")
+                    self.assertTrue(choice.startswith(
+                        "<!-- setup-workflow: state=filled -->\n"
+                        "<!-- census: choice=yes -->\n"
+                    ))
                     profile = json.loads(paths["profile"].read_text(encoding="utf-8"))
                     self.assertEqual(profile, {
                         "schemaVersion": 1, "enabled": True,
                         "decisions": [], "localScanners": [], "overrides": [],
                     })
-                    self.assertTrue(paths["self-test"].exists())
+                    self.assertEqual(states, ["bootstrap"])
+                    self.assertIn("run-foundation-self-test", trace)
                 if state in ("yes", "later", "no"):
                     self.assertFalse(paths["active"].exists())
                     self.assertFalse(paths["hook"].exists())
                     self.assertFalse(paths["gate"].exists())
                 if state in ("later", "no"):
                     self.assertFalse(paths["profile"].exists())
-                    self.assertFalse(paths["self-test"].exists())
+                    self.assertIn(
+                        f"<!-- census: choice={state} -->",
+                        paths["choice"].read_text(encoding="utf-8"),
+                    )
                 if state == "existing":
+                    self.assertEqual(writes, [])
                     for name, expected in initial.items():
                         self.assertEqual(paths[name].read_bytes(), expected)
                 if state == "explicit-enable":
-                    profile = json.loads(paths["profile"].read_text(encoding="utf-8"))
-                    self.assertTrue(profile["enabled"])
-                    self.assertEqual(profile["consumerKey"], "keep")
-                    for name in ("active", "hook", "gate"):
-                        self.assertTrue(paths[name].exists())
+                    self.assertEqual(writes, [])
+                    for name, expected in initial.items():
+                        self.assertEqual(paths[name].read_bytes(), expected)
+                    self.assertEqual(
+                        trace,
+                        ["delegate-census-update", "run-census-update-contract"],
+                    )
                 if state == "disable":
                     profile = json.loads(paths["profile"].read_text(encoding="utf-8"))
                     self.assertFalse(profile["enabled"])
                     self.assertEqual(profile["consumerKey"], "keep exactly")
-                    for name in ("active", "scanner", "scanner-test"):
+                    self.assertEqual(profile["decisions"], ["keep"])
+                    self.assertEqual(profile["overrides"], [{"keep": True}])
+                    for name in ("choice", "active", "scanner", "scanner-test"):
                         self.assertEqual(paths[name].read_bytes(), initial[name])
                     self.assertFalse(paths["hook"].exists())
                     self.assertFalse(paths["gate"].exists())
+                    self.assertEqual(states, ["disabled"])
+                    self.assertLess(
+                        next(i for i, value in enumerate(trace) if value.startswith("remove-kit-hook:")),
+                        trace.index("update-profile-disabled"),
+                    )
+                    self.assertLess(
+                        next(i for i, value in enumerate(trace) if value.startswith("remove-kit-gate:")),
+                        trace.index("update-profile-disabled"),
+                    )
 
                 before = {
                     str(path.relative_to(root)): (path.read_bytes(), path.stat().st_mtime_ns)
