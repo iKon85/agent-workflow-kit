@@ -332,6 +332,13 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.15.0
+
+- added: `.agents/skills/census-update/SKILL.md`
+- added: `.claude/skills/census-update/SKILL.md`
+- changed: `.agents/skills/setup-workflow/workflow-overview.md`
+- changed: `.claude/skills/setup-workflow/workflow-overview.md`
+
 ### 0.14.0
 
 - added: `scripts/census/delta.mjs`
