@@ -332,6 +332,14 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.16.1
+
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/to-prd/SKILL.md`
+- changed: `.claude/hooks/drift-guard.py`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/to-prd/SKILL.md`
+
 ### 0.16.0
 
 - added: `.agents/skills/setup-workflow/census.md`
