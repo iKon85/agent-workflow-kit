@@ -38,6 +38,19 @@ test('HELPER_FILES ships the planning ecosystem (scripts, hook, template)', () =
   assert.equal(HELPER_FILES.find((h) => h.path === 'scripts/board_config.py').mode, 0o644);
 });
 
+test('HELPER_FILES ships the complete census foundation', () => {
+  const paths = new Set(HELPER_FILES.map(({ path }) => path));
+  const censusModules = [
+    'scripts/census/index.mjs',
+    'scripts/census/scan.mjs',
+    'scripts/census/fingerprint.mjs',
+    'scripts/census/delta.mjs',
+    'scripts/census/state.mjs',
+    'scripts/census/transaction.mjs',
+  ];
+  assert.deepEqual(censusModules.filter((path) => !paths.has(path)), []);
+});
+
 test('STUB_TARGETS lists docs to seed but never board-sync.md', () => {
   assert.ok(STUB_TARGETS.includes('docs/agents/issue-tracker.md'));
   assert.ok(!STUB_TARGETS.some((p) => p.endsWith('board-sync.md')));

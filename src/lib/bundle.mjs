@@ -50,6 +50,14 @@ export const HELPER_FILES = [
   // GitHub-consumer automation: invokes the existing update command, then owns
   // only the stable tested branch/pull-request upsert.
   { path: 'scripts/kit-update-pr.mjs', kind: 'script', mode: 0o755 },
+  // Stdlib-only project census foundation. index.mjs is the stable consumer
+  // entrypoint; its five local modules must ship with it as one helper unit.
+  { path: 'scripts/census/index.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/census/scan.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/census/fingerprint.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/census/delta.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/census/state.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/census/transaction.mjs', kind: 'script', mode: 0o644 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
   // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
   // hooks ImportError on arrival.
