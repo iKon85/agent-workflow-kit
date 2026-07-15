@@ -471,8 +471,8 @@ def evaluate_census(repo_root: Path, proof_timeout_ms=CENSUS_PROOF_TIMEOUT_MS) -
     """Return the activation-aware handoff verdict.
 
     Missing/disabled/unactivated/unavailable census remains visible but does not
-    gate ordinary work. Only an activated refresh requirement blocks a build
-    handoff. Consumer overrides are reported and deliberately never fed into
+    gate ordinary work. Only an explicitly enabled, activated census may fail
+    closed. Consumer overrides are reported and deliberately never fed into
     scanning, fingerprinting, or state resolution.
     """
     profile_path = repo_root / ".census" / "profile.json"
@@ -481,7 +481,7 @@ def evaluate_census(repo_root: Path, proof_timeout_ms=CENSUS_PROOF_TIMEOUT_MS) -
     active_present = _path_entry_exists(active_path)
     if not profile_present:
         if active_present:
-            return {"state": "failed", "block_handoff": True,
+            return {"state": "failed", "block_handoff": False,
                     "detail": "active census has no valid profile",
                     "reasons": ["profile"], "overrides": [], "override_applied": False}
         return {"state": "no_census", "block_handoff": False, "detail": "manual walk required",
@@ -492,7 +492,7 @@ def evaluate_census(repo_root: Path, proof_timeout_ms=CENSUS_PROOF_TIMEOUT_MS) -
         if not isinstance(profile, dict):
             raise ValueError("profile must be an object")
     except (CensusFileError, json.JSONDecodeError, ValueError, TypeError):
-        return {"state": "failed", "block_handoff": active_present,
+        return {"state": "failed", "block_handoff": False,
                 "detail": "census profile is invalid or unreadable",
                 "reasons": ["profile"], "overrides": [], "override_applied": False}
     try:
@@ -504,7 +504,8 @@ def evaluate_census(repo_root: Path, proof_timeout_ms=CENSUS_PROOF_TIMEOUT_MS) -
         return {"state": "offline", "block_handoff": activated, "detail": str(error),
                 "reasons": [], "overrides": profile.get("overrides", []), "override_applied": False}
     except Exception:
-        return {"state": "failed", "block_handoff": active_present,
+        activated = active_present and bool(profile.get("enabled"))
+        return {"state": "failed", "block_handoff": activated,
                 "detail": "census scan or active snapshot is invalid",
                 "reasons": ["scan"], "overrides": profile.get("overrides", []),
                 "override_applied": False}

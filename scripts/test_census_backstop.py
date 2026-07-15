@@ -166,7 +166,7 @@ class CensusBackstopTest(unittest.TestCase):
         profile_result = DRIFT_GUARD.evaluate_census(root)
 
         self.assertEqual((profile_result["state"], profile_result["block_handoff"]),
-                         ("failed", True))
+                         ("failed", False))
         self.assertEqual(profile_result["overrides"], [])
         self.assertNotIn(foreign_marker, json.dumps(profile_result))
         completed = subprocess.run(
@@ -193,7 +193,7 @@ class CensusBackstopTest(unittest.TestCase):
         (census / "profile.json").unlink()
         missing_profile = DRIFT_GUARD.evaluate_census(root)
         self.assertEqual((missing_profile["state"], missing_profile["block_handoff"]),
-                         ("failed", True))
+                         ("failed", False))
         self.assertNotIn(foreign_marker, json.dumps(missing_profile))
         self.enable(root)
         (root / ".handoff").mkdir()
@@ -209,6 +209,33 @@ class CensusBackstopTest(unittest.TestCase):
         self.assertTrue(blocked)
         self.assertIn("failed", message)
         self.assertNotIn(foreign_marker, message)
+
+    def test_disabled_census_control_failures_stay_visible_but_fail_open(self):
+        temporary, root = self.make_repo()
+        foreign_tmp, foreign = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(foreign_tmp.cleanup)
+        self.enable(root)
+        profile_path = root / ".census" / "profile.json"
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        profile["enabled"] = False
+        profile_path.write_text(json.dumps(profile) + "\n", encoding="utf-8")
+        active_path = root / ".census" / "active.json"
+
+        active_path.write_text("{not-json\n", encoding="utf-8")
+        corrupt = DRIFT_GUARD.evaluate_census(root)
+        self.assertEqual((corrupt["state"], corrupt["block_handoff"]),
+                         ("failed", False))
+        self.assertEqual(corrupt["detail"], "census scan or active snapshot is invalid")
+
+        active_path.unlink()
+        foreign_active = foreign / "active.json"
+        foreign_active.write_text('{"secret":"must-not-leak"}\n', encoding="utf-8")
+        active_path.symlink_to(foreign_active)
+        unreadable = DRIFT_GUARD.evaluate_census(root)
+        self.assertEqual((unreadable["state"], unreadable["block_handoff"]),
+                         ("failed", False))
+        self.assertNotIn("must-not-leak", json.dumps(unreadable))
 
     def test_local_scanner_proof_is_required_for_current(self):
         temporary, root = self.make_repo()
