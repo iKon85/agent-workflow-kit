@@ -1,0 +1,14 @@
+{
+  "paths": [
+    ".claude/skills/census-update/SKILL.md",
+    ".agents/skills/census-update/SKILL.md",
+    ".claude/skills/setup-workflow/census.md",
+    ".agents/skills/setup-workflow/census.md",
+    "scripts/census/index.mjs",
+    "scripts/census/scan.mjs",
+    "scripts/census/fingerprint.mjs",
+    "scripts/census/delta.mjs",
+    "scripts/census/state.mjs",
+    "scripts/census/transaction.mjs"
+  ]
+}

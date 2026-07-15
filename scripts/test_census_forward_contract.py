@@ -8,7 +8,8 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-FIXTURE = REPO / "test/fixtures/census-consumers/greenfield"
+PUBLIC_UNIT_RELATIVE = Path("test/fixtures/census-consumers/public-unit.json")
+GREENFIELD_RELATIVE = Path("test/fixtures/census-consumers/greenfield")
 
 
 class CensusForwardContract(unittest.TestCase):
@@ -17,8 +18,10 @@ class CensusForwardContract(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         self.public = self.tmp / "public-kit"
         self.public.mkdir()
+        source_root = REPO
+        self.forbidden_source_root = str(source_root)
         archive = subprocess.Popen(
-            ["git", "archive", "HEAD"], cwd=REPO, stdout=subprocess.PIPE
+            ["git", "archive", "HEAD"], cwd=source_root, stdout=subprocess.PIPE
         )
         unpack = subprocess.run(
             ["tar", "-x", "-C", str(self.public)], stdin=archive.stdout,
@@ -27,6 +30,10 @@ class CensusForwardContract(unittest.TestCase):
         archive.stdout.close()
         archive_rc = archive.wait(timeout=30)
         self.assertEqual((archive_rc, unpack.returncode), (0, 0), unpack.stderr.decode())
+        # From this boundary onward every executable, fixture, and assertion input
+        # is resolved inside the archived public checkout.
+        self.assertTrue((self.public / GREENFIELD_RELATIVE).is_dir())
+        self.assertTrue((self.public / PUBLIC_UNIT_RELATIVE).is_file())
         build = subprocess.run(
             ["node", "scripts/build-kit.mjs"], cwd=self.public,
             capture_output=True, text=True, timeout=120,
@@ -42,7 +49,9 @@ class CensusForwardContract(unittest.TestCase):
             self.assertIn(public_export, claude)
 
         consumer = self.tmp / "consumer"
-        shutil.copytree(FIXTURE, consumer)
+        fixture = self.public / GREENFIELD_RELATIVE
+        self.assertTrue(fixture.is_relative_to(self.public))
+        shutil.copytree(fixture, consumer)
         subprocess.run(["git", "init", "--quiet"], cwd=consumer, check=True)
         subprocess.run(["git", "add", "."], cwd=consumer, check=True)
         runner = (
@@ -58,7 +67,8 @@ class CensusForwardContract(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertEqual(json.loads(run.stdout), {"state": "bootstrap", "count": 2})
         self.assertNotIn("testreporter", run.stdout.lower())
-        self.assertNotIn(str(REPO.parent), run.stdout)
+        self.assertNotIn(self.forbidden_source_root, runner)
+        self.assertNotIn(self.forbidden_source_root, run.stdout)
 
     def test_public_pack_contains_complete_census_unit_without_foreign_reach(self):
         pack = subprocess.run(
@@ -67,18 +77,9 @@ class CensusForwardContract(unittest.TestCase):
         )
         self.assertEqual(pack.returncode, 0, pack.stderr)
         paths = {entry["path"] for entry in json.loads(pack.stdout)[0]["files"]}
-        expected = {
-            ".claude/skills/census-update/SKILL.md",
-            ".agents/skills/census-update/SKILL.md",
-            ".claude/skills/setup-workflow/census.md",
-            ".agents/skills/setup-workflow/census.md",
-            "scripts/census/index.mjs",
-            "scripts/census/scan.mjs",
-            "scripts/census/fingerprint.mjs",
-            "scripts/census/delta.mjs",
-            "scripts/census/state.mjs",
-            "scripts/census/transaction.mjs",
-        }
+        expected = set(json.loads(
+            (self.public / PUBLIC_UNIT_RELATIVE).read_text(encoding="utf-8")
+        )["paths"])
         self.assertEqual(expected - paths, set())
         for path in expected:
             text = (self.public / path).read_text(encoding="utf-8")

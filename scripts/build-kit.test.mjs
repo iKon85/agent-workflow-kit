@@ -9,6 +9,9 @@ import { execFileSync } from 'node:child_process';
 import { buildKit } from './build-kit.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
+const PUBLIC_CENSUS_UNIT = JSON.parse(await readFile(
+  join(REPO, 'test/fixtures/census-consumers/public-unit.json'), 'utf8',
+)).paths;
 async function withBuild(fn) {
   const dist = await mkdtemp(join(tmpdir(), 'awkit-build-'));
   try { return await fn(dist, await buildKit({ repoRoot: REPO, distDir: dist })); }
@@ -47,15 +50,7 @@ test('current build contains the complete dual-surface census consumer unit', as
   await withBuild(async (dist, report) => {
     const manifest = JSON.parse(await readFile(join(dist, 'agent-workflow-kit.package.json'), 'utf8'));
     const paths = new Set(manifest.files.map(({ path }) => path));
-    const expected = [
-      '.claude/skills/census-update/SKILL.md',
-      '.agents/skills/census-update/SKILL.md',
-      '.claude/skills/setup-workflow/census.md',
-      '.agents/skills/setup-workflow/census.md',
-      ...['index', 'scan', 'fingerprint', 'delta', 'state', 'transaction']
-        .map((name) => `scripts/census/${name}.mjs`),
-    ];
-    assert.deepEqual(expected.filter((path) => !paths.has(path)), []);
+    assert.deepEqual(PUBLIC_CENSUS_UNIT.filter((path) => !paths.has(path)), []);
     assert.equal(report.fileCount, manifest.files.length);
     assert.equal(
       await readFile(join(dist, '.claude/skills/census-update/SKILL.md'), 'utf8'),
@@ -88,14 +83,9 @@ test('npm pack keeps product files but excludes runtime residue', async () => {
     assert.ok(files.includes('scripts/kit-update-pr.mjs'));
     assert.ok(files.includes('.claude/hooks/drift-guard.py'));
     assert.ok(files.includes('.claude/skills/tdd/SKILL.md'));
-    for (const path of [
-      '.claude/skills/census-update/SKILL.md',
-      '.agents/skills/census-update/SKILL.md',
-      '.claude/skills/setup-workflow/census.md',
-      '.agents/skills/setup-workflow/census.md',
-      ...['index', 'scan', 'fingerprint', 'delta', 'state', 'transaction']
-        .map((name) => `scripts/census/${name}.mjs`),
-    ]) assert.ok(files.includes(path), `pack missing ${path}`);
+    for (const path of PUBLIC_CENSUS_UNIT) {
+      assert.ok(files.includes(path), `pack missing ${path}`);
+    }
     assert.ok(files.every((path) => !path.startsWith('.claude/logs/')));
     assert.ok(files.every((path) => !path.includes('__pycache__') && !path.endsWith('.pyc')));
     const pkg = JSON.parse(execFileSync('node', ['-p', 'JSON.stringify(require("./package.json"))'], {

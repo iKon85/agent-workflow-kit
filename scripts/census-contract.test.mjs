@@ -33,6 +33,13 @@ async function json(path) {
   return JSON.parse(await readFile(path, 'utf8'));
 }
 
+async function backstopStatus(root) {
+  const { stdout } = await exec('python3', [
+    join(REPO, '.claude/hooks/drift-guard.py'), '--census-status',
+  ], { cwd: root });
+  return JSON.parse(stdout);
+}
+
 test('brownfield reports real X of Y surfaces separately from behaviors', async () => {
   const root = await consumer('brownfield');
   try {
@@ -67,18 +74,78 @@ test('greenfield without an active snapshot remains honest bootstrap', async () 
 test('unknown pattern stays open until its repository-local scanner test passes', async () => {
   const root = await consumer('unknown-pattern', ['package.json', 'src', '.census']);
   try {
-    const baseline = await scanCensus({ repoRoot: root, enabled: true, hasActive: true });
-    assert.equal(baseline.state, 'refresh_required');
-    assert.deepEqual(diffCensus(baseline, baseline).open, ['services/payments/src']);
+    const activePath = join(root, '.census/active.json');
+    const profilePath = join(root, '.census/profile.json');
+    const surface = 'services/payments/src';
+    const scannerRecord = {
+      surface,
+      module: 'scripts/census-local/scan-services.mjs',
+      export: 'scanServices',
+      test: 'test/census-services.test.mjs',
+    };
 
-    await exec('node', ['--test', 'test/census-services.test.mjs'], { cwd: root });
-    const scanner = await import(pathToFileURL(join(root, 'scripts/census-local/scan-services.mjs')));
-    assert.deepEqual(scanner.scanServices(), ['services/payments/src']);
-    await exec('git', ['add', 'services', 'scripts/census-local', 'test'], { cwd: root });
+    const untracked = await scanCensus({ repoRoot: root, enabled: true, hasActive: true });
+    assert.equal(untracked.state, 'refresh_required');
+    assert.deepEqual(diffCensus(untracked, untracked).open, [surface]);
 
-    const proven = await scanCensus({ repoRoot: root, enabled: true, hasActive: true });
+    // Establish real active history before the repository grows the unknown surface.
+    await rm(join(root, 'services'), { recursive: true });
+    await rm(join(root, 'scripts'), { recursive: true });
+    await rm(join(root, 'test'), { recursive: true });
+    const known = await scanCensus({ repoRoot: root, enabled: true, hasActive: true });
+    await writeFile(activePath, `${JSON.stringify({
+      ...known,
+      profileReport: { decisions: [], localScanners: [], overrides: [] },
+    })}\n`);
+
+    await cp(new URL('unknown-pattern/services/', FIXTURES), join(root, 'services'), { recursive: true });
+    await exec('git', ['add', 'services'], { cwd: root });
+    const trackedOnly = await backstopStatus(root);
+    assert.equal(trackedOnly.state, 'refresh_required');
+    assert.ok(trackedOnly.reasons.includes('topology'));
+
+    const profile = await json(profilePath);
+    profile.localScanners.push(scannerRecord);
+    await writeFile(profilePath, `${JSON.stringify(profile)}\n`);
+    const missingProof = await backstopStatus(root);
+    assert.equal(missingProof.state, 'refresh_required');
+    assert.ok(missingProof.reasons.includes(`proof:${surface}`));
+
+    await cp(new URL('unknown-pattern/scripts/', FIXTURES), join(root, 'scripts'), { recursive: true });
+    await cp(new URL('unknown-pattern/test/', FIXTURES), join(root, 'test'), { recursive: true });
+    await writeFile(
+      join(root, scannerRecord.test),
+      "import { test } from 'node:test'; test('failing local proof', () => { throw new Error('no'); });\n",
+    );
+    await exec('git', ['add', 'scripts', 'test', '.census/profile.json'], { cwd: root });
+    const failedProof = await backstopStatus(root);
+    assert.equal(failedProof.state, 'refresh_required');
+    assert.ok(failedProof.reasons.includes(`proof:${surface}`));
+
+    await cp(
+      new URL('unknown-pattern/test/census-services.test.mjs', FIXTURES),
+      join(root, scannerRecord.test),
+    );
+    const candidate = await scanCensus({ repoRoot: root, enabled: true, hasActive: true });
+    assert.equal(candidate.state, 'current');
+    await activateCensus({
+      activePath,
+      candidate: {
+        ...candidate,
+        profileReport: { decisions: [], localScanners: [scannerRecord], overrides: [] },
+      },
+      verify: async () => {
+        await exec('node', ['--test', scannerRecord.test], { cwd: root });
+        const scanner = await import(`${pathToFileURL(join(root, scannerRecord.module)).href}?proof=${Date.now()}`);
+        return scanner[scannerRecord.export]().includes(surface);
+      },
+    });
+
+    const proven = await backstopStatus(root);
     assert.equal(proven.state, 'current');
-    assert.equal(proven.families.surfaces.find(({ name }) => name === 'services/payments/src').status, 'abgedeckt');
+    assert.deepEqual(proven.reasons, []);
+    const active = await json(activePath);
+    assert.equal(active.profileReport.localScanners[0].test, scannerRecord.test);
   } finally { await cleanup(root); }
 });
 

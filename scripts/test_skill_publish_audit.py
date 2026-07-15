@@ -36,6 +36,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+PUBLIC_CENSUS_UNIT = json.loads(
+    (REPO / "test/fixtures/census-consumers/public-unit.json").read_text(encoding="utf-8")
+)["paths"]
 PUBLIC_SLUG = "iKon85/agent-workflow-kit"
 CREDIT_FILES = {"LICENSE", "README.md", "PROVENANCE.md", "THIRD-PARTY-NOTICES.md"}
 PRIVATE_SKILLS = {
@@ -301,19 +304,7 @@ class RealDistKitIsClean(unittest.TestCase):
             capture_output=True, text=True, timeout=120,
         )
         self.assertEqual(build.returncode, 0, build.stderr)
-        expected = (
-            ".claude/skills/census-update/SKILL.md",
-            ".agents/skills/census-update/SKILL.md",
-            ".claude/skills/setup-workflow/census.md",
-            ".agents/skills/setup-workflow/census.md",
-            "scripts/census/index.mjs",
-            "scripts/census/scan.mjs",
-            "scripts/census/fingerprint.mjs",
-            "scripts/census/delta.mjs",
-            "scripts/census/state.mjs",
-            "scripts/census/transaction.mjs",
-        )
-        for rel in expected:
+        for rel in PUBLIC_CENSUS_UNIT:
             path = REPO / "dist-kit" / rel
             self.assertTrue(path.is_file(), f"missing published census resource: {rel}")
             text = path.read_text(encoding="utf-8")
