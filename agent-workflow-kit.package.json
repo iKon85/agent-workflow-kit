@@ -461,6 +461,15 @@
       "origin": "kit"
     },
     {
+      "path": ".agents/skills/setup-workflow/assets/agent-workflow-kit-update.yml",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "codex",
+      "sha256": "d8abf995d67184b4459b9565c9062319fc42e8a685042b288b3066a07a6fda59",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".agents/skills/setup-workflow/board-sync.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
@@ -528,7 +537,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "ea0b75ccd1579820a09e7c8d4c151126aa0be7a0be6b76b23599fadebb44b554",
+      "sha256": "efc7818d98158a85a79f3a652787d2e557552fa5175b32b24916c894388b9b74",
       "mode": 420,
       "origin": "kit"
     },
@@ -1434,6 +1443,15 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/setup-workflow/assets/agent-workflow-kit-update.yml",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "claude",
+      "sha256": "d8abf995d67184b4459b9565c9062319fc42e8a685042b288b3066a07a6fda59",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/setup-workflow/board-sync.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
@@ -1501,7 +1519,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "ea0b75ccd1579820a09e7c8d4c151126aa0be7a0be6b76b23599fadebb44b554",
+      "sha256": "efc7818d98158a85a79f3a652787d2e557552fa5175b32b24916c894388b9b74",
       "mode": 420,
       "origin": "kit"
     },
@@ -1881,6 +1899,13 @@
       "kind": "script",
       "sha256": "d3148aab63fa670c0a3407d2816d287b7cdeaa130588fb55b6075217da95d3d3",
       "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/kit-update-pr.mjs",
+      "kind": "script",
+      "sha256": "64e7818003d7c6db227eadad0b114e199399a52a96965ab2f0f496c0a1e5c79c",
+      "mode": 493,
       "origin": "kit"
     },
     {

@@ -37,6 +37,9 @@ test('current build contains post-tag public files and repository metadata', asy
     const pkg = JSON.parse(await readFile(join(dist, 'package.json'), 'utf8'));
     assert.equal(pkg.name, '@ikon85/agent-workflow-kit');
     assert.equal(pkg.repository.url, 'git+https://github.com/iKon85/agent-workflow-kit.git');
+    assert.equal(pkg.bin['agent-workflow-kit'], 'src/cli.mjs');
+    assert.equal(pkg.bin['agent-workflow-kit-update-pr'], 'scripts/kit-update-pr.mjs');
+    await readFile(join(dist, 'scripts/kit-update-pr.mjs'));
   });
 });
 
@@ -52,9 +55,31 @@ test('npm pack keeps the complete scripts tree but excludes Python caches', () =
   const files = JSON.parse(output)[0].files.map((file) => file.path);
   assert.ok(files.includes('scripts/build-kit.mjs'));
   assert.ok(files.includes('scripts/board-sync.py'));
+  assert.ok(files.includes('scripts/kit-update-pr.mjs'));
   assert.ok(files.every((path) => !path.includes('__pycache__') && !path.endsWith('.pyc')));
   const pkg = JSON.parse(execFileSync('node', ['-p', 'JSON.stringify(require("./package.json"))'], {
     cwd: REPO, encoding: 'utf8',
   }));
   assert.ok(pkg.files.includes('scripts/'), 'package must ship future script file types');
+});
+
+test('packed scoped artifact keeps the existing npx default-bin inference', async () => {
+  const destination = await mkdtemp(join(tmpdir(), 'awkit-pack-'));
+  try {
+    const packed = JSON.parse(execFileSync('npm', [
+      'pack', '--pack-destination', destination, '--json',
+    ], { cwd: REPO, encoding: 'utf8' }));
+    const output = execFileSync('npx', [
+      '--yes', '--offline', `./${packed[0].filename}`,
+    ], { cwd: destination, encoding: 'utf8' });
+    assert.match(output, /Usage: agent-workflow-kit/);
+
+    const updater = execFileSync('npm', [
+      'exec', '--yes', '--offline', `--package=./${packed[0].filename}`,
+      '--', 'agent-workflow-kit-update-pr', 'help',
+    ], { cwd: destination, encoding: 'utf8' });
+    assert.match(updater, /Usage: agent-workflow-kit-update-pr/);
+  } finally {
+    await rm(destination, { recursive: true, force: true });
+  }
 });

@@ -45,6 +45,16 @@ def classify(first_line, is_empty):
     return "create" if is_empty else "skip"
 
 
+def update_workflow_action(
+    provider, choice, destination_exists, prerequisites=True,
+    pull_requests_allowed=True,
+):
+    """Reference decision table for the prompt-driven setup contract."""
+    if provider != "github" or destination_exists or choice != "enable":
+        return "skip"
+    return "create" if prerequisites and pull_requests_allowed else "skip"
+
+
 class IdempotencyRule(unittest.TestCase):
     CASES = [
         # (first_line, is_empty, expected)
@@ -71,6 +81,61 @@ class IdempotencyRule(unittest.TestCase):
 
 
 class SeedTemplatesValid(unittest.TestCase):
+    def test_update_workflow_provider_and_choice_fixtures(self):
+        fixtures = [
+            ("github", "enable", False, True, True, "create"),
+            ("github", "opt-out", False, True, True, "skip"),
+            ("github", "later", False, True, True, "skip"),
+            ("github", "enable", True, True, True, "skip"),
+            ("github", "enable", False, False, True, "skip"),
+            ("github", "enable", False, True, False, "skip"),
+            ("gitlab", "enable", False, True, True, "skip"),
+            ("local", "enable", False, True, True, "skip"),
+        ]
+        for provider, choice, exists, prerequisites, allowed, expected in fixtures:
+            self.assertEqual(
+                update_workflow_action(
+                    provider, choice, exists, prerequisites, allowed,
+                ), expected,
+            )
+
+    def test_github_update_opt_in_is_provider_aware_and_idempotent(self):
+        skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        for token in (
+            "Automatic Kit update pull requests",
+            ".github/workflows/agent-workflow-kit-update.yml",
+            "Opt out",
+            "Ask later",
+            "GitHub tracker",
+            "skipped (already present)",
+            "package-lock.json",
+            "npm test",
+            "can_approve_pull_request_reviews",
+            "Allow GitHub Actions to create and approve pull requests",
+            "explicit confirmation",
+        ):
+            self.assertIn(token, skill)
+        self.assertIn("do not create a GitHub workflow", skill)
+
+    def test_github_update_workflow_has_safe_triggers_and_scoped_runner(self):
+        workflow = (SKILL / "assets/agent-workflow-kit-update.yml").read_text(encoding="utf-8")
+        for token in (
+            "schedule:", "workflow_dispatch:", "contents: write",
+            "pull-requests: write", "agent-workflow-kit-update-pr",
+            "@ikon85/agent-workflow-kit@latest", "fetch-depth: 0",
+            "node-version: 22.14", "npm ci --ignore-scripts",
+        ):
+            self.assertIn(token, workflow)
+        for forbidden in ("npm_token", "NPM_TOKEN", "auto-merge", "gh pr merge"):
+            self.assertNotIn(forbidden, workflow)
+
+        mirror = (REPO / ".agents/skills/setup-workflow/assets/agent-workflow-kit-update.yml")
+        self.assertEqual(workflow, mirror.read_text(encoding="utf-8"))
+
+    def test_update_pr_runner_is_an_installed_package_binary(self):
+        package = json.loads((REPO / "package.json").read_text(encoding="utf-8"))
+        self.assertEqual(package["bin"]["agent-workflow-kit-update-pr"], "scripts/kit-update-pr.mjs")
+
     def test_spec_completeness_seed_has_valid_self_critique_block(self):
         """A convention without a valid Trigger/Check/Korrektur block makes
         spec-self-critique point 8 warn — the seed must carry one (Codex R1 #14)."""

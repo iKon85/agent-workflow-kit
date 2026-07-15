@@ -1,0 +1,31 @@
+name: Agent Workflow Kit update
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: agent-workflow-kit-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14
+      - name: Install locked consumer dependencies
+        run: npm ci --ignore-scripts
+      - name: Verify, test, and upsert the Kit update pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: npx --yes --package=@ikon85/agent-workflow-kit@latest agent-workflow-kit-update-pr

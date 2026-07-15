@@ -47,6 +47,9 @@ export const HELPER_FILES = [
   // the parity primitive rather than growing a second registry/GitHub comparison.
   { path: 'scripts/release-parity.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/release-state.mjs', kind: 'script', mode: 0o644 },
+  // GitHub-consumer automation: invokes the existing update command, then owns
+  // only the stable tested branch/pull-request upsert.
+  { path: 'scripts/kit-update-pr.mjs', kind: 'script', mode: 0o755 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
   // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
   // hooks ImportError on arrival.
