@@ -49,8 +49,13 @@ test('current build is self-contained and never reaches into a consumer checkout
 });
 
 test('npm pack keeps product files but excludes runtime residue', async () => {
-  const runtimeLog = join(REPO, '.claude/logs/drift-guard.log');
-  await mkdir(dirname(runtimeLog), { recursive: true });
+  const logsDir = join(REPO, '.claude/logs');
+  await mkdir(logsDir, { recursive: true });
+  const ownedLogDir = await mkdtemp(join(logsDir, 'pack-runtime-'));
+  const runtimeLog = join(ownedLogDir, 'drift-guard.log');
+  const sentinelLog = join(ownedLogDir, 'preexisting.log');
+  const sentinelBytes = 'preexisting runtime log bytes\n';
+  await writeFile(sentinelLog, sentinelBytes);
   await writeFile(runtimeLog, `${new Date().toISOString()} runtime-only\n`);
   try {
     const output = execFileSync('npm', ['pack', '--dry-run', '--json'], {
@@ -68,8 +73,9 @@ test('npm pack keeps product files but excludes runtime residue', async () => {
       cwd: REPO, encoding: 'utf8',
     }));
     assert.ok(pkg.files.includes('scripts/'), 'package must ship future script file types');
+    assert.equal(await readFile(sentinelLog, 'utf8'), sentinelBytes);
   } finally {
-    await rm(runtimeLog, { force: true });
+    await rm(ownedLogDir, { recursive: true, force: true });
   }
 });
 
