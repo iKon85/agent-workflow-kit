@@ -61,6 +61,20 @@ test('a dead manifest surface reference is rejected', async () => {
   assert.match(result.problems.join('\n'), /manifest surface has no skill file.*grill-me-codex/i);
 });
 
+test('a newly manifested grill variant expands the family and cannot hide a missing surface', async () => {
+  const manifest = {
+    ...GRILLS,
+    'grill-decisions': { surfaces: ['claude'] },
+  };
+  const result = await auditGrillCensusWiring(await fixture({
+    manifest,
+    omitFile: 'claude:grill-decisions',
+  }));
+
+  assert.deepEqual(result.counts, { logical: 5, physical: 7 });
+  assert.match(result.problems.join('\n'), /manifest surface has no skill file.*grill-decisions/i);
+});
+
 test('the repository wiring stays at the manifest-derived 4 of 4 and 6 of 6 contract', async () => {
   const result = await auditGrillCensusWiring(
     join(dirname(fileURLToPath(import.meta.url)), '..'),

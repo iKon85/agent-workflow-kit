@@ -10,12 +10,7 @@ export const CENSUS_PREFLIGHT_INVOCATION =
 export const CENSUS_PREFLIGHT_CONTRACT =
   'For a cross-cutting plan, run `python3 .claude/hooks/drift-guard.py --census-status` before locking it. When an activated census reports `block_handoff: true` (including stale or open surfaces), stop the lock, run `$census-update`, resolve the findings, and retry. When the census is disabled or not activated, keep the status visible and perform the existing manual surface walk; do not replace that walk with census guesses.';
 
-const GRILL_NAMES = new Set([
-  'grill-me',
-  'grill-with-docs',
-  'grill-me-codex',
-  'grill-with-docs-codex',
-]);
+const GRILL_FAMILY_NAME = /^grill-/;
 const SURFACE_TREES = { claude: '.claude', codex: '.agents' };
 const LOCAL_CENSUS_LOGIC = /\b(?:scanCensus|diffCensus|fingerprintCensus|resolveCensusState|activateCensus)\s*\(/;
 
@@ -32,16 +27,9 @@ export async function auditGrillCensusWiring(repoRoot) {
   const manifestPath = join(repoRoot, '.claude', 'skills', 'skill-manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   const entries = Object.entries(manifest.skills ?? {})
-    .filter(([name]) => GRILL_NAMES.has(name));
+    .filter(([name]) => GRILL_FAMILY_NAME.test(name));
   const problems = [];
   const physical = [];
-
-  const missingLogical = [...GRILL_NAMES].filter(
-    (name) => !entries.some(([candidate]) => candidate === name),
-  );
-  for (const name of missingLogical) {
-    problems.push(`manifest has no logical grill variant: ${name}`);
-  }
 
   for (const [name, entry] of entries) {
     if (!Array.isArray(entry.surfaces) || entry.surfaces.length === 0) {
@@ -78,13 +66,6 @@ export async function auditGrillCensusWiring(repoRoot) {
     }
   }
 
-  if (entries.length !== 4) {
-    problems.push(`expected 4 logical grill variants, found ${entries.length}`);
-  }
-  if (physical.length !== 6) {
-    problems.push(`expected 6 physical grill files, found ${physical.length}`);
-  }
-
   return {
     counts: { logical: entries.length, physical: physical.length },
     problems,
@@ -94,7 +75,7 @@ export async function auditGrillCensusWiring(repoRoot) {
 async function main() {
   const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
   const result = await auditGrillCensusWiring(repoRoot);
-  console.log(`grill census wiring: ${result.counts.logical}/4 logical, ${result.counts.physical}/6 physical`);
+  console.log(`grill census wiring: ${result.counts.logical} logical, ${result.counts.physical} physical`);
   if (result.problems.length > 0) {
     for (const problem of result.problems) console.error(`- ${problem}`);
     process.exitCode = 1;
