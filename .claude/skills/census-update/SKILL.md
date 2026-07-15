@@ -29,9 +29,48 @@ Import only the stable exports from `scripts/census/index.mjs`:
 `CENSUS_BUILDER_VERSION`, `diffCensus`, `CENSUS_STATES`, `CENSUS_VERDICTS`,
 `resolveCensusState`, `activateCensus`, and `CensusTransactionError`.
 
-Resolve the consumer's project-local census profile and active-census path. If
-no profile exists, report `bootstrap` and stage a consumer-owned profile rather
-than silently enabling a gate. Preserve any existing local path convention.
+## Consumer files
+
+First adopt an existing, explicitly documented census path convention when the
+repository has one. Otherwise use `.census/profile.json` for the consumer-owned
+profile and `.census/active.json` for the verified snapshot. A missing default
+profile is not an error: report `bootstrap` and stage it only after facts and
+decisions are ready rather than silently enabling a gate.
+
+The deterministic profile schema is:
+
+```json
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "decisions": [
+    { "family": "name", "status": "verdict", "evidence": "fact", "justification": "required when not relevant" }
+  ],
+  "localScanners": [
+    { "surface": "family", "module": "repo-relative path", "export": "function", "test": "repo-relative test path" }
+  ],
+  "overrides": [
+    { "scope": "this change", "reason": "visible display-only reason" }
+  ]
+}
+```
+
+Keep all three arrays present and order their records by family or surface, then
+path. Preserve extra consumer-owned keys when rewriting an adopted profile.
+Pass `decisions` to `scanCensus` as `behaviorFamilies` after mapping `family` to
+`name`. Put the unchanged decision, local-scanner, and override records in a
+visible `profileReport` beside the scanned snapshot. Derive snapshot state with
+`resolveCensusState`; never assign `current` as a literal shortcut.
+
+Local-scanner records configure the verifier passed to `activateCensus`: run
+the named focused test, import the named repository-local export, and require
+its result to include the recorded surface. Both `module` and `test` must be
+repository-relative, contained regular files; reject absolute paths, `..`
+escapes, and symlinks before executing or importing either one. Compare surface
+families with the previous active snapshot; a new family without that passing
+proof is still open for state resolution even when Git tracking lets the base
+scan enumerate it. Overrides are report input only and are never passed into
+scanning, fingerprinting, verification, or state resolution.
 
 ## Workflow
 
