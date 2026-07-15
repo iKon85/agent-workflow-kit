@@ -16,6 +16,10 @@ Do not enact the plan until I confirm we have reached a shared understanding.
 
 </what-to-do>
 
+### Census preflight before plan-lock
+
+For a cross-cutting plan, run `python3 .claude/hooks/drift-guard.py --census-status` before locking it. When an activated census reports `block_handoff: true` (including stale or open surfaces), stop the lock, run `$census-update`, resolve the findings, and retry. When the census is disabled or not activated, keep the status visible and perform the existing manual surface walk; do not replace that walk with census guesses.
+
 ## Related skills
 
 **No codebase/`CONTEXT.md` present, or a simpler case?** → `grill-me` is enough — same grill without the docs layer (CONTEXT.md/ADRs).

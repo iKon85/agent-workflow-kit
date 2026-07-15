@@ -38,6 +38,10 @@ Is the change **cross-cutting** (a new pattern OR a new data structure/domain di
 
 Never claim "complete" from plan/memory — count the denominator fresh, report `X of Y`. Substance, trigger threshold + guard template → the project convention file `docs/conventions/spec-completeness.md` (if present), §Cross-cutting fork.
 
+### Census preflight before plan-lock
+
+For a cross-cutting plan, run `python3 .claude/hooks/drift-guard.py --census-status` before locking it. When an activated census reports `block_handoff: true` (including stale or open surfaces), stop the lock, run `$census-update`, resolve the findings, and retry. When the census is disabled or not activated, keep the status visible and perform the existing manual surface walk; do not replace that walk with census guesses.
+
 ## Plan-lock — writing PLAN.md
 
 Once all decisions are made (plan locked, before sign-off/handoff) and the session runs in a **worktree** → write the locked plan as `PLAN.md` to the worktree root (gitignored since, doesn't travel over git — consistent with CLAUDE.md "plan inside the worktree"). This way the locked plan survives a session cut and `to-prd` finds its default source. Continuing same-session work **without** a worktree stays allowed (conversation = source); but for a deliberate **session cut** before `to-prd`, `PLAN.md` is mandatory. (The `-codex` variant already writes `PLAN.md` anyway.)
