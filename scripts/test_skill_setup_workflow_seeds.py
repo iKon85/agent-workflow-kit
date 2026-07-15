@@ -81,6 +81,68 @@ class IdempotencyRule(unittest.TestCase):
 
 
 class SeedTemplatesValid(unittest.TestCase):
+    def test_census_seed_covers_the_complete_setup_state_matrix(self):
+        seed = (SKILL / "census.md").read_text(encoding="utf-8")
+        rows = {}
+        for line in seed.splitlines():
+            match = re.match(r"^\| `([^`]+)` \| (.+) \| (.+) \|$", line)
+            if match:
+                rows[match.group(1)] = f"{match.group(2)} {match.group(3)}"
+        for state in (
+            "missing", "yes", "later", "no", "existing",
+            "explicit-enable", "disable",
+        ):
+            self.assertIn(state, rows)
+
+        expected_terms = {
+            "missing": ("ask `yes / later / no`", "do not infer", "no hook or gate"),
+            "yes": ("enabled: true", "active snapshot absent", "self-test", "bootstrap"),
+            "later": ("deferral", "setup rerun is a no-op", "`census-update`"),
+            "no": ("opt-out", "`disabled`", "do not create census files, hooks, or gates"),
+            "existing": ("Adopt", "without replacing", "Preserve every existing byte"),
+            "explicit-enable": ("`census-update`", "without rerunning setup", "no write"),
+            "disable": ("enabled: false", "remove census hooks/gates", "separately approves"),
+        }
+        for state, terms in expected_terms.items():
+            for term in terms:
+                self.assertIn(term, rows[state], f"{state} missing {term!r}")
+
+    def test_census_yes_is_an_honest_bootstrap_not_activation(self):
+        skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        seed = (SKILL / "census.md").read_text(encoding="utf-8")
+
+        self.assertIn("optional census choice", skill.split("---", 2)[1])
+        self.assertIn("Section A3 — Optional project census", skill)
+        self.assertIn("[census.md](./census.md)", skill)
+        for token in (
+            ".census/profile.json", ".census/active.json", "enabled: true",
+            "bootstrap", "not yet meaningful", "self-test",
+            "Setup itself never calls `activateCensus`",
+        ):
+            self.assertIn(token, seed)
+        self.assertIn("must not install pre-commit, pre-push, CI, planning, or", seed)
+
+    def test_census_deferral_adoption_enable_and_disable_are_safe_and_idempotent(self):
+        skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        seed = (SKILL / "census.md").read_text(encoding="utf-8")
+
+        for token in (
+            "retryable deferral", "explicit opt-out", "explicit `census-update`",
+            "consumer-owned", "separate deletion approval", "no write",
+        ):
+            self.assertIn(token, seed)
+        self.assertIn("Repeated runs are no-ops", skill)
+        self.assertIn("setup never deletes consumer-owned files", seed.lower())
+
+    def test_census_setup_surface_is_fully_mirrored_for_codex(self):
+        codex = REPO / ".agents/skills/setup-workflow"
+        for relative in ("SKILL.md", "census.md"):
+            self.assertEqual(
+                (SKILL / relative).read_text(encoding="utf-8"),
+                (codex / relative).read_text(encoding="utf-8"),
+                f"setup-workflow mirror drift in {relative}",
+            )
+
     def test_update_workflow_provider_and_choice_fixtures(self):
         fixtures = [
             ("github", "enable", False, True, True, "create"),

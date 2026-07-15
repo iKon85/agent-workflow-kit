@@ -1,6 +1,6 @@
 ---
 name: setup-workflow
-description: "Scaffolds the project layer the portable workflow skills assume — issue tracker, triage labels, domain-doc layout, GitHub-Projects board field-IDs, spec-self-critique + spec-completeness seeds, workflow overview, and the deploy target. Writes `docs/agents/*`, `docs/conventions/spec-completeness.md`, and the `## Workflow` / `## Agent skills` / `## Prod` blocks in CLAUDE.md/AGENTS.md. Idempotent: a re-run reconciles per file/section and never overwrites filled content. Run once after installing the skills (or `npx <pkg> init`), or when a skill reports missing project-layer context. Adapted from Matt Pocock's `setup-matt-pocock-skills` (MIT)."
+description: "Scaffolds the project layer the portable workflow skills assume — issue tracker, triage labels, domain-doc layout, board field IDs, spec seeds, workflow overview, optional census choice, and deploy target. Writes `docs/agents/*`, `docs/conventions/spec-completeness.md`, and the `## Workflow` / `## Agent skills` / `## Prod` blocks in CLAUDE.md/AGENTS.md. Idempotent: a re-run reconciles per file/section and never overwrites filled content. Run once after installing the skills (or `npx <pkg> init`), or when a skill reports missing project-layer context. Adapted from Matt Pocock's `setup-matt-pocock-skills` (MIT)."
 disable-model-invocation: true
 ---
 
@@ -25,6 +25,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `## Workflow` in CLAUDE.md **and** AGENTS.md | generic entry-point map seeded from [workflow-overview.md](./workflow-overview.md) (Section F + Write) |
 | `## Agent skills` + `## Prod` in CLAUDE.md **and** AGENTS.md | one-line pointers + deploy target (Sections C/G + Write) |
 | `.github/workflows/agent-workflow-kit-update.yml` | optional tested Kit update pull request for GitHub consumers (Section A2) |
+| `docs/agents/census.md` | optional-census choice, paths, state, and safe disable contract seeded from [census.md](./census.md) (Section A3) |
 
 ## Idempotency contract — read before writing anything
 
@@ -54,6 +55,7 @@ Read the current state; don't assume. For every target file, read its first line
 - `CLAUDE.md` and `AGENTS.md` at the repo root — which exist? Do they already have a `## Workflow` / `## Agent skills` / `## Prod` block?
 - `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/` — domain-doc layout.
 - `docs/agents/`, `docs/agents/skills/`, `docs/conventions/` — prior output of this skill.
+- `docs/agents/census.md`, `.census/profile.json`, `.census/active.json` — an existing census choice or consumer-owned census to adopt.
 - `gh auth status` (if GitHub) — is `gh` authenticated, and with which scopes?
 
 ### 2. Section A — Issue tracker
@@ -104,6 +106,34 @@ This workflow opt-in has its own file-level idempotency rule: if the destination
 For GitLab, local, other, or an unknown provider, give only a provider-neutral explanation that automatic updates require provider-specific CI and pull-request support; **do not create a GitHub workflow**. Setup itself never creates the update branch or pull request — only an opted-in workflow run may do that later.
 
 **Conditional board-write note (only when the GitHub tracker uses a managed board):** if Section D ends with `board-sync.md` at `mode: github-projects-v2`, add one line to `issue-tracker.md`: *"Board writes (item-add, status/wave/cluster field edits, sub-issue links) go through the board-sync helper, not bare `gh issue create`/`gh project item-*`."* Do **not** add this for GitLab, local, other, or `mode: none`.
+
+### 2b. Section A3 — Optional project census
+
+> A project census is an optional, consumer-owned map that counts product
+> surfaces and lists behavior families separately. It can make later plans and
+> handoffs more complete, but setup cannot honestly claim coverage before the
+> repository has been scanned and verified.
+
+Read [census.md](./census.md) in full before presenting the choice. If
+`docs/agents/census.md` already records `yes`, `later`, or `no`, adopt that
+choice and do not prompt again on an ordinary setup rerun. Also adopt an
+existing, explicitly documented census path. If no choice exists, ask in plain
+language: *"Should setup prepare the optional project census now?"* Offer
+exactly:
+
+- **Yes** — create or adopt the project layer and minimal enabled profile, run
+  only the shipped self-test, and report the honest `bootstrap` / "not yet
+  meaningful" state. Do not scan, activate, or install a hook or gate.
+- **Later** — record a deferral. Create no census profile, hook, or gate; a
+  later explicit `census-update` invocation may activate without setup.
+- **No** — record the opt-out as `disabled`. Create no census profile, hook, or
+  gate and do not prompt again unless the user explicitly changes the choice.
+
+Use the complete `missing / yes / later / no / existing / explicit-enable /
+disable` matrix in the seed. A later explicit `census-update` invocation may
+activate without rerunning setup. Disable enforcement first, but retain every
+consumer-owned profile, scanner, test, and active snapshot unless the user
+separately approves deletion. Repeated runs are no-ops after reconciliation.
 
 ### 3. Section B — Triage labels
 
@@ -181,6 +211,14 @@ Seed `docs/agents/code-review.md` from [code-review.md](./code-review.md) — th
 ### 8. Write
 
 For each `docs/...` file: obey the idempotency contract (the "Idempotency contract" section). Prepend the sentinel with the resolved `state` (and `mode` for board-sync).
+
+For `docs/agents/census.md`, seed [census.md](./census.md), prepend the normal
+sentinel, and record the selected choice directly below it as
+`<!-- census: choice=<yes|later|no> -->`. On adoption, also record the discovered
+repository-relative profile and active-snapshot paths. Never overwrite a
+pre-existing consumer-owned census file. `yes`, `later`, `no`, and an adopted
+existing census are terminal for ordinary setup reruns. Only an explicit user
+request changes a recorded choice.
 
 For the **`## Workflow`**, **`## Agent skills`**, and **`## Prod`** blocks, reconcile per section in **both** CLAUDE.md and AGENTS.md that exist:
 
