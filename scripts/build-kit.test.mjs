@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,19 +48,35 @@ test('current build is self-contained and never reaches into a consumer checkout
   assert.doesNotMatch(source, /testreporter|tools\/agent-workflow-kit/);
 });
 
-test('npm pack keeps the complete scripts tree but excludes Python caches', () => {
-  const output = execFileSync('npm', ['pack', '--dry-run', '--json'], {
-    cwd: REPO, encoding: 'utf8',
-  });
-  const files = JSON.parse(output)[0].files.map((file) => file.path);
-  assert.ok(files.includes('scripts/build-kit.mjs'));
-  assert.ok(files.includes('scripts/board-sync.py'));
-  assert.ok(files.includes('scripts/kit-update-pr.mjs'));
-  assert.ok(files.every((path) => !path.includes('__pycache__') && !path.endsWith('.pyc')));
-  const pkg = JSON.parse(execFileSync('node', ['-p', 'JSON.stringify(require("./package.json"))'], {
-    cwd: REPO, encoding: 'utf8',
-  }));
-  assert.ok(pkg.files.includes('scripts/'), 'package must ship future script file types');
+test('npm pack keeps product files but excludes runtime residue', async () => {
+  const logsDir = join(REPO, '.claude/logs');
+  await mkdir(logsDir, { recursive: true });
+  const ownedLogDir = await mkdtemp(join(logsDir, 'pack-runtime-'));
+  const runtimeLog = join(ownedLogDir, 'drift-guard.log');
+  const sentinelLog = join(ownedLogDir, 'preexisting.log');
+  const sentinelBytes = 'preexisting runtime log bytes\n';
+  await writeFile(sentinelLog, sentinelBytes);
+  await writeFile(runtimeLog, `${new Date().toISOString()} runtime-only\n`);
+  try {
+    const output = execFileSync('npm', ['pack', '--dry-run', '--json'], {
+      cwd: REPO, encoding: 'utf8',
+    });
+    const files = JSON.parse(output)[0].files.map((file) => file.path);
+    assert.ok(files.includes('scripts/build-kit.mjs'));
+    assert.ok(files.includes('scripts/board-sync.py'));
+    assert.ok(files.includes('scripts/kit-update-pr.mjs'));
+    assert.ok(files.includes('.claude/hooks/drift-guard.py'));
+    assert.ok(files.includes('.claude/skills/tdd/SKILL.md'));
+    assert.ok(files.every((path) => !path.startsWith('.claude/logs/')));
+    assert.ok(files.every((path) => !path.includes('__pycache__') && !path.endsWith('.pyc')));
+    const pkg = JSON.parse(execFileSync('node', ['-p', 'JSON.stringify(require("./package.json"))'], {
+      cwd: REPO, encoding: 'utf8',
+    }));
+    assert.ok(pkg.files.includes('scripts/'), 'package must ship future script file types');
+    assert.equal(await readFile(sentinelLog, 'utf8'), sentinelBytes);
+  } finally {
+    await rm(ownedLogDir, { recursive: true, force: true });
+  }
 });
 
 test('packed scoped artifact keeps the existing npx default-bin inference', async () => {
