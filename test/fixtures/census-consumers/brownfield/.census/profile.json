@@ -1,0 +1,1 @@
+{"schemaVersion":1,"enabled":true,"decisions":[{"family":"authentication","status":"abgedeckt","evidence":"apps/api/src"},{"family":"email-delivery","status":"nicht relevant","justification":"This product sends no email."}],"localScanners":[],"overrides":[]}

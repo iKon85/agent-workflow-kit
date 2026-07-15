@@ -36,6 +36,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+PUBLIC_CENSUS_UNIT = json.loads(
+    (REPO / "test/fixtures/census-consumers/public-unit.json").read_text(encoding="utf-8")
+)["paths"]
 PUBLIC_SLUG = "iKon85/agent-workflow-kit"
 CREDIT_FILES = {"LICENSE", "README.md", "PROVENANCE.md", "THIRD-PARTY-NOTICES.md"}
 PRIVATE_SKILLS = {
@@ -294,6 +297,19 @@ class RealDistKitIsClean(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         violations = audit_dir(REPO / "dist-kit")
         self.assertEqual(violations, [], "\n".join(violations[:40]))
+
+    def test_built_dist_kit_contains_publishable_census_without_foreign_reach(self):
+        build = subprocess.run(
+            ["node", str(REPO / "scripts/build-kit.mjs")], cwd=REPO,
+            capture_output=True, text=True, timeout=120,
+        )
+        self.assertEqual(build.returncode, 0, build.stderr)
+        for rel in PUBLIC_CENSUS_UNIT:
+            path = REPO / "dist-kit" / rel
+            self.assertTrue(path.is_file(), f"missing published census resource: {rel}")
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("tools/agent-workflow-kit", text)
+            self.assertNotIn("testreporter", text.lower())
 
 
 if __name__ == "__main__":
