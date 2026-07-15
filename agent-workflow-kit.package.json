@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.14.0",
+  "kitVersion": "0.15.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -34,6 +34,15 @@
       "ownerSkill": "board-to-waves",
       "surface": "codex",
       "sha256": "edcfbab80c6fc019ae1ba25b2fbec564c832b1619a4a92d175e214415335160a",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/census-update/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "census-update",
+      "surface": "codex",
+      "sha256": "3a04a2667005cae51cfad7952ff85fe43ba1ae390458b4ce746e23f6e872b3fb",
       "mode": 420,
       "origin": "kit"
     },
@@ -582,7 +591,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "6ce3954e4f94d112801cba0d145e4d3b6f101aca5e50e6b1f9794aa0288881a9",
+      "sha256": "b83fa87dc0226f21e01d31c91840b78d1ccad0a92e646de203fc3c003e9098f3",
       "mode": 420,
       "origin": "kit"
     },
@@ -890,6 +899,15 @@
       "ownerSkill": "board-to-waves",
       "surface": "claude",
       "sha256": "c68eb8a3328835bbad977b5981d38d64e43a67977f825a0b56766d6386caf4bc",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/census-update/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "census-update",
+      "surface": "claude",
+      "sha256": "3a04a2667005cae51cfad7952ff85fe43ba1ae390458b4ce746e23f6e872b3fb",
       "mode": 420,
       "origin": "kit"
     },
@@ -1564,7 +1582,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "6ce3954e4f94d112801cba0d145e4d3b6f101aca5e50e6b1f9794aa0288881a9",
+      "sha256": "b83fa87dc0226f21e01d31c91840b78d1ccad0a92e646de203fc3c003e9098f3",
       "mode": 420,
       "origin": "kit"
     },
