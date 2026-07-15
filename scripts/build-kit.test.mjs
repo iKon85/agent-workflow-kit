@@ -43,6 +43,27 @@ test('current build contains post-tag public files and repository metadata', asy
   });
 });
 
+test('current build contains the complete dual-surface census consumer unit', async () => {
+  await withBuild(async (dist, report) => {
+    const manifest = JSON.parse(await readFile(join(dist, 'agent-workflow-kit.package.json'), 'utf8'));
+    const paths = new Set(manifest.files.map(({ path }) => path));
+    const expected = [
+      '.claude/skills/census-update/SKILL.md',
+      '.agents/skills/census-update/SKILL.md',
+      '.claude/skills/setup-workflow/census.md',
+      '.agents/skills/setup-workflow/census.md',
+      ...['index', 'scan', 'fingerprint', 'delta', 'state', 'transaction']
+        .map((name) => `scripts/census/${name}.mjs`),
+    ];
+    assert.deepEqual(expected.filter((path) => !paths.has(path)), []);
+    assert.equal(report.fileCount, manifest.files.length);
+    assert.equal(
+      await readFile(join(dist, '.claude/skills/census-update/SKILL.md'), 'utf8'),
+      await readFile(join(dist, '.agents/skills/census-update/SKILL.md'), 'utf8'),
+    );
+  });
+});
+
 test('current build is self-contained and never reaches into a consumer checkout', async () => {
   const source = await readFile(join(REPO, 'scripts/build-kit.mjs'), 'utf8');
   assert.doesNotMatch(source, /testreporter|tools\/agent-workflow-kit/);
@@ -67,6 +88,14 @@ test('npm pack keeps product files but excludes runtime residue', async () => {
     assert.ok(files.includes('scripts/kit-update-pr.mjs'));
     assert.ok(files.includes('.claude/hooks/drift-guard.py'));
     assert.ok(files.includes('.claude/skills/tdd/SKILL.md'));
+    for (const path of [
+      '.claude/skills/census-update/SKILL.md',
+      '.agents/skills/census-update/SKILL.md',
+      '.claude/skills/setup-workflow/census.md',
+      '.agents/skills/setup-workflow/census.md',
+      ...['index', 'scan', 'fingerprint', 'delta', 'state', 'transaction']
+        .map((name) => `scripts/census/${name}.mjs`),
+    ]) assert.ok(files.includes(path), `pack missing ${path}`);
     assert.ok(files.every((path) => !path.startsWith('.claude/logs/')));
     assert.ok(files.every((path) => !path.includes('__pycache__') && !path.endsWith('.pyc')));
     const pkg = JSON.parse(execFileSync('node', ['-p', 'JSON.stringify(require("./package.json"))'], {

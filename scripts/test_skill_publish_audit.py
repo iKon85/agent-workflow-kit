@@ -295,6 +295,31 @@ class RealDistKitIsClean(unittest.TestCase):
         violations = audit_dir(REPO / "dist-kit")
         self.assertEqual(violations, [], "\n".join(violations[:40]))
 
+    def test_built_dist_kit_contains_publishable_census_without_foreign_reach(self):
+        build = subprocess.run(
+            ["node", str(REPO / "scripts/build-kit.mjs")], cwd=REPO,
+            capture_output=True, text=True, timeout=120,
+        )
+        self.assertEqual(build.returncode, 0, build.stderr)
+        expected = (
+            ".claude/skills/census-update/SKILL.md",
+            ".agents/skills/census-update/SKILL.md",
+            ".claude/skills/setup-workflow/census.md",
+            ".agents/skills/setup-workflow/census.md",
+            "scripts/census/index.mjs",
+            "scripts/census/scan.mjs",
+            "scripts/census/fingerprint.mjs",
+            "scripts/census/delta.mjs",
+            "scripts/census/state.mjs",
+            "scripts/census/transaction.mjs",
+        )
+        for rel in expected:
+            path = REPO / "dist-kit" / rel
+            self.assertTrue(path.is_file(), f"missing published census resource: {rel}")
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("tools/agent-workflow-kit", text)
+            self.assertNotIn("testreporter", text.lower())
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -194,6 +194,27 @@ class DistKitValidateGraphSmoke(unittest.TestCase):
                          "language (fields.status.roles / --status-role) instead:\n"
                          + "\n".join(hits))
 
+    def test_shipped_census_runs_for_a_foreign_greenfield_on_both_surfaces(self):
+        consumer = self.tmp / "census-consumer"
+        shutil.copytree(REPO / "test/fixtures/census-consumers/greenfield", consumer)
+        subprocess.run(["git", "init", "--quiet"], cwd=consumer, check=True)
+        subprocess.run(["git", "add", "."], cwd=consumer, check=True)
+        claude = (DIST / ".claude/skills/census-update/SKILL.md").read_text()
+        codex = (DIST / ".agents/skills/census-update/SKILL.md").read_text()
+        self.assertEqual(claude, codex)
+        module = (DIST / "scripts/census/index.mjs").as_uri()
+        runner = (
+            f'import {{ scanCensus }} from {json.dumps(module)};'
+            "const r=await scanCensus({repoRoot:process.argv[1],enabled:true});"
+            "console.log(JSON.stringify({state:r.state,count:r.denominator.length}));"
+        )
+        result = subprocess.run(
+            ["node", "--input-type=module", "--eval", runner, str(consumer)],
+            cwd=DIST, capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), {"state": "bootstrap", "count": 2})
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
