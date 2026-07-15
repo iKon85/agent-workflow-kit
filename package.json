@@ -19,6 +19,7 @@
   },
   "files": [
     ".claude/",
+    "!.claude/logs/",
     ".agents/",
     "scripts/",
     "docs/",
