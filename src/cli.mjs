@@ -6,6 +6,7 @@ import { init } from './commands/init.mjs';
 import { update } from './commands/update.mjs';
 import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
+import { createCommandAdapter } from '../scripts/release-state.mjs';
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const consumerRoot = process.cwd();
@@ -42,11 +43,22 @@ try {
       const ok = await p.confirm({ message: `Upstream removed ${path} — delete it locally?` });
       return ok === true;
     };
-    const r = await update({ kitRoot: KIT_ROOT, consumerRoot, now: stamp(), decide });
+    const releaseIdentities = await readUpdateRelease();
+    const r = await update({
+      kitRoot: KIT_ROOT, consumerRoot, now: stamp(), decide, releaseIdentities,
+    });
     printPlan(r);
-    for (const c of r.conflicts) p.note(c.diff || '(binary/!text)', `conflict (backed up): ${c.path}`);
-    p.outro(`updated ${r.updated.length} · added ${r.added.length} · ` +
-      `conflicts ${r.conflicts.length} · deleted ${r.deleted.length}`);
+    for (const c of r.conflicts) p.note(c.diff || '(binary/!text)', `conflict (not applied): ${c.path}`);
+    if (r.state === 'failed') throw new Error(`candidate update failed: ${r.error}`);
+    if (r.state === 'conflicted') {
+      p.note(r.report.recommendation, 'recommendation');
+      p.outro(`not applied · conflicts ${r.conflicts.length}`);
+      process.exitCode = 2;
+    } else if (r.status === 'current') {
+      p.outro(`aktuell · unchanged ${r.unchanged.length} · local modifications ${r.userModified.length}`);
+    } else {
+      p.outro(`updated ${r.updated.length} · added ${r.added.length} · deleted ${r.deleted.length}`);
+    }
   } else if (cmd === 'uninstall') {
     const ok = yes || (await p.confirm({ message: 'Remove kit-installed files?' })) === true;
     if (!ok) { p.cancel('Aborted.'); process.exit(0); }
@@ -67,4 +79,17 @@ function printPlan(r) {
     if (r[k]?.length) lines.push(`${k}: ${r[k].length}`);
   if (r.conflicts?.length) lines.push(`conflicts: ${r.conflicts.length}`);
   p.note(lines.join('\n') || 'no changes', 'plan');
+}
+
+async function readUpdateRelease() {
+  const adapter = await createCommandAdapter({
+    repoRoot: KIT_ROOT,
+    env: { ...process.env, GH_REPO: 'iKon85/agent-workflow-kit' },
+  });
+  try {
+    const local = (await adapter.local()).identity;
+    return { local, npm: await adapter.npm(local), github: await adapter.github(local) };
+  } finally {
+    await adapter.dispose();
+  }
 }

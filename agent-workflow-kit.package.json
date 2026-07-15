@@ -326,6 +326,15 @@
       "origin": "kit"
     },
     {
+      "path": ".agents/skills/kit-update/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "kit-update",
+      "surface": "codex",
+      "sha256": "26737ea49ac104260e56fd1604f60249ca1d59f1a2c1f22db55649833d01ebc3",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".agents/skills/local-ci/SKILL.md",
       "kind": "skill",
       "ownerSkill": "local-ci",
@@ -564,7 +573,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "87e5ab578f1c17905b39b9cb39b515e4661f3437d96de919f1b23a5775760c4f",
+      "sha256": "6ce3954e4f94d112801cba0d145e4d3b6f101aca5e50e6b1f9794aa0288881a9",
       "mode": 420,
       "origin": "kit"
     },
@@ -1272,6 +1281,15 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/kit-update/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "kit-update",
+      "surface": "claude",
+      "sha256": "26737ea49ac104260e56fd1604f60249ca1d59f1a2c1f22db55649833d01ebc3",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/local-ci/SKILL.md",
       "kind": "skill",
       "ownerSkill": "local-ci",
@@ -1528,7 +1546,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "87e5ab578f1c17905b39b9cb39b515e4661f3437d96de919f1b23a5775760c4f",
+      "sha256": "6ce3954e4f94d112801cba0d145e4d3b6f101aca5e50e6b1f9794aa0288881a9",
       "mode": 420,
       "origin": "kit"
     },

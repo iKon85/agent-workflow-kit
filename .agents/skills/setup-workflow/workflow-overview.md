@@ -19,6 +19,7 @@ Use this section as the entry-point map for agent-assisted work. The individual 
 - **Implementation slice:** use `tdd` for one behavior at a time: RED, GREEN, then refactor.
 - **Finished slice:** use `wrapup` to prepare the branch, PR, and cleanup steps your repo expects.
 - **Kit release:** use `kit-release` to derive the shipped delta, confirm Semver, regenerate the manifest, run all gates, and then hand landing to `wrapup`.
+- **Kit update:** use `kit-update` to preview and transactionally apply a parity-verified scoped release without overwriting local modifications.
 - **A huge, foggy effort, too big for one session:** use `wayfinder` — it charts it as a shared map of investigation tickets, resolving one per session.
 
 ## Routing Rule
