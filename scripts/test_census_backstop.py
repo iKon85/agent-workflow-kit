@@ -295,6 +295,156 @@ class CensusBackstopTest(unittest.TestCase):
                          ("refresh_required", True))
         self.assertIn("proof:src", failed_test["reasons"])
 
+    def test_activated_census_blocks_when_local_proof_times_out(self):
+        temporary, root = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        module = root / "scanner.mjs"
+        test = root / "scanner.test.mjs"
+        module.write_text("export function scanLocal() { return ['src']; }\n", encoding="utf-8")
+        test.write_text(
+            "import { test } from 'node:test'; "
+            "test('hang', async () => new Promise(resolve => setTimeout(resolve, 250)));\n",
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "scanner.mjs", "scanner.test.mjs"], cwd=root, check=True)
+        scanner = {
+            "surface": "src", "module": "scanner.mjs",
+            "export": "scanLocal", "test": "scanner.test.mjs",
+        }
+        self.enable(root, local_scanners=[scanner])
+        self.activate_current(root)
+
+        result = DRIFT_GUARD.evaluate_census(root, proof_timeout_ms=25)
+
+        self.assertEqual((result["state"], result["block_handoff"]),
+                         ("refresh_required", True))
+        self.assertIn("proof:src", result["reasons"])
+
+        test.write_text("import { test } from 'node:test'; test('proof', () => {});\n",
+                        encoding="utf-8")
+        module.write_text(
+            "export async function scanLocal() { return new Promise(() => {}); }\n",
+            encoding="utf-8",
+        )
+        scanner_timeout = DRIFT_GUARD.evaluate_census(root, proof_timeout_ms=25)
+        self.assertEqual((scanner_timeout["state"], scanner_timeout["block_handoff"]),
+                         ("refresh_required", True))
+        self.assertIn("proof:src", scanner_timeout["reasons"])
+
+    def test_activated_census_fails_closed_when_bridge_is_unavailable(self):
+        temporary, root = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        self.enable(root)
+        self.activate_current(root)
+
+        with patch.object(DRIFT_GUARD, "scan_census_status",
+                          side_effect=subprocess.TimeoutExpired("node", 1)):
+            activated = DRIFT_GUARD.evaluate_census(root)
+        self.assertEqual((activated["state"], activated["block_handoff"]),
+                         ("offline", True))
+
+        (root / ".census" / "active.json").unlink()
+        with patch.object(DRIFT_GUARD, "scan_census_status",
+                          side_effect=subprocess.TimeoutExpired("node", 1)):
+            bootstrap = DRIFT_GUARD.evaluate_census(root)
+        self.assertEqual((bootstrap["state"], bootstrap["block_handoff"]),
+                         ("offline", False))
+
+        self.activate_current(root)
+        profile_path = root / ".census" / "profile.json"
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        profile["enabled"] = False
+        profile_path.write_text(json.dumps(profile) + "\n", encoding="utf-8")
+        with patch.object(DRIFT_GUARD, "scan_census_status",
+                          side_effect=subprocess.TimeoutExpired("node", 1)):
+            disabled = DRIFT_GUARD.evaluate_census(root)
+        self.assertEqual((disabled["state"], disabled["block_handoff"]),
+                         ("offline", False))
+
+    def test_active_local_scanner_history_is_authoritative(self):
+        temporary, root = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        module = root / "scanner.mjs"
+        test = root / "scanner.test.mjs"
+        module.write_text("export function scanLocal() { return ['src']; }\n", encoding="utf-8")
+        test.write_text("import { test } from 'node:test'; test('proof', () => {});\n",
+                        encoding="utf-8")
+        subprocess.run(["git", "add", "scanner.mjs", "scanner.test.mjs"], cwd=root, check=True)
+        scanner = {
+            "surface": "src", "module": "scanner.mjs",
+            "export": "scanLocal", "test": "scanner.test.mjs",
+        }
+        self.enable(root, local_scanners=[scanner])
+        self.activate_current(root)
+        profile_path = root / ".census" / "profile.json"
+        active_path = root / ".census" / "active.json"
+
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        for replacement in (None, "corrupt", [], [{**scanner, "export": "other"}]):
+            with self.subTest(current=replacement):
+                changed = dict(profile)
+                if replacement is None:
+                    changed.pop("localScanners")
+                else:
+                    changed["localScanners"] = replacement
+                profile_path.write_text(json.dumps(changed) + "\n", encoding="utf-8")
+                result = DRIFT_GUARD.evaluate_census(root)
+                self.assertEqual((result["state"], result["block_handoff"]),
+                                 ("refresh_required", True))
+                self.assertTrue(any(reason.startswith("proof:") for reason in result["reasons"]))
+
+        profile_path.write_text(json.dumps(profile) + "\n", encoding="utf-8")
+        for replacement in (None, "corrupt", [], [{**scanner, "test": "other.test.mjs"}]):
+            with self.subTest(active=replacement):
+                active = json.loads(active_path.read_text(encoding="utf-8"))
+                report = active.setdefault("profileReport", {})
+                if replacement is None:
+                    report.pop("localScanners", None)
+                else:
+                    report["localScanners"] = replacement
+                active_path.write_text(json.dumps(active) + "\n", encoding="utf-8")
+                result = DRIFT_GUARD.evaluate_census(root)
+                self.assertEqual((result["state"], result["block_handoff"]),
+                                 ("refresh_required", True))
+                self.assertTrue(any(reason.startswith("proof:") for reason in result["reasons"]))
+                self.activate_current(root)
+
+    def test_local_scanner_export_requires_an_array_of_exact_surface_strings(self):
+        temporary, root = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        module = root / "scanner.mjs"
+        test = root / "scanner.test.mjs"
+        test.write_text("import { test } from 'node:test'; test('proof', () => {});\n",
+                        encoding="utf-8")
+        scanner = {
+            "surface": "src", "module": "scanner.mjs",
+            "export": "scanLocal", "test": "scanner.test.mjs",
+        }
+        self.enable(root, local_scanners=[scanner])
+        invalid_results = (
+            "'src'",
+            "({ includes: () => true })",
+            "['src', 42]",
+            "['SRC']",
+        )
+        for expression in invalid_results:
+            with self.subTest(expression=expression):
+                module.write_text(
+                    f"export function scanLocal() {{ return {expression}; }}\n", encoding="utf-8"
+                )
+                subprocess.run(["git", "add", "scanner.mjs", "scanner.test.mjs"],
+                               cwd=root, check=True)
+                self.activate_current(root)
+                result = DRIFT_GUARD.evaluate_census(root)
+                self.assertEqual((result["state"], result["block_handoff"]),
+                                 ("refresh_required", True))
+                self.assertIn("proof:src", result["reasons"])
+
+        module.write_text("export function scanLocal() { return ['src']; }\n", encoding="utf-8")
+        subprocess.run(["git", "add", "scanner.mjs"], cwd=root, check=True)
+        self.activate_current(root)
+        self.assertEqual(DRIFT_GUARD.evaluate_census(root)["state"], "current")
+
     def test_justified_change_local_override_bypasses_only_evidence_topology_noise(self):
         temporary, root = self.make_repo()
         self.addCleanup(temporary.cleanup)

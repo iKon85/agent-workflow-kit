@@ -48,13 +48,26 @@ GUARD_ACK_RE = re.compile(r"<!--\s*guard-ack:\s*#?\d+\s+r\d+\s+reason:.+\bby-use
 # Load the shared checker (hyphenated filename → importlib). Repo root = parents[2].
 _CHECKER_PATH = Path(__file__).resolve().parents[2] / "scripts" / "execute-ready-check.py"
 _CENSUS_MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "census" / "index.mjs"
+CENSUS_BRIDGE_TIMEOUT_SECONDS = 15
+CENSUS_PROOF_TIMEOUT_MS = 5_000
 
 _CENSUS_SCAN = r"""
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 const input = JSON.parse(readFileSync(0, 'utf8'));
-const { modulePath, repoRoot, profileJson, activeJson, localScanners } = input;
+const {
+  modulePath,
+  repoRoot,
+  profileJson,
+  activeJson,
+  localScanners,
+  profileLocalScanners,
+  localScannersValid,
+  activeLocalScanners,
+  activeLocalScannersValid,
+  proofTimeoutMs,
+} = input;
 const writeResult = process.stdout.write.bind(process.stdout);
 // Repository-local proof modules are allowed to be noisy. Keep their output
 // captured so neither scanner/test output nor accidentally-read content reaches
@@ -87,6 +100,34 @@ if (calculated.builder !== fresh.fingerprints.builder
   throw new Error('census fingerprint API returned inconsistent facts');
 }
 const reasons = [];
+const withProofTimeout = async (operation) => {
+  let timer;
+  try {
+    return await Promise.race([
+      operation(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('local proof timed out')), proofTimeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+const proofReason = (surface) => typeof surface === 'string' && surface.length > 0
+  ? `proof:${surface}`
+  : 'proof:profile-history';
+if (active !== null) {
+  if (!localScannersValid || !activeLocalScannersValid) {
+    reasons.push('proof:profile-history');
+  } else if (JSON.stringify(profileLocalScanners) !== JSON.stringify(activeLocalScanners)) {
+    const changedSurfaces = new Set([
+      ...profileLocalScanners.map(({ surface }) => surface),
+      ...activeLocalScanners.map(({ surface }) => surface),
+    ]);
+    if (changedSurfaces.size === 0) reasons.push('proof:profile-history');
+    for (const surface of changedSurfaces) reasons.push(proofReason(surface));
+  }
+}
 for (const record of localScanners) {
   const reason = `proof:${record.surface}`;
   if (record.validationError) {
@@ -97,7 +138,7 @@ for (const record of localScanners) {
     cwd: repoRoot,
     encoding: 'utf8',
     stdio: 'pipe',
-    timeout: 15000,
+    timeout: proofTimeoutMs,
   });
   if (test.status !== 0 || test.error) {
     reasons.push(reason);
@@ -106,8 +147,11 @@ for (const record of localScanners) {
   try {
     const scannerModule = await import(`${pathToFileURL(record.modulePath).href}?proof=${Date.now()}`);
     const scanner = scannerModule[record.exportName];
-    const result = typeof scanner === 'function' ? await scanner() : null;
-    if (result === null || typeof result.includes !== 'function'
+    const result = typeof scanner === 'function'
+      ? await withProofTimeout(() => scanner())
+      : null;
+    if (!Array.isArray(result)
+        || !result.every((surface) => typeof surface === 'string')
         || !result.includes(record.surface)) reasons.push(reason);
   } catch {
     reasons.push(reason);
@@ -115,30 +159,39 @@ for (const record of localScanners) {
 }
 if (active !== null && active.fingerprints?.builder !== fresh.fingerprints.builder) reasons.push('builder');
 if (active !== null && active.fingerprints?.topology !== fresh.fingerprints.topology) reasons.push('topology');
-const hasOpen = reasons.some((reason) => reason.startsWith('proof:'))
+const uniqueReasons = [...new Set(reasons)];
+const hasOpen = uniqueReasons.some((reason) => reason.startsWith('proof:'))
   || [...fresh.families.surfaces, ...fresh.families.behaviors]
     .some(({ status }) => status === CENSUS_VERDICTS.open);
-if (hasOpen) reasons.push('open');
+if (hasOpen) uniqueReasons.push('open');
 const delta = active === null ? null : diffCensus(active, fresh);
 const denominatorUnchanged = delta !== null
   && Object.values(delta).every((paths) => paths.length === 0);
 const familiesUnchanged = active !== null
   && JSON.stringify(active.families) === JSON.stringify(fresh.families);
-const mechanicalFalsePositive = reasons.length === 1
-  && reasons[0] === 'topology'
+const mechanicalFalsePositive = uniqueReasons.length === 1
+  && uniqueReasons[0] === 'topology'
   && denominatorUnchanged
   && familiesUnchanged;
 const state = resolveCensusState({
   enabled: Boolean(profile.enabled),
   hasActive: active !== null,
-  hasOpen: hasOpen || reasons.includes('builder') || reasons.includes('topology'),
+  hasOpen: hasOpen || uniqueReasons.includes('builder') || uniqueReasons.includes('topology'),
 });
 writeResult(JSON.stringify({
   builderVersion: CENSUS_BUILDER_VERSION,
   changeBinding: fresh.fingerprints.topology,
-  fresh: { ...fresh, state },
+  fresh: {
+    ...fresh,
+    profileReport: {
+      decisions: profile.decisions || [],
+      localScanners: profile.localScanners,
+      overrides: profile.overrides || [],
+    },
+    state,
+  },
   mechanicalFalsePositive,
-  reasons,
+  reasons: uniqueReasons,
   state,
 }));
 """
@@ -262,16 +315,29 @@ def _read_census_control(repo_root: Path, local_path: str) -> str:
         raise CensusFileError(f"unreadable {Path(local_path).name}") from error
 
 
-def _validated_local_scanners(repo_root: Path, profile: dict) -> list[dict]:
-    """Convert profile records to proof inputs without exposing unsafe paths."""
-    records = profile.get("localScanners", [])
+def _normalize_local_scanners(records) -> tuple[bool, list[dict]]:
+    """Return the exact proof-record contract without trusting arbitrary JSON shapes."""
     if not isinstance(records, list):
-        records = []
+        return False, []
+    normalized = []
+    for raw in records:
+        if not isinstance(raw, dict):
+            return False, normalized
+        record = {}
+        for key in ("surface", "module", "export", "test"):
+            value = raw.get(key)
+            if not isinstance(value, str) or not value.strip():
+                return False, normalized
+            record[key] = value.strip()
+        normalized.append(record)
+    return True, normalized
+
+
+def _validated_local_scanners(repo_root: Path, records: list[dict]) -> list[dict]:
+    """Convert profile records to proof inputs without exposing unsafe paths."""
     validated = []
     for raw in records:
-        raw = raw if isinstance(raw, dict) else {}
-        surface = raw.get("surface")
-        surface = surface.strip() if isinstance(surface, str) and surface.strip() else "invalid-record"
+        surface = raw["surface"]
         module_path = _contained_regular_file(repo_root, raw.get("module"))
         test_path = _contained_regular_file(repo_root, raw.get("test"))
         export_name = raw.get("export")
@@ -333,7 +399,8 @@ def _infer_intent(content: str) -> str:
         return "build"
 
 
-def scan_census_status(repo_root: Path, profile_json=None, active_json=None) -> dict:
+def scan_census_status(repo_root: Path, profile_json=None, active_json=None,
+                       proof_timeout_ms=CENSUS_PROOF_TIMEOUT_MS) -> dict:
     """Scan census facts through the shipped JavaScript API, never a hook-local
     copy of its state or fingerprint rules."""
     active_path = repo_root / ".census" / "active.json"
@@ -350,6 +417,34 @@ def scan_census_status(repo_root: Path, profile_json=None, active_json=None) -> 
         raise CensusFileError("invalid profile.json") from error
     if not isinstance(profile_body, dict):
         raise CensusFileError("invalid profile.json")
+    if not isinstance(proof_timeout_ms, int) or isinstance(proof_timeout_ms, bool):
+        raise ValueError("proof timeout must be an integer")
+    proof_timeout_ms = max(1, min(
+        proof_timeout_ms,
+        CENSUS_BRIDGE_TIMEOUT_SECONDS * 1_000 - 1,
+    ))
+    profile_scanners_valid, profile_scanners = _normalize_local_scanners(
+        profile_body.get("localScanners")
+    )
+    active_scanners_valid = True
+    active_scanners = []
+    if active:
+        try:
+            active_body = json.loads(active)
+            report = active_body.get("profileReport") if isinstance(active_body, dict) else None
+            active_scanners_valid, active_scanners = _normalize_local_scanners(
+                report.get("localScanners") if isinstance(report, dict) else None
+            )
+        except (json.JSONDecodeError, TypeError):
+            active_scanners_valid = False
+    # Each record has two independently bounded proof phases (test + scanner).
+    # Keep their aggregate ceiling below the outer bridge budget as well as
+    # making every inner timeout strictly smaller than it.
+    proof_timeout_ms = min(
+        proof_timeout_ms,
+        max(1, (CENSUS_BRIDGE_TIMEOUT_SECONDS * 1_000 - 2_000)
+            // max(1, len(profile_scanners) * 2)),
+    )
     completed = subprocess.run(
         ["node", "--input-type=module", "-e", _CENSUS_SCAN],
         capture_output=True,
@@ -359,15 +454,20 @@ def scan_census_status(repo_root: Path, profile_json=None, active_json=None) -> 
             "repoRoot": str(repo_root),
             "profileJson": profile,
             "activeJson": active,
-            "localScanners": _validated_local_scanners(repo_root, profile_body),
+            "localScanners": _validated_local_scanners(repo_root, profile_scanners),
+            "profileLocalScanners": profile_scanners,
+            "localScannersValid": profile_scanners_valid,
+            "activeLocalScanners": active_scanners,
+            "activeLocalScannersValid": active_scanners_valid,
+            "proofTimeoutMs": proof_timeout_ms,
         }),
         text=True,
-        timeout=15,
+        timeout=CENSUS_BRIDGE_TIMEOUT_SECONDS,
     )
     return json.loads(completed.stdout)
 
 
-def evaluate_census(repo_root: Path) -> dict:
+def evaluate_census(repo_root: Path, proof_timeout_ms=CENSUS_PROOF_TIMEOUT_MS) -> dict:
     """Return the activation-aware handoff verdict.
 
     Missing/disabled/unactivated/unavailable census remains visible but does not
@@ -398,9 +498,10 @@ def evaluate_census(repo_root: Path) -> dict:
     try:
         active_json = _read_census_control(repo_root, ".census/active.json") \
             if active_present else ""
-        result = scan_census_status(repo_root, profile_json, active_json)
+        result = scan_census_status(repo_root, profile_json, active_json, proof_timeout_ms)
     except (OSError, subprocess.TimeoutExpired) as error:
-        return {"state": "offline", "block_handoff": False, "detail": str(error),
+        activated = active_present and bool(profile.get("enabled"))
+        return {"state": "offline", "block_handoff": activated, "detail": str(error),
                 "reasons": [], "overrides": profile.get("overrides", []), "override_applied": False}
     except Exception:
         return {"state": "failed", "block_handoff": active_present,
