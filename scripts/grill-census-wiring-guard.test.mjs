@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -10,14 +10,25 @@ import {
   auditGrillCensusWiring,
 } from './grill-census-wiring-guard.mjs';
 
-const GRILLS = {
-  'grill-me': { surfaces: ['claude', 'codex'] },
-  'grill-with-docs': { surfaces: ['claude', 'codex'] },
-  'grill-me-codex': { surfaces: ['claude'] },
-  'grill-with-docs-codex': { surfaces: ['claude'] },
+const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
+const realManifest = JSON.parse(await readFile(
+  join(REPO, '.claude', 'skills', 'skill-manifest.json'),
+  'utf8',
+)).skills;
+const baselineGrills = Object.fromEntries(
+  Object.entries(realManifest).filter(([name]) => name.startsWith('grill-')),
+);
+const baselineCounts = {
+  logical: Object.keys(baselineGrills).length,
+  physical: Object.values(baselineGrills)
+    .reduce((count, entry) => count + entry.surfaces.length, 0),
 };
+const [baselineName, baselineEntry] = Object.entries(baselineGrills)[0];
+const baselineSurface = baselineEntry.surfaces[0];
+let extraGrillName = 'grill-fixture-extra';
+while (extraGrillName in baselineGrills) extraGrillName += '-next';
 
-async function fixture({ manifest = GRILLS, omitInvocation, omitFile } = {}) {
+async function fixture({ manifest = baselineGrills, omitInvocation, omitFile } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'grill-census-guard-'));
   await mkdir(join(root, '.claude', 'skills'), { recursive: true });
   await writeFile(
@@ -38,48 +49,59 @@ async function fixture({ manifest = GRILLS, omitInvocation, omitFile } = {}) {
   return root;
 }
 
-test('manifest derives all four logical grills and all six physical surfaces', async () => {
+test('fixture wiring covers every grill and surface in the real manifest', async () => {
   const result = await auditGrillCensusWiring(await fixture());
 
-  assert.deepEqual(result.counts, { logical: 4, physical: 6 });
+  assert.deepEqual(result.counts, baselineCounts);
   assert.deepEqual(result.problems, []);
 });
 
 test('a grill surface missing the shared preflight invocation is rejected', async () => {
   const result = await auditGrillCensusWiring(await fixture({
-    omitInvocation: 'codex:grill-with-docs',
+    omitInvocation: `${baselineSurface}:${baselineName}`,
   }));
 
-  assert.match(result.problems.join('\n'), /missing census preflight invocation.*grill-with-docs/i);
+  assert.match(
+    result.problems.join('\n'),
+    new RegExp(`missing census preflight invocation.*${baselineName}`, 'i'),
+  );
 });
 
 test('a dead manifest surface reference is rejected', async () => {
   const result = await auditGrillCensusWiring(await fixture({
-    omitFile: 'claude:grill-me-codex',
+    omitFile: `${baselineSurface}:${baselineName}`,
   }));
 
-  assert.match(result.problems.join('\n'), /manifest surface has no skill file.*grill-me-codex/i);
+  assert.match(
+    result.problems.join('\n'),
+    new RegExp(`manifest surface has no skill file.*${baselineName}`, 'i'),
+  );
 });
 
 test('a newly manifested grill variant expands the family and cannot hide a missing surface', async () => {
+  const addedSurfaces = ['claude', 'codex'];
   const manifest = {
-    ...GRILLS,
-    'grill-decisions': { surfaces: ['claude'] },
+    ...baselineGrills,
+    [extraGrillName]: { surfaces: addedSurfaces },
   };
   const result = await auditGrillCensusWiring(await fixture({
     manifest,
-    omitFile: 'claude:grill-decisions',
+    omitFile: `codex:${extraGrillName}`,
   }));
 
-  assert.deepEqual(result.counts, { logical: 5, physical: 7 });
-  assert.match(result.problems.join('\n'), /manifest surface has no skill file.*grill-decisions/i);
+  assert.deepEqual(result.counts, {
+    logical: baselineCounts.logical + 1,
+    physical: baselineCounts.physical + addedSurfaces.length,
+  });
+  assert.match(
+    result.problems.join('\n'),
+    new RegExp(`manifest surface has no skill file.*${extraGrillName}`, 'i'),
+  );
 });
 
-test('the repository wiring stays at the manifest-derived 4 of 4 and 6 of 6 contract', async () => {
-  const result = await auditGrillCensusWiring(
-    join(dirname(fileURLToPath(import.meta.url)), '..'),
-  );
+test('the repository wiring covers the complete manifest-derived grill family', async () => {
+  const result = await auditGrillCensusWiring(REPO);
 
-  assert.deepEqual(result.counts, { logical: 4, physical: 6 });
+  assert.deepEqual(result.counts, baselineCounts);
   assert.deepEqual(result.problems, []);
 });
