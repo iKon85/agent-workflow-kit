@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -124,7 +125,7 @@ class CensusBackstopTest(unittest.TestCase):
     def test_justified_change_local_override_bypasses_only_evidence_topology_noise(self):
         temporary, root = self.make_repo()
         self.addCleanup(temporary.cleanup)
-        self.enable(root, overrides=[{"scope": "this change", "reason": "test-only evidence file"}])
+        self.enable(root)
         self.activate_current(root)
         (root / "test").mkdir()
         (root / "test" / "new-proof.test.mjs").write_text(
@@ -132,12 +133,101 @@ class CensusBackstopTest(unittest.TestCase):
         )
         subprocess.run(["git", "add", "test"], cwd=root, check=True)
 
+        unbound = DRIFT_GUARD.evaluate_census(root)
+        self.assertTrue(unbound["mechanical_false_positive"])
+        self.assertFalse(unbound["override_applied"])
+        profile = root / ".census" / "profile.json"
+        body = json.loads(profile.read_text(encoding="utf-8"))
+        body["overrides"] = [{
+            "scope": "this change",
+            "reason": "test-only evidence file",
+            "topologyFingerprint": unbound["change_binding"],
+        }]
+        profile.write_text(json.dumps(body) + "\n", encoding="utf-8")
+
         result = DRIFT_GUARD.evaluate_census(root)
 
         self.assertEqual(result["state"], "refresh_required")
         self.assertEqual(result["reasons"], ["topology"])
         self.assertTrue(result["override_applied"])
         self.assertFalse(result["block_handoff"])
+
+        (root / "test" / "later-proof.test.mjs").write_text(
+            "// later evidence\n", encoding="utf-8"
+        )
+        subprocess.run(["git", "add", "test"], cwd=root, check=True)
+        stale = DRIFT_GUARD.evaluate_census(root)
+        self.assertNotEqual(stale["change_binding"], result["change_binding"])
+        self.assertFalse(stale["override_applied"])
+        self.assertTrue(stale["block_handoff"])
+
+    def test_handoff_payload_uses_target_repo_when_cwd_is_elsewhere(self):
+        target_tmp, target = self.make_repo()
+        cwd_tmp, cwd_repo = self.make_repo()
+        self.addCleanup(target_tmp.cleanup)
+        self.addCleanup(cwd_tmp.cleanup)
+        self.enable(target)
+        self.activate_current(target)
+        (target / "test").mkdir()
+        (target / "test" / "proof.test.mjs").write_text("// evidence\n", encoding="utf-8")
+        subprocess.run(["git", "add", "test"], cwd=target, check=True)
+        (target / ".handoff").mkdir()
+        payload = {
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(target / ".handoff" / "52.md"),
+                "content": "Build [#52](https://github.com/iKon85/agent-workflow-kit/issues/52)",
+            },
+        }
+
+        previous = Path.cwd()
+        try:
+            os.chdir(cwd_repo / "src")
+            with patch.object(DRIFT_GUARD, "run_check", return_value={"deny_recommended": False}):
+                blocked, message = DRIFT_GUARD.should_block(payload)
+        finally:
+            os.chdir(previous)
+
+        self.assertTrue(blocked)
+        self.assertIn("CENSUS", message)
+
+    def test_handoff_payload_rejects_symlink_escape_from_claimed_repo(self):
+        target_tmp, target = self.make_repo()
+        foreign_tmp, foreign = self.make_repo()
+        self.addCleanup(target_tmp.cleanup)
+        self.addCleanup(foreign_tmp.cleanup)
+        self.enable(foreign)
+        (foreign / "handoffs").mkdir()
+        (target / ".handoff").symlink_to(foreign / "handoffs", target_is_directory=True)
+        payload = {
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": str(target / ".handoff" / "52.md"),
+                "content": "Build [#52](https://github.com/iKon85/agent-workflow-kit/issues/52)",
+            },
+        }
+
+        with patch.object(DRIFT_GUARD, "run_check", return_value={"deny_recommended": False}):
+            blocked, message = DRIFT_GUARD.should_block(payload)
+
+        self.assertTrue(blocked)
+        self.assertIn("target repository", message)
+
+    def test_cli_root_resolution_finds_git_root_from_subdirectory(self):
+        temporary, root = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        self.enable(root)
+
+        completed = subprocess.run(
+            [sys.executable, str(HOOKS / "drift-guard.py"), "--census-status"],
+            cwd=root / "src",
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+        status = json.loads(completed.stdout)
+
+        self.assertEqual(status["state"], "bootstrap")
 
     def test_activated_refresh_blocks_build_handoff_but_not_normal_work(self):
         payload = {
@@ -175,6 +265,7 @@ class CensusBackstopTest(unittest.TestCase):
             self.assertRegex(prose, r"cross-cutting[\s\S]*refresh_required[\s\S]*must not be locked")
             self.assertRegex(prose, r"disabled[\s\S]*no_census[\s\S]*manual walk")
             self.assertRegex(prose, r"change-local\s+override[\s\S]*mechanical\s+false positive")
+            self.assertIn("topologyFingerprint", prose)
         for prose in (source_update, mirror_update):
             self.assertIn("--census-status", prose)
             self.assertRegex(prose, r"newer census builder[\s\S]*census-update")

@@ -27,6 +27,7 @@ Audit log: .claude/logs/drift-guard.log
 """
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -98,6 +99,7 @@ const state = resolveCensusState({
 });
 process.stdout.write(JSON.stringify({
   builderVersion: CENSUS_BUILDER_VERSION,
+  changeBinding: fresh.fingerprints.topology,
   fresh: { ...fresh, state },
   mechanicalFalsePositive,
   reasons,
@@ -126,6 +128,55 @@ def is_handoff_write(payload: dict) -> bool:
         return False
     fp = (payload.get("tool_input") or {}).get("file_path", "")
     return bool(HANDOFF_PATH_RE.search(fp))
+
+
+def _git_root(start: Path) -> Path:
+    """Resolve the owning repository without treating process cwd as ownership."""
+    completed = subprocess.run(
+        ["git", "-C", str(start), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        check=True,
+        text=True,
+        timeout=5,
+    )
+    return Path(completed.stdout.strip()).resolve()
+
+
+def resolve_census_root_from_cwd(cwd: Path) -> Path:
+    """CLI entry points may be invoked from any directory inside the repo."""
+    return _git_root(cwd.resolve())
+
+
+def resolve_handoff_repo_root(payload: dict) -> Path:
+    """Return the repository that owns the handoff target.
+
+    The raw target identifies the claimed repository, while the resolved target
+    proves that `.handoff` did not escape it through a symlink. This permits a
+    hook launched from another checkout without trusting an arbitrary payload
+    path as the census root.
+    """
+    raw = (payload.get("tool_input") or {}).get("file_path", "")
+    if not raw:
+        raise ValueError("missing handoff target repository path")
+    target = Path(raw)
+    if not target.is_absolute():
+        target = Path(os.path.abspath(Path.cwd() / target))
+    else:
+        target = Path(os.path.abspath(target))
+    if target.parent.name != ".handoff":
+        raise ValueError("handoff target is not rooted in a target repository .handoff directory")
+    claimed_root = _git_root(target.parent.parent)
+    expected_handoff = claimed_root / ".handoff"
+    if target.parent != expected_handoff:
+        raise ValueError("handoff target repository does not own the claimed .handoff path")
+    resolved_target = target.resolve(strict=False)
+    try:
+        relative = resolved_target.relative_to(claimed_root)
+    except ValueError as error:
+        raise ValueError("handoff target repository containment check failed") from error
+    if not relative.parts or relative.parts[0] != ".handoff":
+        raise ValueError("handoff target repository containment check failed")
+    return claimed_root
 
 
 def extract_content(payload: dict) -> str:
@@ -228,8 +279,11 @@ def evaluate_census(repo_root: Path) -> dict:
     state = result["state"]
     activated = active_path.exists()
     overrides = profile.get("overrides", [])
+    change_binding = result["changeBinding"]
     justified_change_local = any(
-        override.get("scope") == "this change" and bool(override.get("reason"))
+        override.get("scope") == "this change"
+        and bool(override.get("reason"))
+        and override.get("topologyFingerprint") == change_binding
         for override in overrides
         if isinstance(override, dict)
     )
@@ -241,6 +295,8 @@ def evaluate_census(repo_root: Path) -> dict:
         "reasons": result["reasons"],
         "overrides": overrides,
         "override_applied": override_applied,
+        "change_binding": result["changeBinding"],
+        "mechanical_false_positive": result["mechanicalFalsePositive"],
     }
 
 
@@ -269,7 +325,16 @@ def should_block(payload: dict):
         log(HOOK_NAME, "no identifiable issue target → fail-open allow")
         return False, ""
     intent = _infer_intent(content)
-    census = evaluate_census(Path.cwd())
+    try:
+        census_root = resolve_handoff_repo_root(payload)
+        census = evaluate_census(census_root)
+    except Exception as error:
+        census = {
+            "state": "failed",
+            "block_handoff": intent == "build",
+            "reasons": [f"target repository unavailable ({error})"],
+            "overrides": [],
+        }
     log(HOOK_NAME, f"census state={census['state']} reasons={census.get('reasons', [])}")
     if intent == "build" and census.get("block_handoff"):
         return True, build_census_block_message(issue, census)
@@ -307,7 +372,15 @@ def build_block_message(issue: int, intent: str, result: dict) -> str:
 
 def main() -> int:
     if sys.argv[1:] == ["--census-status"]:
-        print(json.dumps(evaluate_census(Path.cwd()), sort_keys=True))
+        try:
+            root = resolve_census_root_from_cwd(Path.cwd())
+            result = evaluate_census(root)
+        except Exception as error:
+            result = {"state": "failed", "block_handoff": False,
+                      "detail": f"target repository unavailable ({error})",
+                      "reasons": ["repository"], "overrides": [],
+                      "override_applied": False}
+        print(json.dumps(result, sort_keys=True))
         return 0
     try:
         payload = json.load(sys.stdin)

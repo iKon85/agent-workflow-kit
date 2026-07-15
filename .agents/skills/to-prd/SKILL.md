@@ -87,8 +87,12 @@ perform and report the existing manual walk instead. This gate does not apply
 to an orthogonal, surface-local PRD.
 
 A justified change-local override may acknowledge only a proven mechanical
-false positive. It never changes scanner facts, builder/topology fingerprints,
-open verdicts, or state resolution, and therefore cannot green real drift.
+false positive. It must carry `scope: "this change"`, a non-empty `reason`, and
+the exact `topologyFingerprint` reported as `change_binding` by the current
+status check. That binding is valid only for those freshly scanned topology
+facts; a later topology change makes the persisted override stale. The
+override never changes scanner facts, builder/topology fingerprints, open
+verdicts, or state resolution, and therefore cannot green real drift.
 
 ## 4b. Program-PRD body (mode=program)
 
