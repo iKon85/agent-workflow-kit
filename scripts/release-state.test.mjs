@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  createCommandAdapter, githubReleaseArgs, inspectRelease, reconcileRelease,
+  createCommandAdapter, githubReleaseArgs, inspectRelease, isMissingRelease, reconcileRelease,
 } from './release-state.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -47,6 +47,12 @@ test('post-merge status inspection is read-only and reports the reconstructable 
   const fixture = adapter({ npmPublished: true });
   assert.deepEqual(await inspectRelease(fixture), { status: 'awaiting-github', identity });
   assert.deepEqual(fixture.events, ['read npm', 'read github']);
+});
+
+test('an unpublished npm version is reconstructable when npm reports ETARGET', () => {
+  assert.equal(isMissingRelease({
+    stderr: 'npm error code ETARGET\nnpm error notarget No matching version found',
+  }, 'npm'), true);
 });
 
 test('a mismatching npm package blocks GitHub release creation', async () => {

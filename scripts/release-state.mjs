@@ -50,10 +50,10 @@ export async function reconcileRelease(adapter) {
   return { status: 'released', identity };
 }
 
-function missing(error, service) {
+export function isMissingRelease(error, service) {
   const detail = `${error.stderr ?? ''}\n${error.message ?? ''}`;
   return service === 'npm'
-    ? /E404|404 Not Found/.test(detail)
+    ? /E404|404 Not Found|ETARGET|No matching version found/i.test(detail)
     : /release not found|HTTP 404/i.test(detail);
 }
 
@@ -90,7 +90,7 @@ function releaseReaders(context) {
       );
       return await releaseIdentityFromTarball(state.npmTarball);
     } catch (error) {
-      if (missing(error, 'npm')) return null;
+      if (isMissingRelease(error, 'npm')) return null;
       throw error;
     }
   }
@@ -100,7 +100,7 @@ function releaseReaders(context) {
     try {
       await run('gh', ['release', 'view', tag, '--json', 'tagName'], { cwd: repoRoot, env });
     } catch (error) {
-      if (missing(error, 'github')) return null;
+      if (isMissingRelease(error, 'github')) return null;
       throw error;
     }
     try {
@@ -131,7 +131,7 @@ function releaseWriters(context) {
     try {
       await run('gh', ['release', 'view', tag, '--json', 'tagName'], { cwd: repoRoot, env });
     } catch (error) {
-      if (!missing(error, 'github')) throw error;
+      if (!isMissingRelease(error, 'github')) throw error;
       exists = false;
     }
     await run('gh', githubReleaseArgs({
