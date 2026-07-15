@@ -35,6 +35,7 @@ test('current build contains post-tag public files and repository metadata', asy
     await readFile(join(dist, '.agents/skills/codex-adapter-sync/SKILL.md'));
     await readFile(join(dist, 'scripts/program_graph.py'));
     const pkg = JSON.parse(await readFile(join(dist, 'package.json'), 'utf8'));
+    assert.equal(pkg.name, '@ikon85/agent-workflow-kit');
     assert.equal(pkg.repository.url, 'git+https://github.com/iKon85/agent-workflow-kit.git');
   });
 });

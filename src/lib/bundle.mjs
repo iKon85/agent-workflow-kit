@@ -42,6 +42,11 @@ export const HELPER_FILES = [
   // Both are invoked through package scripts by /kit-release.
   { path: 'scripts/kit-release.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/release-delta-guard.mjs', kind: 'script', mode: 0o644 },
+  // Neutral publish/readback parity and externally reconstructable release state.
+  // /kit-release uses these after merge; downstream update/consumer flows reuse
+  // the parity primitive rather than growing a second registry/GitHub comparison.
+  { path: 'scripts/release-parity.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/release-state.mjs', kind: 'script', mode: 0o644 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
   // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
   // hooks ImportError on arrival.

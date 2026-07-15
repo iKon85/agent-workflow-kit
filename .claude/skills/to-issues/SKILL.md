@@ -98,6 +98,14 @@ Ask the user:
 
 Iterate until the user approves the breakdown.
 
+**Program batch handoff.** When `to-waves` invokes this skill for a Stufe-1p stub,
+the complete Program preview has already shown and approved every wave's slice
+contract. Reuse that approval when this pass preserves the approved cut: do not
+pause again merely because the internal pipeline crossed a skill boundary. Run
+the normal contract in full — maturity is not a reduced mode — and reconcile the
+stub's existing leaves instead of duplicating them. A new structural choice or a
+newly discovered gate invalidates the inherited approval and returns to §4.
+
 ### 5. Publish — promote-or-atomic (contract)
 
 **Cluster/Wave discriminator (identical wording — `to-prd` §2 / `to-issues` §5):** `type:cluster` (label) always stops. A Wave number also stops, **unless** the target carries the `wave-stub` label — a Wave-stamped `wave-stub` issue is a **Stufe-1p Program-stub** (`to-waves`-published, native parent = a Program-PRD) and remains a **valid target**. A Wave-stamped issue **without** `wave-stub` (an already-assigned leaf, or a drifted item) is still a hard stop.
@@ -193,6 +201,21 @@ python3 scripts/board-sync.py dep-add --issue <blocked#> --blocked-by <blocker#>
 
 The Draft-PRD stays the executable leaf. Edit its body: **remove** `<!-- prd: awaiting-decomposition -->`, keep `type:*`+`priority:*` (**no** `type:cluster`/Wave, **no** `Welle N` title prefix), stamp the leaf `plan_revision`, add the `## Handoff Start Command`. The single PR `closes #<prd#>`.
 
+**Program-batch atomic exception.** A Stufe-1p stub already represents one named
+wave under a Program-PRD. When its approved cut contains exactly one slice, keep
+the stub itself as the atomic executable wave leaf: preserve its existing Wave and Phase,
+`Welle N — …` title, native Program parent, and source marker; write the complete
+atomic contract and bucket, then remove only `wave-stub`. Do not erase Program
+navigation by applying the ordinary Wave-less atomic normalization.
+
+On a delta re-run, a legacy or interrupted preliminary child may already be linked
+under that atomic stub. Lift any still-relevant content into the stub, unlink the
+child with `board-sync.py unlink`, and close it with the mapping comment
+`superseded by atomic wave leaf #<stub>`. Scan both `children-of` and the Program's
+`program-leaf-source` markers: the **matching source marker remains discoverable after unlink**.
+Resume idempotently — unlink only when still linked; close only when still open;
+an already completed step is a no-op. The final atomic wave has no child set.
+
 Then set the bucket via the helper — the leaf already exists, so the workflow-label write goes through `board-sync.py add --bucket` (§5a forbids a bare `gh issue edit --add-label ready-for-agent`):
 
 ```bash
@@ -214,6 +237,12 @@ Every child **and** the atomic leaf sits in **exactly one** bucket:
 | **HITL** (grill first) | **absent** | `Spec` | mandatory `headings.vorBau` heading (board profile `docs/agents/board-sync.md`; <project> currently `## Vor Bau zu klären`) with the open questions known from the macro-grill |
 
 Status alone cannot discriminate (both are `Spec`) — the **label** does. The helper's `--hitl` flag rejects a `ready-for-agent` label mechanically. Authority = `scripts/execute-ready-check.py` (`parse_bucket`) — the checker wins on a mismatch.
+
+**A mandatory human or external setup action is never AFK.** Cut it as a HITL gate
+slice (or an explicitly named planning wave), place it before the dependent build
+slice, and set the native blocked-by edge. Never hide a maintainer configuration,
+credentialless console action, approval, or design response inside a leaf carrying
+`ready-for-agent`, even when the remaining code work could run unattended.
 
 **Gate slices (🔬/📐) are AFK.** A `🔬` Verify-Spike or `📐` Trade-off/Research gate slice is **read-only** (a fact question, or a bounded trade-off + read-only research) — an agent can run it solo, so it carries `ready-for-agent` like any other AFK slice; the **native blocked-by edge** on its dependent build slice (set at publish, §5a step 5) is what protects the gate-before-build ordering (§3b/§4), not the HITL bucket. Only a `🧭` Design-Grill gate slice is HITL (it needs the human in the grill). A gate slice's **placement** — which altitude/layer it lands on — follows `decision-gate`'s placement rule (owned there, referenced here).
 

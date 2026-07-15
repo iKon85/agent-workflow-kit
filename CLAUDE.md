@@ -213,9 +213,9 @@ Two-axis review (Standards × Spec). Project layer: `docs/agents/code-review.md`
 
 ## Prod
 
-Published as the `agent-workflow-kit` npm package and matching GitHub
+Published as the `@ikon85/agent-workflow-kit` npm package and matching GitHub
 tag/release through GitHub Actions. Live distribution:
-https://www.npmjs.com/package/agent-workflow-kit and
+https://www.npmjs.com/package/@ikon85/agent-workflow-kit and
 https://github.com/iKon85/agent-workflow-kit/releases.
 
 ## Token hygiene

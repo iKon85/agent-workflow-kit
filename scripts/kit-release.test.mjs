@@ -13,6 +13,16 @@ test('the install manifest ships both release primitives named by the skill', as
   const paths = manifest.files.map((entry) => entry.path);
   assert.ok(paths.includes('scripts/kit-release.mjs'));
   assert.ok(paths.includes('scripts/release-delta-guard.mjs'));
+  assert.ok(paths.includes('scripts/release-parity.mjs'));
+  assert.ok(paths.includes('scripts/release-state.mjs'));
+});
+
+test('both release skill surfaces name only the owned scoped npm package', async () => {
+  const claude = await readFile(join(REPO, '.claude/skills/kit-release/SKILL.md'), 'utf8');
+  const codex = await readFile(join(REPO, '.agents/skills/kit-release/SKILL.md'), 'utf8');
+  for (const body of [claude, codex]) {
+    assert.match(body, /`@ikon85\/agent-workflow-kit`/);
+  }
 });
 
 test('patch, minor, and major confirmations select exactly one target version', () => {

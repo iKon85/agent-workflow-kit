@@ -1,6 +1,6 @@
 ---
 name: kit-release
-description: "Prepare a verified release PR for agent-workflow-kit with an explicit Semver confirmation, regenerated manifest, full tests, and pack audit, then delegate landing to wrapup."
+description: "Prepare a verified release PR for agent-workflow-kit, delegate landing to wrapup, then monitor the trusted post-merge publishing flow through npm/GitHub parity."
 ---
 
 # Kit Release
@@ -42,10 +42,31 @@ merge, registry publishing, tags, or release creation.
    `scripts/wrapup-land.py` exclusively own commit, push, PR creation, merge,
    and cleanup. Do not reproduce those operations here.
 
-5. After merge, the release is not complete until the repository's configured
-   publishing flow has produced the matching registry package and GitHub
-   tag/release and verified their parity. If that flow is not configured, stop
-   and report the missing post-merge capability; never publish ad hoc.
+5. After merge, monitor the `release.yml` workflow and inspect its externally
+   reconstructable state:
+
+   ```sh
+   gh run list --workflow release.yml --limit 1
+   npm run release:status
+   ```
+
+   `awaiting-npm` means the trusted workflow has not published yet;
+   `awaiting-github` means npm readback passed and a safe rerun will skip npm
+   publish and resume at GitHub; `released` means local, npm, and the GitHub
+   release asset have identical version, manifest hash, and tarball integrity.
+   The release is complete only at `released`.
+
+   The registry identity is **`@ikon85/agent-workflow-kit`**. The unscoped
+   `agent-workflow-kit` package is owned by another publisher and must never be
+   queried, published, or treated as this repository's release.
+
+   Before the first real release, the npm package must name this repository's
+   exact `.github/workflows/release.yml` as its GitHub Trusted Publisher. If it
+   does not exist yet, stop for a separately confirmed one-time bootstrap
+   publish; npm only permits trust configuration for an existing package. That
+   bootstrap creates the scoped package but does not replace the first real
+   OIDC/provenance release. Never request, store, or substitute an npm token,
+   and never publish or create a release ad hoc beyond that explicit bootstrap.
 
 ## Guard contract
 
