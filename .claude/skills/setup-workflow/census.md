@@ -17,6 +17,25 @@ the result transactionally.
 | `explicit-enable` | On a later explicit `census-update` invocation, let that skill scan, decide, verify, and transactionally activate without rerunning setup. | An unchanged verified census reports `current` and performs no write. |
 | `disable` | Set the profile to `enabled: false` transactionally and remove census hooks/gates from enforcement. | Stay `disabled`; retain consumer-owned profiles, scanners, tests, and snapshots unless the user separately approves their deletion. |
 
+## Deterministic setup effects
+
+The table below is the machine-checkable reference contract for setup. The
+paths under `retain` are consumer-owned evidence. `hook` and `gate` describe
+kit-owned enforcement wiring, wherever the consumer documents that wiring;
+they are not permission to invent a second setup mechanism.
+
+```json census-setup-effects
+[
+  {"state":"missing","actor":"setup","choice":"none","profile":"absent","active":"absent","hook":"absent","gate":"absent","selfTest":false,"retain":[],"repeat":"no-write"},
+  {"state":"yes","actor":"setup","choice":"yes","profile":"create-minimal","active":"absent","hook":"absent","gate":"absent","selfTest":true,"retain":[],"repeat":"no-write"},
+  {"state":"later","actor":"setup","choice":"later","profile":"absent","active":"absent","hook":"absent","gate":"absent","selfTest":false,"retain":[],"repeat":"no-write"},
+  {"state":"no","actor":"setup","choice":"no","profile":"absent","active":"absent","hook":"absent","gate":"absent","selfTest":false,"retain":[],"repeat":"no-write"},
+  {"state":"existing","actor":"setup","choice":"existing","profile":"preserve","active":"preserve","hook":"preserve","gate":"preserve","selfTest":false,"retain":["profile","active","scanner","scanner-test"],"repeat":"no-write"},
+  {"state":"explicit-enable","actor":"census-update","choice":"existing","profile":"enable-transactionally","active":"activate-verified","hook":"enable-after-verification","gate":"enable-after-verification","selfTest":false,"retain":["scanner","scanner-test"],"repeat":"no-write"},
+  {"state":"disable","actor":"census-update","choice":"existing","profile":"disable-transactionally","active":"preserve","hook":"remove","gate":"remove","selfTest":false,"retain":["profile","active","scanner","scanner-test"],"repeat":"no-write"}
+]
+```
+
 ## Bootstrap profile
 
 When `yes` creates the default `.census/profile.json`, write the deterministic

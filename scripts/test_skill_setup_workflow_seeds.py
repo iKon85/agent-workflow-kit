@@ -17,6 +17,8 @@ Run: python3 scripts/test_skill_setup_workflow_seeds.py
 """
 import json
 import re
+import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -55,6 +57,75 @@ def update_workflow_action(
     return "create" if prerequisites and pull_requests_allowed else "skip"
 
 
+def load_census_setup_effects():
+    """Parse the shipped seed's executable census transition contract."""
+    seed = (SKILL / "census.md").read_text(encoding="utf-8")
+    match = re.search(
+        r"```json census-setup-effects\n(.*?)\n```", seed, re.DOTALL,
+    )
+    if not match:
+        raise AssertionError("census seed has no structured setup-effects contract")
+    rows = json.loads(match.group(1))
+    return {row["state"]: row for row in rows}
+
+
+def apply_census_setup_effect(root, effect, writes):
+    """Execute one prompt contract row against a temporary consumer fixture."""
+    paths = {
+        "choice": root / "docs/agents/census-choice",
+        "profile": root / ".census/profile.json",
+        "active": root / ".census/active.json",
+        "scanner": root / ".census/local-scanner.mjs",
+        "scanner-test": root / ".census/local-scanner.test.mjs",
+        "hook": root / ".git/hooks/census-check",
+        "gate": root / ".github/workflows/census-check.yml",
+        "self-test": root / ".census/self-test-ran",
+    }
+
+    def write_if_changed(path, content):
+        data = content.encode("utf-8")
+        if path.exists() and path.read_bytes() == data:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        writes.append(path.relative_to(root).as_posix())
+
+    def remove_if_present(path):
+        if path.exists():
+            path.unlink()
+            writes.append(path.relative_to(root).as_posix())
+
+    if effect["choice"] != "none":
+        write_if_changed(paths["choice"], effect["choice"] + "\n")
+
+    profile_action = effect["profile"]
+    if profile_action == "create-minimal":
+        write_if_changed(paths["profile"], json.dumps({
+            "schemaVersion": 1, "enabled": True,
+            "decisions": [], "localScanners": [], "overrides": [],
+        }, sort_keys=True) + "\n")
+    elif profile_action in ("enable-transactionally", "disable-transactionally"):
+        profile = json.loads(paths["profile"].read_text(encoding="utf-8"))
+        profile["enabled"] = profile_action == "enable-transactionally"
+        write_if_changed(paths["profile"], json.dumps(profile, sort_keys=True) + "\n")
+
+    if effect["active"] == "activate-verified":
+        write_if_changed(paths["active"], '{"state":"current","verified":true}\n')
+
+    for kind in ("hook", "gate"):
+        action = effect[kind]
+        if action == "enable-after-verification":
+            if not paths["active"].exists():
+                raise AssertionError("enforcement cannot precede verified activation")
+            write_if_changed(paths[kind], "kit-owned census enforcement\n")
+        elif action == "remove":
+            remove_if_present(paths[kind])
+
+    if effect["selfTest"]:
+        write_if_changed(paths["self-test"], "foundation self-test passed\n")
+    return paths
+
+
 class IdempotencyRule(unittest.TestCase):
     CASES = [
         # (first_line, is_empty, expected)
@@ -81,6 +152,97 @@ class IdempotencyRule(unittest.TestCase):
 
 
 class SeedTemplatesValid(unittest.TestCase):
+    def test_census_effect_contract_executes_every_transition_and_repeats_without_writes(self):
+        effects = load_census_setup_effects()
+        self.assertEqual(
+            set(effects),
+            {"missing", "yes", "later", "no", "existing", "explicit-enable", "disable"},
+        )
+        self.assertEqual(effects["explicit-enable"]["actor"], "census-update")
+
+        for state, effect in effects.items():
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                initial = {}
+                if state in ("existing", "explicit-enable", "disable"):
+                    initial = {
+                        "profile": b'{"enabled":true,"consumerKey":"keep exactly"}\n',
+                        "active": b'{"consumerSnapshot":"keep exactly"}\n',
+                        "scanner": b"export const consumerScanner = true;\n",
+                        "scanner-test": b"consumer scanner test\n",
+                    }
+                    if state == "explicit-enable":
+                        initial["profile"] = b'{"enabled":false,"consumerKey":"keep"}\n'
+                        initial.pop("active")
+                    for name, data in initial.items():
+                        path = {
+                            "profile": root / ".census/profile.json",
+                            "active": root / ".census/active.json",
+                            "scanner": root / ".census/local-scanner.mjs",
+                            "scanner-test": root / ".census/local-scanner.test.mjs",
+                        }[name]
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(data)
+                    if state in ("existing", "disable"):
+                        for path in (
+                            root / ".git/hooks/census-check",
+                            root / ".github/workflows/census-check.yml",
+                        ):
+                            path.parent.mkdir(parents=True, exist_ok=True)
+                            path.write_text("kit-owned census enforcement\n", encoding="utf-8")
+
+                writes = []
+                paths = apply_census_setup_effect(root, effect, writes)
+
+                if state == "missing":
+                    self.assertEqual(writes, [])
+                if state == "yes":
+                    profile = json.loads(paths["profile"].read_text(encoding="utf-8"))
+                    self.assertEqual(profile, {
+                        "schemaVersion": 1, "enabled": True,
+                        "decisions": [], "localScanners": [], "overrides": [],
+                    })
+                    self.assertTrue(paths["self-test"].exists())
+                if state in ("yes", "later", "no"):
+                    self.assertFalse(paths["active"].exists())
+                    self.assertFalse(paths["hook"].exists())
+                    self.assertFalse(paths["gate"].exists())
+                if state in ("later", "no"):
+                    self.assertFalse(paths["profile"].exists())
+                    self.assertFalse(paths["self-test"].exists())
+                if state == "existing":
+                    for name, expected in initial.items():
+                        self.assertEqual(paths[name].read_bytes(), expected)
+                if state == "explicit-enable":
+                    profile = json.loads(paths["profile"].read_text(encoding="utf-8"))
+                    self.assertTrue(profile["enabled"])
+                    self.assertEqual(profile["consumerKey"], "keep")
+                    for name in ("active", "hook", "gate"):
+                        self.assertTrue(paths[name].exists())
+                if state == "disable":
+                    profile = json.loads(paths["profile"].read_text(encoding="utf-8"))
+                    self.assertFalse(profile["enabled"])
+                    self.assertEqual(profile["consumerKey"], "keep exactly")
+                    for name in ("active", "scanner", "scanner-test"):
+                        self.assertEqual(paths[name].read_bytes(), initial[name])
+                    self.assertFalse(paths["hook"].exists())
+                    self.assertFalse(paths["gate"].exists())
+
+                before = {
+                    str(path.relative_to(root)): (path.read_bytes(), path.stat().st_mtime_ns)
+                    for path in root.rglob("*") if path.is_file()
+                }
+                time.sleep(0.01)
+                repeat_writes = []
+                apply_census_setup_effect(root, effect, repeat_writes)
+                after = {
+                    str(path.relative_to(root)): (path.read_bytes(), path.stat().st_mtime_ns)
+                    for path in root.rglob("*") if path.is_file()
+                }
+                self.assertEqual(effect["repeat"], "no-write")
+                self.assertEqual(repeat_writes, [])
+                self.assertEqual(after, before)
+
     def test_census_seed_covers_the_complete_setup_state_matrix(self):
         seed = (SKILL / "census.md").read_text(encoding="utf-8")
         rows = {}
