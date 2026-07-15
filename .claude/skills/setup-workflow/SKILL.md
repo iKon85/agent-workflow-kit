@@ -24,6 +24,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `docs/agents/code-review.md` | Standards-source pointers + adjacent-review-tooling notes the `code-review` skill's Standards axis reads (Section I) |
 | `## Workflow` in CLAUDE.md **and** AGENTS.md | generic entry-point map seeded from [workflow-overview.md](./workflow-overview.md) (Section F + Write) |
 | `## Agent skills` + `## Prod` in CLAUDE.md **and** AGENTS.md | one-line pointers + deploy target (Sections C/G + Write) |
+| `.github/workflows/agent-workflow-kit-update.yml` | optional tested Kit update pull request for GitHub consumers (Section A2) |
 
 ## Idempotency contract — read before writing anything
 
@@ -67,6 +68,40 @@ Default posture: these skills were designed for GitHub. If a `git remote` points
 - **Other** (Jira, Linear, …) — ask the user to describe the workflow in one paragraph; record it as freeform prose.
 
 Seed `docs/agents/issue-tracker.md` from the matching template in this folder: [issue-tracker-github.md](./issue-tracker-github.md), [issue-tracker-gitlab.md](./issue-tracker-gitlab.md), [issue-tracker-local.md](./issue-tracker-local.md). For "other", write it from the user's description.
+
+### 2a. Automatic Kit update pull requests (GitHub tracker only)
+
+> A short scheduled check can keep the installed Kit current by opening one normal pull request after the candidate passes the consumer's own tests. It never merges the pull request for you.
+
+Only after the user has confirmed a **GitHub tracker**, ask in plain language: *"Should GitHub check weekly for a tested Agent Workflow Kit update and keep one update pull request ready?"* Offer these explicit choices:
+
+Before offering **Enable**, confirm the consumer has a committed `package-lock.json` and a usable `package.json` `npm test` command. The shipped workflow installs the locked dependencies with `npm ci --ignore-scripts`; without that lockfile/test contract it cannot prove the candidate in a clean checkout, so explain the prerequisite and do not create the workflow yet.
+
+Also read the repository Actions policy before enabling:
+
+```bash
+gh api repos/<owner>/<repo>/actions/permissions/workflow
+```
+
+The response must report `"can_approve_pull_request_reviews": true`; this is GitHub's **Allow GitHub Actions to create and approve pull requests** gate used by the stable PR upsert. If it is false, or the policy cannot be read, do not seed the workflow yet. Guide the user to **Settings → Actions → General → Workflow permissions**, enable that checkbox, and rerun `setup-workflow`.
+
+If the user prefers `gh`, first show the exact mutation and obtain **explicit confirmation**; never change repository settings merely because setup was invoked. After confirmation, preserve the currently reported `default_workflow_permissions` value (`read` or `write`) and set the gate with:
+
+```bash
+gh api --method PUT repos/<owner>/<repo>/actions/permissions/workflow \
+  -f default_workflow_permissions=<current-read-or-write> \
+  -F can_approve_pull_request_reviews=true
+```
+
+Read the policy back and offer **Enable** only after the field is actually true.
+
+- **Enable** — seed `.github/workflows/agent-workflow-kit-update.yml` from [assets/agent-workflow-kit-update.yml](./assets/agent-workflow-kit-update.yml).
+- **Opt out** — do not create a GitHub workflow, branch, or pull request.
+- **Ask later** — do not create a GitHub workflow, branch, or pull request; explain that re-running `setup-workflow` can offer it again.
+
+This workflow opt-in has its own file-level idempotency rule: if the destination is already present, leave it byte-for-byte unchanged and report `skipped (already present)`. On repeated setup runs, do not prompt again when it exists. The workflow consumes the scoped `@ikon85/agent-workflow-kit` release and its existing parity-checked transactional update command; do not reproduce either mechanism in setup prose or shell steps.
+
+For GitLab, local, other, or an unknown provider, give only a provider-neutral explanation that automatic updates require provider-specific CI and pull-request support; **do not create a GitHub workflow**. Setup itself never creates the update branch or pull request — only an opted-in workflow run may do that later.
 
 **Conditional board-write note (only when the GitHub tracker uses a managed board):** if Section D ends with `board-sync.md` at `mode: github-projects-v2`, add one line to `issue-tracker.md`: *"Board writes (item-add, status/wave/cluster field edits, sub-issue links) go through the board-sync helper, not bare `gh issue create`/`gh project item-*`."* Do **not** add this for GitLab, local, other, or `mode: none`.
 

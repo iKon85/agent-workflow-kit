@@ -332,6 +332,14 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.13.0
+
+- added: `.agents/skills/setup-workflow/assets/agent-workflow-kit-update.yml`
+- added: `.claude/skills/setup-workflow/assets/agent-workflow-kit-update.yml`
+- added: `scripts/kit-update-pr.mjs`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+
 ### 0.12.0
 
 - added: `.agents/skills/kit-update/SKILL.md`
