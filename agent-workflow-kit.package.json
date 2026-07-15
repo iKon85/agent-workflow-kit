@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.13.0",
+  "kitVersion": "0.14.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -1878,6 +1878,48 @@
       "kind": "script",
       "sha256": "98e7d7a9dea198d0ea8bb3fc9f7d63a5cf621c3d263389c140f33e8bec16926c",
       "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/census/delta.mjs",
+      "kind": "script",
+      "sha256": "b4f92ecb4bf1920bd62707c83f308269385bc5e35c2205abc97d8d8b849ade84",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/census/fingerprint.mjs",
+      "kind": "script",
+      "sha256": "fbb25d9f53ab74a9bdffc5db816a56f0d976204b74c2126b8ec7c11e8c8d54fc",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/census/index.mjs",
+      "kind": "script",
+      "sha256": "ef87d073842dec13f27c929e573e064314fdd704aeeec85e80d526c044f23a9a",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/census/scan.mjs",
+      "kind": "script",
+      "sha256": "0988282c8aa6f1e1644eab924fab6e5e306c5a8bb3c26175ff74080d8de673d9",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/census/state.mjs",
+      "kind": "script",
+      "sha256": "588fb5bd3a3855fd7acdf9c056c63e0a04f94308b91f48b9be18807ca849fab7",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/census/transaction.mjs",
+      "kind": "script",
+      "sha256": "63a27f4b28583178bfc08fd6ac553528d9d955e1ec06bc37f779824d5fcaa92f",
+      "mode": 420,
       "origin": "kit"
     },
     {

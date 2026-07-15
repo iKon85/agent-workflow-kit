@@ -332,6 +332,15 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.14.0
+
+- added: `scripts/census/delta.mjs`
+- added: `scripts/census/fingerprint.mjs`
+- added: `scripts/census/index.mjs`
+- added: `scripts/census/scan.mjs`
+- added: `scripts/census/state.mjs`
+- added: `scripts/census/transaction.mjs`
+
 ### 0.13.0
 
 - added: `.agents/skills/setup-workflow/assets/agent-workflow-kit-update.yml`
