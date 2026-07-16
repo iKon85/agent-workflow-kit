@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "projectRelease": {
+    "versionFiles": [
+      "package.json",
+      "modules/cli/package.json"
+    ],
+    "tagPrefix": "release-"
+  }
+}
