@@ -47,6 +47,10 @@ export const HELPER_FILES = [
   // the parity primitive rather than growing a second registry/GitHub comparison.
   { path: 'scripts/release-parity.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/release-state.mjs', kind: 'script', mode: 0o644 },
+  // Consumer-owned project release profiles use these read-only shared
+  // primitives before any apply/commit/tag action is allowed.
+  { path: 'src/lib/semver.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/release-preview.mjs', kind: 'script', mode: 0o644 },
   // GitHub-consumer automation: invokes the existing update command, then owns
   // only the stable tested branch/pull-request upsert.
   { path: 'scripts/kit-update-pr.mjs', kind: 'script', mode: 0o755 },
