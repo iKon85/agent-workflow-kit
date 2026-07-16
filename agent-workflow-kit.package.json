@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.25.0",
+  "kitVersion": "0.26.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -569,11 +569,20 @@
       "origin": "kit"
     },
     {
+      "path": ".agents/skills/setup-workflow/safety-guardrails.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "codex",
+      "sha256": "08793fc7c9164cde9f7e09154e02d5718428272b85fb67d74681d3a415d4d483",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".agents/skills/setup-workflow/SKILL.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "96c0c3ba9ed6b194030a8c45be618caf934e9c4ca8415ea19d726af33cd763cb",
+      "sha256": "b012c477612944d276e7012461f3ec38ecc25b5d92966b667150e1fb547b20cb",
       "mode": 420,
       "origin": "kit"
     },
@@ -891,9 +900,37 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/hooks/_safety_guard.py",
+      "kind": "hook",
+      "sha256": "1f5c387b11731c7b1cd027fc58acd4c1e45c64799975dc50eeff72469df0deb0",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/hooks/baseline-capture-hint.py",
       "kind": "hook",
       "sha256": "8f5cddfbb567afc677cf51f39d37e10804bf03e93d7d2fac7793cb5a42473ed3",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/block-bg-double-background.py",
+      "kind": "hook",
+      "sha256": "ad0c763e3afbb25685f91eea2c39fc3ee58c765536a961810a49bd0c7bbd47b8",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/block-npm-install-in-pnpm.py",
+      "kind": "hook",
+      "sha256": "54da075f8e63e5e927cb752c26c47880da49eb1f730f078558f3f5eec9377c82",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/block-secrets.py",
+      "kind": "hook",
+      "sha256": "962c4f7f035c5cb4c322ee7c76b707a148526000427f4ebd49bfcac50af003b4",
       "mode": 493,
       "origin": "kit"
     },
@@ -943,6 +980,13 @@
       "path": ".claude/hooks/enforce-worktree.py",
       "kind": "hook",
       "sha256": "4a5d0247d89049dde0475680595fd785bfbd1b108cdd9c9697fd74e944f52c8b",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/grep-shim-guard.py",
+      "kind": "hook",
+      "sha256": "9f69541c60c795bd5ec2a4f5d155f6fd3ced4f2ac6a28ed0c55c9a57772dd0d2",
       "mode": 493,
       "origin": "kit"
     },
@@ -1703,11 +1747,20 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/setup-workflow/safety-guardrails.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "claude",
+      "sha256": "08793fc7c9164cde9f7e09154e02d5718428272b85fb67d74681d3a415d4d483",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/setup-workflow/SKILL.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "96c0c3ba9ed6b194030a8c45be618caf934e9c4ca8415ea19d726af33cd763cb",
+      "sha256": "b012c477612944d276e7012461f3ec38ecc25b5d92966b667150e1fb547b20cb",
       "mode": 420,
       "origin": "kit"
     },
@@ -2266,6 +2319,48 @@
       "kind": "script",
       "sha256": "2aae056a8e0e945dbf68298236719c78e22f13dbd8f0c3466b969355d3809058",
       "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/safety-guardrails/core.py",
+      "kind": "script",
+      "sha256": "c69c9d4e1b17efca51de12454b119e9ee6758aa6c8d73fe64e4bafd76c804f4e",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/safety-guardrails/search.py",
+      "kind": "script",
+      "sha256": "345b1456f1a00320b6ad3e4fad1b050d8dd21a16b51b5e5cfdaf6a579530eac1",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/security/audit-gate.mjs",
+      "kind": "script",
+      "sha256": "c6129e77f58e80f5880ebd6d2d235e27e9e31a20ee3cd967ce64815738e61e54",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/security/ensure-gitleaks.mjs",
+      "kind": "script",
+      "sha256": "5591f31d88362aa0df75f7b6bb7f22c094822b4bd00c5f6bf9ccff6a2313ed56",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/security/gitleaks-profile.json",
+      "kind": "doc",
+      "sha256": "2480f7b4656d28cea1ede895970275d7b97f58d396341ee5e36b3df12575c1b6",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/security/install-git-hooks.mjs",
+      "kind": "script",
+      "sha256": "8cf43120ea485fae7dc6aae38a14a3e703dbd18422ef13a199aedb3ec66b0184",
+      "mode": 493,
       "origin": "kit"
     },
     {

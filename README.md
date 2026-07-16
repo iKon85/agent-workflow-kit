@@ -332,6 +332,24 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.26.0
+
+- added: `.agents/skills/setup-workflow/safety-guardrails.md`
+- added: `.claude/hooks/_safety_guard.py`
+- added: `.claude/hooks/block-bg-double-background.py`
+- added: `.claude/hooks/block-npm-install-in-pnpm.py`
+- added: `.claude/hooks/block-secrets.py`
+- added: `.claude/hooks/grep-shim-guard.py`
+- added: `.claude/skills/setup-workflow/safety-guardrails.md`
+- added: `scripts/safety-guardrails/core.py`
+- added: `scripts/safety-guardrails/search.py`
+- added: `scripts/security/audit-gate.mjs`
+- added: `scripts/security/ensure-gitleaks.mjs`
+- added: `scripts/security/gitleaks-profile.json`
+- added: `scripts/security/install-git-hooks.mjs`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+
 ### 0.25.0
 
 - added: `.claude/hooks/convention-drift-hint.py`
