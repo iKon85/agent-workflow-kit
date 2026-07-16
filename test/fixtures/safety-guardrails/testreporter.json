@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "safetyGuardrails": {
+    "secrets": {
+      "enabled": true,
+      "sensitiveNames": [
+        ".env",
+        ".npmrc",
+        "credentials.json",
+        "service-account.json"
+      ],
+      "sensitivePathFragments": [
+        "secrets/",
+        ".ssh/",
+        "aws/credentials"
+      ],
+      "safeTemplateSuffixes": [
+        ".example",
+        ".sample",
+        ".template",
+        ".dist"
+      ]
+    },
+    "packageManager": {
+      "enabled": true,
+      "lockfiles": {
+        "pnpm-lock.yaml": "pnpm",
+        "yarn.lock": "yarn",
+        "bun.lockb": "bun",
+        "package-lock.json": "npm"
+      }
+    },
+    "doubleBackground": {
+      "enabled": true,
+      "surfaces": [
+        "claude"
+      ]
+    },
+    "searchShim": {
+      "enabled": true,
+      "commandNames": [
+        "grep",
+        "rg"
+      ],
+      "detected": true
+    }
+  }
+}
