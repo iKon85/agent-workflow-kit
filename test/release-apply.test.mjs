@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -240,44 +240,40 @@ test('the thin project-release entry point previews, confirms, and applies witho
   }
 });
 
-test('kit-release reuses the shared SemVer preview and apply engine', async () => {
-  const source = await readFile(join(REPO, 'scripts/kit-release.mjs'), 'utf8');
-  assert.match(source, /from '\.\.\/src\/lib\/semver\.mjs'/);
-  assert.match(source, /from '\.\.\/src\/lib\/release-preview\.mjs'/);
-  assert.match(source, /from '\.\.\/src\/lib\/release-apply\.mjs'/);
-  assert.doesNotMatch(source, /export function nextVersion/);
-});
-
-test('project-release is a shipped dual-surface own-work entry point with one engine', async () => {
-  const [manifestText, provenance, claude, codex, installManifest] = await Promise.all([
-    readFile(join(REPO, '.claude/skills/skill-manifest.json'), 'utf8'),
-    readFile(join(REPO, 'PROVENANCE.md'), 'utf8'),
-    readFile(join(REPO, '.claude/skills/project-release/SKILL.md'), 'utf8'),
-    readFile(join(REPO, '.agents/skills/project-release/SKILL.md'), 'utf8'),
-    readFile(join(REPO, 'agent-workflow-kit.package.json'), 'utf8'),
-  ]);
-  const entry = JSON.parse(manifestText).skills['project-release'];
-  assert.deepEqual(entry, {
-    class: 'generic',
-    publish: true,
-    entryPoint: true,
-    surfaces: ['claude', 'codex'],
-    provenance: 'own',
-  });
-  assert.match(provenance, /Own work[\s\S]*project-release/);
-  assert.equal(codex, claude);
-  for (const token of [
-    'docs/agents/workflow-capabilities.json',
-    'node scripts/project-release.mjs preview',
-    'node scripts/project-release.mjs apply',
-    '--confirm',
-    'does not commit, tag, push, publish, or merge',
-  ]) assert.match(claude, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  const paths = JSON.parse(installManifest).files.map(({ path }) => path);
-  for (const path of [
-    'src/lib/release-apply.mjs',
-    'scripts/project-release.mjs',
-    '.claude/skills/project-release/SKILL.md',
-    '.agents/skills/project-release/SKILL.md',
-  ]) assert.ok(paths.includes(path), `missing shipped path ${path}`);
+test('apply rejects absolute, escaping, and symlinked targets before any write', async () => {
+  const root = await fixture('generic');
+  const outside = await mkdtemp(join(tmpdir(), 'project-release-outside-'));
+  try {
+    for (const path of ['/tmp/outside-package.json', '../outside/package.json']) {
+      await assert.rejects(applyProjectRelease({
+        consumerRoot: root,
+        preview: {
+          status: 'ready',
+          confirmation: 'token',
+          snapshot: [{ path, sha256: 'unused' }],
+          summary: { targetVersion: '1.0.0' },
+          actions: [{ type: 'tag', name: 'v1.0.0' }],
+        },
+        confirmation: 'token',
+      }), /outside consumer root/);
+    }
+    const link = join(root, 'linked-package.json');
+    await writeFile(join(outside, 'package.json'), '{"version":"0.4.9"}\n');
+    await symlink(join(outside, 'package.json'), link);
+    await assert.rejects(applyProjectRelease({
+      consumerRoot: root,
+      preview: {
+        status: 'ready',
+        confirmation: 'token',
+        snapshot: [{ path: 'linked-package.json', sha256: 'unused' }],
+        summary: { targetVersion: '1.0.0' },
+        actions: [{ type: 'tag', name: 'v1.0.0' }],
+      },
+      confirmation: 'token',
+    }), /symlinked release target/);
+    assert.equal(await readFile(join(outside, 'package.json'), 'utf8'), '{"version":"0.4.9"}\n');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
 });

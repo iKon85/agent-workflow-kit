@@ -2,16 +2,16 @@
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { applyProjectRelease } from '../src/lib/release-apply.mjs';
+import { applyProjectRelease, assertSafeReleaseTargets } from '../src/lib/release-apply.mjs';
 import { loadProjectReleaseProfile, previewProjectRelease } from '../src/lib/release-preview.mjs';
 
 function gitOutput(consumerRoot, args) {
   return execFileSync('git', args, { cwd: consumerRoot, encoding: 'utf8' });
 }
 
-export function readRepositoryFacts(consumerRoot) {
-  const records = gitOutput(
-    consumerRoot, ['status', '--porcelain=v1', '-z', '--untracked-files=no'],
+export function readRepositoryFacts(consumerRoot, run = gitOutput) {
+  const records = run(
+    consumerRoot, ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
   ).split('\0').filter(Boolean);
   const dirtyPaths = [];
   for (let index = 0; index < records.length; index += 1) {
@@ -20,7 +20,7 @@ export function readRepositoryFacts(consumerRoot) {
     if (record[0] === 'R' || record[0] === 'C'
         || record[1] === 'R' || record[1] === 'C') index += 1;
   }
-  const existingTags = gitOutput(consumerRoot, ['tag', '--list'])
+  const existingTags = run(consumerRoot, ['tag', '--list'])
     .split('\n').filter(Boolean);
   return { dirtyPaths, existingTags };
 }
@@ -41,6 +41,7 @@ export async function runProjectRelease(options) {
     throw new Error('usage: project-release <preview|apply> <patch|minor|major|version> [--confirm <token>]');
   }
   const profile = await loadProjectReleaseProfile(consumerRoot);
+  await assertSafeReleaseTargets(consumerRoot, profile.versionFiles);
   const preview = await previewProjectRelease({
     consumerRoot, profile, requestedVersion, repositoryFacts,
   });

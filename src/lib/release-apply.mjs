@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { lstat, readFile, realpath } from 'node:fs/promises';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { writeAtomic } from './atomicWrite.mjs';
 
 const sha256 = (body) => createHash('sha256').update(body).digest('hex');
@@ -12,6 +12,28 @@ async function readSnapshot(consumerRoot, snapshot) {
   }));
 }
 
+const escapes = (root, target) => {
+  const path = relative(root, target);
+  return path === '..' || path.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
+    || isAbsolute(path);
+};
+
+export async function assertSafeReleaseTargets(consumerRoot, paths) {
+  const canonicalRoot = await realpath(consumerRoot);
+  for (const path of paths) {
+    const target = resolve(consumerRoot, path);
+    if (isAbsolute(path) || escapes(resolve(consumerRoot), target)) {
+      throw new Error(`release target is outside consumer root: ${path}`);
+    }
+    if ((await lstat(target)).isSymbolicLink()) {
+      throw new Error(`symlinked release target is not allowed: ${path}`);
+    }
+    if (escapes(canonicalRoot, await realpath(target))) {
+      throw new Error(`release target resolves outside consumer root: ${path}`);
+    }
+  }
+}
+
 export async function applyProjectRelease(options) {
   const { consumerRoot, preview, confirmation } = options;
   const write = options.write ?? writeAtomic;
@@ -19,6 +41,9 @@ export async function applyProjectRelease(options) {
   if (confirmation !== preview.confirmation) {
     throw new Error('release confirmation does not match preview');
   }
+  await assertSafeReleaseTargets(
+    consumerRoot, preview.snapshot.map(({ path }) => path),
+  );
   const current = await readSnapshot(consumerRoot, preview.snapshot);
   if (current.every(({ version }) => version === preview.summary.targetVersion)) {
     throw new Error(`release already prepared at ${preview.summary.targetVersion}`);

@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.20.0",
+  "kitVersion": "0.21.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -2123,7 +2123,7 @@
     {
       "path": "scripts/project-release.mjs",
       "kind": "script",
-      "sha256": "22240e0d74d36f0b3cd257c1288ab364e85a42a87dbdb7cd89dfabe9354215ff",
+      "sha256": "6c08cf16f97fdbc0172041c64109e859b1f073862e9f8edc2accbafd97b33843",
       "mode": 493,
       "origin": "kit"
     },
@@ -2193,7 +2193,7 @@
     {
       "path": "src/lib/release-apply.mjs",
       "kind": "script",
-      "sha256": "d8739d64973cedcc7a61e4780bfd4bb0564ee0c2a5ba3127ab46bac0ffcfaa90",
+      "sha256": "d9b3bd07c88629c570d8a58f1d91d1cdac1457470cee973f99e186d9630efb03",
       "mode": 420,
       "origin": "kit"
     },

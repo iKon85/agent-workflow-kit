@@ -332,6 +332,16 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.21.0
+
+- added: `.agents/skills/project-release/SKILL.md`
+- added: `.claude/skills/project-release/SKILL.md`
+- added: `scripts/project-release.mjs`
+- added: `src/lib/release-apply.mjs`
+- changed: `.agents/skills/setup-workflow/workflow-overview.md`
+- changed: `.claude/skills/setup-workflow/workflow-overview.md`
+- changed: `scripts/kit-release.mjs`
+
 ### 0.20.0
 
 - added: `.claude/hooks/branch-context.py`
