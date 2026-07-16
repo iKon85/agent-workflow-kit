@@ -21,12 +21,15 @@ Migration notes for hook refactors:
 """
 import re
 import subprocess
+import importlib.util
+import sys
 from datetime import datetime
 from pathlib import Path
 
 # Resolved relative to CWD at call time. Hooks are invoked from repo root
 # (or from a linked worktree root), so this resolves to <root>/.claude/logs.
 LOG_DIR = Path(".claude/logs")
+_WORKTREE_CORE_MODULE = "_agent_workflow_kit_worktree_lifecycle"
 
 
 def rotate_log_if_needed(log_path: Path, max_bytes: int = 100_000, generations: int = 3) -> None:
@@ -182,3 +185,28 @@ def normalize_to_repo_relative(file_path: str, root: str) -> str | None:
         return str(rel)
     except ValueError:
         return None
+
+
+def load_worktree_lifecycle_core():
+    """Load the shipped Worktree Lifecycle core without requiring a Python package."""
+    existing = sys.modules.get(_WORKTREE_CORE_MODULE)
+    if existing is not None:
+        return existing
+    path = Path(__file__).resolve().parents[2] / "scripts" / "worktree-lifecycle" / "core.py"
+    spec = importlib.util.spec_from_file_location(_WORKTREE_CORE_MODULE, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load Worktree Lifecycle core from {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[_WORKTREE_CORE_MODULE] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def hook_event_output(event_name: str, context: str) -> dict:
+    """Canonical non-blocking context payload for Claude hook events."""
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": event_name,
+            "additionalContext": context,
+        }
+    }
