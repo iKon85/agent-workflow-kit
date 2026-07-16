@@ -1,10 +1,11 @@
 # Workflow Advisories setup contract
 
 Workflow Advisories is one opt-in capability backed by the consumer-owned
-`docs/agents/workflow-capabilities.json` profile. Enabling it activates
-non-blocking large-read, baseline, pre-refactor, and affected-surface Stop
-adapters. Every threshold, glob, branch rule, command, timeout, and output
-budget stays consumer-owned.
+`docs/agents/workflow-capabilities.json` profile. Enabling it activates seven
+non-blocking rows: large-read, baseline, pre-refactor, affected-surface Stop,
+convention freshness, migration-artifact reminder, and LoC forewarning. Every
+threshold, glob, branch rule, source map, command, timeout, and output budget
+stays consumer-owned.
 
 ## Choice matrix
 
@@ -52,7 +53,20 @@ key. Consumer values are never normalized on adoption.
       "timeoutSeconds": 15,
       "outputBudget": 1000
     },
-    "stopChecks": {"surfaces": [], "timeoutSeconds": 30, "outputBudget": 1000}
+    "stopChecks": {"surfaces": [], "timeoutSeconds": 30, "outputBudget": 1000},
+    "freshness": {"documents": [], "outputBudget": 1000},
+    "migration": {
+      "commandMatchers": [],
+      "artifact": "",
+      "refreshCommand": [],
+      "outputBudget": 500
+    },
+    "locForewarn": {
+      "branchRegex": "^(?:feat|fix)/(\\d+)-",
+      "issueCommand": ["gh", "issue", "view", "{issue}", "--json", "body", "-q", ".body"],
+      "timeoutSeconds": 5,
+      "outputBudget": 500
+    }
   }
 }
 ```
@@ -70,6 +84,14 @@ project commands from the tools already present, then asks before activating.
   `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-refactor-sweep.py"`
 - Stop:
   `"$CLAUDE_PROJECT_DIR/.claude/hooks/typecheck-on-stop.sh"`
+- SessionStart convention freshness:
+  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/convention-drift-hint.py"`
+- PostToolUse on Bash migration commands:
+  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/migration-snapshot-reminder.py"`
+- SessionStart LoC forewarning:
+  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/loc-offender-forewarn.py"`
 
 All adapters are non-blocking. A failed or timed-out configured command remains
-visibly failed in hook context; it is never reported as green.
+visibly failed in hook context; it is never reported as green. Issue lookup
+failures silence only the LoC forewarning: the existing pre-push gate remains
+the enforcing authority and stays fail-closed.

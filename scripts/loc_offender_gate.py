@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -23,6 +24,29 @@ from loc_offender_core import (
 
 class GateError(RuntimeError):
     """A condition the gate cannot evaluate → fail-closed (exit 1)."""
+
+
+_ISSUE_MARKER_RE = re.compile(r"<!--\s*loc-offender:\s*([^>]+?)\s*-->")
+
+
+def parse_issue_marker(body: str) -> list[str]:
+    """Read the machine marker planted by board-sync at buildability transition."""
+    match = _ISSUE_MARKER_RE.search(body or "")
+    return [
+        path.strip() for path in match.group(1).split(",") if path.strip()
+    ] if match else []
+
+
+def forewarning_context(body: str, max_lines: int, offenders: set[str]) -> str | None:
+    """Render a non-blocking SessionStart warning from the gate-owned contracts."""
+    hits = sorted(set(parse_issue_marker(body)) & offenders)
+    if not hits:
+        return None
+    paths = ", ".join(hits)
+    return (
+        f"LoC offender advisory: {paths} is named by the issue marker and remains "
+        f"above the gate threshold ({max_lines} lines). The pre-push gate stays authoritative."
+    )
 
 
 def _git(args, cwd=None) -> str:

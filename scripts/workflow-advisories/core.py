@@ -183,3 +183,103 @@ def stop_check_decision(profile: dict, payload: dict, root: Path) -> Decision:
     return _command_decision(
         commands, config, root, "Changed-surface stop checks:", "Stop",
     )
+
+
+def git_commit_time(root: Path, relative_path: str) -> int | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "log", "-1", "--format=%ct", "--", relative_path],
+            capture_output=True, text=True, timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    value = result.stdout.strip()
+    return int(value) if result.returncode == 0 and value.isdigit() else None
+
+
+def read_source_list(path: Path) -> list[str]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    return [
+        line.strip() for line in lines
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+
+def collect_stale_maps(
+    root: Path, maps: list[tuple[str, list[str]]],
+) -> list[tuple[str, list[str]]]:
+    stale_maps: list[tuple[str, list[str]]] = []
+    for document, sources in maps:
+        document_time = git_commit_time(root, document)
+        if document_time is None:
+            continue
+        stale = [
+            source for source in sources
+            if (source_time := git_commit_time(root, source)) is not None
+            and source_time > document_time
+        ]
+        if stale:
+            stale_maps.append((document, stale))
+    return stale_maps
+
+
+def collect_skill_stale(root: Path, skills_relative: str) -> list[tuple[str, list[str]]]:
+    skills_dir = root / skills_relative
+    maps = [
+        (
+            f"{skills_relative}/{sources_file.parent.name}/SKILL.md",
+            read_source_list(sources_file),
+        )
+        for sources_file in sorted(skills_dir.glob("*/SOURCES.txt"))
+    ] if skills_dir.is_dir() else []
+    return [
+        (Path(document).parent.name, sources)
+        for document, sources in collect_stale_maps(root, maps)
+    ]
+
+
+def convention_freshness_decision(profile: dict, root: Path) -> Decision:
+    config = profile.get("freshness", {})
+    maps = [
+        (entry.get("document", ""), entry.get("sources", []))
+        for entry in config.get("documents", [])
+        if entry.get("document")
+    ]
+    stale = collect_stale_maps(root, maps)
+    if not stale:
+        return Decision(None, "SessionStart")
+    lines = ["Convention freshness advisory:"]
+    for document, sources in stale:
+        lines.append(f"- {document} is older than:")
+        lines.extend(f"  - {source}" for source in sources)
+    return Decision(
+        _bounded("\n".join(lines), int(config.get("outputBudget", 1000))),
+        "SessionStart",
+    )
+
+
+def migration_reminder_decision(profile: dict, payload: dict) -> Decision:
+    config = profile.get("migration", {})
+    if payload.get("tool_name") != "Bash":
+        return Decision(None, "PostToolUse")
+    command = payload.get("tool_input", {}).get("command", "")
+    if not any(
+        re.search(pattern, command)
+        for pattern in config.get("commandMatchers", [])
+    ):
+        return Decision(None, "PostToolUse")
+    artifact = config.get("artifact")
+    refresh = config.get("refreshCommand", [])
+    if not artifact or not refresh:
+        return Decision(None, "PostToolUse")
+    message = (
+        f"Migration advisory: refresh {artifact} with `{' '.join(refresh)}` "
+        "before treating the migration result as complete."
+    )
+    return Decision(
+        _bounded(message, int(config.get("outputBudget", 500))),
+        "PostToolUse",
+    )

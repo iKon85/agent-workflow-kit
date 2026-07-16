@@ -332,6 +332,19 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.25.0
+
+- added: `.claude/hooks/convention-drift-hint.py`
+- added: `.claude/hooks/loc-offender-forewarn.py`
+- added: `.claude/hooks/migration-snapshot-reminder.py`
+- added: `scripts/workflow-advisories/capabilities.json`
+- changed: `.agents/skills/setup-workflow/workflow-advisories.md`
+- changed: `.claude/hooks/_hook_utils.py`
+- changed: `.claude/hooks/skill-drift-hint.py`
+- changed: `.claude/skills/setup-workflow/workflow-advisories.md`
+- changed: `scripts/loc_offender_gate.py`
+- changed: `scripts/workflow-advisories/core.py`
+
 ### 0.24.0
 
 - added: `.agents/skills/setup-workflow/workflow-advisories.md`

@@ -56,6 +56,45 @@
       ],
       "timeoutSeconds": 3,
       "outputBudget": 300
+    },
+    "freshness": {
+      "documents": [
+        {
+          "document": "docs/conventions/api.md",
+          "sources": [
+            "backend/src/**",
+            "frontend/src/**"
+          ]
+        }
+      ],
+      "outputBudget": 300
+    },
+    "migration": {
+      "commandMatchers": [
+        "drizzle-kit migrate",
+        "db:migrate"
+      ],
+      "artifact": "docs/database/schema-snapshot.json",
+      "refreshCommand": [
+        "pnpm",
+        "db:snapshot"
+      ],
+      "outputBudget": 300
+    },
+    "locForewarn": {
+      "branchRegex": "^(?:feat|fix)/(\\d+)-",
+      "issueCommand": [
+        "gh",
+        "issue",
+        "view",
+        "{issue}",
+        "--json",
+        "body",
+        "-q",
+        ".body"
+      ],
+      "timeoutSeconds": 5,
+      "outputBudget": 300
     }
   }
 }

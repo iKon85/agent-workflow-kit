@@ -20,6 +20,9 @@ const hookCommands = [
   'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/baseline-capture-hint.py"',
   'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-refactor-sweep.py"',
   '"$CLAUDE_PROJECT_DIR/.claude/hooks/typecheck-on-stop.sh"',
+  'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/convention-drift-hint.py"',
+  'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/migration-snapshot-reminder.py"',
+  'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/loc-offender-forewarn.py"',
 ];
 
 async function reconcile(root, effect) {
@@ -98,10 +101,14 @@ test('setup contract mirrors and ships the complete 6a helper unit', async () =>
   const shipped = new Set(HELPER_FILES.map(({ path }) => path));
   for (const path of [
     'scripts/workflow-advisories/core.py',
+    'scripts/workflow-advisories/capabilities.json',
     '.claude/hooks/recon-size-hint.py',
     '.claude/hooks/baseline-capture-hint.py',
     '.claude/hooks/pre-refactor-sweep.py',
     '.claude/hooks/typecheck-on-stop.py',
     '.claude/hooks/typecheck-on-stop.sh',
+    '.claude/hooks/convention-drift-hint.py',
+    '.claude/hooks/migration-snapshot-reminder.py',
+    '.claude/hooks/loc-offender-forewarn.py',
   ]) assert.equal(shipped.has(path), true, path);
 });

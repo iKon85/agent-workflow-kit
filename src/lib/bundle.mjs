@@ -94,11 +94,15 @@ export const HELPER_FILES = [
   // Profile-driven non-blocking change-lifecycle advisories. The shell Stop
   // entry delegates to its sibling Python adapter; decisions stay in core.py.
   { path: 'scripts/workflow-advisories/core.py', kind: 'script', mode: 0o644 },
+  { path: 'scripts/workflow-advisories/capabilities.json', kind: 'doc', mode: 0o644 },
   { path: '.claude/hooks/recon-size-hint.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/baseline-capture-hint.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/pre-refactor-sweep.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/typecheck-on-stop.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/typecheck-on-stop.sh', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/convention-drift-hint.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/migration-snapshot-reminder.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/loc-offender-forewarn.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/drift-guard.py', kind: 'hook', mode: 0o755 },
   // Counted Safety Guardrails unit: shared policy/search core, one loader,
   // four thin Agent adapters, and three portable repository-security

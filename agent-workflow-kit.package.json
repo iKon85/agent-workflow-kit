@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.24.0",
+  "kitVersion": "0.25.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -618,7 +618,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "320f893a6e148f0bfabe1f1be81112728ae4fed84f7505dc630e5b0d931ec32c",
+      "sha256": "81ce0f5573d5f062adbc87149172e74ab322315bf348025c0ff2c27f8d8ec67b",
       "mode": 420,
       "origin": "kit"
     },
@@ -886,7 +886,7 @@
     {
       "path": ".claude/hooks/_hook_utils.py",
       "kind": "hook",
-      "sha256": "26c645eaa7cb87e899ab3900e9f6711658848cab8a18a29656ae3ca30736d172",
+      "sha256": "9ad70fa80a57c7712df78718c578b58295f446c13a0f1863c69680f3889dd387",
       "mode": 420,
       "origin": "kit"
     },
@@ -908,6 +908,13 @@
       "path": ".claude/hooks/branch-watch.py",
       "kind": "hook",
       "sha256": "15c7565790e0b108c44175b7527a4bc2b8b244737d5598081e938d2dea032424",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/convention-drift-hint.py",
+      "kind": "hook",
+      "sha256": "f89fc3f3f9d9b7508e3cdeeedd0e522af11ae10e638457da3910bfe4e43579f2",
       "mode": 493,
       "origin": "kit"
     },
@@ -940,6 +947,20 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/hooks/loc-offender-forewarn.py",
+      "kind": "hook",
+      "sha256": "28ba5edb1898345fd852d1f420bb64c5a2e0dfd66aa8d2b752899fc28a6f80dd",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/migration-snapshot-reminder.py",
+      "kind": "hook",
+      "sha256": "693227fae1aa3e782ed5b61a9e8c3fc8c1880a617efd14cb86ca7f38d9a8f204",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/hooks/pre-refactor-sweep.py",
       "kind": "hook",
       "sha256": "24e8554da18b00f2dbbcf6a3e186f9fb675a4b18471ce60e0ac63000f95a4906",
@@ -956,7 +977,7 @@
     {
       "path": ".claude/hooks/skill-drift-hint.py",
       "kind": "hook",
-      "sha256": "4842e1c6dfd1042eb924d9cc36a8aa5d0c5a1e95f71e33a82db3322dc9d13fd0",
+      "sha256": "2ce5c8cfc85dc76cf93abf1cd061440b8030109231a45a0920e36a5f1c06694a",
       "mode": 493,
       "origin": "kit"
     },
@@ -1731,7 +1752,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "320f893a6e148f0bfabe1f1be81112728ae4fed84f7505dc630e5b0d931ec32c",
+      "sha256": "81ce0f5573d5f062adbc87149172e74ab322315bf348025c0ff2c27f8d8ec67b",
       "mode": 420,
       "origin": "kit"
     },
@@ -2159,7 +2180,7 @@
     {
       "path": "scripts/loc_offender_gate.py",
       "kind": "script",
-      "sha256": "3e96b180bbe922c85ea511da94f118b6d8d8937bc000c8a31b1a88bac211545e",
+      "sha256": "a66650b3b194a00ecc3ba37acae4bbb1aeeb57762d27fb2dfd3bb1fc2734a8a5",
       "mode": 493,
       "origin": "kit"
     },
@@ -2248,9 +2269,16 @@
       "origin": "kit"
     },
     {
+      "path": "scripts/workflow-advisories/capabilities.json",
+      "kind": "doc",
+      "sha256": "04c731394fa458c141870fb89f2432092b3749955eccbda9b9b8db09636526c9",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "scripts/workflow-advisories/core.py",
       "kind": "script",
-      "sha256": "7923d328f2a4e8b0ac8823cba5779003a52c6fabeb012157af49c3c5e13ccfc9",
+      "sha256": "dc47bc20ed1107d230f45ff7158e4fd81d6473be515e03cbd52274f3e87d840d",
       "mode": 420,
       "origin": "kit"
     },
