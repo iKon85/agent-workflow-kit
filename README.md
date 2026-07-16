@@ -332,6 +332,11 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.17.0
+
+- added: `src/lib/release-preview.mjs`
+- added: `src/lib/semver.mjs`
+
 ### 0.16.4
 
 - Metadata-only release.
