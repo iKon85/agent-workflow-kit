@@ -332,6 +332,20 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.24.0
+
+- added: `.agents/skills/setup-workflow/workflow-advisories.md`
+- added: `.claude/hooks/baseline-capture-hint.py`
+- added: `.claude/hooks/pre-refactor-sweep.py`
+- added: `.claude/hooks/recon-size-hint.py`
+- added: `.claude/hooks/typecheck-on-stop.py`
+- added: `.claude/hooks/typecheck-on-stop.sh`
+- added: `.claude/skills/setup-workflow/workflow-advisories.md`
+- added: `scripts/workflow-advisories/core.py`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.claude/hooks/_hook_utils.py`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+
 ### 0.23.0
 
 - added: `assets/memory-templates/meta_decision_layer_choice.md`

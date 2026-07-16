@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "workflowAdvisories": {
+    "enabled": true,
+    "largeRead": {
+      "tools": [
+        "Read"
+      ],
+      "lineThreshold": 4,
+      "outputBudget": 220
+    },
+    "baseline": {
+      "sourceGlobs": [
+        "src/**",
+        "frontend/src/**",
+        "backend/src/**"
+      ],
+      "branchRegex": "^(?:feat|fix)/",
+      "manifestPath": ".agent/baseline.json",
+      "stateDir": ".claude/logs/advisory-state",
+      "outputBudget": 240
+    },
+    "preRefactor": {
+      "promptMatchers": [
+        "refactor"
+      ],
+      "surfaces": [
+        {
+          "globs": [
+            "frontend/src/**"
+          ],
+          "commands": [
+            [
+              "python3",
+              "-c",
+              "print('frontend sweep green')"
+            ]
+          ]
+        }
+      ],
+      "timeoutSeconds": 3,
+      "outputBudget": 300
+    },
+    "stopChecks": {
+      "surfaces": [
+        {
+          "globs": [
+            "backend/src/**"
+          ],
+          "command": [
+            "python3",
+            "-c",
+            "print('backend typecheck green')"
+          ]
+        }
+      ],
+      "timeoutSeconds": 3,
+      "outputBudget": 300
+    }
+  }
+}
