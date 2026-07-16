@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.26.0",
+  "kitVersion": "0.26.1",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -339,7 +339,7 @@
       "kind": "skill",
       "ownerSkill": "kit-update",
       "surface": "codex",
-      "sha256": "5b7a8c11b5852ee115fa8d3f66a3938d7b4db173a47d711da48abab635b2c261",
+      "sha256": "dbf2c0f696bd0ce45c5c2a315d40a3bbb99635e4ab384c788ac59f799fbf43de",
       "mode": 420,
       "origin": "kit"
     },
@@ -573,7 +573,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "08793fc7c9164cde9f7e09154e02d5718428272b85fb67d74681d3a415d4d483",
+      "sha256": "8e223f625dcf941142005cbd9a4b6214358f68e3fd63cbee7bffef35b8b14ec8",
       "mode": 420,
       "origin": "kit"
     },
@@ -582,7 +582,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "b012c477612944d276e7012461f3ec38ecc25b5d92966b667150e1fb547b20cb",
+      "sha256": "e4cac2f46ac5f16e9a1473b38a64979a7d767ccdc834a2540d20c733305ea2e7",
       "mode": 420,
       "origin": "kit"
     },
@@ -1499,7 +1499,7 @@
       "kind": "skill",
       "ownerSkill": "kit-update",
       "surface": "claude",
-      "sha256": "5b7a8c11b5852ee115fa8d3f66a3938d7b4db173a47d711da48abab635b2c261",
+      "sha256": "dbf2c0f696bd0ce45c5c2a315d40a3bbb99635e4ab384c788ac59f799fbf43de",
       "mode": 420,
       "origin": "kit"
     },
@@ -1751,7 +1751,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "08793fc7c9164cde9f7e09154e02d5718428272b85fb67d74681d3a415d4d483",
+      "sha256": "8e223f625dcf941142005cbd9a4b6214358f68e3fd63cbee7bffef35b8b14ec8",
       "mode": 420,
       "origin": "kit"
     },
@@ -1760,7 +1760,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "b012c477612944d276e7012461f3ec38ecc25b5d92966b667150e1fb547b20cb",
+      "sha256": "e4cac2f46ac5f16e9a1473b38a64979a7d767ccdc834a2540d20c733305ea2e7",
       "mode": 420,
       "origin": "kit"
     },
@@ -2303,7 +2303,7 @@
     {
       "path": "scripts/release-delta-guard.mjs",
       "kind": "script",
-      "sha256": "37a6f27b350bb98a19a8c53e1f6ee187b3a39c0ff5317141717bf9ab65129bad",
+      "sha256": "a51f30e7261e4efb0b5c5002f39353ef8e8be18a2bd39ad7139f1ce7a2e7e18d",
       "mode": 420,
       "origin": "kit"
     },

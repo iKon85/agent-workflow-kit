@@ -7,10 +7,10 @@ description: "Preview and transactionally apply a parity-verified agent-workflow
 
 Update an installed consumer only from the public scoped package
 `@ikon85/agent-workflow-kit`. The unscoped `agent-workflow-kit` package belongs
-to another publisher and is never a valid update source. Existing installs from
-`npx github:iKon85/agent-workflow-kit` remain valid, but updates must use the
-scoped npm release so the shared release-parity checker can prove that npm and
-the matching GitHub release contain the same artifact.
+to another publisher and is never a valid update source. Existing direct
+GitHub installs remain valid, but updates must use the scoped npm release so
+the shared release-parity checker can prove that npm and the matching GitHub
+release contain the same artifact.
 
 ## Workflow
 

@@ -49,9 +49,9 @@ all-or-nothing switch.
 ## Profile shape
 
 Reconcile only `safetyGuardrails`; preserve every sibling section, unknown key,
-and consumer-owned value. The following is the Testreporter parity-on example,
-not a universal default. Other consumers choose each `enabled` value and fill
-only facts proven in their repository.
+and consumer-owned value. The following is the reference consumer's parity-on
+example, not a universal default. Other consumers choose each `enabled` value
+and fill only facts proven in their repository.
 
 ```json
 {
