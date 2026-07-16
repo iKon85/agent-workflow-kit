@@ -26,7 +26,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `## Agent skills` + `## Prod` in CLAUDE.md **and** AGENTS.md | one-line pointers + deploy target (Sections C/G + Write) |
 | `.github/workflows/agent-workflow-kit-update.yml` | optional tested Kit update pull request for GitHub consumers (Section A2) |
 | `docs/agents/census.md` | optional-census choice, paths, state, and safe disable contract seeded from [census.md](./census.md) (Section A3) |
-| `docs/agents/workflow-capabilities.json` + capability assets | consumer-owned Worktree Lifecycle, Memory Lifecycle, and Workflow Advisories choices (Sections A4–A6) |
+| `docs/agents/workflow-capabilities.json` + capability assets | consumer-owned Worktree Lifecycle, Memory Lifecycle, Workflow Advisories, and Safety Guardrails choices (Sections A4–A7) |
 
 ## Idempotency contract — read before writing anything
 
@@ -57,7 +57,7 @@ Read the current state; don't assume. For every target file, read its first line
 - `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/` — domain-doc layout.
 - `docs/agents/`, `docs/agents/skills/`, `docs/conventions/` — prior output of this skill.
 - `docs/agents/census.md`, `.census/profile.json`, `.census/active.json` — an existing census choice or consumer-owned census to adopt.
-- `docs/agents/workflow-capabilities.json`, `.claude/settings.json` — existing capability choices/profile plus Worktree Lifecycle and Workflow Advisories hook wiring to adopt.
+- `docs/agents/workflow-capabilities.json`, `.claude/settings.json`, `git config --get core.hooksPath` — existing capability choices/profile plus Worktree Lifecycle, Workflow Advisories, and Safety Guardrails wiring to adopt.
 - `.memory/active/`, `.memory/archive/`, and `.memory/receipts/` — consumer-owned Memory Lifecycle policies or recovery evidence to adopt without normalization.
 - `gh auth status` (if GitHub) — is `gh` authenticated, and with which scopes?
 
@@ -218,6 +218,31 @@ repository?"* Offer exactly **Yes**, **Later**, and **No**.
 - **Disable** — remove exact kit-owned commands first, then set `enabled:
   false`; preserve every profile value and unknown key.
 
+### 2f. Section A7 — Optional Safety Guardrails
+
+> Safety Guardrails is a counted group of seven independently selectable
+> protections: four agent-tool guards and three repository-security
+> capabilities. Setup stages and validates the chosen profile plus wiring
+> before activation; disabled rows remain exact no-ops.
+
+Read [safety-guardrails.md](./safety-guardrails.md) in full. Reconcile its
+complete `yes / later / no / existing / disable` matrix. If no choice exists,
+ask: *"Should setup configure the portable Safety Guardrails for this
+repository?"* Offer exactly **Yes**, **Later**, and **No**.
+
+- **Yes** — ask which of the seven counted rows to enable, then reconcile only
+  `safetyGuardrails`, exact selected Agent-hook commands, and the selected
+  native Git-hook path. Report `N of 7 enabled`.
+- **Later / No** — record the choice without Agent- or Git-hook wiring.
+- **Existing** — adopt profile and wiring byte-safely; preserve unknown keys
+  and consumer-specific policies.
+- **Disable** — remove only exact kit-owned Agent commands and Git wiring
+  first, then set `enabled: false`.
+
+Testreporter uses the parity-on profile from the seed. Other consumers are
+opt-in/manual: never copy its pnpm, path, shim, surface, or outage decisions
+without repository evidence and user confirmation.
+
 ### 3. Section B — Triage labels
 
 > When `triage` processes an incoming issue it applies labels (or your tracker's equivalent). It needs strings you've actually configured, or it creates duplicates.
@@ -305,10 +330,11 @@ request changes a recorded choice.
 
 For `docs/agents/workflow-capabilities.json`, reconcile only each selected
 capability section. Never replace the whole file: Project Release, Memory
-Lifecycle, Worktree Lifecycle, Workflow Advisories, future sections, and
+Lifecycle, Worktree Lifecycle, Workflow Advisories, Safety Guardrails, future sections, and
 unknown consumer keys share this profile. Apply the transition and hook
-ownership rules from [worktree-lifecycle.md](./worktree-lifecycle.md) and
-[workflow-advisories.md](./workflow-advisories.md) transactionally.
+ownership rules from [worktree-lifecycle.md](./worktree-lifecycle.md),
+[workflow-advisories.md](./workflow-advisories.md), and
+[safety-guardrails.md](./safety-guardrails.md) transactionally.
 
 For Memory Lifecycle, use only the deterministic setup helper from Section A5.
 Do not copy templates with shell commands or edit the capability profile by
