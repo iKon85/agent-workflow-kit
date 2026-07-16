@@ -2094,6 +2094,20 @@
       "sha256": "24ce9373c464cc8363c53b0c690c3231cbf11362e6e08336e0e97663579d1f19",
       "mode": 493,
       "origin": "kit"
+    },
+    {
+      "path": "src/lib/release-preview.mjs",
+      "kind": "script",
+      "sha256": "a4e6627fac2d62812e44cfcb80c46539563734e7fa11f94b3dda37ff6fe6ae8f",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/semver.mjs",
+      "kind": "script",
+      "sha256": "7d0a8da3740ed1eb79edb80f0eedb3cd1de47692d4886c6b119b39073a6468d1",
+      "mode": 420,
+      "origin": "kit"
     }
   ]
 }

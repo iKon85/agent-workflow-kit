@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "projectRelease": {
+    "versionFiles": [
+      "package.json",
+      "frontend/package.json",
+      "backend/package.json"
+    ],
+    "tagPrefix": "v"
+  }
+}
