@@ -141,6 +141,8 @@ test('shipped Worktree Lifecycle census accounts for all eight historical rows',
       capability.primitives?.length > 0 || capability.naReason,
       `${capability.historicalPath} needs shared primitives or a concrete N/A reason`,
     );
+    assert.ok(capability.artifact, `${capability.historicalPath} needs a shipped artifact`);
+    await readFile(resolve(capability.artifact));
   }
 });
 

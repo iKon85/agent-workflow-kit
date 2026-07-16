@@ -31,6 +31,14 @@ the core proves the target is unsafe.
 | `enforce-worktree.py` | PreToolUse | blocks tracked main-checkout edits and cross-worktree leaks |
 | `enforce-worktree-cwd.py` | PreToolUse | blocks verification or Git mutation in the wrong checkout |
 | `enforce-worktree-discipline.py` | PreToolUse | routes issue-branch creation through the configured setup entry |
+| `slice-handoff-hint.py` | UserPromptSubmit | names the configured setup entry for a defined slice |
+
+## Cleanup
+
+`cleanup.py` previews by default. Removal refuses protected, dirty, or unmerged
+worktrees. The assessment reads `ANNAHMEN.md` before removal and returns its
+contents for propagation. `wrapup-land.py` invokes this same assessment after a
+merge and before killing processes or removing the worktree.
 
 Claude hook wiring and any Codex adaptation consume this same profile and core.
 An adapter may change only the surface event envelope; it must preserve the

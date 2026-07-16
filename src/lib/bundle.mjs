@@ -74,6 +74,7 @@ export const HELPER_FILES = [
   { path: 'scripts/worktree-lifecycle/core.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/worktree-lifecycle/profile.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/worktree-lifecycle/setup.py', kind: 'script', mode: 0o755 },
+  { path: 'scripts/worktree-lifecycle/cleanup.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/worktree-lifecycle/capabilities.json', kind: 'doc', mode: 0o644 },
   { path: 'scripts/worktree-lifecycle/README.md', kind: 'doc', mode: 0o644 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
@@ -87,6 +88,7 @@ export const HELPER_FILES = [
   { path: '.claude/hooks/enforce-worktree.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/enforce-worktree-cwd.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/enforce-worktree-discipline.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/slice-handoff-hint.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/drift-guard.py', kind: 'hook', mode: 0o755 },
   // SessionStart skill-freshness drift-hint (audit-skills names it). For each
   // <skill>/SOURCES.txt it flags sources newer in git than the SKILL.md. Imports

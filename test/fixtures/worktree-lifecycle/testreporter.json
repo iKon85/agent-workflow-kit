@@ -8,6 +8,7 @@
     "branchRegex": "^(?:feat|fix)/(?P<issue>\\d+)-",
     "mainBranches": ["main"],
     "protectedBranches": ["main"],
+    "setupEntry": "./scripts/setup-worktree.sh",
     "setupSteps": [
       {
         "kind": "copy",

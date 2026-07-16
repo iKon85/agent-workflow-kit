@@ -191,6 +191,7 @@ test('unsupported and malformed hook events are fail-open and repository-neutral
     'enforce-worktree.py',
     'enforce-worktree-cwd.py',
     'enforce-worktree-discipline.py',
+    'slice-handoff-hint.py',
   ];
   const before = (await git(root, 'status', '--porcelain')).stdout;
 
@@ -259,4 +260,20 @@ test('frozen Testreporter profile preserves the five historical guard outcomes',
   assert.equal(linkedCwd.code, 0);
   assert.equal(ignored.code, 0);
   assert.match(JSON.parse(switched.stdout).systemMessage, /feat\/87-parity/);
+});
+
+test('handoff advisory names the configured setup entry instead of a hardcoded script', async (t) => {
+  const profile = structuredClone(GENERIC_PROFILE);
+  profile.worktreeLifecycle.setupEntry = './tools/make-tree';
+  const root = await fixture(profile);
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const result = await runHook(root, 'slice-handoff-hint.py', {
+    prompt: 'Worktree: ./tools/make-tree 516 async-local-storage',
+  });
+  const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+
+  assert.equal(result.code, 0);
+  assert.match(context, /\.\/tools\/make-tree 516 async-local-storage/);
+  assert.doesNotMatch(context, /setup-worktree\.sh/);
 });

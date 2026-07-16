@@ -20,6 +20,7 @@ no --no-verify; the caller diagnoses.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -88,6 +89,44 @@ def load_profile() -> dict:
         return load_board_config()
     except Exception:
         return {}
+
+
+def load_worktree_cleanup_core():
+    path = Path(__file__).resolve().parent / "worktree-lifecycle" / "core.py"
+    module_dir = str(path.parent)
+    if module_dir not in sys.path:
+        sys.path.insert(0, module_dir)
+    spec = importlib.util.spec_from_file_location("_wrapup_worktree_lifecycle", path)
+    if spec is None or spec.loader is None:
+        raise Stop("cleanup", f"cannot load shared cleanup core from {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def ensure_worktree_removable(wt: str, main_tree: str):
+    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
+    if not profile_path.is_file():
+        return None
+    core = load_worktree_cleanup_core()
+    try:
+        profile = core.load_profile(profile_path)
+        assessment = core.cleanup_assessment(
+            profile,
+            Path(main_tree),
+            Path(wt),
+            merge_target="origin/main",
+        )
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+    if assessment.reasons:
+        raise Stop(
+            "cleanup",
+            "shared cleanup guard refused worktree removal",
+            "; ".join(assessment.reasons),
+        )
+    return assessment
 
 
 # ---------- drift log (ANNAHMEN.md) ----------
@@ -428,6 +467,12 @@ def cmd_land(args) -> dict:
 
     # Step 2 — kill the worktree's dev server, then Step 4 — teardown
     if wt_exists:
+        git(["fetch", "origin", "main"], cwd=main_tree, check=True)
+        cleanup = ensure_worktree_removable(wt, main_tree)
+        report["cleanup_guard"] = {
+            "active": cleanup is not None,
+            "assumptions_read": bool(cleanup and cleanup.assumptions),
+        }
         report["killed_processes"] = kill_worktree_processes(wt)
         p = git(["worktree", "remove", wt], cwd=main_tree)
         if p.returncode != 0:
