@@ -239,9 +239,9 @@ repository?"* Offer exactly **Yes**, **Later**, and **No**.
 - **Disable** — remove only exact kit-owned Agent commands and Git wiring
   first, then set `enabled: false`.
 
-Testreporter uses the parity-on profile from the seed. Other consumers are
-opt-in/manual: never copy its pnpm, path, shim, surface, or outage decisions
-without repository evidence and user confirmation.
+The seed's reference consumer uses the parity-on profile. Other consumers are
+opt-in/manual: never copy its package-manager, path, shim, surface, or outage
+decisions without repository evidence and user confirmation.
 
 ### 3. Section B — Triage labels
 

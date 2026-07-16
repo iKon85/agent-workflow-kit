@@ -1,9 +1,10 @@
 /** Block shipped changes whose version or checked manifest does not match a fresh build. */
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sha256 } from '../src/lib/hash.mjs';
 import { buildKit } from './build-kit.mjs';
 
 const byPath = (manifest) => new Map(manifest.files.map((entry) => [entry.path, entry.sha256]));
@@ -41,6 +42,7 @@ function bumpKind(before, after) {
 export function assessRelease(input) {
   const delta = manifestDelta(input.baseManifest, input.builtManifest);
   const checkedDrift = manifestDelta(input.checkedManifest, input.builtManifest);
+  const payloadDrift = manifestDelta(input.builtManifest, input.payloadManifest);
   const errors = [];
   if (hasDelta(delta) && input.currentVersion === input.baseVersion) {
     errors.push(`shipped delta has no version bump (${describe(delta)}); version remains ${input.currentVersion}`);
@@ -51,6 +53,9 @@ export function assessRelease(input) {
   for (const path of checkedDrift.removed) errors.push(`checked manifest dead entry: ${path}`);
   if (checkedDrift.added.length || checkedDrift.changed.length) {
     errors.push(`checked manifest is stale (${describe(checkedDrift)})`);
+  }
+  if (hasDelta(payloadDrift)) {
+    errors.push(`npm package payload does not match built manifest (${describe(payloadDrift)})`);
   }
   const recommendedBump = recommendBump(delta);
   const actual = bumpKind(input.baseVersion, input.currentVersion);
@@ -68,18 +73,43 @@ function gitShowJson(repoRoot, ref, path) {
   return JSON.parse(execFileSync('git', ['show', `${ref}:${path}`], { cwd: repoRoot, encoding: 'utf8' }));
 }
 
+export async function packedPayloadManifest({ repoRoot, manifest }) {
+  const tempRoot = await mkdtemp(join(tmpdir(), 'awkit-package-payload-'));
+  try {
+    const packOutput = execFileSync(
+      'npm', ['pack', '--json', '--ignore-scripts', '--pack-destination', tempRoot],
+      { cwd: repoRoot, encoding: 'utf8' },
+    );
+    const [{ filename }] = JSON.parse(packOutput);
+    const unpackDir = join(tempRoot, 'unpacked');
+    await mkdir(unpackDir);
+    execFileSync('tar', ['-xzf', join(tempRoot, filename), '-C', unpackDir]);
+    return {
+      kitVersion: manifest.kitVersion,
+      files: await Promise.all(manifest.files.map(async (entry) => ({
+        ...entry,
+        sha256: sha256(await readFile(join(unpackDir, 'package', entry.path))),
+      }))),
+    };
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+}
+
 export async function checkReleaseDelta({ repoRoot, baseRef = 'origin/main' } = {}) {
   repoRoot ??= join(dirname(fileURLToPath(import.meta.url)), '..');
   const distDir = await mkdtemp(join(tmpdir(), 'awkit-release-guard-'));
   try {
     await buildKit({ repoRoot, distDir });
     const currentPackage = JSON.parse(await readFile(join(repoRoot, 'package.json'), 'utf8'));
+    const builtManifest = JSON.parse(await readFile(join(distDir, 'agent-workflow-kit.package.json'), 'utf8'));
     return assessRelease({
       baseVersion: gitShowJson(repoRoot, baseRef, 'package.json').version,
       currentVersion: currentPackage.version,
       baseManifest: gitShowJson(repoRoot, baseRef, 'agent-workflow-kit.package.json'),
       checkedManifest: JSON.parse(await readFile(join(repoRoot, 'agent-workflow-kit.package.json'), 'utf8')),
-      builtManifest: JSON.parse(await readFile(join(distDir, 'agent-workflow-kit.package.json'), 'utf8')),
+      builtManifest,
+      payloadManifest: await packedPayloadManifest({ repoRoot, manifest: builtManifest }),
     });
   } finally { await rm(distDir, { recursive: true, force: true }); }
 }
