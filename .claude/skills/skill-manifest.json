@@ -404,6 +404,16 @@
         "codex"
       ],
       "provenance": "own"
+    },
+    "memory-lifecycle": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
     }
   }
 }

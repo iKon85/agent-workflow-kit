@@ -51,6 +51,15 @@ test('HELPER_FILES ships the complete census foundation', () => {
   assert.deepEqual(censusModules.filter((path) => !paths.has(path)), []);
 });
 
+test('HELPER_FILES ships the memory lifecycle helper', () => {
+  const helper = HELPER_FILES.find(({ path }) => path === 'scripts/memory-lifecycle/index.mjs');
+  assert.deepEqual(helper, {
+    path: 'scripts/memory-lifecycle/index.mjs',
+    kind: 'script',
+    mode: 0o644,
+  });
+});
+
 test('STUB_TARGETS lists docs to seed but never board-sync.md', () => {
   assert.ok(STUB_TARGETS.includes('docs/agents/issue-tracker.md'));
   assert.ok(!STUB_TARGETS.some((p) => p.endsWith('board-sync.md')));

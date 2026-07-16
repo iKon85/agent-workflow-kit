@@ -58,6 +58,9 @@ export const HELPER_FILES = [
   { path: 'scripts/census/delta.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/census/state.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/census/transaction.mjs', kind: 'script', mode: 0o644 },
+  // Consumer-owned memory planning and recovery. The module is both the stable
+  // skill API and the no-write-by-default CLI.
+  { path: 'scripts/memory-lifecycle/index.mjs', kind: 'script', mode: 0o644 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
   // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
   // hooks ImportError on arrival.
