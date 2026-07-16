@@ -26,7 +26,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `## Agent skills` + `## Prod` in CLAUDE.md **and** AGENTS.md | one-line pointers + deploy target (Sections C/G + Write) |
 | `.github/workflows/agent-workflow-kit-update.yml` | optional tested Kit update pull request for GitHub consumers (Section A2) |
 | `docs/agents/census.md` | optional-census choice, paths, state, and safe disable contract seeded from [census.md](./census.md) (Section A3) |
-| `docs/agents/workflow-capabilities.json` + memory policy templates | optional Memory Lifecycle profile and one-time consumer-owned policy seeds (Section A4) |
+| `docs/agents/workflow-capabilities.json` + capability assets | consumer-owned Worktree Lifecycle activation and one-time Memory Lifecycle policy seeds (Sections A4–A5) |
 
 ## Idempotency contract — read before writing anything
 
@@ -57,9 +57,8 @@ Read the current state; don't assume. For every target file, read its first line
 - `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/` — domain-doc layout.
 - `docs/agents/`, `docs/agents/skills/`, `docs/conventions/` — prior output of this skill.
 - `docs/agents/census.md`, `.census/profile.json`, `.census/active.json` — an existing census choice or consumer-owned census to adopt.
-- `docs/agents/workflow-capabilities.json`, `.memory/active/`, `.memory/archive/`,
-  and `.memory/receipts/` — an existing Memory Lifecycle choice, consumer-owned
-  policies, or recovery evidence to adopt without normalization.
+- `docs/agents/workflow-capabilities.json`, `.claude/settings.json` — existing capability choices/profile and Worktree Lifecycle hook wiring to adopt.
+- `.memory/active/`, `.memory/archive/`, and `.memory/receipts/` — consumer-owned Memory Lifecycle policies or recovery evidence to adopt without normalization.
 - `gh auth status` (if GitHub) — is `gh` authenticated, and with which scopes?
 
 ### 2. Section A — Issue tracker
@@ -139,10 +138,40 @@ activate without rerunning setup. Disable enforcement first, but retain every
 consumer-owned profile, scanner, test, and active snapshot unless the user
 separately approves deletion. Repeated runs are no-ops after reconciliation.
 
-### 2c. Section A4 — Optional Memory Lifecycle
+### 2c. Section A4 — Optional Worktree Lifecycle
+
+> Worktree Lifecycle is one consumer capability for isolated setup, shared
+> branch/worktree facts, enforcement, handoff, and safe cleanup. The profile is
+> tracked and consumer-owned; hook wiring activates only after an explicit yes.
+
+Read [worktree-lifecycle.md](./worktree-lifecycle.md) in full. Reconcile the
+complete `yes / later / no / existing / disable` matrix from its structured
+contract. If no choice exists, ask: *"Should setup activate the portable
+Worktree Lifecycle for this repository?"* Offer exactly **Yes**, **Later**, and
+**No**.
+
+- **Yes** — create or deepen only the `worktreeLifecycle` section in
+  `docs/agents/workflow-capabilities.json`, preserve every other section and
+  unknown key, and reconcile only the exact kit-owned hook commands listed in
+  the seed.
+- **Later / No** — record the choice in the tracked profile without installing
+  hook wiring. Ordinary reruns do not ask again.
+- **Existing** — adopt the current section and wiring without normalizing
+  consumer-owned values.
+- **Disable** — remove only the exact kit-owned hook commands first, then set
+  `enabled: false`; retain the profile, setup policy, and unknown keys.
+
+The default setup entry is
+`python3 scripts/worktree-lifecycle/setup.py`; a proven consumer-native helper
+may remain the configured `setupEntry` for parity. The handoff advisory always
+reads that configured entry and never hardcodes a project script.
+
+### 2d. Section A5 — Optional Memory Lifecycle
+
 > Memory Lifecycle keeps project memories inside consumer-owned roots and makes
 > restore operations previewable, collision-safe, and reversible. The policy
 > templates become fully consumer-owned after their first seed.
+
 Read the `memoryLifecycle` section of
 `docs/agents/workflow-capabilities.json` before offering anything. Missing or
 disabled configuration remains unchanged on an ordinary setup rerun. An
@@ -155,6 +184,7 @@ an affirmative consumer decision may run:
 ```bash
 node scripts/memory-lifecycle/setup.mjs --enable
 ```
+
 That command adds the minimal enabled section while preserving every existing
 top-level profile key, sets restore and pruning approval to `false` unless the
 consumer already recorded values, and seeds
@@ -254,7 +284,13 @@ pre-existing consumer-owned census file. `yes`, `later`, `no`, and an adopted
 existing census are terminal for ordinary setup reruns. Only an explicit user
 request changes a recorded choice.
 
-For Memory Lifecycle, use only the deterministic setup helper from Section A4.
+For `docs/agents/workflow-capabilities.json`, reconcile only the selected
+capability section. Never replace the whole file: Project Release, Memory
+Lifecycle, Worktree Lifecycle, future sections, and unknown consumer keys share
+this profile. Apply the Worktree Lifecycle transition and hook ownership rules
+from [worktree-lifecycle.md](./worktree-lifecycle.md) transactionally.
+
+For Memory Lifecycle, use only the deterministic setup helper from Section A5.
 Do not copy templates with shell commands or edit the capability profile by
 hand. Report `seeded · adopted · skipped`; do not print memory contents or
 receipt contents.

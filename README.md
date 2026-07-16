@@ -334,12 +334,16 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ### 0.22.0
 
-- added: `assets/memory-templates/meta_decision_layer_choice.md`
-- added: `assets/memory-templates/meta_memory_lifecycle.md`
-- added: `scripts/memory-lifecycle/setup.mjs`
+- added: `.agents/skills/setup-workflow/worktree-lifecycle.md`
+- added: `.claude/hooks/slice-handoff-hint.py`
+- added: `.claude/skills/setup-workflow/worktree-lifecycle.md`
+- added: `scripts/worktree-lifecycle/cleanup.py`
 - changed: `.agents/skills/setup-workflow/SKILL.md`
 - changed: `.claude/skills/setup-workflow/SKILL.md`
-- changed: `scripts/memory-lifecycle/index.mjs`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/capabilities.json`
+- changed: `scripts/worktree-lifecycle/core.py`
+- changed: `scripts/wrapup-land.py`
 
 ### 0.21.0
 

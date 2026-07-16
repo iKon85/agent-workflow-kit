@@ -573,7 +573,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "dfef1d21e406aa975d17471f66a5215dc428e6b55496c33f8c9ce283c28f662b",
+      "sha256": "a1145034dbc334fb388be27dfb77cf1d93f3cefc6f760d5f4fa5d3ee98050dff",
       "mode": 420,
       "origin": "kit"
     },
@@ -619,6 +619,15 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "sha256": "bc4db6413135ad9056cc63691cb823a9b198ad47538f292b37fcbb915477a716",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/setup-workflow/worktree-lifecycle.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "codex",
+      "sha256": "5e0914874f0b9f940205fbcfcfbba87d0c2df8f31db104d2c5328a0d20c80616",
       "mode": 420,
       "origin": "kit"
     },
@@ -918,6 +927,13 @@
       "path": ".claude/hooks/skill-drift-hint.py",
       "kind": "hook",
       "sha256": "4842e1c6dfd1042eb924d9cc36a8aa5d0c5a1e95f71e33a82db3322dc9d13fd0",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/slice-handoff-hint.py",
+      "kind": "hook",
+      "sha256": "664ca09a7e86c267ce7d49bf6b2529ebb9e75a4fd3443548f36f6eb9d4665abf",
       "mode": 493,
       "origin": "kit"
     },
@@ -1626,7 +1642,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "dfef1d21e406aa975d17471f66a5215dc428e6b55496c33f8c9ce283c28f662b",
+      "sha256": "a1145034dbc334fb388be27dfb77cf1d93f3cefc6f760d5f4fa5d3ee98050dff",
       "mode": 420,
       "origin": "kit"
     },
@@ -1672,6 +1688,15 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "sha256": "bc4db6413135ad9056cc63691cb823a9b198ad47538f292b37fcbb915477a716",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/setup-workflow/worktree-lifecycle.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "claude",
+      "sha256": "5e0914874f0b9f940205fbcfcfbba87d0c2df8f31db104d2c5328a0d20c80616",
       "mode": 420,
       "origin": "kit"
     },
@@ -1946,20 +1971,6 @@
       "origin": "kit"
     },
     {
-      "path": "assets/memory-templates/meta_decision_layer_choice.md",
-      "kind": "template",
-      "sha256": "b22bd1d0e3daa31cbdbb9a3a81964d7a00d5275e69c92c9bd4ad3b4e40995b41",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
-      "path": "assets/memory-templates/meta_memory_lifecycle.md",
-      "kind": "template",
-      "sha256": "215e865d4e803ce0b2cd43e88d76501a61269dfa90aae5e6a474941a0b72b0ca",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
       "path": "docs/agents/security-audit-runbook-template.md",
       "kind": "template",
       "sha256": "754f0b57f4a4ba8ed5ed1fd58d7bd72e3e754a24116fd96c6f596d72b96a7f0c",
@@ -2088,14 +2099,7 @@
     {
       "path": "scripts/memory-lifecycle/index.mjs",
       "kind": "script",
-      "sha256": "871507e20133ccbb11f2a57f092bcb41aa1f6b7deaaa74df2418573316e6bd96",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
-      "path": "scripts/memory-lifecycle/setup.mjs",
-      "kind": "script",
-      "sha256": "c2c8885b806a830239ae54314c9dd0400399140870b6e62dc1e8b043dffcb78f",
+      "sha256": "d83a71891e9c070179a00d6413b18d073061eef75e50919a7f28b8510f7ca20d",
       "mode": 420,
       "origin": "kit"
     },
@@ -2172,14 +2176,21 @@
     {
       "path": "scripts/worktree-lifecycle/capabilities.json",
       "kind": "doc",
-      "sha256": "3e51acaf2a8ac3ace0a400e23a30732ff0c3e9b4864f763c7abf82019605f309",
+      "sha256": "e80501bd86bbdb0ba296fc6b172442d8ad128f43e571777698657491279e4305",
       "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/worktree-lifecycle/cleanup.py",
+      "kind": "script",
+      "sha256": "370af8840732db3b6ba39b4825686f3980f69f612038123bc86b2c68921f02ca",
+      "mode": 493,
       "origin": "kit"
     },
     {
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
-      "sha256": "36848a16ed7eaed1f731399efd2caf5771c9c5b48331771d6aedcbad2156e62a",
+      "sha256": "d54c4d663c234b7d2e607b99f6090b46104c21ba4326ef03bcb65de39d1cce19",
       "mode": 420,
       "origin": "kit"
     },
@@ -2193,7 +2204,7 @@
     {
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
-      "sha256": "59b78826308404497545b0a0ba57ff50f4618be2f6838f64e6a8c18bce83ea7f",
+      "sha256": "5dba0332253c37162ad1b2f1b7bf504a23af85bf297fdaa8920036f610ff754a",
       "mode": 420,
       "origin": "kit"
     },
@@ -2207,7 +2218,7 @@
     {
       "path": "scripts/wrapup-land.py",
       "kind": "script",
-      "sha256": "24ce9373c464cc8363c53b0c690c3231cbf11362e6e08336e0e97663579d1f19",
+      "sha256": "ee1f567e7be4f7baae222ed3974d39e5efee93edb2a663cacc8e18b567fa837e",
       "mode": 493,
       "origin": "kit"
     },

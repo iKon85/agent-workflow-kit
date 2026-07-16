@@ -38,6 +38,18 @@ class Decision:
     event_name: str = ""
 
 
+@dataclass(frozen=True)
+class CleanupAssessment:
+    worktree: Path
+    branch: str
+    assumptions: str
+    reasons: tuple[str, ...]
+
+    @property
+    def removable(self) -> bool:
+        return not self.reasons
+
+
 def collect_facts(cwd: Path) -> RepoFacts:
     root = Path(run(["git", "rev-parse", "--show-toplevel"], cwd=cwd).stdout.strip()).resolve()
     main = main_worktree(root)
@@ -102,6 +114,50 @@ def is_tracked(root: Path, relative: str) -> bool:
         check=False,
     )
     return result.returncode == 0
+
+
+def cleanup_assessment(
+    profile: WorktreeProfile,
+    main: Path,
+    target: Path,
+    merge_target: str | None = None,
+) -> CleanupAssessment:
+    worktree = target.resolve()
+    reasons = []
+    branch = run(
+        ["git", "-C", str(worktree), "branch", "--show-current"],
+        cwd=main,
+        check=False,
+    ).stdout.strip()
+    if worktree not in registered_worktrees(main):
+        reasons.append("not a registered worktree")
+    if not branch:
+        reasons.append("detached or unreadable branch")
+    if branch in profile.protected_branches or worktree == main.resolve():
+        reasons.append(f"protected worktree branch: {branch or '<unknown>'}")
+    status = run(
+        ["git", "-C", str(worktree), "status", "--porcelain"],
+        cwd=main,
+        check=False,
+    ).stdout
+    if status.strip():
+        reasons.append("dirty worktree")
+    if branch and branch not in profile.protected_branches:
+        main_branch = merge_target or run(
+            ["git", "-C", str(main), "branch", "--show-current"],
+            cwd=main,
+            check=False,
+        ).stdout.strip()
+        merged = run(
+            ["git", "merge-base", "--is-ancestor", branch, main_branch],
+            cwd=main,
+            check=False,
+        )
+        if merged.returncode != 0:
+            reasons.append(f"unmerged branch: {branch}")
+    assumptions_path = worktree / "ANNAHMEN.md"
+    assumptions = assumptions_path.read_text(encoding="utf-8") if assumptions_path.is_file() else ""
+    return CleanupAssessment(worktree, branch, assumptions, tuple(reasons))
 
 
 def edit_decision(
@@ -196,6 +252,28 @@ def branch_create_decision(
     return Decision("allow")
 
 
+def handoff_decision(
+    profile: WorktreeProfile,
+    facts: RepoFacts,
+    payload: dict[str, Any],
+) -> Decision:
+    prompt = str(payload.get("prompt") or "")
+    pattern = re.compile(
+        rf"{re.escape(profile.setup_entry)}\s+(\d+)\s+(\S+)"
+    )
+    match = pattern.search(prompt)
+    if match is None or not facts.is_main_worktree:
+        return Decision("skip")
+    issue, slug = match.groups()
+    command = f"{profile.setup_entry} {issue} {slug}"
+    return Decision(
+        "emit",
+        f"Defined slice detected: create its isolated worktree first with `{command}`, "
+        "then perform repository reads from that worktree.",
+        "UserPromptSubmit",
+    )
+
+
 def evaluate(
     profile: WorktreeProfile,
     facts: RepoFacts,
@@ -216,4 +294,6 @@ def evaluate(
         return command_decision(profile, facts, payload)
     if event == "branch-create":
         return branch_create_decision(profile, facts, payload)
+    if event == "handoff":
+        return handoff_decision(profile, facts, payload)
     return Decision("skip")
