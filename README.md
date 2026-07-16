@@ -332,6 +332,19 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.22.0
+
+- added: `.agents/skills/setup-workflow/worktree-lifecycle.md`
+- added: `.claude/hooks/slice-handoff-hint.py`
+- added: `.claude/skills/setup-workflow/worktree-lifecycle.md`
+- added: `scripts/worktree-lifecycle/cleanup.py`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/capabilities.json`
+- changed: `scripts/worktree-lifecycle/core.py`
+- changed: `scripts/wrapup-land.py`
+
 ### 0.21.0
 
 - added: `.agents/skills/project-release/SKILL.md`
