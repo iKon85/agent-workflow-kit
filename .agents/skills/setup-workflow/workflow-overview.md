@@ -21,6 +21,7 @@ Use this section as the entry-point map for agent-assisted work. The individual 
 - **Preview or restore consumer-owned memories:** use `memory-lifecycle` to classify every configured path without writing, then apply an explicitly approved collision-safe restore with a content-free receipt.
 - **Finished slice:** use `wrapup` to prepare the branch, PR, and cleanup steps your repo expects.
 - **Kit release:** use `kit-release` to derive the shipped delta, confirm Semver, regenerate the manifest, run all gates, and then hand landing to `wrapup`.
+- **Consumer project release:** use `project-release` to preview and transactionally prepare one coherent version across the package files named by the consumer-owned capability profile.
 - **Kit update:** use `kit-update` to preview and transactionally apply a parity-verified scoped release without overwriting local modifications.
 - **A huge, foggy effort, too big for one session:** use `wayfinder` — it charts it as a shared map of investigation tickets, resolving one per session.
 

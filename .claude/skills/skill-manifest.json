@@ -395,6 +395,16 @@
       ],
       "provenance": "own"
     },
+    "project-release": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
     "kit-update": {
       "class": "generic",
       "publish": true,

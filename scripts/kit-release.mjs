@@ -5,19 +5,15 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { applyProjectRelease } from '../src/lib/release-apply.mjs';
+import { previewProjectRelease } from '../src/lib/release-preview.mjs';
+import { nextVersion } from '../src/lib/semver.mjs';
 import { buildKit } from './build-kit.mjs';
 import { checkReleaseDelta } from './release-delta-guard.mjs';
 
 const exec = promisify(execFile);
 
-export function nextVersion(version, bump) {
-  const parts = version.split('.').map(Number);
-  if (parts.length !== 3 || parts.some(Number.isNaN)) throw new Error(`invalid semver: ${version}`);
-  if (bump === 'major') return `${parts[0] + 1}.0.0`;
-  if (bump === 'minor') return `${parts[0]}.${parts[1] + 1}.0`;
-  if (bump === 'patch') return `${parts[0]}.${parts[1]}.${parts[2] + 1}`;
-  throw new Error(`invalid bump: ${bump}`);
-}
+export { nextVersion };
 
 function note(version, delta) {
   const lines = ['added', 'removed', 'changed'].flatMap((kind) =>
@@ -30,8 +26,17 @@ async function updateMetadata(repoRoot, targetVersion, delta) {
   const pkg = JSON.parse(await readFile(packagePath, 'utf8'));
   const resumed = pkg.version === targetVersion;
   if (!resumed) {
-    pkg.version = targetVersion;
-    await writeFile(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
+    const preview = await previewProjectRelease({
+      consumerRoot: repoRoot,
+      profile: { versionFiles: ['package.json'], tagPrefix: 'v' },
+      requestedVersion: targetVersion,
+      repositoryFacts: { dirtyPaths: [], existingTags: [] },
+    });
+    await applyProjectRelease({
+      consumerRoot: repoRoot,
+      preview,
+      confirmation: preview.confirmation,
+    });
   }
   const readmePath = join(repoRoot, 'README.md');
   const readme = await readFile(readmePath, 'utf8');

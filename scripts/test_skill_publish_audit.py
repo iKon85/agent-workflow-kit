@@ -15,8 +15,9 @@ Deny classes (each with a negative fixture below):
   - residual issue refs (`#NNN`) / hard-rule refs (`HRn`)
   - unresolvable provenance cross-refs (`ADR-####` / `Welle N` / `Slice N`),
     with a documented fixture/example allowlist (PROVENANCE_FIXTURE_SUFFIXES)
-  - `../` cross-skill reaches (skills/scripts/docs — NOT the CLI src, which
-    legitimately imports `../lib/…`)
+  - `../` cross-skill reaches (skills/scripts/docs — except a static top-level
+    script import into the shipped `src/lib` deep-module seam, and CLI `src`
+    imports which legitimately use `../lib/…`)
   - bare owner/maintainer names OUTSIDE the generated credit files
   - high-entropy secrets (after exempting the manifest's own sha256 file-hashes)
 
@@ -92,18 +93,27 @@ BARE_PRIVATE = [
     ("maintainer name", re.compile(r"\bNiko\b")),
 ]
 PARENT_REF = re.compile(r"\.\./")
+SHIPPED_SRC_IMPORT = re.compile(
+    r"^\s*import\b.*\bfrom\s+['\"]\.\./src/lib/[a-z0-9-]+\.mjs['\"];\s*$"
+)
 LONG_HEX = re.compile(r"\b[0-9a-f]{40,}\b")
 GH_TOKEN = re.compile(r"\b(?:ghp|gho|ghu|ghs|github_pat)_[A-Za-z0-9_]{20,}")
 
 
 def _parent_ref_scan_text(rel: str, text: str) -> str:
-    if rel != "scripts/loc_offender_core.py":
-        return text
-    # This is the portable path-traversal guard itself, not a cross-skill reach.
-    return "\n".join(
-        line for line in text.splitlines()
-        if 'p.startswith("../")' not in line and '"/../" in p' not in line
-    )
+    lines = text.splitlines()
+    if rel == "scripts/loc_offender_core.py":
+        # This is the portable path-traversal guard itself, not a cross-skill reach.
+        lines = [
+            line for line in lines
+            if 'p.startswith("../")' not in line and '"/../" in p' not in line
+        ]
+    if rel.startswith("scripts/") and rel.endswith(".mjs"):
+        # Top-level shipped scripts may consume the kit's shipped deep modules.
+        # The exact static-import shape stays inside the bundle root; every other
+        # parent reach remains visible to the deny rule below.
+        lines = [line for line in lines if not SHIPPED_SRC_IMPORT.match(line)]
+    return "\n".join(lines)
 
 
 def _known_hashes(root: Path) -> set:
@@ -229,6 +239,15 @@ class AuditCatchesEachClass(unittest.TestCase):
 
     def test_parent_ref(self):
         self.assertTrue(any("parent" in v for v in self._body("[x](../../other/SKILL.md)")))
+
+    def test_static_script_import_into_shipped_src_lib_is_allowed(self):
+        script = self.dir / "scripts/release.mjs"
+        script.parent.mkdir()
+        script.write_text(
+            "import { run } from '../src/lib/release-core.mjs';\nrun();\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(audit_dir(self.dir), [])
 
     def test_bare_owner_in_body(self):
         self.assertTrue(any("iKon85" in v for v in self._body("authored by iKon85")))

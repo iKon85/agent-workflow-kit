@@ -48,9 +48,12 @@ export const HELPER_FILES = [
   { path: 'scripts/release-parity.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/release-state.mjs', kind: 'script', mode: 0o644 },
   // Consumer-owned project release profiles use these read-only shared
-  // primitives before any apply/commit/tag action is allowed.
+  // primitives before any apply/commit/tag action is allowed. The thin CLI
+  // owns only repository-fact collection and delegates to the same engine.
   { path: 'src/lib/semver.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/release-preview.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/release-apply.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/project-release.mjs', kind: 'script', mode: 0o755 },
   // GitHub-consumer automation: invokes the existing update command, then owns
   // only the stable tested branch/pull-request upsert.
   { path: 'scripts/kit-update-pr.mjs', kind: 'script', mode: 0o755 },
