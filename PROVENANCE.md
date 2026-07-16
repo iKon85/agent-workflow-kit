@@ -33,7 +33,7 @@ carries Chase's `THIRD-PARTY-NOTICES.md`.
 
 retro, wrapup, spec-self-critique, board-to-waves, verify-spike, decision-gate,
 codex-adapter-sync, setup-pre-commit, code-review, orchestrate-wave,
-census-update — covered by the root LICENSE.
+census-update, memory-lifecycle — covered by the root LICENSE.
 `setup-pre-commit` was rewritten from Matt Pocock's husky-based skill to a
 zero-dep native git `core.hooksPath` scaffold; nothing of the original
 mechanic remains (courtesy attribution).

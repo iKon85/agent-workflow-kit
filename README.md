@@ -332,6 +332,14 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.19.0
+
+- added: `.agents/skills/memory-lifecycle/SKILL.md`
+- added: `.claude/skills/memory-lifecycle/SKILL.md`
+- added: `scripts/memory-lifecycle/index.mjs`
+- changed: `.agents/skills/setup-workflow/workflow-overview.md`
+- changed: `.claude/skills/setup-workflow/workflow-overview.md`
+
 ### 0.18.0
 
 - added: `scripts/worktree-lifecycle/capabilities.json`
