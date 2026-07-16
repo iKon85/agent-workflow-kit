@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.20.0",
+  "kitVersion": "0.21.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -564,7 +564,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "91ba30cc08206204c83d189274579471366221ccfe8f2abdf36957ad85ae136b",
+      "sha256": "dfef1d21e406aa975d17471f66a5215dc428e6b55496c33f8c9ce283c28f662b",
       "mode": 420,
       "origin": "kit"
     },
@@ -1608,7 +1608,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "91ba30cc08206204c83d189274579471366221ccfe8f2abdf36957ad85ae136b",
+      "sha256": "dfef1d21e406aa975d17471f66a5215dc428e6b55496c33f8c9ce283c28f662b",
       "mode": 420,
       "origin": "kit"
     },
@@ -1928,6 +1928,20 @@
       "origin": "kit"
     },
     {
+      "path": "assets/memory-templates/meta_decision_layer_choice.md",
+      "kind": "template",
+      "sha256": "b22bd1d0e3daa31cbdbb9a3a81964d7a00d5275e69c92c9bd4ad3b4e40995b41",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "assets/memory-templates/meta_memory_lifecycle.md",
+      "kind": "template",
+      "sha256": "215e865d4e803ce0b2cd43e88d76501a61269dfa90aae5e6a474941a0b72b0ca",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "docs/agents/security-audit-runbook-template.md",
       "kind": "template",
       "sha256": "754f0b57f4a4ba8ed5ed1fd58d7bd72e3e754a24116fd96c6f596d72b96a7f0c",
@@ -2056,7 +2070,14 @@
     {
       "path": "scripts/memory-lifecycle/index.mjs",
       "kind": "script",
-      "sha256": "d83a71891e9c070179a00d6413b18d073061eef75e50919a7f28b8510f7ca20d",
+      "sha256": "871507e20133ccbb11f2a57f092bcb41aa1f6b7deaaa74df2418573316e6bd96",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/memory-lifecycle/setup.mjs",
+      "kind": "script",
+      "sha256": "c2c8885b806a830239ae54314c9dd0400399140870b6e62dc1e8b043dffcb78f",
       "mode": 420,
       "origin": "kit"
     },

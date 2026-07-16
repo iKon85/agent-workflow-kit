@@ -332,6 +332,15 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.21.0
+
+- added: `assets/memory-templates/meta_decision_layer_choice.md`
+- added: `assets/memory-templates/meta_memory_lifecycle.md`
+- added: `scripts/memory-lifecycle/setup.mjs`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `scripts/memory-lifecycle/index.mjs`
+
 ### 0.20.0
 
 - added: `.claude/hooks/branch-context.py`
