@@ -332,6 +332,16 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.26.1
+
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/safety-guardrails.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/safety-guardrails.md`
+- changed: `scripts/release-delta-guard.mjs`
+
 ### 0.26.0
 
 - added: `.agents/skills/setup-workflow/safety-guardrails.md`
