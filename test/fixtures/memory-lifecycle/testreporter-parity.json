@@ -1,0 +1,23 @@
+{
+  "activeRoot": ".memory/active",
+  "archiveRoot": ".memory/archive",
+  "receiptRoot": ".memory/receipts",
+  "approvals": {
+    "restore": true,
+    "prune": false
+  },
+  "memories": [
+    {
+      "path": "MEMORY.md",
+      "enabled": true
+    },
+    {
+      "path": "meta_decision_layer_choice.md",
+      "enabled": true
+    },
+    {
+      "path": "meta_memory_lifecycle.md",
+      "enabled": true
+    }
+  ]
+}

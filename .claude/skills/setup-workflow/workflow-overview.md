@@ -18,6 +18,7 @@ Use this section as the entry-point map for agent-assisted work. The individual 
 - **Multi-session build from a PRD or issue:** use `implement` to drive `tdd` end-to-end, one red-green slice at a time.
 - **Implementation slice:** use `tdd` for one behavior at a time: RED, GREEN, then refactor.
 - **Build or refresh a project-local census:** use `census-update` to scan facts, resolve ambiguous decisions one at a time, and transactionally activate a counted census.
+- **Preview or restore consumer-owned memories:** use `memory-lifecycle` to classify every configured path without writing, then apply an explicitly approved collision-safe restore with a content-free receipt.
 - **Finished slice:** use `wrapup` to prepare the branch, PR, and cleanup steps your repo expects.
 - **Kit release:** use `kit-release` to derive the shipped delta, confirm Semver, regenerate the manifest, run all gates, and then hand landing to `wrapup`.
 - **Kit update:** use `kit-update` to preview and transactionally apply a parity-verified scoped release without overwriting local modifications.

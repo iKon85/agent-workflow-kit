@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.18.0",
+  "kitVersion": "0.19.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -353,6 +353,15 @@
       "origin": "kit"
     },
     {
+      "path": ".agents/skills/memory-lifecycle/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "memory-lifecycle",
+      "surface": "codex",
+      "sha256": "f4cd4a744044b59fd4ce6b7348e30f437ca4200f5f5bbae6e6aebdc30d6b3f35",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".agents/skills/orchestrate-wave/references/builder-contract.md",
       "kind": "skill",
       "ownerSkill": "orchestrate-wave",
@@ -600,7 +609,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "b83fa87dc0226f21e01d31c91840b78d1ccad0a92e646de203fc3c003e9098f3",
+      "sha256": "c522a7de1b8eaa827a72880651a94aca6d066687e8c21b789d9008e3321f7362",
       "mode": 420,
       "origin": "kit"
     },
@@ -1335,6 +1344,15 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/memory-lifecycle/SKILL.md",
+      "kind": "skill",
+      "ownerSkill": "memory-lifecycle",
+      "surface": "claude",
+      "sha256": "f4cd4a744044b59fd4ce6b7348e30f437ca4200f5f5bbae6e6aebdc30d6b3f35",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/orchestrate-wave/references/builder-contract.md",
       "kind": "skill",
       "ownerSkill": "orchestrate-wave",
@@ -1600,7 +1618,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "b83fa87dc0226f21e01d31c91840b78d1ccad0a92e646de203fc3c003e9098f3",
+      "sha256": "c522a7de1b8eaa827a72880651a94aca6d066687e8c21b789d9008e3321f7362",
       "mode": 420,
       "origin": "kit"
     },
@@ -1998,6 +2016,13 @@
       "kind": "script",
       "sha256": "3e96b180bbe922c85ea511da94f118b6d8d8937bc000c8a31b1a88bac211545e",
       "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/memory-lifecycle/index.mjs",
+      "kind": "script",
+      "sha256": "d83a71891e9c070179a00d6413b18d073061eef75e50919a7f28b8510f7ca20d",
+      "mode": 420,
       "origin": "kit"
     },
     {
