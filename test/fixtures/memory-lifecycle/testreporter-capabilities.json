@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "consumerTopLevel": {
+    "keep": "exactly"
+  },
+  "memoryLifecycle": {
+    "enabled": false,
+    "activeRoot": ".memory/active",
+    "archiveRoot": ".memory/archive",
+    "receiptRoot": ".memory/receipts",
+    "approvals": {
+      "restore": true,
+      "prune": false,
+      "consumerApprovalKey": "keep"
+    },
+    "memories": [
+      {
+        "path": "MEMORY.md",
+        "enabled": true,
+        "consumerKey": "keep"
+      },
+      {
+        "path": "meta_decision_layer_choice.md",
+        "enabled": true
+      },
+      {
+        "path": "meta_memory_lifecycle.md",
+        "enabled": true
+      }
+    ],
+    "templatesSeeded": true,
+    "consumerLifecycleKey": {
+      "keep": true
+    }
+  }
+}
