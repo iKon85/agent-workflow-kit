@@ -51,13 +51,15 @@ test('HELPER_FILES ships the complete census foundation', () => {
   assert.deepEqual(censusModules.filter((path) => !paths.has(path)), []);
 });
 
-test('HELPER_FILES ships the memory lifecycle helper', () => {
-  const helper = HELPER_FILES.find(({ path }) => path === 'scripts/memory-lifecycle/index.mjs');
-  assert.deepEqual(helper, {
-    path: 'scripts/memory-lifecycle/index.mjs',
-    kind: 'script',
-    mode: 0o644,
-  });
+test('HELPER_FILES ships the complete memory lifecycle unit', () => {
+  const paths = new Set(HELPER_FILES.map(({ path }) => path));
+  const memoryUnit = [
+    'scripts/memory-lifecycle/index.mjs',
+    'scripts/memory-lifecycle/setup.mjs',
+    'assets/memory-templates/meta_decision_layer_choice.md',
+    'assets/memory-templates/meta_memory_lifecycle.md',
+  ];
+  assert.deepEqual(memoryUnit.filter((path) => !paths.has(path)), []);
 });
 
 test('STUB_TARGETS lists docs to seed but never board-sync.md', () => {

@@ -10,6 +10,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { dirname, isAbsolute, normalize, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+export { setupMemoryLifecycle } from './setup.mjs';
+
 async function exists(path) {
   try {
     return await lstat(path);

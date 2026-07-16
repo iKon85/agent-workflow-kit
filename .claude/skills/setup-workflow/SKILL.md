@@ -26,7 +26,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `## Agent skills` + `## Prod` in CLAUDE.md **and** AGENTS.md | one-line pointers + deploy target (Sections C/G + Write) |
 | `.github/workflows/agent-workflow-kit-update.yml` | optional tested Kit update pull request for GitHub consumers (Section A2) |
 | `docs/agents/census.md` | optional-census choice, paths, state, and safe disable contract seeded from [census.md](./census.md) (Section A3) |
-| `docs/agents/workflow-capabilities.json` | consumer-owned capability profile, including optional Worktree Lifecycle activation (Section A4) |
+| `docs/agents/workflow-capabilities.json` + capability assets | consumer-owned Worktree Lifecycle activation and one-time Memory Lifecycle policy seeds (Sections A4–A5) |
 
 ## Idempotency contract — read before writing anything
 
@@ -57,7 +57,8 @@ Read the current state; don't assume. For every target file, read its first line
 - `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/` — domain-doc layout.
 - `docs/agents/`, `docs/agents/skills/`, `docs/conventions/` — prior output of this skill.
 - `docs/agents/census.md`, `.census/profile.json`, `.census/active.json` — an existing census choice or consumer-owned census to adopt.
-- `docs/agents/workflow-capabilities.json`, `.claude/settings.json` — an existing Worktree Lifecycle choice/profile and hook wiring to adopt.
+- `docs/agents/workflow-capabilities.json`, `.claude/settings.json` — existing capability choices/profile and Worktree Lifecycle hook wiring to adopt.
+- `.memory/active/`, `.memory/archive/`, and `.memory/receipts/` — consumer-owned Memory Lifecycle policies or recovery evidence to adopt without normalization.
 - `gh auth status` (if GitHub) — is `gh` authenticated, and with which scopes?
 
 ### 2. Section A — Issue tracker
@@ -165,6 +166,39 @@ The default setup entry is
 may remain the configured `setupEntry` for parity. The handoff advisory always
 reads that configured entry and never hardcodes a project script.
 
+### 2d. Section A5 — Optional Memory Lifecycle
+
+> Memory Lifecycle keeps project memories inside consumer-owned roots and makes
+> restore operations previewable, collision-safe, and reversible. The policy
+> templates become fully consumer-owned after their first seed.
+
+Read the `memoryLifecycle` section of
+`docs/agents/workflow-capabilities.json` before offering anything. Missing or
+disabled configuration remains unchanged on an ordinary setup rerun. An
+existing enabled section is adopted byte-for-byte; preserve unknown profile
+keys, placement/retention settings, restore grants, and consumer-specific memory
+rows.
+If no section exists, explain the capability and offer an explicit opt-in. Only
+an affirmative consumer decision may run:
+
+```bash
+node scripts/memory-lifecycle/setup.mjs --enable
+```
+
+That command adds the minimal enabled section while preserving every existing
+top-level profile key, sets restore and pruning approval to `false` unless the
+consumer already recorded values, and seeds
+`meta_decision_layer_choice.md` plus `meta_memory_lifecycle.md` into the
+configured active root exactly once. Existing files are adopted and never
+overwritten. The profile's `templatesSeeded` marker transfers full ownership:
+later setup runs do not recreate a template the consumer edited, moved, or
+deleted.
+Choosing later, declining, or merely running `init`, `update`, or ordinary
+`setup-workflow` performs no Memory Lifecycle write and never changes
+activation, roots, retention, restore, or pruning grants. Template files have
+no kit-managed or `append-managed` region; a future bounded-region contract
+requires a separate decision.
+
 ### 3. Section B — Triage labels
 
 > When `triage` processes an incoming issue it applies labels (or your tracker's equivalent). It needs strings you've actually configured, or it creates duplicates.
@@ -255,6 +289,11 @@ capability section. Never replace the whole file: Project Release, Memory
 Lifecycle, Worktree Lifecycle, future sections, and unknown consumer keys share
 this profile. Apply the Worktree Lifecycle transition and hook ownership rules
 from [worktree-lifecycle.md](./worktree-lifecycle.md) transactionally.
+
+For Memory Lifecycle, use only the deterministic setup helper from Section A5.
+Do not copy templates with shell commands or edit the capability profile by
+hand. Report `seeded · adopted · skipped`; do not print memory contents or
+receipt contents.
 
 For the **`## Workflow`**, **`## Agent skills`**, and **`## Prod`** blocks, reconcile per section in **both** CLAUDE.md and AGENTS.md that exist:
 
