@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.23.0",
+  "kitVersion": "0.24.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -573,7 +573,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "codex",
-      "sha256": "247250aa38a81b542600db42cfe4d02eecc1236e8af47df1f4def627f4df0668",
+      "sha256": "96c0c3ba9ed6b194030a8c45be618caf934e9c4ca8415ea19d726af33cd763cb",
       "mode": 420,
       "origin": "kit"
     },
@@ -610,6 +610,15 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "sha256": "5daa354a517ac9edd27204e29817b5252b2818a22d83fca08eafce5d0bf78ef8",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/setup-workflow/workflow-advisories.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "codex",
+      "sha256": "320f893a6e148f0bfabe1f1be81112728ae4fed84f7505dc630e5b0d931ec32c",
       "mode": 420,
       "origin": "kit"
     },
@@ -877,8 +886,15 @@
     {
       "path": ".claude/hooks/_hook_utils.py",
       "kind": "hook",
-      "sha256": "58a7a8ad6cd4f1660e95343d7a0c637cf8aee92948a9c554befa5851723b3f48",
+      "sha256": "26c645eaa7cb87e899ab3900e9f6711658848cab8a18a29656ae3ca30736d172",
       "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/baseline-capture-hint.py",
+      "kind": "hook",
+      "sha256": "8f5cddfbb567afc677cf51f39d37e10804bf03e93d7d2fac7793cb5a42473ed3",
+      "mode": 493,
       "origin": "kit"
     },
     {
@@ -924,6 +940,20 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/hooks/pre-refactor-sweep.py",
+      "kind": "hook",
+      "sha256": "24e8554da18b00f2dbbcf6a3e186f9fb675a4b18471ce60e0ac63000f95a4906",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/recon-size-hint.py",
+      "kind": "hook",
+      "sha256": "3fd702d8875552ce3b79b5db1dda51403031bcacc80901a13553d2f60a2deb9b",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/hooks/skill-drift-hint.py",
       "kind": "hook",
       "sha256": "4842e1c6dfd1042eb924d9cc36a8aa5d0c5a1e95f71e33a82db3322dc9d13fd0",
@@ -941,6 +971,20 @@
       "path": ".claude/hooks/sync-board-status.py",
       "kind": "hook",
       "sha256": "98ac3afb9212e40985d319899bcb0582973b8ed7397bb95bde5fdb764c105dbf",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/typecheck-on-stop.py",
+      "kind": "hook",
+      "sha256": "459e5f25f5fe97c62687eff1d3e7e76051ba8390e2b2908fc50c16ea53a95250",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/typecheck-on-stop.sh",
+      "kind": "hook",
+      "sha256": "1bb57f53d53d18af92a8c7ce63f46be0658ae7d675a95d387646b4232001f1bc",
       "mode": 493,
       "origin": "kit"
     },
@@ -1642,7 +1686,7 @@
       "kind": "skill",
       "ownerSkill": "setup-workflow",
       "surface": "claude",
-      "sha256": "247250aa38a81b542600db42cfe4d02eecc1236e8af47df1f4def627f4df0668",
+      "sha256": "96c0c3ba9ed6b194030a8c45be618caf934e9c4ca8415ea19d726af33cd763cb",
       "mode": 420,
       "origin": "kit"
     },
@@ -1679,6 +1723,15 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "sha256": "5daa354a517ac9edd27204e29817b5252b2818a22d83fca08eafce5d0bf78ef8",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/setup-workflow/workflow-advisories.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "claude",
+      "sha256": "320f893a6e148f0bfabe1f1be81112728ae4fed84f7505dc630e5b0d931ec32c",
       "mode": 420,
       "origin": "kit"
     },
@@ -2191,6 +2244,13 @@
       "path": "scripts/release-state.mjs",
       "kind": "script",
       "sha256": "2aae056a8e0e945dbf68298236719c78e22f13dbd8f0c3466b969355d3809058",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/workflow-advisories/core.py",
+      "kind": "script",
+      "sha256": "7923d328f2a4e8b0ac8823cba5779003a52c6fabeb012157af49c3c5e13ccfc9",
       "mode": 420,
       "origin": "kit"
     },

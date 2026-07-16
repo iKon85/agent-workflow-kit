@@ -26,7 +26,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `## Agent skills` + `## Prod` in CLAUDE.md **and** AGENTS.md | one-line pointers + deploy target (Sections C/G + Write) |
 | `.github/workflows/agent-workflow-kit-update.yml` | optional tested Kit update pull request for GitHub consumers (Section A2) |
 | `docs/agents/census.md` | optional-census choice, paths, state, and safe disable contract seeded from [census.md](./census.md) (Section A3) |
-| `docs/agents/workflow-capabilities.json` + capability assets | consumer-owned Worktree Lifecycle activation and one-time Memory Lifecycle policy seeds (Sections A4–A5) |
+| `docs/agents/workflow-capabilities.json` + capability assets | consumer-owned Worktree Lifecycle, Memory Lifecycle, and Workflow Advisories choices (Sections A4–A6) |
 
 ## Idempotency contract — read before writing anything
 
@@ -57,7 +57,7 @@ Read the current state; don't assume. For every target file, read its first line
 - `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/` — domain-doc layout.
 - `docs/agents/`, `docs/agents/skills/`, `docs/conventions/` — prior output of this skill.
 - `docs/agents/census.md`, `.census/profile.json`, `.census/active.json` — an existing census choice or consumer-owned census to adopt.
-- `docs/agents/workflow-capabilities.json`, `.claude/settings.json` — existing capability choices/profile and Worktree Lifecycle hook wiring to adopt.
+- `docs/agents/workflow-capabilities.json`, `.claude/settings.json` — existing capability choices/profile plus Worktree Lifecycle and Workflow Advisories hook wiring to adopt.
 - `.memory/active/`, `.memory/archive/`, and `.memory/receipts/` — consumer-owned Memory Lifecycle policies or recovery evidence to adopt without normalization.
 - `gh auth status` (if GitHub) — is `gh` authenticated, and with which scopes?
 
@@ -199,6 +199,25 @@ activation, roots, retention, restore, or pruning grants. Template files have
 no kit-managed or `append-managed` region; a future bounded-region contract
 requires a separate decision.
 
+### 2e. Section A6 — Optional Workflow Advisories
+
+> Workflow Advisories provides non-blocking, low-noise hints and
+> affected-surface checks around large reads, first-impacting edits, refactors,
+> and Stop. Paths, commands, thresholds, timeouts, and output budgets remain
+> consumer-owned.
+
+Read [workflow-advisories.md](./workflow-advisories.md) in full. Reconcile its
+complete `yes / later / no / existing / disable` matrix. If no choice exists,
+ask: *"Should setup activate the portable Workflow Advisories for this
+repository?"* Offer exactly **Yes**, **Later**, and **No**.
+
+- **Yes** — reconcile only `workflowAdvisories` in the shared capability
+  profile and only the exact kit-owned hook commands named by the seed.
+- **Later / No** — record the choice without hook wiring.
+- **Existing** — adopt profile and wiring byte-safely.
+- **Disable** — remove exact kit-owned commands first, then set `enabled:
+  false`; preserve every profile value and unknown key.
+
 ### 3. Section B — Triage labels
 
 > When `triage` processes an incoming issue it applies labels (or your tracker's equivalent). It needs strings you've actually configured, or it creates duplicates.
@@ -284,11 +303,12 @@ pre-existing consumer-owned census file. `yes`, `later`, `no`, and an adopted
 existing census are terminal for ordinary setup reruns. Only an explicit user
 request changes a recorded choice.
 
-For `docs/agents/workflow-capabilities.json`, reconcile only the selected
+For `docs/agents/workflow-capabilities.json`, reconcile only each selected
 capability section. Never replace the whole file: Project Release, Memory
-Lifecycle, Worktree Lifecycle, future sections, and unknown consumer keys share
-this profile. Apply the Worktree Lifecycle transition and hook ownership rules
-from [worktree-lifecycle.md](./worktree-lifecycle.md) transactionally.
+Lifecycle, Worktree Lifecycle, Workflow Advisories, future sections, and
+unknown consumer keys share this profile. Apply the transition and hook
+ownership rules from [worktree-lifecycle.md](./worktree-lifecycle.md) and
+[workflow-advisories.md](./workflow-advisories.md) transactionally.
 
 For Memory Lifecycle, use only the deterministic setup helper from Section A5.
 Do not copy templates with shell commands or edit the capability profile by
