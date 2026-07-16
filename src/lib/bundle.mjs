@@ -69,12 +69,21 @@ export const HELPER_FILES = [
   // core.py, while capabilities.json keeps the historical 8/8 denominator
   // explicit until the remaining hook and cleanup adapters are activated.
   { path: 'scripts/worktree-lifecycle/core.py', kind: 'script', mode: 0o644 },
+  { path: 'scripts/worktree-lifecycle/profile.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/worktree-lifecycle/setup.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/worktree-lifecycle/capabilities.json', kind: 'doc', mode: 0o644 },
+  { path: 'scripts/worktree-lifecycle/README.md', kind: 'doc', mode: 0o644 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
   // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
   // hooks ImportError on arrival.
   { path: '.claude/hooks/_hook_utils.py', kind: 'hook', mode: 0o644 },
+  // Thin Worktree Lifecycle adapters; all branch parsing, traversal and
+  // fail-open/fail-closed policy stays in scripts/worktree-lifecycle/core.py.
+  { path: '.claude/hooks/branch-context.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/branch-watch.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/enforce-worktree.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/enforce-worktree-cwd.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/enforce-worktree-discipline.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/drift-guard.py', kind: 'hook', mode: 0o755 },
   // SessionStart skill-freshness drift-hint (audit-skills names it). For each
   // <skill>/SOURCES.txt it flags sources newer in git than the SKILL.md. Imports
