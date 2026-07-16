@@ -124,6 +124,13 @@ def _known_hashes(root: Path) -> set:
         for f in data.get("files", []):
             if "sha256" in f:
                 hashes.add(f["sha256"])
+    gitleaks = root / "scripts/security/gitleaks-profile.json"
+    if gitleaks.exists():
+        data = json.loads(gitleaks.read_text(encoding="utf-8"))
+        for platform in data.get("platforms", {}).values():
+            checksum = platform.get("sha256")
+            if isinstance(checksum, str):
+                hashes.add(checksum)
     return hashes
 
 
@@ -291,6 +298,14 @@ class Exemptions(unittest.TestCase):
         (self.dir / "agent-workflow-kit.package.json").write_text(
             json.dumps({"kitVersion": "0.1.0", "files": [
                 {"path": "x", "sha256": "f" * 64}]}), encoding="utf-8")
+        self.assertEqual(audit_dir(self.dir), [])
+
+    def test_gitleaks_profile_checksums_are_verified_pin_metadata(self):
+        profile = self.dir / "scripts/security"
+        profile.mkdir(parents=True)
+        (profile / "gitleaks-profile.json").write_text(json.dumps({
+            "platforms": {"linux-x64": {"sha256": "e" * 64}},
+        }), encoding="utf-8")
         self.assertEqual(audit_dir(self.dir), [])
 
     def test_loc_offender_traversal_guard_allowed(self):

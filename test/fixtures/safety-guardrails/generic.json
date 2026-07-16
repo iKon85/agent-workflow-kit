@@ -7,58 +7,43 @@
       "enabled": true,
       "sensitiveNames": [
         ".env",
-        ".npmrc",
-        "credentials.json",
-        "service-account.json"
+        "credentials.json"
       ],
       "sensitivePathFragments": [
-        "secrets/",
-        ".ssh/",
-        "aws/credentials"
+        "private/"
       ],
       "safeTemplateSuffixes": [
-        ".example",
-        ".sample",
-        ".template",
-        ".dist"
+        ".example"
       ]
     },
     "packageManager": {
       "enabled": true,
       "lockfiles": {
-        "pnpm-lock.yaml": "pnpm",
-        "yarn.lock": "yarn",
-        "bun.lockb": "bun",
-        "package-lock.json": "npm"
+        "yarn.lock": "yarn"
       }
     },
     "doubleBackground": {
-      "enabled": true,
-      "surfaces": [
-        "claude"
-      ]
+      "enabled": false,
+      "surfaces": []
     },
     "searchShim": {
-      "enabled": true,
-      "commandNames": [
-        "grep",
-        "rg"
-      ],
-      "detected": true
+      "enabled": false,
+      "commandNames": [],
+      "detected": false
     },
     "repositorySecurity": {
       "gitHooks": {
-        "enabled": true,
-        "hooksPath": ".githooks"
+        "enabled": false,
+        "hooksPath": ".hooks"
       },
       "gitleaks": {
         "enabled": true,
-        "required": false
+        "required": true
       },
       "dependencyAudit": {
         "enabled": true,
-        "packageManager": "pnpm",
-        "outagePolicy": "warn",
+        "packageManager": "yarn",
+        "outagePolicy": "block",
         "blockSeverities": [
           "high",
           "critical"

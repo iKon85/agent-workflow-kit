@@ -104,6 +104,20 @@ export const HELPER_FILES = [
   { path: '.claude/hooks/migration-snapshot-reminder.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/loc-offender-forewarn.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/drift-guard.py', kind: 'hook', mode: 0o755 },
+  // Counted Safety Guardrails unit: shared policy/search core, one loader,
+  // four thin Agent adapters, and three portable repository-security
+  // primitives. Activation stays consumer-owned through setup-workflow.
+  { path: 'scripts/safety-guardrails/core.py', kind: 'script', mode: 0o644 },
+  { path: 'scripts/safety-guardrails/search.py', kind: 'script', mode: 0o644 },
+  { path: '.claude/hooks/_safety_guard.py', kind: 'hook', mode: 0o644 },
+  { path: '.claude/hooks/block-secrets.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/block-npm-install-in-pnpm.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/block-bg-double-background.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/grep-shim-guard.py', kind: 'hook', mode: 0o755 },
+  { path: 'scripts/security/install-git-hooks.mjs', kind: 'script', mode: 0o755 },
+  { path: 'scripts/security/ensure-gitleaks.mjs', kind: 'script', mode: 0o755 },
+  { path: 'scripts/security/gitleaks-profile.json', kind: 'doc', mode: 0o644 },
+  { path: 'scripts/security/audit-gate.mjs', kind: 'script', mode: 0o755 },
   // SessionStart skill-freshness drift-hint (audit-skills names it). For each
   // <skill>/SOURCES.txt it flags sources newer in git than the SKILL.md. Imports
   // _hook_utils (shipped above); stdlib-only otherwise. Executable hook → 0o755.
