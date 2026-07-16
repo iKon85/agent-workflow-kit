@@ -1,6 +1,6 @@
 {
   "name": "@ikon85/agent-workflow-kit",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "Portable AI-agent workflow skills (plan → execute → land → learn) for Claude Code & Codex — grilling, TDD, diagnosis, two-axis code review, cross-model Codex review, design & domain-modeling, plus a skill router (ask-matt). npx init/update/diff/uninstall.",
   "type": "module",
   "bin": {
