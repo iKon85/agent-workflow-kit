@@ -21,6 +21,7 @@
     ".claude/",
     "!.claude/logs/",
     ".agents/",
+    "assets/",
     "scripts/",
     "docs/",
     "src/",

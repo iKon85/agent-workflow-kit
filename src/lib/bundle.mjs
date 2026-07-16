@@ -62,9 +62,11 @@ export const HELPER_FILES = [
   { path: 'scripts/census/delta.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/census/state.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/census/transaction.mjs', kind: 'script', mode: 0o644 },
-  // Consumer-owned memory planning and recovery. The module is both the stable
-  // skill API and the no-write-by-default CLI.
+  // Consumer-owned memory planning, one-time policy seeding, and recovery.
   { path: 'scripts/memory-lifecycle/index.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/memory-lifecycle/setup.mjs', kind: 'script', mode: 0o644 },
+  { path: 'assets/memory-templates/meta_decision_layer_choice.md', kind: 'template', mode: 0o644 },
+  { path: 'assets/memory-templates/meta_memory_lifecycle.md', kind: 'template', mode: 0o644 },
   // Profile-driven Worktree Lifecycle foundation. The setup adapter imports
   // core.py, while capabilities.json keeps the historical 8/8 denominator
   // explicit until the remaining hook and cleanup adapters are activated.
