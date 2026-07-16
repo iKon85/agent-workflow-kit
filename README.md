@@ -334,13 +334,15 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ### 0.20.0
 
-- added: `.agents/skills/project-release/SKILL.md`
-- added: `.claude/skills/project-release/SKILL.md`
-- added: `scripts/project-release.mjs`
-- added: `src/lib/release-apply.mjs`
-- changed: `.agents/skills/setup-workflow/workflow-overview.md`
-- changed: `.claude/skills/setup-workflow/workflow-overview.md`
-- changed: `scripts/kit-release.mjs`
+- added: `.claude/hooks/branch-context.py`
+- added: `.claude/hooks/branch-watch.py`
+- added: `.claude/hooks/enforce-worktree.py`
+- added: `.claude/hooks/enforce-worktree-cwd.py`
+- added: `.claude/hooks/enforce-worktree-discipline.py`
+- added: `scripts/worktree-lifecycle/profile.py`
+- added: `scripts/worktree-lifecycle/README.md`
+- changed: `.claude/hooks/_hook_utils.py`
+- changed: `scripts/worktree-lifecycle/core.py`
 
 ### 0.19.0
 

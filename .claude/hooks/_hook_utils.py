@@ -193,6 +193,9 @@ def load_worktree_lifecycle_core():
     if existing is not None:
         return existing
     path = Path(__file__).resolve().parents[2] / "scripts" / "worktree-lifecycle" / "core.py"
+    module_dir = str(path.parent)
+    if module_dir not in sys.path:
+        sys.path.insert(0, module_dir)
     spec = importlib.util.spec_from_file_location(_WORKTREE_CORE_MODULE, path)
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load Worktree Lifecycle core from {path}")

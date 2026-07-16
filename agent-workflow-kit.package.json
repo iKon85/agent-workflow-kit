@@ -868,14 +868,49 @@
     {
       "path": ".claude/hooks/_hook_utils.py",
       "kind": "hook",
-      "sha256": "4a4b57633578ee8eabdf8ae70437e590e1747d1df5d76c730e2164e23cdfc2ed",
+      "sha256": "58a7a8ad6cd4f1660e95343d7a0c637cf8aee92948a9c554befa5851723b3f48",
       "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/branch-context.py",
+      "kind": "hook",
+      "sha256": "96bbe56a292a89cdb76db0670c2c214678fa60c08e3de5b8db507149ba24c018",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/branch-watch.py",
+      "kind": "hook",
+      "sha256": "15c7565790e0b108c44175b7527a4bc2b8b244737d5598081e938d2dea032424",
+      "mode": 493,
       "origin": "kit"
     },
     {
       "path": ".claude/hooks/drift-guard.py",
       "kind": "hook",
       "sha256": "8a031ff04b7aa11ac7c4713de10634e1d1521ca9fbb82fc458a86f78f6d7d1cf",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/enforce-worktree-cwd.py",
+      "kind": "hook",
+      "sha256": "14086536ceb3368a03b84ff550ba5e3db83d6c5198c41c80312507bf6640bb9f",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/enforce-worktree-discipline.py",
+      "kind": "hook",
+      "sha256": "5bd9fc7a7eea5e8b0778e8272e02b5d8c6c121ea3a168ef11a9c39344085e666",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/enforce-worktree.py",
+      "kind": "hook",
+      "sha256": "4a5d0247d89049dde0475680595fd785bfbd1b108cdd9c9697fd74e944f52c8b",
       "mode": 493,
       "origin": "kit"
     },
@@ -2123,7 +2158,21 @@
     {
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
-      "sha256": "eae5c6076611a36a8fa90e3aef3d1c49345110a392a7d7e9d95be8de00f8d9ff",
+      "sha256": "36848a16ed7eaed1f731399efd2caf5771c9c5b48331771d6aedcbad2156e62a",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/worktree-lifecycle/profile.py",
+      "kind": "script",
+      "sha256": "993b105efd2329b3a206b0c79399aff1c7840017362745966f9b158b1f165f09",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/worktree-lifecycle/README.md",
+      "kind": "doc",
+      "sha256": "59b78826308404497545b0a0ba57ff50f4618be2f6838f64e6a8c18bce83ea7f",
       "mode": 420,
       "origin": "kit"
     },
