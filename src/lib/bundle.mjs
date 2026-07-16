@@ -89,6 +89,14 @@ export const HELPER_FILES = [
   { path: '.claude/hooks/enforce-worktree-cwd.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/enforce-worktree-discipline.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/slice-handoff-hint.py', kind: 'hook', mode: 0o755 },
+  // Profile-driven non-blocking change-lifecycle advisories. The shell Stop
+  // entry delegates to its sibling Python adapter; decisions stay in core.py.
+  { path: 'scripts/workflow-advisories/core.py', kind: 'script', mode: 0o644 },
+  { path: '.claude/hooks/recon-size-hint.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/baseline-capture-hint.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/pre-refactor-sweep.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/typecheck-on-stop.py', kind: 'hook', mode: 0o755 },
+  { path: '.claude/hooks/typecheck-on-stop.sh', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/drift-guard.py', kind: 'hook', mode: 0o755 },
   // SessionStart skill-freshness drift-hint (audit-skills names it). For each
   // <skill>/SOURCES.txt it flags sources newer in git than the SKILL.md. Imports
