@@ -332,6 +332,13 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.18.0
+
+- added: `scripts/worktree-lifecycle/capabilities.json`
+- added: `scripts/worktree-lifecycle/core.py`
+- added: `scripts/worktree-lifecycle/setup.py`
+- changed: `.claude/hooks/_hook_utils.py`
+
 ### 0.17.0
 
 - added: `src/lib/release-preview.mjs`

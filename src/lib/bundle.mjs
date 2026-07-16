@@ -62,6 +62,12 @@ export const HELPER_FILES = [
   { path: 'scripts/census/delta.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/census/state.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/census/transaction.mjs', kind: 'script', mode: 0o644 },
+  // Profile-driven Worktree Lifecycle foundation. The setup adapter imports
+  // core.py, while capabilities.json keeps the historical 8/8 denominator
+  // explicit until the remaining hook and cleanup adapters are activated.
+  { path: 'scripts/worktree-lifecycle/core.py', kind: 'script', mode: 0o644 },
+  { path: 'scripts/worktree-lifecycle/setup.py', kind: 'script', mode: 0o755 },
+  { path: 'scripts/worktree-lifecycle/capabilities.json', kind: 'doc', mode: 0o644 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
   // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
   // hooks ImportError on arrival.

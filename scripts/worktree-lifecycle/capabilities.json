@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "capabilities": [
+    {
+      "historicalPath": "scripts/setup-worktree.sh",
+      "primitives": ["profile", "git-facts", "transactional-setup"]
+    },
+    {
+      "historicalPath": ".claude/hooks/branch-context.py",
+      "primitives": ["profile", "git-facts", "hook-event-output"]
+    },
+    {
+      "historicalPath": ".claude/hooks/branch-watch.py",
+      "primitives": ["profile", "git-facts", "hook-event-output"]
+    },
+    {
+      "historicalPath": ".claude/hooks/enforce-worktree.py",
+      "primitives": ["profile", "git-facts", "worktree-decision"]
+    },
+    {
+      "historicalPath": ".claude/hooks/enforce-worktree-cwd.py",
+      "primitives": ["profile", "git-facts", "worktree-decision"]
+    },
+    {
+      "historicalPath": ".claude/hooks/enforce-worktree-discipline.py",
+      "primitives": ["profile", "git-facts", "worktree-decision"]
+    },
+    {
+      "historicalPath": ".claude/hooks/slice-handoff-hint.py",
+      "primitives": ["profile", "git-facts", "hook-event-output"]
+    },
+    {
+      "historicalPath": "scripts/cleanup-worktrees.sh",
+      "primitives": ["profile", "git-facts", "cleanup-safety"]
+    }
+  ]
+}

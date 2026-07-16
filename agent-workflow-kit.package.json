@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.17.0",
+  "kitVersion": "0.18.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -850,7 +850,7 @@
     {
       "path": ".claude/hooks/_hook_utils.py",
       "kind": "hook",
-      "sha256": "d16ca26f3057a500cc67242fd67125d1715e7e7fd2984398545f6374fef497bb",
+      "sha256": "4a4b57633578ee8eabdf8ae70437e590e1747d1df5d76c730e2164e23cdfc2ed",
       "mode": 420,
       "origin": "kit"
     },
@@ -2061,6 +2061,27 @@
       "kind": "script",
       "sha256": "2aae056a8e0e945dbf68298236719c78e22f13dbd8f0c3466b969355d3809058",
       "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/worktree-lifecycle/capabilities.json",
+      "kind": "doc",
+      "sha256": "3e51acaf2a8ac3ace0a400e23a30732ff0c3e9b4864f763c7abf82019605f309",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/worktree-lifecycle/core.py",
+      "kind": "script",
+      "sha256": "eae5c6076611a36a8fa90e3aef3d1c49345110a392a7d7e9d95be8de00f8d9ff",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/worktree-lifecycle/setup.py",
+      "kind": "script",
+      "sha256": "c720cbff9123f136a53658671d880b9a73f9da4faa0611e37a2a981fa89cda92",
+      "mode": 493,
       "origin": "kit"
     },
     {
