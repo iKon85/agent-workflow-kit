@@ -167,15 +167,6 @@
       ],
       "provenance": "matt-pocock"
     },
-    "zoom-out": {
-      "class": "vendored",
-      "publish": true,
-      "surfaces": [
-        "claude",
-        "codex"
-      ],
-      "provenance": "matt-pocock"
-    },
     "improve-codebase-architecture": {
       "class": "vendored",
       "publish": true,

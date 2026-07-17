@@ -1,7 +1,7 @@
 ---
 name: board-to-waves
 disable-model-invocation: false
-"description": "Use when sweeping/grooming the GitHub backlog board to cluster open issues into thematic waves (Wellen) — \"lass uns das Board durchgehen\", \"was ist offen und passt zusammen\", \"clustern wir den Backlog\", \"welche Wellen stecken da drin\" — or to spot candidate waves before planning. Reads all open issues, groups them by the Gate+Booster+Splitter heuristic, estimates size/risk + grill-needed per candidate, and after the user confirms creates cluster/Wave-less candidate STUB issues with a To-Do checklist. STOPS at stubs: no PRD, no slicing, no sub-issue links, no promotion (downstream: to-prd matures the stub, to-issues slices + promotes). NOT for maturing/slicing ONE already-chosen candidate (to-prd/to-issues), NOT for per-issue triage labelling (triage), NOT for code comprehension (zoom-out) — this is board-WIDE thematic affinity grouping, not per-issue and not code-reading."
+"description": "Use when sweeping/grooming the GitHub backlog board to cluster open issues into thematic waves (Wellen) — \"lass uns das Board durchgehen\", \"was ist offen und passt zusammen\", \"clustern wir den Backlog\", \"welche Wellen stecken da drin\" — or to spot candidate waves before planning. Reads all open issues, groups them by the Gate+Booster+Splitter heuristic, estimates size/risk + grill-needed per candidate, and after the user confirms creates cluster/Wave-less candidate STUB issues with a To-Do checklist. STOPS at stubs: no PRD, no slicing, no sub-issue links, no promotion (downstream: to-prd matures the stub, to-issues slices + promotes). NOT for maturing/slicing ONE already-chosen candidate (to-prd/to-issues), NOT for per-issue triage labelling (triage), NOT for code comprehension — this is board-WIDE thematic affinity grouping, not per-issue and not code-reading."
 ---
 
 # board-to-waves
@@ -130,6 +130,6 @@ Next step (<maintainer>'s call, separate): grill → to-prd (matures the stub) �
 
 ## Notes
 - **Stops at stubs.** Never write the PRD, slice, link, promote, or call `to-prd`/`to-issues` yourself.
-- Boundary: `triage` = per-issue state machine; `zoom-out` = code comprehension; `board-to-waves` = board-wide thematic affinity. Different altitudes.
+- Boundary: `triage` = per-issue state machine; `improve-codebase-architecture` = code structure; `board-to-waves` = board-wide thematic affinity. Different altitudes.
 - A leftover bucket is OK and intentional — not every issue belongs in a wave. Force-clustering dilutes the gate.
 - Size/risk are a rough estimate, not a commitment. <maintainer> can override the stub's "when to grill" recommendation at any time.
