@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# pre-commit — native git hook (zero-dep, stack-agnostic).
+#
+# Wired via `git config core.hooksPath .githooks` (see CLAUDE.md §Development).
+# Exit non-zero to BLOCK the commit. Keep each check fast — it runs on every
+# commit. Slow/whole-suite checks live in pre-push, the full gate in local-ci.
+
+set -euo pipefail
+
+# Git exports GIT_DIR/GIT_INDEX_FILE to hooks. The suite spawns tests that run
+# git inside their own temp repos — with these inherited they'd operate on THIS
+# repo's index instead (mass-staged deletions). Sanitize before running anything.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
+# --- Preflight -------------------------------------------------------------
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "❌ python3 missing — the skill lints need it. Install python3, then commit again. NEVER --no-verify."
+  exit 1
+fi
+
+# --- Gate: fast skill/manifest lints (~3s) ---------------------------------
+python3 -m unittest discover -s scripts -p 'test_skill_*.py' -q
+
+echo "✅ pre-commit checks passed."

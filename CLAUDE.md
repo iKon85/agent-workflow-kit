@@ -33,6 +33,11 @@ Node ≥ 20. `npm test` runs the Node test suite and the Python script tests.
 Python scripts target system `python3`, stdlib only — no pip dependencies. New
 dependencies (Node or Python) need explicit approval before install.
 
+Git hooks: run `git config core.hooksPath .githooks` once per clone (worktrees
+inherit it). pre-commit runs the fast skill/manifest lints (~3s); pre-push runs
+the full `npm test`. The explicit pre-PR gate stays `/local-ci` — the hooks are
+the backstop, not a replacement. Never bypass with `--no-verify`.
+
 ## Skill authoring
 
 - **English-first.** Every published skill's prose is English; the only
