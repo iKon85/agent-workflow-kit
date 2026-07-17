@@ -1821,7 +1821,7 @@
       "ownerSkill": "setup-pre-commit",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "b64a0af66a52f397f7495d2e27ea6a2bf33cd7bc9c57fd18061ae5036296e5d3",
+      "sha256": "32a6aba5f5a88079ea81ca31a04fcffd3973e7d52584dca570cd8777c0dd618d",
       "mode": 420,
       "origin": "kit"
     },
@@ -1831,7 +1831,7 @@
       "ownerSkill": "setup-pre-commit",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "b2c727f5922dce2acb21bfa055c208a20893f7a54e4967656a64beeedec90ebe",
+      "sha256": "61ab40452ed411170ef16fbe2d6e5df39a61457c343ecedd23dbf726c1d800b7",
       "mode": 420,
       "origin": "kit"
     },
