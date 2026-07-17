@@ -330,6 +330,25 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.27.0
+
+- removed: `.agents/skills/zoom-out/SKILL.md`
+- removed: `.agents/skills/zoom-out/THIRD-PARTY-NOTICES.md`
+- removed: `.claude/skills/zoom-out/SKILL.md`
+- removed: `.claude/skills/zoom-out/THIRD-PARTY-NOTICES.md`
+- changed: `.agents/skills/ask-matt/SKILL.md`
+- changed: `.agents/skills/board-to-waves/SKILL.md`
+- changed: `.agents/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.agents/skills/setup-workflow/board-sync.md`
+- changed: `.claude/skills/ask-matt/SKILL.md`
+- changed: `.claude/skills/board-to-waves/SKILL.md`
+- changed: `.claude/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.claude/skills/setup-pre-commit/SKILL.md`
+- changed: `.claude/skills/setup-pre-commit/scripts/pre-commit.template.sh`
+- changed: `.claude/skills/setup-workflow/board-sync.md`
+- changed: `scripts/board-sync.py`
+- changed: `scripts/board_config.py`
+
 ### 0.26.2
 
 - Metadata-only release.
