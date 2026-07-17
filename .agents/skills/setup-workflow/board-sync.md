@@ -71,6 +71,9 @@ The optional `wrapup` block is a wrapup-only switch, not a board field: `wrapup.
   "headings": {
     "vorBau": "Clarify Before Build"
   },
+  "titles": {
+    "wavePrefix": "Wave"
+  },
   "wrapup": {
     "remoteBranchSweep": false
   }
@@ -92,6 +95,14 @@ follows; renaming an option later is one edit here. A role you don't have
 `roles` map keeps loading: the auto-transition hook and status icons degrade
 with a visible hint, and `--status-role` commands fail with the exact snippet
 to add.
+
+### Wave titles (`titles.wavePrefix`)
+
+The word that opens a wave anchor's title: `<prefix> <N> — <topic>` (e.g.
+`Wave 7 — Auth hardening`). `board-sync.py promote` writes it and strips an
+existing one idempotently on re-promote. A profile **without** the key keeps
+the historical default `"Welle"`, so boards created before this key keep
+their titles unchanged; set it once to match your board's language.
 
 ## If the IDs are not yet filled (stub)
 

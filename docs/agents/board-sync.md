@@ -61,6 +61,9 @@ The workflow board is [Agent Workflow Kit](https://github.com/users/iKon85/proje
   "headings": {
     "vorBau": "Clarify Before Build"
   },
+  "titles": {
+    "wavePrefix": "Welle"
+  },
   "wrapup": {
     "remoteBranchSweep": false
   }
