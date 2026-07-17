@@ -35,7 +35,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from board_config import (  # noqa: E402
     ConfigError, load_board_config, phase_field_id, program_type_label,
-    status_roles, STATUS_ROLE_KEYS,
+    status_roles, wave_title_prefix, STATUS_ROLE_KEYS,
 )
 # stamp-batch / field-value / promote-guards — pure logic, see module docstring.
 from board_fields import (  # noqa: E402
@@ -414,9 +414,14 @@ def promote_label_args(issue: int, strip: Optional[list[str]] = None) -> list[st
     return args
 
 
-# Existing `Welle <N> — ` prefix (any number, em-dash/en-dash/hyphen separator) —
-# replaced on re-promote so the wave number never doubles up.
-_WAVE_PREFIX_RE = re.compile(r"^\s*Welle\s+\d+\s*[—–-]\s*", re.IGNORECASE)
+# The wave-anchor title prefix word comes from the profile (`titles.wavePrefix`,
+# literal default "Welle" — see board_config.wave_title_prefix).
+WAVE_TITLE_PREFIX = wave_title_prefix(_CFG)
+# Existing `<prefix> <N> — ` prefix (any number, em-dash/en-dash/hyphen
+# separator) — replaced on re-promote so the wave number never doubles up.
+_WAVE_PREFIX_RE = re.compile(
+    rf"^\s*{re.escape(WAVE_TITLE_PREFIX)}\s+\d+\s*[—–-]\s*", re.IGNORECASE
+)
 # Leading conventional-commit token (`fix:`, `feat(ui):`, `chore!:`) — anchors
 # don't carry these, so strip it when present. Matches only a lowercase token,
 # so prose titles like "Supabase-Residuen entfernen: …" are left intact.
@@ -424,18 +429,18 @@ _CONVENTIONAL_PREFIX_RE = re.compile(r"^[a-z]+(\([^)]*\))?!?:\s*")
 
 
 def wave_title(current: str, wave: int) -> str:
-    """Title for a wave anchor: `Welle <N> — <Thema>`.
+    """Title for a wave anchor: `<prefix> <N> — <topic>`.
 
     Strips a leading conventional-commit prefix FIRST, then any existing
-    `Welle X — ` prefix underneath it (idempotent re-promote), then re-prefixes
-    with the given wave. Order matters: a title like `fix: Welle 7 — X` only
-    reveals its `Welle 7 — ` prefix once the conventional prefix is gone —
-    stripping Wave first leaves it intact and doubles up into
-    `Welle 29 — Welle 7 — X`.
+    `<prefix> X — ` prefix underneath it (idempotent re-promote), then
+    re-prefixes with the given wave. Order matters: a title like
+    `fix: <prefix> 7 — X` only reveals its wave prefix once the conventional
+    prefix is gone — stripping Wave first leaves it intact and doubles up into
+    `<prefix> 29 — <prefix> 7 — X`.
     """
     thema = _CONVENTIONAL_PREFIX_RE.sub("", current)
     thema = _WAVE_PREFIX_RE.sub("", thema).strip()
-    return f"Welle {wave} — {thema}"
+    return f"{WAVE_TITLE_PREFIX} {wave} — {thema}"
 
 
 def title_edit_args(issue: int, title: str) -> list[str]:
@@ -770,7 +775,7 @@ def cmd_promote(args) -> int:
     if args.dry_run:
         _print_dry(promote_label_args(args.issue))
         if rename:
-            print(f"[dry-run] gh issue edit {args.issue} --title 'Welle {args.wave} — <Thema>'")
+            print(f"[dry-run] gh issue edit {args.issue} --title '{WAVE_TITLE_PREFIX} {args.wave} — <topic>'")
         _add_and_stamp(url, args.wave, args.status, None, None, None, dry_run=True)
         return 0
     labels = _issue_type_labels(args.issue)
@@ -1158,7 +1163,7 @@ def build_parser() -> argparse.ArgumentParser:
                     help="explicit Wave (read `next-wave` first — no in-promote race)")
     _add_status_flags(pr)
     pr.add_argument("--no-rename", action="store_true",
-                    help="keep the title as-is (skip the `Welle <N> — ` prefix)")
+                    help="keep the title as-is (skip the wave title prefix)")
     pr.add_argument("--dry-run", action="store_true")
     pr.set_defaults(func=cmd_promote)
 

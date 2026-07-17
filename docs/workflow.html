@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-workflow-kit — Workflow</title>
+<style>
+  :root {
+    --page-bg: #F5F1E8;
+    --surface: #FAFAF7;
+    --ink: #1F2532;
+    --muted: #5B6579;
+    --border: #E8E4D8;
+    --accent-deep: #5C5630;
+
+    --plan:    #4A6280;  --plan-bg:    #DDE3EC;  --plan-text:    #2F4258;
+    --exec:    #5C7A4A;  --exec-bg:    #E8EDE0;  --exec-text:    #3D5230;
+    --land:    #C2902B;  --land-bg:    #F2E5C7;  --land-text:    #7A5B1D;
+    --learn:   #8A95A6;  --learn-bg:   #E8EBF0;  --learn-text:   #5B6579;
+    --gate:    #A8432D;  --gate-bg:    #F2DAD0;  --gate-text:    #6E2B1D;
+    --door:    #5B6579;  --door-bg:    #EFEDE4;  --door-text:    #454E60;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page-bg:#1F2532; --surface:#2E3548; --ink:#F5F1E8; --muted:#A6B0BF;
+      --border:rgba(255,255,255,0.14); --accent-deep:#B5A86B;
+      --plan:#7C9BB2;  --plan-bg:#2E3850;  --plan-text:#8FA9C4;
+      --exec:#82A36C;  --exec-bg:#2A3A26;  --exec-text:#94B57E;
+      --land:#DBAC4F;  --land-bg:#3A3220;  --land-text:#DBAC4F;
+      --learn:#8A95A6; --learn-bg:#2A3142; --learn-text:#9CA6B5;
+      --gate:#D9554F;  --gate-bg:#3A2620;  --gate-text:#EC8780;
+      --door:#8A95A6;  --door-bg:#272E3E;  --door-text:#A6B0BF;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg:#1F2532; --surface:#2E3548; --ink:#F5F1E8; --muted:#A6B0BF;
+    --border:rgba(255,255,255,0.14); --accent-deep:#B5A86B;
+    --plan:#7C9BB2;  --plan-bg:#2E3850;  --plan-text:#8FA9C4;
+    --exec:#82A36C;  --exec-bg:#2A3A26;  --exec-text:#94B57E;
+    --land:#DBAC4F;  --land-bg:#3A3220;  --land-text:#DBAC4F;
+    --learn:#8A95A6; --learn-bg:#2A3142; --learn-text:#9CA6B5;
+    --gate:#D9554F;  --gate-bg:#3A2620;  --gate-text:#EC8780;
+    --door:#8A95A6;  --door-bg:#272E3E;  --door-text:#A6B0BF;
+  }
+  :root[data-theme="light"] {
+    --page-bg:#F5F1E8; --surface:#FAFAF7; --ink:#1F2532; --muted:#5B6579;
+    --border:#E8E4D8; --accent-deep:#5C5630;
+    --plan:#4A6280;  --plan-bg:#DDE3EC;  --plan-text:#2F4258;
+    --exec:#5C7A4A;  --exec-bg:#E8EDE0;  --exec-text:#3D5230;
+    --land:#C2902B;  --land-bg:#F2E5C7;  --land-text:#7A5B1D;
+    --learn:#8A95A6; --learn-bg:#E8EBF0; --learn-text:#5B6579;
+    --gate:#A8432D;  --gate-bg:#F2DAD0;  --gate-text:#6E2B1D;
+    --door:#5B6579;  --door-bg:#EFEDE4;  --door-text:#454E60;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page-bg); color: var(--ink);
+    font-family: Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
+    font-size: 17px; line-height: 1.6; overflow-x: hidden;
+  }
+  .wrap { max-width: 1010px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1,h3 { font-family: system-ui, "Segoe UI", -apple-system, sans-serif; }
+  h1 { font-size: 1.9rem; font-weight: 650; letter-spacing: -0.015em; margin: 0 0 8px; text-wrap: balance; }
+  p  { margin: 0 0 1em; max-width: 72ch; }
+  a { color: var(--accent-deep); }
+  .eyebrow {
+    font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+  }
+  .lede { color: var(--muted); font-size: 1.05rem; max-width: 66ch; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 18px 0 22px; }
+  .key { display: flex; align-items: center; gap: 7px; font-family: system-ui, sans-serif; font-size: 0.8rem; color: var(--muted); }
+  .dot { width: 11px; height: 11px; border-radius: 3px; background: var(--c); flex: none; }
+
+  .station {
+    font-family: ui-monospace, Menlo, monospace; font-size: 0.73rem;
+    background: var(--soft, var(--page-bg)); color: var(--sc, var(--ink));
+    border: 1px solid var(--border); border-radius: 5px; padding: 4px 8px; white-space: nowrap;
+  }
+  .station.plain { --soft: var(--page-bg); --sc: var(--muted); font-style: italic; }
+  .st-plan  { --soft: var(--plan-bg);  --sc: var(--plan-text);  border-color: color-mix(in srgb, var(--plan) 40%, var(--border)); }
+  .st-exec  { --soft: var(--exec-bg);  --sc: var(--exec-text);  border-color: color-mix(in srgb, var(--exec) 40%, var(--border)); }
+  .st-land  { --soft: var(--land-bg);  --sc: var(--land-text);  border-color: color-mix(in srgb, var(--land) 40%, var(--border)); }
+  .st-learn { --soft: var(--learn-bg); --sc: var(--learn-text); border-color: color-mix(in srgb, var(--learn) 40%, var(--border)); }
+  .st-gate  { --soft: var(--gate-bg);  --sc: var(--gate-text);  border-color: color-mix(in srgb, var(--gate) 50%, var(--border)); font-weight: 600; }
+  .st-door  { --soft: var(--door-bg);  --sc: var(--door-text);  border-color: color-mix(in srgb, var(--door) 40%, var(--border)); }
+  .arrow { color: var(--muted); font-family: system-ui, sans-serif; font-size: 0.85rem; padding: 0 2px; user-select: none; }
+  .decision { font-size: 0.76rem; color: var(--muted); font-style: italic; padding: 0 4px; }
+
+  .subway { display: grid; grid-template-columns: 158px 1fr; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--surface); overflow: hidden; }
+  .sw-row { display: contents; }
+  .sw-label { padding: 14px 14px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+    font-family: system-ui, sans-serif; font-size: 0.8rem; font-weight: 650; color: var(--lc, var(--muted));
+    display: flex; flex-direction: column; gap: 2px; justify-content: center; }
+  .sw-label small { font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+  .sw-track { padding: 13px 16px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap;
+    align-items: center; gap: 7px 4px; background: linear-gradient(to right, color-mix(in srgb, var(--lbg, transparent) 45%, transparent), transparent 55%); }
+  .sw-row:last-of-type .sw-label, .sw-row:last-of-type .sw-track { border-bottom: none; }
+
+  .inter { grid-column: 1 / -1; padding: 12px 16px 14px; border-top: 1px dashed var(--border); }
+  .inter .i-title { font-family: system-ui, sans-serif; font-weight: 650; font-size: 0.82rem; color: var(--muted); margin-bottom: 8px; }
+  .inter .i-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; font-size: 0.85rem; color: var(--muted); margin-bottom: 7px; }
+  .inter .i-line:last-child { margin-bottom: 0; }
+
+  footer { margin-top: 28px; font-size: 0.85rem; color: var(--muted); font-family: system-ui, sans-serif; }
+
+  @media (max-width: 640px) {
+    .subway { grid-template-columns: 1fr; }
+    .sw-label { border-right: none; padding-bottom: 4px; }
+    .sw-track { border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">agent-workflow-kit · workflow</div>
+  <h1>One loop, many doors</h1>
+  <p class="lede">Every piece of work — idea, plan, backlog, bug — boards its own line, and every line converges on the same spine: <em>implement → wrapup → retro</em>. implement drives tdd internally — red → green → refactor at pre-agreed seams, code-review before landing.</p>
+
+  <div class="legend">
+    <span class="key"><span class="dot" style="--c: var(--door)"></span> Door / input</span>
+    <span class="key"><span class="dot" style="--c: var(--plan)"></span> Plan</span>
+    <span class="key"><span class="dot" style="--c: var(--exec)"></span> Execute</span>
+    <span class="key"><span class="dot" style="--c: var(--land)"></span> Land</span>
+    <span class="key"><span class="dot" style="--c: var(--learn)"></span> Learn</span>
+    <span class="key"><span class="dot" style="--c: var(--gate)"></span> Gate</span>
+  </div>
+
+  <div class="subway">
+    <div class="sw-row">
+      <div class="sw-label" style="--lc: var(--door-text); --lbg: var(--door-bg);">router<small>size unclear? start here</small></div>
+      <div class="sw-track" style="--lbg: var(--door-bg);">
+        <span class="station st-plan">scale-check</span>
+        <span class="decision">3–6 questions</span><span class="arrow">→</span>
+        <span class="station plain">Program → program line</span><span class="arrow">/</span>
+        <span class="station plain">Feature → main line</span><span class="arrow">/</span>
+        <span class="station plain">Direct-Slice → implement</span><span class="arrow">/</span>
+        <span class="station plain">Bug → repair line</span>
+      </div>
+    </div>
+    <div class="sw-row">
+      <div class="sw-label" style="--lc: var(--plan-text); --lbg: var(--plan-bg);">main line<small>idea → shipped</small></div>
+      <div class="sw-track" style="--lbg: var(--plan-bg);">
+        <span class="station plain">idea / plan / issue</span><span class="arrow">→</span>
+        <span class="station st-gate">grill? — see grill line</span><span class="arrow">→</span>
+        <span class="station st-plan">to-prd</span><span class="arrow">→</span>
+        <span class="station st-plan">to-issues</span><span class="arrow">→</span>
+        <span class="station st-gate">gate</span><span class="arrow">→</span>
+        <span class="station st-exec">implement</span>
+        <span class="decision">drives tdd inside</span><span class="arrow">→</span>
+        <span class="station st-land">wrapup</span><span class="arrow">→</span>
+        <span class="station st-learn">retro</span>
+      </div>
+    </div>
+    <div class="sw-row">
+      <div class="sw-label" style="--lc: var(--gate-text); --lbg: var(--gate-bg);">grill line<small>as deep as the stakes</small></div>
+      <div class="sw-track" style="--lbg: var(--gate-bg);">
+        <span class="station plain">mechanical change → none</span><span class="arrow">/</span>
+        <span class="station st-gate">grill-me</span>
+        <span class="decision">relentless interview, one question at a time</span><span class="arrow">/</span>
+        <span class="station st-gate">grill-with-docs</span>
+        <span class="decision">+ CONTEXT.md, ADRs updated inline</span><span class="arrow">/</span>
+        <span class="station st-gate">grill-me-codex · grill-with-docs-codex</span>
+        <span class="decision">+ Act 2: Codex reviews PLAN.md adversarially until APPROVED</span>
+      </div>
+    </div>
+    <div class="sw-row">
+      <div class="sw-label" style="--lc: var(--gate-text); --lbg: var(--gate-bg);">codex line<small>second model, high stakes</small></div>
+      <div class="sw-track" style="--lbg: var(--gate-bg);">
+        <span class="station st-gate">codex-review</span>
+        <span class="decision">plan already exists — cross-model review only</span><span class="arrow">·</span>
+        <span class="station st-exec">codex-build</span>
+        <span class="decision">Act 3: Codex implements the frozen spec, Claude verifies diff + proof</span>
+      </div>
+    </div>
+    <div class="sw-row">
+      <div class="sw-label" style="--lc: var(--plan-text); --lbg: var(--plan-bg);">program line<small>too big for one wave</small></div>
+      <div class="sw-track" style="--lbg: var(--plan-bg);">
+        <span class="station st-plan">scale-check</span><span class="arrow">→</span>
+        <span class="station st-gate">grill</span><span class="arrow">→</span>
+        <span class="station st-plan">to-waves</span>
+        <span class="decision">preview gate · zero board writes until yes</span><span class="arrow">→</span>
+        <span class="station st-exec">orchestrate-wave</span>
+        <span class="decision">per wave, often AFK</span><span class="arrow">→</span>
+        <span class="station st-land">wrapup</span><span class="arrow">→</span>
+        <span class="station st-learn">retro</span>
+      </div>
+    </div>
+    <div class="sw-row">
+      <div class="sw-label" style="--lc: var(--plan-text); --lbg: var(--plan-bg);">board line<small>it grew bottom-up</small></div>
+      <div class="sw-track" style="--lbg: var(--plan-bg);">
+        <span class="station plain">loose backlog</span><span class="arrow">→</span>
+        <span class="station st-plan">board-to-waves</span>
+        <span class="decision">wave-stub candidates, no number yet</span><span class="arrow">→</span>
+        <span class="station st-plan">to-prd</span>
+        <span class="decision">matures the stub</span><span class="arrow">→</span>
+        <span class="station st-plan">to-issues</span>
+        <span class="decision">≥2 slices → promotes to a numbered wave anchor</span><span class="arrow">→</span>
+        <span class="station plain">joins the program line</span>
+      </div>
+    </div>
+    <div class="sw-row">
+      <div class="sw-label" style="--lc: var(--gate-text); --lbg: var(--gate-bg);">repair line<small>something's broken</small></div>
+      <div class="sw-track" style="--lbg: var(--gate-bg);">
+        <span class="station plain">bug / anomaly</span><span class="arrow">→</span>
+        <span class="station st-door">diagnose</span>
+        <span class="decision">reproduce → isolate → fix → prove</span><span class="arrow">→</span>
+        <span class="station st-exec">implement</span><span class="arrow">→</span>
+        <span class="station st-land">wrapup</span>
+      </div>
+    </div>
+    <div class="sw-row">
+      <div class="sw-label" style="--lc: var(--exec-text); --lbg: var(--exec-bg);">structure line<small>code fights back</small></div>
+      <div class="sw-track" style="--lbg: var(--exec-bg);">
+        <span class="station plain">change fighting the codebase</span><span class="arrow">→</span>
+        <span class="station st-door">improve-codebase-architecture</span><span class="arrow">→</span>
+        <span class="station st-plan">to-issues</span>
+        <span class="decision">plan a slice — or refactor in place</span>
+      </div>
+    </div>
+    <div class="sw-row">
+      <div class="sw-label" style="--lc: var(--learn-text); --lbg: var(--learn-bg);">learn line<small>retro's real output</small></div>
+      <div class="sw-track" style="--lbg: var(--learn-bg);">
+        <span class="station st-learn">retro</span>
+        <span class="decision">user + agent friction, symmetric</span><span class="arrow">→</span>
+        <span class="station st-gate">CLAUDE.md rule</span><span class="arrow">/</span>
+        <span class="station st-land">spec-self-critique layer · ADR</span><span class="arrow">/</span>
+        <span class="station st-learn">memory</span><span class="arrow">/</span>
+        <span class="station st-plan">board issue</span>
+        <span class="decision">per-patch approval · Meta section in PR body</span>
+      </div>
+    </div>
+
+    <div class="inter">
+      <div class="i-title">Interchanges</div>
+      <div class="i-line">a slice hinging on an unknown inserts <span class="station st-gate">verify-spike / decision-gate</span> before its build</div>
+      <div class="i-line">unclear path inserts <span class="station st-exec">prototype</span> — throwaway that answers the design question first</div>
+      <div class="i-line">inside implement, <span class="station st-exec">tdd</span> runs red → green → refactor at pre-agreed seams</div>
+      <div class="i-line">before every PR, <span class="station st-land">local-ci</span> runs the full gate; the <span class="station st-gate">pre-commit / pre-push hooks</span> fire automatically once installed</div>
+      <div class="i-line">lost? <span class="station st-door">ask-matt</span> routes you to the right skill</div>
+      <div class="i-line">one-time setup, off-map: <span class="station st-door">setup-workflow</span> <span class="station st-door">git-guardrails</span> <span class="station st-door">setup-pre-commit</span></div>
+    </div>
+  </div>
+
+  <footer>
+    How waves, programs, and slices relate — the altitude model — lives on the
+    <a href="methodology.html">methodology page</a>.
+  </footer>
+</div>
+<script>
+  // Capture helper: ?theme=dark|light pins the palette for PNG rendering.
+  var t = new URLSearchParams(location.search).get("theme");
+  if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+</script>
+</body>
+</html>

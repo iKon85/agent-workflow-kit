@@ -58,21 +58,19 @@ The skills aren't a grab-bag — they're four phases of one loop, entered throug
 single funnel no matter where your work starts. Each phase below names the failure
 mode it removes and the skills that remove it.
 
-![The workflow loop: idea / plan / backlog / raw-issue all funnel through an optional grill into one uniform PRD, which to-issues decomposes into an atomic issue or a wave anchor; a gate clears any unknown, then Execute → Land → Learn, which compounds back into the next idea. Two further streams enter outside the funnel — a bug/anomaly through diagnose, and a code-fighting-the-structure change through improve-codebase-architecture — both joining at Execute; a one-time repo-setup lane (setup-workflow, git-guardrails, setup-pre-commit) sits off the loop and installs the pre-commit/pre-push gate that Land relies on.](docs/workflow.png)
+![The workflow as a subway map — one row per route, all converging on the same implement → wrapup → retro spine: a scale-check router sizes unclear work; the main line runs idea through an optional grill, to-prd, to-issues and a gate into implement (which drives tdd inside), wrapup, retro; a grill line scales from none over grill-me and grill-with-docs up to the +codex variants; a codex line adds cross-model review and build; program and board lines fund numbered waves built by orchestrate-wave; repair (diagnose) and structure (improve-codebase-architecture) lines enter from broken or tangled work; a learn line routes retro's findings into config by weight. Interchanges: verify-spike / decision-gate before an unknown, prototype for an unclear path, local-ci plus pre-commit/pre-push hooks before landing, ask-matt when lost, and a one-time setup lane.](docs/workflow.png)
 
 <!--
-  The image above is a pre-rendered PNG, not a live Mermaid block, on purpose:
-  GitHub's Mermaid renderer clips long node labels, and an <img>-embedded SVG
-  can't render Mermaid's foreignObject node text (shows blank). A rasterised PNG
-  renders identically everywhere.
-  Source of truth: tools/agent-workflow-kit/assets/workflow.mmd
-  Regenerate after editing the source:
-    npx -y @mermaid-js/mermaid-cli \
-      -i tools/agent-workflow-kit/assets/workflow.mmd \
-      -o tools/agent-workflow-kit/assets/workflow.png \
-      -t dark -b '#0d1117' -s 3
-  build-kit.mjs copies assets/workflow.png -> dist-kit/docs/workflow.png.
+  The image above is a pre-rendered PNG, not live HTML, on purpose: GitHub
+  READMEs can't embed HTML pages, and a PNG renders identically everywhere.
+  Source of truth: docs/workflow.html (same design language as
+  docs/methodology.html). Regenerate after editing the source:
+    serve docs/ locally, open workflow.html?theme=dark in a 1160px-wide
+    viewport, take a full-page screenshot -> docs/workflow.png
+  The interactive version is linked below and published via GitHub Pages.
 -->
+
+**[view the workflow map →](https://ikon85.github.io/agent-workflow-kit/workflow.html)**
 
 
 ### 1. Plan — turn a vague idea into shaped, tracked work
