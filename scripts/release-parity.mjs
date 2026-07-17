@@ -50,3 +50,37 @@ export function assertReleaseParity(identities) {
   }
   return identities.local;
 }
+
+// Consumer-side identity: an unpacked installation cannot be re-packed
+// byte-identically (npm normalizes at publish/unpack), so the installed copy
+// proves itself by content — never by a fresh tarball hash.
+const INSTALLED_FIELDS = ['name', 'version', 'manifestSha256'];
+
+export async function installedIdentityFromDir(kitRoot) {
+  const packageJson = JSON.parse(await readFile(`${kitRoot}/package.json`, 'utf8'));
+  const manifest = await readFile(`${kitRoot}/agent-workflow-kit.package.json`);
+  if (packageJson.version !== JSON.parse(manifest).kitVersion) {
+    throw new Error('installed package and manifest versions mismatch');
+  }
+  return {
+    name: packageJson.name,
+    version: packageJson.version,
+    manifestSha256: digest('sha256', manifest),
+  };
+}
+
+export function assertConsumerReleaseParity({ installed, npm, github }) {
+  validate('npm', npm);
+  validate('github', github);
+  for (const field of FIELDS) {
+    if (github[field] !== npm[field]) throw new Error(`github ${field} mismatch`);
+  }
+  if (!installed || typeof installed !== 'object') throw new Error('installed release identity missing');
+  for (const field of INSTALLED_FIELDS) {
+    if (typeof installed[field] !== 'string' || !installed[field]) {
+      throw new Error(`installed ${field} missing`);
+    }
+    if (installed[field] !== npm[field]) throw new Error(`installed ${field} mismatch`);
+  }
+  return npm;
+}

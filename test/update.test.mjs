@@ -16,7 +16,8 @@ function releaseIdentities(version = '0.1.0', name = '@ikon85/agent-workflow-kit
   const identity = {
     name, version, tarballIntegrity: 'sha512-fixture', manifestSha256: 'fixture-manifest',
   };
-  return { local: identity, npm: { ...identity }, github: { ...identity } };
+  const installed = { name, version, manifestSha256: identity.manifestSha256 };
+  return { installed, npm: { ...identity }, github: { ...identity } };
 }
 
 const verify = async () => {};
