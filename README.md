@@ -330,6 +330,10 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.27.1
+
+- changed: `scripts/release-parity.mjs`
+
 ### 0.27.0
 
 - removed: `.agents/skills/zoom-out/SKILL.md`
