@@ -102,3 +102,6 @@ both: pick one hooks mechanism per repo.
 - Hooks are just scripts — `echo`-debug them freely; nothing is hidden behind a
   tool.
 - Exit non-zero = block the commit. Exit 0 = allow.
+- Keep the template's `unset GIT_DIR …` line: git exports these to hooks, and a
+  gate that runs tests which call git in their own temp repos would otherwise
+  operate on the host repo's index instead.

@@ -11,6 +11,12 @@
 
 set -euo pipefail
 
+# --- Env sanitize (keep this) ----------------------------------------------
+# Git exports GIT_DIR & co. to hooks. If your gate runs a test suite whose
+# child tests call git in their own temp repos, these inherited vars redirect
+# every such git call onto THIS repo's index (mass-staged deletions).
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
 # --- Optional preflight ----------------------------------------------------
 # Bail early with a clear message if the toolchain isn't installed, so the
 # real checks don't fail with cryptic errors. Adapt or delete for your stack.
