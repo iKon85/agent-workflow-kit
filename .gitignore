@@ -16,3 +16,5 @@ __pycache__/
 .codex/cache/
 .codex/tmp/
 .codex-log/
+
+.claude/logs/

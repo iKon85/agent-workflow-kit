@@ -126,6 +126,13 @@ def program_type_label(cfg: dict) -> str:
     return cfg.get("labels", {}).get("programType", "type:program")
 
 
+def wave_title_prefix(cfg: dict) -> str:
+    """The `titles.wavePrefix` word that opens a wave anchor's title
+    (`<prefix> <N> — <topic>`), or the literal default `"Welle"` when the
+    profile hasn't set one — existing boards keep their titles unchanged."""
+    return cfg.get("titles", {}).get("wavePrefix", "Welle")
+
+
 # The semantic role keys of the workflow — schema, not
 # vocabulary; stable once shipped, extend additively, never rename. Single
 # home so CLI `choices`, docs, and future consumers reference one list.

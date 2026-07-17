@@ -7,7 +7,7 @@
       "ownerSkill": "ask-matt",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "0231dfe9e39406a4c86f86fe93f00a01dbe0390cbc2ca0f425ac6fca4c2f0406",
+      "sha256": "23997067d90e7a14c49b0bf2000a1f042cca0db8f45197dac7a8e3a8316bfed9",
       "mode": 420,
       "origin": "kit"
     },
@@ -37,7 +37,7 @@
       "ownerSkill": "board-to-waves",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "edcfbab80c6fc019ae1ba25b2fbec564c832b1619a4a92d175e214415335160a",
+      "sha256": "1e145fd3da4426aa210169d9a47c5558588ee7317cbeb4ae8d0852c2cd672943",
       "mode": 420,
       "origin": "kit"
     },
@@ -347,7 +347,7 @@
       "ownerSkill": "improve-codebase-architecture",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "d7a51056b856fced86046c365ac68e3b7353af831a6313e6b0adf5a9c9042160",
+      "sha256": "594ef87762120abab778e454c27d240bf5b2c3411f7fe6c5f6ff028a6cdfeb4b",
       "mode": 420,
       "origin": "kit"
     },
@@ -557,7 +557,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "71fd0b2d637922d405981d12c2c65ba3b7509bb2ff48ea4eb12499b8c5dcdac4",
+      "sha256": "032c9654baf6f5e60007e7d0767a96ab823a442ed86cb52e801836130c9b5ba2",
       "mode": 420,
       "origin": "kit"
     },
@@ -972,26 +972,6 @@
       "origin": "kit"
     },
     {
-      "path": ".agents/skills/zoom-out/SKILL.md",
-      "kind": "skill",
-      "ownerSkill": "zoom-out",
-      "surface": "codex",
-      "installRole": "consumer",
-      "sha256": "cc448ec9d88e3c9d06fd1d6083a3c15a342b8399bc46829169b8c30d5e657a27",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
-      "path": ".agents/skills/zoom-out/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
-      "ownerSkill": "zoom-out",
-      "surface": "codex",
-      "installRole": "consumer",
-      "sha256": "87a6e3845e705204a009b26bab75f09e64d97f2d00e19ccd9ee1da39564dbc69",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
       "path": ".claude/hooks/_hook_utils.py",
       "kind": "hook",
       "installRole": "consumer",
@@ -1181,7 +1161,7 @@
       "ownerSkill": "ask-matt",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "0d6dd8e359cb3084cb14fd700536d5bcd1e60edfb9a9f616078b8eb3d7ccd85d",
+      "sha256": "931ccbc6645adcb02f585061aaf32655ddc1ae547ebb131b6956e8fe227376aa",
       "mode": 420,
       "origin": "kit"
     },
@@ -1211,7 +1191,7 @@
       "ownerSkill": "board-to-waves",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "c68eb8a3328835bbad977b5981d38d64e43a67977f825a0b56766d6386caf4bc",
+      "sha256": "28c47d10f7508cadf5056c66a62d5891dfb61733a30ae517be24dd766c7996dd",
       "mode": 420,
       "origin": "kit"
     },
@@ -1641,7 +1621,7 @@
       "ownerSkill": "improve-codebase-architecture",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "ea979ce3b71da45cb15408f10f2481fb71bb72bba7b52747dd4f7fad45c64948",
+      "sha256": "bf96773f4ba75a53c8b916052e36a6c0f4bcae8b46b94bb72beb446048ca6d8a",
       "mode": 420,
       "origin": "kit"
     },
@@ -1871,7 +1851,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "71fd0b2d637922d405981d12c2c65ba3b7509bb2ff48ea4eb12499b8c5dcdac4",
+      "sha256": "032c9654baf6f5e60007e7d0767a96ab823a442ed86cb52e801836130c9b5ba2",
       "mode": 420,
       "origin": "kit"
     },
@@ -2316,26 +2296,6 @@
       "origin": "kit"
     },
     {
-      "path": ".claude/skills/zoom-out/SKILL.md",
-      "kind": "skill",
-      "ownerSkill": "zoom-out",
-      "surface": "claude",
-      "installRole": "consumer",
-      "sha256": "9e4fbb4e8c5d8cc847812b324db8e72aa716148bceb7d2d368e8bfda146fb84f",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/skills/zoom-out/THIRD-PARTY-NOTICES.md",
-      "kind": "skill",
-      "ownerSkill": "zoom-out",
-      "surface": "claude",
-      "installRole": "consumer",
-      "sha256": "87a6e3845e705204a009b26bab75f09e64d97f2d00e19ccd9ee1da39564dbc69",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
       "path": "assets/memory-templates/meta_decision_layer_choice.md",
       "kind": "template",
       "installRole": "consumer",
@@ -2379,7 +2339,7 @@
       "path": "scripts/board_config.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "7fc5250de90ff87a11f169e05bc13b88fac1ef7765a447809ea546c6757bc637",
+      "sha256": "020b44d1df176d44d531e24bd7d01ead25182b287a0316239489475dfeb00aa3",
       "mode": 420,
       "origin": "kit"
     },
@@ -2395,7 +2355,7 @@
       "path": "scripts/board-sync.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "98e7d7a9dea198d0ea8bb3fc9f7d63a5cf621c3d263389c140f33e8bec16926c",
+      "sha256": "4cf206abfec87578863c99f11e00c99a2048f4f8776cbcb38a23c69e73e37c16",
       "mode": 493,
       "origin": "kit"
     },
