@@ -90,8 +90,7 @@ An independent second model catches what one model rationalises. Read-only, boun
 
 Not feature work — upkeep.
 
-- **`/improve-codebase-architecture`** — run in spare moments to keep the codebase good for agents. Surfaces **deepening opportunities**; picking one _generates an idea_ for the main flow at `/grill-with-docs`.
-- **`/zoom-out`** — step back from the diff to the structure when a change is fighting the codebase; recon that becomes a planned slice or guides a refactor in place.
+- **`/improve-codebase-architecture`** — run in spare moments to keep the codebase good for agents, or step back from the diff to the structure when a change is fighting the codebase. Surfaces **deepening opportunities**; picking one _generates an idea_ for the main flow at `/grill-with-docs`.
 - **`/security-audit`** — a whole-app, application-layer security audit run as an independent two-model pass (two models audit the same code separately, then the remediation plan is hardened before any fix). Run before a release or after the attack surface changes (new endpoint, new input source, auth change, dependency bump). Infra hardening (ports/TLS/SSH/backups) is audited separately.
 
 ## Vocabulary underneath

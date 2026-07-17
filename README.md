@@ -153,7 +153,7 @@ enter outside the plan funnel and feed straight into Execute:
 - **`diagnose`** — a disciplined root-cause hunt for bugs (reproduce → isolate →
   fix → prove), not a guess-and-patch. Entered from a bug or anomaly, never the PRD
   funnel; the fix it lands flows on into Execute.
-- **`zoom-out` / `improve-codebase-architecture`** — step back from the diff to
+- **`improve-codebase-architecture`** — step back from the diff to
   the structure when a change is fighting the codebase. A recon stream that either
   becomes a planned slice (back through `to-issues`) or guides a refactor in place.
 
@@ -741,14 +741,15 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**42 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
+**43 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
 grill-with-docs, to-prd, to-issues, board-to-waves, triage, spec-self-critique,
 verify-spike, decision-gate, scale-check, to-waves, wayfinder, research · Execute: tdd, prototype, implement, orchestrate-wave ·
-Design/diagnose/refactor streams: diagnose, zoom-out,
+Design/diagnose/refactor streams: diagnose,
 improve-codebase-architecture, codebase-design, domain-modeling, security-audit · Land: wrapup,
 resolving-merge-conflicts, code-review, local-ci, git-worktree-recover, kit-release,
-project-release · Learn: retro, audit-skills, write-a-skill · Setup:
-setup-workflow, git-guardrails, setup-pre-commit · Codex cross-model: grill-me-codex,
+project-release, kit-update · Learn: retro, audit-skills, write-a-skill,
+memory-lifecycle · Setup:
+setup-workflow, git-guardrails, setup-pre-commit, census-update · Codex cross-model: grill-me-codex,
 grill-with-docs-codex, codex-review, codex-build),
 installed for both surfaces — `.claude/skills`
 (Claude Code) and `.agents/skills` (Codex) — plus `codex-adapter-sync`
