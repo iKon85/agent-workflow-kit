@@ -5,6 +5,7 @@ import { lineDiff, writeAtomic } from './atomicWrite.mjs';
 import { hookReferenced } from './settings.mjs';
 import {
   CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, emptyConsumerManifest,
+  CONSUMER_INSTALL_ROLE, filesForInstallRole,
   indexByPath, readManifest, writeManifest,
 } from './manifest.mjs';
 
@@ -18,11 +19,13 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
   if (!consumer) throw new Error('not initialised — run `init` first');
 
   const installedIdx = indexByPath(consumer, 'installed');
-  const pkgIdx = indexByPath(pkg, 'files');
+  const packageIdx = indexByPath(pkg, 'files');
+  const installable = filesForInstallRole(pkg);
+  const pkgIdx = indexByPath({ files: installable }, 'files');
   const result = emptyResult();
   const nextInstalled = [];
 
-  for (const file of pkg.files) {
+  for (const file of installable) {
     const dest = join(consumerRoot, file.path);
     const prior = installedIdx.get(file.path);
     const current = (await exists(dest)) ? await sha256File(dest) : null;
@@ -41,12 +44,12 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     } else if (userEdited && upstreamChanged) {
       const incoming = await readFile(join(kitRoot, file.path), 'utf8');
       result.conflicts.push({ path: file.path, diff: lineDiff(await readFile(dest, 'utf8'), incoming) });
-      nextInstalled.push(prior);
+      nextInstalled.push(withInstallRole(prior));
     } else if (userEdited) {
-      nextInstalled.push(prior);
+      nextInstalled.push(withInstallRole(prior));
       result.userModified.push(file.path);
     } else {
-      nextInstalled.push(prior);
+      nextInstalled.push(withInstallRole(prior));
       result.unchanged.push(file.path);
     }
   }
@@ -58,13 +61,20 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     const userEdited = current !== null && current !== prior.installedSha256;
     const referenced = prior.kind === 'hook' && (await hookReferenced(consumerRoot, prior.path));
     if (userEdited || referenced || !(await decide('delete', prior.path))) {
-      nextInstalled.push(prior);
+      const packageEntry = packageIdx.get(prior.path);
+      nextInstalled.push(withInstallRole(
+        prior,
+        packageEntry?.installRole ?? prior.installRole ?? CONSUMER_INSTALL_ROLE,
+      ));
       result.keptDeleted.push(prior.path);
     } else {
       if (!dryRun && current !== null) await rm(dest);
       result.deleted.push(prior.path);
     }
   }
+
+  result.manifestChanged = consumer.installRole !== CONSUMER_INSTALL_ROLE ||
+    nextInstalled.some((next) => installedIdx.get(next.path)?.installRole !== next.installRole);
 
   if (!dryRun) {
     await writeManifest(join(consumerRoot, CONSUMER_MANIFEST_NAME), {
@@ -77,13 +87,17 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
 function emptyResult() {
   return {
     unchanged: [], updated: [], conflicts: [], userModified: [],
-    added: [], deleted: [], keptDeleted: [],
+    added: [], deleted: [], keptDeleted: [], manifestChanged: false,
   };
 }
 
 function entry(file, installedSha256) {
   return {
     path: file.path, kind: file.kind, ownerSkill: file.ownerSkill, surface: file.surface,
-    installedSha256, origin: 'kit',
+    installedSha256, origin: 'kit', installRole: CONSUMER_INSTALL_ROLE,
   };
+}
+
+function withInstallRole(installed, installRole = CONSUMER_INSTALL_ROLE) {
+  return { ...installed, installRole };
 }

@@ -393,6 +393,7 @@
         "claude",
         "codex"
       ],
+      "installRole": "maintainer",
       "provenance": "own"
     },
     "project-release": {

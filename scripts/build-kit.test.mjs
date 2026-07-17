@@ -1,12 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { buildKit } from './build-kit.mjs';
+import { init } from '../src/commands/init.mjs';
+import { CONSUMER_MANIFEST_NAME, readManifest } from '../src/lib/manifest.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC_CENSUS_UNIT = JSON.parse(await readFile(
@@ -17,6 +19,7 @@ async function withBuild(fn) {
   try { return await fn(dist, await buildKit({ repoRoot: REPO, distDir: dist })); }
   finally { await rm(dist, { recursive: true, force: true }); }
 }
+const exists = (path) => access(path).then(() => true, () => false);
 
 test('historical v0.9.0 manifest remains an immutable golden fixture', async () => {
   const fixture = await readFile(join(REPO, 'test/fixtures/v0.9.0-agent-workflow-kit.package.json'));
@@ -31,6 +34,46 @@ test('current public SSOT builds deterministically', async () => {
   const first = await withBuild(async (dist) => readFile(join(dist, 'agent-workflow-kit.package.json'), 'utf8'));
   const second = await withBuild(async (dist) => readFile(join(dist, 'agent-workflow-kit.package.json'), 'utf8'));
   assert.equal(first, second);
+});
+
+test('current build assigns every file an explicit install role', async () => {
+  await withBuild(async (dist) => {
+    const manifest = JSON.parse(await readFile(join(dist, 'agent-workflow-kit.package.json'), 'utf8'));
+    assert.ok(manifest.files.every(({ installRole }) => ['consumer', 'maintainer'].includes(installRole)));
+    assert.deepEqual(
+      manifest.files.filter(({ installRole }) => installRole === 'maintainer').map(({ path }) => path),
+      [
+        '.agents/skills/kit-release/SKILL.md',
+        '.claude/skills/kit-release/SKILL.md',
+        'scripts/kit-release.mjs',
+        'scripts/release-delta-guard.mjs',
+      ],
+    );
+  });
+});
+
+test('a built kit installs no maintainer-only release surface into a consumer', async () => {
+  await withBuild(async (dist) => {
+    const consumer = await mkdtemp(join(tmpdir(), 'awkit-role-consumer-'));
+    try {
+      await init({ kitRoot: dist, consumerRoot: consumer });
+      const maintainerPaths = [
+        '.agents/skills/kit-release/SKILL.md',
+        '.claude/skills/kit-release/SKILL.md',
+        'scripts/kit-release.mjs',
+        'scripts/release-delta-guard.mjs',
+      ];
+      assert.deepEqual(
+        await Promise.all(maintainerPaths.map((path) => exists(join(consumer, path)))),
+        [false, false, false, false],
+      );
+      const manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
+      assert.equal(manifest.installRole, 'consumer');
+      assert.ok(manifest.installed.every(({ installRole }) => installRole === 'consumer'));
+    } finally {
+      await rm(consumer, { recursive: true, force: true });
+    }
+  });
 });
 
 test('current build contains post-tag public files and repository metadata', async () => {

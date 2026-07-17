@@ -4,12 +4,15 @@ import { writeAtomic } from './atomicWrite.mjs';
 // Two manifests (Codex R1#9 / R3#1):
 //  - package manifest (shipped with the kit): the desired-state file list.
 //  - consumer manifest (agent-workflow-kit.json in the target repo root): installed state.
-// Both model every file kind:
+// Package entries model every file kind and install role:
 //   { path, kind: 'skill'|'script'|'hook'|'template'|'doc', ownerSkill?, surface?,
-//     sha256, mode, origin: 'kit' }
+//     installRole: 'consumer'|'maintainer', sha256, mode, origin: 'kit' }
+// Consumer manifests record their top-level installRole and retain the role on
+// every installed entry, including edited legacy maintainer files kept in place.
 
 export const CONSUMER_MANIFEST_NAME = 'agent-workflow-kit.json';
 export const PACKAGE_MANIFEST_NAME = 'agent-workflow-kit.package.json';
+export const CONSUMER_INSTALL_ROLE = 'consumer';
 
 /**
  * Parse a JSON manifest, or null if the file does not exist. A corrupt file
@@ -47,7 +50,14 @@ export async function writeManifest(path, obj) {
 }
 
 export function emptyConsumerManifest(kitVersion) {
-  return { kitVersion, installed: [] };
+  return { kitVersion, installRole: CONSUMER_INSTALL_ROLE, installed: [] };
+}
+
+/** Package entries without a role predate role-aware installs and remain consumer-owned. */
+export function filesForInstallRole(manifest, installRole = CONSUMER_INSTALL_ROLE) {
+  return (manifest?.files ?? []).filter(
+    (entry) => (entry.installRole ?? CONSUMER_INSTALL_ROLE) === installRole,
+  );
 }
 
 /** Map a manifest's file list (under `key`) by `path` for quick lookup. */
