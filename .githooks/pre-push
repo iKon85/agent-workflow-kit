@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# pre-push — native git hook (zero-dep).
+#
+# Wired via `git config core.hooksPath .githooks` (see CLAUDE.md §Development).
+# Runs the full local suite so a red branch cannot leave the machine
+# (GitHub Free + private = no branch protection; the gate is local).
+
+set -euo pipefail
+
+# Git exports GIT_DIR & co. to hooks; the suite's child tests run git in their
+# own temp repos and must not inherit them (see pre-commit).
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "❌ npm missing — Node ≥ 20 required. Install it, then push again. NEVER --no-verify."
+  exit 1
+fi
+
+npm test
+
+echo "✅ pre-push suite passed."
