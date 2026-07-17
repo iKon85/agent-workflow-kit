@@ -332,6 +332,10 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## Release notes
 
+### 0.26.2
+
+- Metadata-only release.
+
 ### 0.26.1
 
 - changed: `.agents/skills/kit-update/SKILL.md`
