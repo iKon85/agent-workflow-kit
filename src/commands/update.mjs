@@ -1,6 +1,6 @@
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { assertReleaseParity } from '../../scripts/release-parity.mjs';
+import { assertConsumerReleaseParity } from '../../scripts/release-parity.mjs';
 import { activateCandidate, stageConsumer, verifyCandidate } from '../lib/updateCandidate.mjs';
 import { reconcile } from '../lib/updateReconcile.mjs';
 import {
@@ -86,7 +86,7 @@ async function applyTransaction(context) {
 }
 
 function verifyRelease(identities, kitVersion) {
-  const release = assertReleaseParity(identities);
+  const release = assertConsumerReleaseParity(identities);
   if (release.name !== RELEASE_NAME) throw new Error(`invalid release origin: ${release.name}`);
   if (release.version !== kitVersion) {
     throw new Error(`release version ${release.version} does not match kit ${kitVersion}`);

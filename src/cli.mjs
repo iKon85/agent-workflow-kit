@@ -7,6 +7,7 @@ import { update } from './commands/update.mjs';
 import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
 import { createCommandAdapter } from '../scripts/release-state.mjs';
+import { installedIdentityFromDir } from '../scripts/release-parity.mjs';
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const consumerRoot = process.cwd();
@@ -87,8 +88,10 @@ async function readUpdateRelease() {
     env: { ...process.env, GH_REPO: 'iKon85/agent-workflow-kit' },
   });
   try {
-    const local = (await adapter.local()).identity;
-    return { local, npm: await adapter.npm(local), github: await adapter.github(local) };
+    // Re-packing an unpacked install is never byte-identical to the registry
+    // tarball — the installed copy proves itself by content identity instead.
+    const installed = await installedIdentityFromDir(KIT_ROOT);
+    return { installed, npm: await adapter.npm(installed), github: await adapter.github(installed) };
   } finally {
     await adapter.dispose();
   }

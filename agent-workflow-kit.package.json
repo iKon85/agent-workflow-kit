@@ -2539,7 +2539,7 @@
       "path": "scripts/release-parity.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "faa4a1d1116d58f69c8541a586ebd6076ebc3f7af7809e9e4a53928f49298365",
+      "sha256": "32f61bf776974be63a017e90f428d4dab6098a9e2ba0c25c865d18ea3bd3e89e",
       "mode": 420,
       "origin": "kit"
     },

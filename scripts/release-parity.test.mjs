@@ -51,3 +51,40 @@ test('a package tarball produces a deterministic content identity', async () => 
     assert.deepEqual(first, second);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test('consumer parity proves npm↔github and matches the installed copy without re-packing', async () => {
+  const { assertConsumerReleaseParity } = await import('./release-parity.mjs');
+  const installed = { name: identity.name, version: identity.version, manifestSha256: identity.manifestSha256 };
+  assert.deepEqual(
+    assertConsumerReleaseParity({ installed, npm: { ...identity }, github: { ...identity } }),
+    identity,
+  );
+  assert.throws(() => assertConsumerReleaseParity({
+    installed, npm: { ...identity }, github: { ...identity, tarballIntegrity: 'different' },
+  }), /github tarballIntegrity mismatch/);
+  assert.throws(() => assertConsumerReleaseParity({
+    installed: { ...installed, manifestSha256: 'different' },
+    npm: { ...identity }, github: { ...identity },
+  }), /installed manifestSha256 mismatch/);
+  assert.throws(() => assertConsumerReleaseParity({
+    installed: { ...installed, version: '9.9.9' },
+    npm: { ...identity }, github: { ...identity },
+  }), /installed version mismatch/);
+});
+
+test('an installed kit directory yields a content identity without npm pack', async () => {
+  const { installedIdentityFromDir } = await import('./release-parity.mjs');
+  const root = await mkdtemp(join(tmpdir(), 'release-parity-installed-'));
+  try {
+    const manifest = JSON.stringify({ kitVersion: '1.2.3', files: [] });
+    await writeFile(join(root, 'package.json'), JSON.stringify({ name: identity.name, version: '1.2.3' }));
+    await writeFile(join(root, 'agent-workflow-kit.package.json'), manifest);
+    const installed = await installedIdentityFromDir(root);
+    assert.equal(installed.name, identity.name);
+    assert.equal(installed.version, '1.2.3');
+    assert.equal(typeof installed.manifestSha256, 'string');
+    assert.equal('tarballIntegrity' in installed, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
