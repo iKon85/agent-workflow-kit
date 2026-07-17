@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { init } from '../src/commands/init.mjs';
-import { readManifest, CONSUMER_MANIFEST_NAME } from '../src/lib/manifest.mjs';
+import {
+  readManifest, writeManifest, CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME,
+} from '../src/lib/manifest.mjs';
 import { firstLineState } from '../src/lib/sentinel.mjs';
 import { makeKit, makeEmptyDir, cleanup } from './helpers.mjs';
 
@@ -28,6 +30,59 @@ test('init copies kit files, writes the consumer manifest, seeds doc stubs', asy
       'stub'
     );
     assert.equal(await exists(join(consumer, 'docs/agents/board-sync.md')), false);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('init installs only consumer-role files and records that role', async () => {
+  const consumerPath = '.claude/skills/to-prd/SKILL.md';
+  const maintainerPath = 'scripts/kit-release.mjs';
+  const kit = await makeKit({
+    [consumerPath]: '# to-prd\n',
+    [maintainerPath]: 'import "./build-kit.mjs";\n',
+  });
+  const consumer = await makeEmptyDir();
+  try {
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+    pkg.files.find(({ path }) => path === consumerPath).installRole = 'consumer';
+    pkg.files.find(({ path }) => path === maintainerPath).installRole = 'maintainer';
+    await writeManifest(join(kit, PACKAGE_MANIFEST_NAME), pkg);
+
+    await init({ kitRoot: kit, consumerRoot: consumer });
+
+    assert.equal(await exists(join(consumer, maintainerPath)), false);
+    const manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
+    assert.equal(manifest.installRole, 'consumer');
+    assert.deepEqual(manifest.installed.map(({ path }) => path), [consumerPath]);
+    assert.equal(manifest.installed[0].installRole, 'consumer');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('re-running init retains and classifies an edited legacy maintainer file', async () => {
+  const maintainerPath = 'scripts/kit-release.mjs';
+  const kit = await makeKit({
+    '.claude/skills/to-prd/SKILL.md': '# to-prd\n',
+    [maintainerPath]: 'release helper\n',
+  });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, maintainerPath), 'consumer customization\n');
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+    pkg.files.find(({ path }) => path === maintainerPath).installRole = 'maintainer';
+    await writeManifest(join(kit, PACKAGE_MANIFEST_NAME), pkg);
+
+    await init({ kitRoot: kit, consumerRoot: consumer });
+
+    assert.equal(await readFile(join(consumer, maintainerPath), 'utf8'), 'consumer customization\n');
+    const manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
+    assert.equal(
+      manifest.installed.find(({ path }) => path === maintainerPath).installRole,
+      'maintainer',
+    );
   } finally {
     await cleanup(kit, consumer);
   }

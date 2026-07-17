@@ -45,7 +45,8 @@ async function shipBundle(repoRoot, distDir, bundleFiles) {
     const content = await copySource(repoRoot, distDir, file.src, file.dest, file.mode);
     entries.push({
       path: file.dest, kind: file.kind, ownerSkill: file.ownerSkill,
-      surface: file.surface, sha256: sha256(content), mode: file.mode, origin: 'kit',
+      surface: file.surface, installRole: file.installRole,
+      sha256: sha256(content), mode: file.mode, origin: 'kit',
     });
   }
   return entries.sort((a, b) => a.path.localeCompare(b.path));

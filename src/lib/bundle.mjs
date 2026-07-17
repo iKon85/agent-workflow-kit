@@ -40,8 +40,8 @@ export const HELPER_FILES = [
   { path: 'scripts/wrapup-land.py', kind: 'script', mode: 0o755 },
   // Deterministic release preparation and its manifest-derived local/CI guard.
   // Both are invoked through package scripts by /kit-release.
-  { path: 'scripts/kit-release.mjs', kind: 'script', mode: 0o644 },
-  { path: 'scripts/release-delta-guard.mjs', kind: 'script', mode: 0o644 },
+  { path: 'scripts/kit-release.mjs', kind: 'script', mode: 0o644, installRole: 'maintainer' },
+  { path: 'scripts/release-delta-guard.mjs', kind: 'script', mode: 0o644, installRole: 'maintainer' },
   // Neutral publish/readback parity and externally reconstructable release state.
   // /kit-release uses these after merge; downstream update/consumer flows reuse
   // the parity primitive rather than growing a second registry/GitHub comparison.
@@ -161,7 +161,7 @@ const SURFACE_DIR = { claude: '.claude/skills', codex: '.agents/skills' };
 export function publishableSkills(manifest) {
   return Object.entries(manifest.skills)
     .filter(([, e]) => e.publish)
-    .map(([name, e]) => ({ name, surfaces: e.surfaces }));
+    .map(([name, e]) => ({ name, surfaces: e.surfaces, installRole: e.installRole ?? 'consumer' }));
 }
 
 async function walk(dir) {
@@ -188,17 +188,23 @@ async function walk(dir) {
  */
 export async function collectBundle(repoRoot, manifest) {
   const files = [];
-  for (const { name, surfaces } of publishableSkills(manifest)) {
+  for (const { name, surfaces, installRole } of publishableSkills(manifest)) {
     for (const surface of surfaces) {
       const base = join(SURFACE_DIR[surface], name);
       for (const abs of await walk(join(repoRoot, base))) {
         const rel = relative(repoRoot, abs);
-        files.push({ src: rel, dest: rel, kind: 'skill', ownerSkill: name, surface, mode: 0o644 });
+        files.push({
+          src: rel, dest: rel, kind: 'skill', ownerSkill: name, surface,
+          installRole, mode: 0o644,
+        });
       }
     }
   }
   for (const h of HELPER_FILES) {
-    files.push({ src: h.path, dest: h.path, kind: h.kind, mode: h.mode });
+    files.push({
+      src: h.path, dest: h.path, kind: h.kind,
+      installRole: h.installRole ?? 'consumer', mode: h.mode,
+    });
   }
   return { files, stubs: STUB_TARGETS };
 }

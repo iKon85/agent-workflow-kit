@@ -94,7 +94,8 @@ function verifyRelease(identities, kitVersion) {
 }
 
 function hasUpstreamDelta(result) {
-  return result.added.length + result.updated.length + result.deleted.length > 0;
+  return result.manifestChanged ||
+    result.added.length + result.updated.length + result.deleted.length > 0;
 }
 
 async function terminal(result, state, history, transition) {

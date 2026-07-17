@@ -131,6 +131,64 @@ test('update stages and activates a newly added upstream file', async () => {
   }
 });
 
+test('update removes an unmodified legacy file that becomes maintainer-only', async () => {
+  const maintainerPath = 'scripts/kit-release.mjs';
+  const kit = await makeKit({ [P]: 'v1\n', [maintainerPath]: 'release helper\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+    pkg.files.find(({ path }) => path === maintainerPath).installRole = 'maintainer';
+    await writeManifest(join(kit, PACKAGE_MANIFEST_NAME), pkg);
+
+    const updated = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(),
+      decide: () => true, verify,
+    });
+
+    assert.deepEqual(updated.deleted, [maintainerPath]);
+    assert.equal(await exists(join(consumer, maintainerPath)), false);
+    const manifest = await readManifest(join(consumer, 'agent-workflow-kit.json'));
+    assert.equal(manifest.installRole, 'consumer');
+    assert.ok(manifest.installed.every(({ installRole }) => installRole === 'consumer'));
+
+    const again = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+    });
+    assert.equal(again.status, 'current');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('update preserves an edited legacy maintainer file and records its role', async () => {
+  const maintainerPath = 'scripts/kit-release.mjs';
+  const kit = await makeKit({ [P]: 'v1\n', [maintainerPath]: 'release helper\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, maintainerPath), 'consumer customization\n');
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+    pkg.files.find(({ path }) => path === maintainerPath).installRole = 'maintainer';
+    await writeManifest(join(kit, PACKAGE_MANIFEST_NAME), pkg);
+
+    const updated = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(),
+      decide: () => true, verify,
+    });
+
+    assert.deepEqual(updated.keptDeleted, [maintainerPath]);
+    assert.equal(await readFile(join(consumer, maintainerPath), 'utf8'), 'consumer customization\n');
+    const manifest = await readManifest(join(consumer, 'agent-workflow-kit.json'));
+    assert.equal(
+      manifest.installed.find(({ path }) => path === maintainerPath).installRole,
+      'maintainer',
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('update preserves a local modification when upstream is unchanged', async () => {
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();

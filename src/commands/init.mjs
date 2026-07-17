@@ -6,6 +6,8 @@ import { stubSentinel } from '../lib/sentinel.mjs';
 import { STUB_TARGETS } from '../lib/bundle.mjs';
 import {
   readManifest, writeManifest, emptyConsumerManifest,
+  filesForInstallRole, CONSUMER_INSTALL_ROLE,
+  indexByPath,
   PACKAGE_MANIFEST_NAME, CONSUMER_MANIFEST_NAME,
 } from '../lib/manifest.mjs';
 
@@ -25,11 +27,19 @@ export async function init({ kitRoot, consumerRoot, force = false }) {
   if (!pkg) throw new Error('kit package manifest not found');
   const prior = await readManifest(join(consumerRoot, CONSUMER_MANIFEST_NAME));
   const tracked = new Set((prior?.installed ?? []).map((e) => e.path));
+  const packageIdx = indexByPath(pkg, 'files');
 
   const result = { copied: [], skipped: [], seeded: [] };
   const installed = [];
 
-  for (const f of pkg.files) {
+  for (const entry of prior?.installed ?? []) {
+    const packageEntry = packageIdx.get(entry.path);
+    if (packageEntry?.installRole === CONSUMER_INSTALL_ROLE || !packageEntry?.installRole) continue;
+    if (!await exists(join(consumerRoot, entry.path))) continue;
+    installed.push({ ...entry, installRole: packageEntry.installRole });
+  }
+
+  for (const f of filesForInstallRole(pkg)) {
     const dest = join(consumerRoot, f.path);
     if (await exists(dest) && !tracked.has(f.path) && !force) {
       result.skipped.push(f.path); // pre-existing untracked → never-clobber
@@ -39,6 +49,7 @@ export async function init({ kitRoot, consumerRoot, force = false }) {
     installed.push({
       path: f.path, kind: f.kind, ownerSkill: f.ownerSkill, surface: f.surface,
       installedSha256: await sha256File(dest), origin: 'kit',
+      installRole: CONSUMER_INSTALL_ROLE,
     });
     result.copied.push(f.path);
   }

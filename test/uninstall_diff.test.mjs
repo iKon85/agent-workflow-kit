@@ -32,6 +32,27 @@ test('diff classifies an upstream change without writing', async () => {
   }
 });
 
+test('diff reports a legacy maintainer file without changing consumer bytes', async () => {
+  const maintainerPath = 'scripts/kit-release.mjs';
+  const kit = await makeKit({ [P]: 'v1\n', [maintainerPath]: 'release helper\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+    pkg.files.find(({ path }) => path === maintainerPath).installRole = 'maintainer';
+    await writeManifest(join(kit, PACKAGE_MANIFEST_NAME), pkg);
+    const manifestBefore = await readFile(join(consumer, CONSUMER_MANIFEST_NAME));
+
+    const result = await diff({ kitRoot: kit, consumerRoot: consumer });
+
+    assert.deepEqual(result.keptDeleted, [maintainerPath]);
+    assert.equal(await readFile(join(consumer, maintainerPath), 'utf8'), 'release helper\n');
+    assert.deepEqual(await readFile(join(consumer, CONSUMER_MANIFEST_NAME)), manifestBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('uninstall removes unedited files and drops the manifest', async () => {
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();
@@ -57,6 +78,32 @@ test('uninstall retains user-edited files and keeps a marked manifest', async ()
     assert.equal(await exists(join(consumer, P)), true, 'edited file kept');
     const mf = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
     assert.equal(mf.installed.find((e) => e.path === P).orphanedByUninstall, true);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('uninstall retains and classifies an edited legacy maintainer file', async () => {
+  const maintainerPath = 'scripts/kit-release.mjs';
+  const kit = await makeKit({ [P]: 'v1\n', [maintainerPath]: 'release helper\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, maintainerPath), 'consumer customization\n');
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+    pkg.files.find(({ path }) => path === maintainerPath).installRole = 'maintainer';
+    await writeManifest(join(kit, PACKAGE_MANIFEST_NAME), pkg);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+
+    const result = await uninstall({ consumerRoot: consumer });
+
+    assert.ok(result.retained.includes(maintainerPath));
+    assert.equal(await readFile(join(consumer, maintainerPath), 'utf8'), 'consumer customization\n');
+    const manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
+    assert.equal(manifest.installRole, 'consumer');
+    const entry = manifest.installed.find(({ path }) => path === maintainerPath);
+    assert.equal(entry.installRole, 'maintainer');
+    assert.equal(entry.orphanedByUninstall, true);
   } finally {
     await cleanup(kit, consumer);
   }
