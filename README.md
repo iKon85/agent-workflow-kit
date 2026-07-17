@@ -58,7 +58,7 @@ The skills aren't a grab-bag — they're four phases of one loop, entered throug
 single funnel no matter where your work starts. Each phase below names the failure
 mode it removes and the skills that remove it.
 
-![The workflow loop: idea / plan / backlog / raw-issue all funnel through an optional grill into one uniform PRD, which to-issues decomposes into an atomic issue or a wave anchor; a gate clears any unknown, then Execute → Land → Learn, which compounds back into the next idea. Two further streams enter outside the funnel — a bug/anomaly through diagnose, and a code-fighting-the-structure change through zoom-out — both joining at Execute; a one-time repo-setup lane (setup-workflow, git-guardrails, setup-pre-commit) sits off the loop and installs the pre-commit/pre-push gate that Land relies on.](docs/workflow.png)
+![The workflow loop: idea / plan / backlog / raw-issue all funnel through an optional grill into one uniform PRD, which to-issues decomposes into an atomic issue or a wave anchor; a gate clears any unknown, then Execute → Land → Learn, which compounds back into the next idea. Two further streams enter outside the funnel — a bug/anomaly through diagnose, and a code-fighting-the-structure change through improve-codebase-architecture — both joining at Execute; a one-time repo-setup lane (setup-workflow, git-guardrails, setup-pre-commit) sits off the loop and installs the pre-commit/pre-push gate that Land relies on.](docs/workflow.png)
 
 <!--
   The image above is a pre-rendered PNG, not a live Mermaid block, on purpose:
@@ -155,7 +155,7 @@ enter outside the plan funnel and feed straight into Execute:
 - **`diagnose`** — a disciplined root-cause hunt for bugs (reproduce → isolate →
   fix → prove), not a guess-and-patch. Entered from a bug or anomaly, never the PRD
   funnel; the fix it lands flows on into Execute.
-- **`zoom-out` / `improve-codebase-architecture`** — step back from the diff to
+- **`improve-codebase-architecture`** — step back from the diff to
   the structure when a change is fighting the codebase. A recon stream that either
   becomes a planned slice (back through `to-issues`) or guides a refactor in place.
 
@@ -743,14 +743,15 @@ still reference. Flags: `--force` (overwrite pre-existing files on `init`),
 
 ## What's in the box
 
-**42 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
+**43 skills** (Router: ask-matt — "which skill/flow fits?" · Plan: grill-me,
 grill-with-docs, to-prd, to-issues, board-to-waves, triage, spec-self-critique,
 verify-spike, decision-gate, scale-check, to-waves, wayfinder, research · Execute: tdd, prototype, implement, orchestrate-wave ·
-Design/diagnose/refactor streams: diagnose, zoom-out,
+Design/diagnose/refactor streams: diagnose,
 improve-codebase-architecture, codebase-design, domain-modeling, security-audit · Land: wrapup,
 resolving-merge-conflicts, code-review, local-ci, git-worktree-recover, kit-release,
-project-release · Learn: retro, audit-skills, write-a-skill · Setup:
-setup-workflow, git-guardrails, setup-pre-commit · Codex cross-model: grill-me-codex,
+project-release, kit-update · Learn: retro, audit-skills, write-a-skill,
+memory-lifecycle · Setup:
+setup-workflow, git-guardrails, setup-pre-commit, census-update · Codex cross-model: grill-me-codex,
 grill-with-docs-codex, codex-review, codex-build),
 installed for both surfaces — `.claude/skills`
 (Claude Code) and `.agents/skills` (Codex) — plus `codex-adapter-sync`

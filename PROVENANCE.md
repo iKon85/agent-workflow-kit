@@ -6,7 +6,7 @@ not byte-identity.
 
 ## Matt Pocock (MIT) — https://github.com/mattpocock/skills @ d574778
 
-to-prd, to-issues, grill-with-docs, grill-me, tdd, diagnose, zoom-out,
+to-prd, to-issues, grill-with-docs, grill-me, tdd, diagnose,
 improve-codebase-architecture, prototype, triage, write-a-skill,
 codebase-design, domain-modeling, implement, resolving-merge-conflicts, ask-matt,
 wayfinder, research, git-guardrails-claude-code, setup-workflow.
@@ -15,9 +15,10 @@ Folder↔upstream-name divergence (upstream renamed; local folder kept for
 invocation stability): `diagnose` = upstream `diagnosing-bugs`,
 `write-a-skill` = upstream `writing-great-skills`, `to-prd` = upstream
 `to-spec`, `to-issues` = upstream `to-tickets` (upstream merged to-issues +
-the short-lived to-plan into to-tickets @ v1.1.0). `zoom-out` was removed
-upstream (attribution pins to its last-seen SHA 2bf7005) and is retained here
-as a local fork.
+the short-lived to-plan into to-tickets @ v1.1.0). `zoom-out` (last-seen
+upstream SHA 2bf7005) was removed upstream and, after a period as a local
+fork, removed from this kit as well — `improve-codebase-architecture` covers
+the step-back-to-the-structure door.
 
 Each carries a `THIRD-PARTY-NOTICES.md` with its upstream path.
 
