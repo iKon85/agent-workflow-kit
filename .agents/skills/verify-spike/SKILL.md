@@ -17,7 +17,7 @@ This is the "Verify First" rule with a runnable harness behind it: when you cann
 | "Which of these options, given these trade-offs?" / "I need to research this before I can choose." (bounded, sub-grill) | `decision-gate` |
 | "Does this design / state model / UI feel right?" (open-ended) | `prototype` |
 | "Why is this broken / slow?" (root-cause of a known defect) | `diagnose` |
-| "Build this behaviour, test-first." (new feature/fix) | `tdd` |
+| "Build this behaviour, test-first." (new feature/fix) | `implement` |
 
 If the question is really "what should this be", it is not a verify-spike — those are open, not yes/no.
 
