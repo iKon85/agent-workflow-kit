@@ -45,7 +45,7 @@ release contain the same artifact.
    automatically. For a generic improvement, offer to file an issue in the
    public kit repository and keep the local edit in place as a bridge until a
    kit release containing the improvement lands. Before running
-   `gh issue create --repo iKon85/agent-workflow-kit`, show a sanitized preview
+   `gh issue create --repo <owner>/agent-workflow-kit`, show a sanitized preview
    of the exact title and body with consumer identifiers and secrets stripped,
    then require the user's explicit approval. The consumer user does not need
    to be a kit maintainer. For a project-specific edit, recommend
