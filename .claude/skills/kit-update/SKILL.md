@@ -40,6 +40,18 @@ release contain the same artifact.
    conflict manually; never auto-merge, delete a local edit, or silently choose
    the incoming copy.
 
+   For each conflicted kit-shipped file, always ask the user whether the local
+   edit is a generic improvement or project-specific; never decide or act
+   automatically. For a generic improvement, offer to file an issue in the
+   public kit repository and keep the local edit in place as a bridge until a
+   kit release containing the improvement lands. Before running
+   `gh issue create --repo iKon85/agent-workflow-kit`, show a sanitized preview
+   of the exact title and body with consumer identifiers and secrets stripped,
+   then require the user's explicit approval. The consumer user does not need
+   to be a kit maintainer. For a project-specific edit, recommend
+   `npx @ikon85/agent-workflow-kit@latest own <path>` so future updates treat
+   that path as consumer-owned.
+
 4. If a candidate is interrupted, discard its reported stage directory or
    resume the transaction through the update API's `resumeFrom` option. Do not
    copy staged files into the consumer by hand.
