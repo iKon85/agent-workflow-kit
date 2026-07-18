@@ -377,7 +377,7 @@
       "ownerSkill": "kit-update",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "dbf2c0f696bd0ce45c5c2a315d40a3bbb99635e4ab384c788ac59f799fbf43de",
+      "sha256": "1ec44ea1c4ab0c74febaf54e99d61122e9153c4820ef923287db7954738b5a99",
       "mode": 420,
       "origin": "kit"
     },
@@ -517,7 +517,7 @@
       "ownerSkill": "retro",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "37f296e39469012802a5a0e5e35a61b0a89d18ca5888279c08ef15d8e3657ea8",
+      "sha256": "de7960f3bc66010d75d1c7512a2447f231fb4a37fc9fbc262d4a2e3390eb77f5",
       "mode": 420,
       "origin": "kit"
     },
@@ -647,7 +647,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "e4cac2f46ac5f16e9a1473b38a64979a7d767ccdc834a2540d20c733305ea2e7",
+      "sha256": "44b5d8e4cbc15be187678ac42e7ce222553878e57ac7b11cf429deddba7656c5",
       "mode": 420,
       "origin": "kit"
     },
@@ -1080,6 +1080,14 @@
       "kind": "hook",
       "installRole": "consumer",
       "sha256": "9f69541c60c795bd5ec2a4f5d155f6fd3ced4f2ac6a28ed0c55c9a57772dd0d2",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/hooks/kit-origin-edit-hint.py",
+      "kind": "hook",
+      "installRole": "consumer",
+      "sha256": "43e9b9597213c03f7da862602f81e6d6addd3a87e7b20cd52a6a2908b3e90f03",
       "mode": 493,
       "origin": "kit"
     },
@@ -1651,7 +1659,7 @@
       "ownerSkill": "kit-update",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "dbf2c0f696bd0ce45c5c2a315d40a3bbb99635e4ab384c788ac59f799fbf43de",
+      "sha256": "1ec44ea1c4ab0c74febaf54e99d61122e9153c4820ef923287db7954738b5a99",
       "mode": 420,
       "origin": "kit"
     },
@@ -1791,7 +1799,7 @@
       "ownerSkill": "retro",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "e566a6d25c4ba0651b7aa7d09b563065a8aeab34c2c029bd64b124e7d75808ac",
+      "sha256": "5a00c88bb6c1ab50594d8e11c4ab4334116ee3baba5509d71202eaf777234d7f",
       "mode": 420,
       "origin": "kit"
     },
@@ -1941,7 +1949,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "e4cac2f46ac5f16e9a1473b38a64979a7d767ccdc834a2540d20c733305ea2e7",
+      "sha256": "44b5d8e4cbc15be187678ac42e7ce222553878e57ac7b11cf429deddba7656c5",
       "mode": 420,
       "origin": "kit"
     },
