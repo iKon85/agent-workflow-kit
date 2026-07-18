@@ -407,7 +407,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "8d4d919ebcf55bd0e22bea1512e1e23753925062d4b72fcbd22e7d711e12661e",
+      "sha256": "a3c3dc04411372f509b07e67f82217eb9656933f7ce5101beb5c123c2272d0bb",
       "mode": 420,
       "origin": "kit"
     },
@@ -417,7 +417,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "ea6e2613cd76101ff15b4f231a8e2f34e3d728c2dfd83f9f5310edcadf9b1feb",
+      "sha256": "d3b436bdecfd70afd508a291fa724ce8821a5ef8e916fabb681eafcdce4fd377",
       "mode": 420,
       "origin": "kit"
     },
@@ -517,7 +517,7 @@
       "ownerSkill": "retro",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "de7960f3bc66010d75d1c7512a2447f231fb4a37fc9fbc262d4a2e3390eb77f5",
+      "sha256": "28bb50de62a05d06cd0ccf6c07a75ff213462016f689b6c3cabaa7b7b2a11112",
       "mode": 420,
       "origin": "kit"
     },
@@ -787,7 +787,7 @@
       "ownerSkill": "tdd",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "e1790de4327805363be5d7a9de8109b7d90b77806ff6e6af00576bbfe0950d96",
+      "sha256": "a00253af6aae672bc27a4b2b24c73619cd8dd5b862902c266d0cbc41f1f19570",
       "mode": 420,
       "origin": "kit"
     },
@@ -957,7 +957,7 @@
       "ownerSkill": "wrapup",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "6fc171c51ab508816726d9ada7f05cfc59f85a92a04008da453052adb64a9cb0",
+      "sha256": "69cf375285a8c793e3b55e70047bf114ec12ab529a705127da0730ca42db238e",
       "mode": 420,
       "origin": "kit"
     },
@@ -1047,7 +1047,7 @@
       "path": ".claude/hooks/drift-guard.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "8a031ff04b7aa11ac7c4713de10634e1d1521ca9fbb82fc458a86f78f6d7d1cf",
+      "sha256": "a248eb3697522b8804fd7d68d1fe3e95613a71829464501c8c7fa4c09d229a64",
       "mode": 493,
       "origin": "kit"
     },
@@ -1689,7 +1689,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "8d4d919ebcf55bd0e22bea1512e1e23753925062d4b72fcbd22e7d711e12661e",
+      "sha256": "a3c3dc04411372f509b07e67f82217eb9656933f7ce5101beb5c123c2272d0bb",
       "mode": 420,
       "origin": "kit"
     },
@@ -1699,7 +1699,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "5014069f36d333b672a49c994932f0a3487b6784fadc8626c76a9b3c138231be",
+      "sha256": "96eefb0572412ae620db5530ea6378e6ae265a0984357f2c25ee6b878911aca8",
       "mode": 420,
       "origin": "kit"
     },
@@ -1799,7 +1799,7 @@
       "ownerSkill": "retro",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "5a00c88bb6c1ab50594d8e11c4ab4334116ee3baba5509d71202eaf777234d7f",
+      "sha256": "bacd42a03978c1647370fb481db9fa5a0b97282b9f5ed2192267e3c6f86b4989",
       "mode": 420,
       "origin": "kit"
     },
@@ -2089,7 +2089,7 @@
       "ownerSkill": "tdd",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "a59118ebbd8a4769d2c83987100df4e6b8d7417ec8f5d2d877cd56871de333c5",
+      "sha256": "f981bc5f3cde8f2fd57ec8b11d42af3de06c242fdc803c7a514c0d9f42455b50",
       "mode": 420,
       "origin": "kit"
     },
@@ -2259,7 +2259,7 @@
       "ownerSkill": "wrapup",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "1340ed2344982ccc26393b5e1d89614ac959de890a7513e14823758fc4694093",
+      "sha256": "eece58a858c826f8690a1443bc125e7550e6224ffccf909c06b9796d51e245e7",
       "mode": 420,
       "origin": "kit"
     },
@@ -2363,7 +2363,7 @@
       "path": "scripts/board-sync.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "4cf206abfec87578863c99f11e00c99a2048f4f8776cbcb38a23c69e73e37c16",
+      "sha256": "64444f57456b9032f427650fe110a1f0a03924cfe0ec7293b03bdf0ab9eefa67",
       "mode": 493,
       "origin": "kit"
     },
@@ -2488,10 +2488,18 @@
       "origin": "kit"
     },
     {
+      "path": "scripts/pr_body_e2e.py",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "3141521a127644de6d5abec86716d13ae1427ba2f8a8877cbfb9ed88f6095b38",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "scripts/pr-body-check.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "fd4fe050c4db485e07d7ff25fa4a029c8b05c96a58ab432ae6d4120b72f11581",
+      "sha256": "864dad50be7904cf0c1d70956352c70d2195a350a5a6875de6b866c494f16612",
       "mode": 493,
       "origin": "kit"
     },
