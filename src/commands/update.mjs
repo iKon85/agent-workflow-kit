@@ -32,21 +32,42 @@ export async function update(options) {
   const consumerManifestBefore = await readFile(consumerManifestPath);
 
   const decisions = new Map();
-  const choose = async (_action, path) => {
-    if (!decisions.has(path)) decisions.set(path, await decide('delete', path));
-    return decisions.get(path);
+  const choosePreview = async (action, path) => {
+    if (action === 'collision') return undefined;
+    const key = decisionKey(action, path);
+    if (!decisions.has(key)) decisions.set(key, await decide(action, path));
+    return decisions.get(key);
   };
-  const preview = await reconcile({ kitRoot, consumerRoot, decide: choose, dryRun: true });
+  const preview = await reconcile({ kitRoot, consumerRoot, decide: choosePreview, dryRun: true });
   await transition('preview');
-  if (preview.deleted.length || preview.keptDeleted.length) await transition('awaiting_decision');
   if (dryRun) return { ...preview, state: 'preview', history };
   if (preview.conflicts.length) return terminal(preview, 'conflicted', history, transition);
-  if (!hasUpstreamDelta(preview)) {
-    return { ...await terminal(preview, 'applied', history, transition), status: 'current' };
+  const resolvedPreview = await resolvePreview({
+    kitRoot, consumerRoot, preview, decisions, decide, transition,
+  });
+  if (resolvedPreview.conflicts.length) {
+    return terminal(resolvedPreview, 'conflicted', history, transition);
+  }
+  if (!hasUpstreamDelta(resolvedPreview)) {
+    return { ...await terminal(resolvedPreview, 'applied', history, transition), status: 'current' };
   }
   return applyTransaction({
-    kitRoot, consumerRoot, pkg, preview, decisions, verify, signal, resumeFrom,
+    kitRoot, consumerRoot, pkg, preview: resolvedPreview, decisions, verify, signal, resumeFrom,
     consumerManifestBefore, history, transition,
+  });
+}
+
+async function resolvePreview({ kitRoot, consumerRoot, preview, decisions, decide, transition }) {
+  if (preview.deleted.length || preview.keptDeleted.length || preview.collisions.length) {
+    await transition('awaiting_decision');
+  }
+  for (const path of preview.collisions) {
+    decisions.set(decisionKey('collision', path), await decide('collision', path));
+  }
+  if (!preview.collisions.length) return preview;
+  return reconcile({
+    kitRoot, consumerRoot, dryRun: true,
+    decide: (action, path) => decisions.get(decisionKey(action, path)),
   });
 }
 
@@ -59,11 +80,14 @@ async function applyTransaction(context) {
   let keepCandidate = false;
   try {
     await transition('staging');
+    if (candidateRoot && preview.collisionResolutions.length) {
+      throw new Error('collision-bearing candidate cannot be resumed safely');
+    }
     if (!candidateRoot) {
       candidateRoot = await stageConsumer(consumerRoot);
       await reconcile({
         kitRoot, consumerRoot: candidateRoot,
-        decide: (_action, path) => decisions.get(path) === true,
+        decide: (action, path) => decisions.get(decisionKey(action, path)),
       });
     }
     await transition('verifying');
@@ -83,6 +107,10 @@ async function applyTransaction(context) {
   } finally {
     if (candidateRoot && !keepCandidate) await rm(candidateRoot, { recursive: true, force: true });
   }
+}
+
+function decisionKey(action, path) {
+  return `${action}\0${path}`;
 }
 
 function verifyRelease(identities, kitVersion) {
