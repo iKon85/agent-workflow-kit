@@ -48,7 +48,7 @@ Once all decisions are made (plan locked, before sign-off/handoff) and the sessi
 
 ## Re-grill reconcile — execute-ready (Wave 26)
 
-Applies when you **re-grill an issue that already exists** (a leaf of a grilled epic, or a child of an anchor) — the most common re-grill path, since campaign HITL slices route via `/grill-me → /tdd`. Goal: the rooted sub-graph comes out **execute-ready**, never silent drift. (grill-me has no docs layer — CONTEXT.md/ADR don't apply; core rules identical to grill-with-docs §"Re-Grill Reconcile".)
+Applies when you **re-grill an issue that already exists** (a leaf of a grilled epic, or a child of an anchor) — the most common re-grill path, since campaign HITL slices route via `/grill-me → /implement`. Goal: the rooted sub-graph comes out **execute-ready**, never silent drift. (grill-me has no docs layer — CONTEXT.md/ADR don't apply; core rules identical to grill-with-docs §"Re-Grill Reconcile".)
 
 1. **Read parent-anchor decisions FIRST** — fetch the anchor body + its PRD/key decisions, take the seam decision **from there**. Do not re-derive the architecture from the leaf (lesson: a leaf whose central decision was never read got re-litigated through question rounds). For an atomic leaf, its own body/PRD is the reference.
 2. **Check the leaf for internal contradiction**: a body that contradicts itself ("no new UI" + "build a name field") or the anchor decision → **no execute**. Likewise a leaf that says *"final cut depends on #X"* via `<!-- final-cut-depends-on: #X -->` where **#X is closed** without resolving the cut.
