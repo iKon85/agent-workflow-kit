@@ -86,6 +86,15 @@ function printPlan(r) {
   ])
     if (r[k]?.length) lines.push(`${k}: ${r[k].length}`);
   if (r.conflicts?.length) lines.push(`conflicts: ${r.conflicts.length}`);
+  for (const owned of r.ownedDiffs ?? []) {
+    lines.push(`${owned.state} ${owned.path}`);
+    if (owned.binary) {
+      lines.push(`  local: ${owned.local.size} bytes sha256:${owned.local.sha256}`);
+      lines.push(`  upstream: ${owned.upstream.size} bytes sha256:${owned.upstream.sha256}`);
+    } else if (owned.diff) {
+      lines.push(owned.diff);
+    }
+  }
   p.note(lines.join('\n') || 'no changes', 'plan');
 }
 
