@@ -1,6 +1,6 @@
 ---
 name: orchestrate-wave
-"description": "Use when the user hands you a whole WAVE / cluster of pre-planned, file-disjoint slices and wants you to ORCHESTRATE building, verifying AND landing it end-to-end — often AFK / \"ultracode\". Triggers: \"orchestriere Welle #N\" (or any wording that delegates wave-landing responsibility to you), \"ultracode diese Welle / diesen Cluster\", or a wave-anchor issue (a cluster/umbrella issue with file-disjoint sub-issues whose specs are already locked) handed over to land. NOT for a single slice (just `tdd` it), NOT for finding/clustering a wave (that's `board-to-waves`), NOT for planning specs (that's `grill-with-docs`/`to-issues`)."
+"description": "Use when the user hands you a whole WAVE / cluster of pre-planned, file-disjoint slices and wants you to ORCHESTRATE building, verifying AND landing it end-to-end — often AFK / \"ultracode\". Triggers: \"orchestriere Welle #N\" (or any wording that delegates wave-landing responsibility to you), \"ultracode diese Welle / diesen Cluster\", or a wave-anchor issue (a cluster/umbrella issue with file-disjoint sub-issues whose specs are already locked) handed over to land. NOT for a single slice (just `implement` it), NOT for finding/clustering a wave (that's `board-to-waves`), NOT for planning specs (that's `grill-with-docs`/`to-issues`)."
 ---
 
 # Orchestrate Wave

@@ -119,7 +119,7 @@ One behavior, already clear enough to build — no PRD, no slicing.
 
 ```
 Small change: <one-sentence behavior>.
-`tdd` — one behavior at a time, red → green → refactor. No PRD, no decomposition.
+`implement` — build directly, one behavior at a time (red → green → refactor). No PRD, no decomposition.
 ```
 
 ### Bug (something that used to work)
@@ -134,7 +134,7 @@ Bug: <what's broken — expected vs. actual>.
 ```
 scale-check: verdict=<Program | Feature | Direct-Slice | Bug>
   criteria tripped=<C1,C2,… | none | n/a (bug/direct)>
-  route=<program grill → to-prd → to-waves (all waves execute-ready by default) | grill-with-docs → to-prd → to-issues | tdd | diagnose>
+  route=<program grill → to-prd → to-waves (all waves execute-ready by default) | grill-with-docs → to-prd → to-issues | implement | diagnose>
   start-prompt: <the paste-ready block above, filled in>
 ```
 

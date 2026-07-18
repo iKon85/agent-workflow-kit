@@ -215,7 +215,7 @@ with a wave plan, and `to-waves` unfolds it into named waves after you approve
 a full preview in chat — zero board writes until you say yes. **Bottom-up:**
 `board-to-waves` clusters loose issues into a wave candidate, which earns a
 real number only when you promote it. Either road lands in the *identical*
-wave anchor plus slice sub-issues, built through the same `tdd` → `wrapup` →
+wave anchor plus slice sub-issues, built through the same `implement` → `wrapup` →
 `retro` spine as every other wave.
 
 When the slices are file-disjoint and their specs are locked, **`orchestrate-wave`**
@@ -223,7 +223,7 @@ lands the whole anchor end-to-end — often AFK: it dispatches an implementer pe
 slice into its own worktree, integrates serially, verifies centrally, and lands
 the wave. It's the execute-and-land node of the wave ladder (`scale-check` →
 `to-waves` / `board-to-waves` → `orchestrate-wave`); a single slice still just
-goes to `tdd`.
+goes to `implement`.
 
 ![The Program-to-Phase-to-Wave-to-Slice altitude ladder, and the two routes — a planned top-down Program route and a grown bottom-up board route — that both fund the same Wave-and-Slices build spine.](docs/methodology.svg)
 
