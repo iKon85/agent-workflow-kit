@@ -1,5 +1,27 @@
 # Domain language
 
+## Upstream route
+
+The defined path by which a generic improvement discovered in a consumer
+reaches the kit: the consumer raises it as a kit issue, the kit builds and
+releases it, and the improvement returns to every consumer through a kit
+update. Raising the issue is always a question put to the user, never an
+automatic action.
+
+## Consumer-owned path
+
+An installed file a consumer has deliberately claimed as its own. The kit's
+update process leaves it untouched in every direction: no overwrite, no
+conflict report, no deletion prompt. Owning a path means forgoing all future
+kit improvements to it.
+
+## Clean shipped file
+
+A kit-shipped file in a consumer that carries no project-specific content —
+including no project issue references. Project-specific needs live in
+consumer-owned paths or consumer-native files, never as edits to a clean
+shipped file.
+
 ## Consumer-native behavior
 
 A workflow capability that a consumer project established locally before the
