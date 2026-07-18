@@ -1,6 +1,6 @@
 ---
 name: retro
-disable-model-invocation: true
+disable-model-invocation: false
 "description": "Use when the user explicitly asks for a retro after a session with PR-activity. Analyzes session friction and proposes concrete config mutations (Memory/Skill/CLAUDE.md/Hook) with per-patch approval. No file is written — findings live in the mutated config."
 ---
 
@@ -113,6 +113,25 @@ For **every** friction point (user-reported AND self-found), the agent analyzes:
 - **Repeatable or one-off?** One-off incidents → no patch needed.
 
 If the user's description in step 2a is ambiguous, the agent may ask **ONE** clarifying outcome question — e.g. "where was it most annoying — during setup, mid-work, or during cleanup?". Never multiple-choice with memory names, hook paths, or config classes.
+
+### 3a. Mechanical enforcement check (before target + weight)
+
+Before placing a finding on the target/weight ladder, ask for every finding:
+
+> **"Could a machine decide this — with a grep, parser, test, hook, or CI gate?"**
+
+- **Yes, within the current patch:** implement the enforcement. Supporting prose
+  may explain the rule, but prose alone does not resolve a machine-checkable
+  finding.
+- **Yes, but enforcement is too expensive for the current patch:** propose the
+  prose change **plus a tracked enforcement issue** and state the **explicit
+  trade-off** (why enforcement is deferred, what failure remains possible, and
+  when the issue should fire). Do not present the prose-only half as complete.
+- **No:** record why judgment is required, then continue to the target/weight
+  ladder.
+
+This check prevents detection without enforcement: a rule that a machine can
+decide should not depend on a future reader remembering a sentence.
 
 ### 3b. Determine target + weight (threshold ladder)
 
