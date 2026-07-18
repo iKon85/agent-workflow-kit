@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { promisify } from 'node:util';
 import { writeAtomic } from './atomicWrite.mjs';
+import { validateConsumerFile } from './consumerPath.mjs';
 import { sha256File } from './hash.mjs';
 import { CONSUMER_MANIFEST_NAME, indexByPath, readManifest } from './manifest.mjs';
 
@@ -63,7 +64,20 @@ export async function activateCandidate({
 async function assertConsumerStillMatchesPreview(consumerRoot, preview) {
   const manifest = await readManifest(join(consumerRoot, CONSUMER_MANIFEST_NAME));
   const installed = indexByPath(manifest, 'installed');
+  const replacements = new Set(
+    preview.collisionResolutions
+      .filter(({ outcome }) => outcome === 'replace')
+      .map(({ path }) => path),
+  );
+  for (const collision of preview.collisionResolutions) {
+    await validateConsumerFile(consumerRoot, collision.path);
+    const current = await sha256File(join(consumerRoot, collision.path));
+    if (current !== collision.destinationSha256) {
+      throw new Error(`consumer changed during verification: ${collision.path}`);
+    }
+  }
   for (const path of preview.added) {
+    if (replacements.has(path)) continue;
     if (await exists(join(consumerRoot, path))) throw new Error(`consumer changed during verification: ${path}`);
   }
   for (const path of [...preview.updated, ...preview.deleted]) {
