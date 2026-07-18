@@ -120,3 +120,36 @@ test('init is idempotent: re-run leaves filled stubs untouched', async () => {
     await cleanup(kit, consumer);
   }
 });
+
+test('re-running init preserves consumer-owned files and manifest entries, including with force', async () => {
+  const path = '.claude/skills/to-prd/SKILL.md';
+  const kit = await makeKit({ [path]: '# from kit\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const manifestPath = join(consumer, CONSUMER_MANIFEST_NAME);
+    const manifest = await readManifest(manifestPath);
+    const ownedEntry = manifest.installed.find((entry) => entry.path === path);
+    ownedEntry.origin = 'consumer';
+    await writeManifest(manifestPath, manifest);
+    await writeFile(join(consumer, path), '# consumer-owned bytes\n');
+
+    for (const force of [false, true]) {
+      await init({ kitRoot: kit, consumerRoot: consumer, force });
+
+      assert.equal(
+        await readFile(join(consumer, path), 'utf8'),
+        '# consumer-owned bytes\n',
+        `consumer-owned bytes survive init${force ? ' --force' : ''}`,
+      );
+      const after = await readManifest(manifestPath);
+      assert.deepEqual(
+        after.installed.find((entry) => entry.path === path),
+        ownedEntry,
+        `consumer-owned manifest entry survives init${force ? ' --force' : ''}`,
+      );
+    }
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
