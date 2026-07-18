@@ -4,7 +4,7 @@ pr-body-check.py — mechanical guard for the PR-body conventions that were unti
 now prose-only.
 
 Called by `wrapup` Step 0c AFTER the PR has been created/reused, BEFORE the
-merge gate. Turns three instruction-only rules into a check that actually fires:
+merge gate. Turns four instruction-only rules into a check that actually fires:
 
   1. Anker-Slice (Issue HAS a parent) → body MUST contain `Part of #<parent>`
      and MUST NOT contain a close-keyword on the **parent anchor** number
@@ -16,9 +16,12 @@ merge gate. Turns three instruction-only rules into a check that actually fires:
      auto-close never fires, wrapup Step 5b lesson).
   3. `**Retro:**`-Pflichtzeile present in one of the Slice-7 forms
      (`gefahren …` | `übersprungen …`), with a space after the marker.
+  4. Exactly one valid `E2E-NA: <reason>` trailer in the immutable pull-request
+     range requires active `E2E: n/a — <reason>` PR-body evidence.
 
-Scope: this script checks ONLY the closes/Part-of anchor rule and the
-`**Retro:**` line. It does NOT parse or validate `annahme-drift` markers
+Scope: this script checks ONLY the closes/Part-of anchor rule, the
+`**Retro:**` line, and E2E exemption evidence. It does NOT parse or validate
+`annahme-drift` markers
 (those are prose-/judgment-driven in wrapup Step 0c + 5e, deliberately not
 mechanised — R2-F6). The annahme-drift block therefore runs BEFORE this
 check in wrapup Step 0c so the body the script sees is final.
@@ -34,7 +37,7 @@ thin shell. NOT a hook — `wrapup` invokes it (Design).
 
 Usage:
   pr-body-check.py [--branch <name>] [--issue <n>] [--parent <n>|FREI]
-                   [--body-file <path>]
+                   [--body-file <path>] [--base-sha <sha>] [--head-sha <sha>]
 All flags optional; unset → derived from the current branch + live PR via gh.
 
 Audit log: .claude/logs/pr-body-check.log
@@ -47,6 +50,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from board_config import ConfigError, load_board_config  # noqa: E402
+from pr_body_e2e import (  # noqa: E402
+    check_e2e_na_line,
+    fetch_has_e2e_na_trailer,
+    fetch_pr_range,
+)
 
 try:
     _CFG = load_board_config()
@@ -122,7 +130,8 @@ def _part_of(body: str, n: int) -> bool:
         rf"\b{PART_OF_RE_SRC}(?::\s*|\s+)#0*{n}(?!\d)", body or "", re.IGNORECASE))
 
 
-def check_pr_body(body: str, issue: int, parent, is_anchor: bool = False):
+def check_pr_body(body: str, issue: int, parent, is_anchor: bool = False,
+                  has_e2e_na_trailer: bool = False):
     """Return a list of violation strings ([] = green).
 
     parent is the anchor issue number, or None for an atomar Leaf.
@@ -165,6 +174,7 @@ def check_pr_body(body: str, issue: int, parent, is_anchor: bool = False):
             "Pflichtzeile `**Retro:** gefahren — …` oder "
             "`**Retro:** übersprungen — <Grund>` fehlt.")
 
+    violations.extend(check_e2e_na_line(body, has_e2e_na_trailer))
     return violations
 
 
@@ -207,12 +217,23 @@ def fetch_is_anchor(number: int) -> bool:
     return "type:cluster" in out.splitlines()
 
 
+def resolve_has_e2e_na(args, branch: str) -> bool:
+    """Explicit test overrides win; otherwise use immutable GitHub PR SHAs."""
+    if args.base_sha or args.head_sha:
+        base_sha, head_sha = args.base_sha, args.head_sha
+    else:
+        base_sha, head_sha = fetch_pr_range(branch)
+    return fetch_has_e2e_na_trailer(base_sha, head_sha)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("--branch", help="default: current git branch")
     ap.add_argument("--issue", type=int, help="override branch-derived issue #")
     ap.add_argument("--parent", help="override parent (number or FREI)")
     ap.add_argument("--body-file", help="read PR body from file instead of gh")
+    ap.add_argument("--base-sha", help="override immutable PR base SHA")
+    ap.add_argument("--head-sha", help="override immutable PR head SHA")
     args = ap.parse_args()
 
     branch = args.branch or current_branch()
@@ -244,7 +265,14 @@ def main() -> int:
         parent = fetch_parent(issue)
 
     is_anchor = fetch_is_anchor(issue) if parent is None else False
-    violations = check_pr_body(body, issue, parent, is_anchor=is_anchor)
+    has_e2e_na = resolve_has_e2e_na(args, branch)
+    violations = check_pr_body(
+        body,
+        issue,
+        parent,
+        is_anchor=is_anchor,
+        has_e2e_na_trailer=has_e2e_na,
+    )
     kind = ("Anker-Slice" if parent is not None
             else "Wave-PR" if is_anchor else "Leaf")
     log(f"branch={branch} issue={issue} parent={parent} kind={kind} "
