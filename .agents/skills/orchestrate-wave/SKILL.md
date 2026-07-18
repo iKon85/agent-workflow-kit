@@ -40,6 +40,10 @@ you must NOT paraphrase.
   - **Plan-level error** (integration/verify reveals a wrong LOCKED decision, not a
     slice bug): STOP the wave. No improvised redesign AFK — keep worktrees intact,
     report findings + options.
+  - **On ANY wave STOP/abort:** if this run planted the active-wave claim, remove
+    exactly that claim as part of shutdown. Never delete a claim marker observed
+    during a preflight collision, nor any sibling/foreign wave marker — those are
+    owned by another run. A stale marker owned by this run would block a safe retry.
 - **Routing = one axis: how expensive is a wrong result to catch?** Mechanically
   caught (test/screenshot/lint) → default tier at medium/low effort; plausible-but-
   wrong / subtle logic / architecture → top tier at high effort + main-thread
@@ -64,19 +68,30 @@ you must NOT paraphrase.
    **once** that `/setup-workflow` plus project maintenance fill the layer (the
    commands/tunnel/login can't be guessed). Never treat an empty heading as a
    verify recipe.
-3. **Wave worktree**: reuse the planning worktree (never re-create; the handoff
+3. **Preflight — refuse a wave already in flight, otherwise claim it.** Before
+   dispatch, inspect all three same-machine collision signals: **(a)** an existing
+   `wave-active/<anchor>` tag; **(b)** any slice branch ahead of the wave's current
+   base (`git rev-list --count <base>..<slice-branch>` > 0); **(c)** uncommitted
+   changes in any slice worktree (`git -C <worktree> status --porcelain` non-empty).
+   A hit not created by this run means another session may be building the wave:
+   **STOP**, report the exact tag/branch/worktree, and do not touch it. If clean,
+   record that this run owns the claim and plant a LOCAL annotated tag:
+   `git tag -a wave-active/<anchor> -m "orchestrating since <UTC timestamp>;
+   slices: <slice-branches>"`. It is local coordination state — never push it.
+4. **Wave worktree**: reuse the planning worktree (never re-create; the handoff
    points there). Bring its branch to current `main`:
    `git -C <wave> merge --ff-only origin/main` (if your repo guards destructive
    git, ff-merge is the safe path — not `reset --hard`). Install dependencies with
    your package manager after (the lockfile may have moved). A gitignored plan doc
    survives the merge.
-4. **Run project setup steps (`§Setup`)** the later verify needs — e.g. a DB
+5. **Run project setup steps (`§Setup`)** the later verify needs — e.g. a DB
    tunnel or service the live-verify depends on. Absent layer → start whatever your
    live-verify environment requires before Phase 4.
 
 **Done when:** anchor + every sub-issue + plan read · project layer probed
-(filled → project recipe; stub/absent → generic + one-time warning) · wave branch
-ff'd to `origin/main` + deps installed · project setup steps running.
+(filled → project recipe; stub/absent → generic + one-time warning) · preflight
+clean + this run's local claim planted · wave branch ff'd to `origin/main` + deps
+installed · project setup steps running.
 
 ## Phase 1 — Disjointness recon (the load-bearing step)
 
@@ -108,6 +123,13 @@ Zero merge conflicts later depends entirely on getting this right.
   "X already exists in `<file>` — do NOT add it, consume only." (Real case: all 14
   sub-issues claimed the same registry adds + 4 contradictions — hub expanded to
   own all 20 keys, batch merged conflict-free.)
+- **Retirement slices require a valid topological deletion order.** Before
+  dispatching slices that delete a legacy cluster, map every to-delete module's
+  production importers and build the cluster's internal import graph. Order the
+  deletions so no pending slice imports a module already removed; zero remaining
+  production importers is the behavior-neutral proof. If mutually dependent
+  deletions form a cycle, separate each-slice-green steps are impossible: combine
+  the whole cycle into ONE atomic slice instead of landing dangling imports.
 
 **Done when:** FILE→SLICES table exists · every ≥2-slice file has exactly ONE
 owning slice · disjoint waves cut in dependency order · every dependent contract
@@ -225,15 +247,19 @@ checks pass · console 0/0 · DB outcome value compared.
 - **`Closes #N` needs the keyword before EACH issue, one per line** — `Closes #a,
   #b` only closes the first. Anchor → `Part of #<anchor>`, never `closes`
   (premature close).
-- **Anchor tracker: `python3 scripts/board-sync.py anchor-sync <anchor#>`** — first
-  `--dry-run`, review the diff, then write; gate symbol + stable cells of freshly
-  appended rows by hand. Mandatory at EVERY slice event: PR-create AND merge.
+- **Anchor tracker sync is mandatory at EVERY slice event (PR-create AND merge).**
+  Use the project-layer command from `§Landing`: dry-run first, review the diff,
+  then write; preserve gate symbols and stable cells of freshly appended rows.
+  Absent a filled layer, use the tracker's native parent/table reconciliation.
 - **Stacked follow-up PRs** that build on the unmerged wave: base on the **wave
-  branch** (not main) — the platform auto-retargets them when the wave PR merges.
-  Note the merge order in the body.
-- New issues via `scripts/board-sync.py` (never bare `gh issue create`); write
-  multi-paragraph PR/issue bodies via `--body-file` (an inline body with backticks
-  can crash the shell).
+  branch** (not main) and note the merge order in every PR body. **Do NOT rely on
+  auto-retarget:** deleting the merged base branch can close its stacked child.
+  Either merge the child before deleting the base, or expect the close and open a
+  FRESH PR from the child's still-existing head branch against the final base.
+  Keep any deploy/release/manual gate in the documented merge order.
+- New issues go through the project-layer board command (`§Landing`; never a bare
+  tracker-create call that skips the board). Write multi-paragraph bodies through
+  a body file so shell metacharacters cannot alter them.
 
 **Done when:** PR(s) open with correct `Closes`/`Part of` lines · anchor-sync
 written · merge order documented.
@@ -243,19 +269,40 @@ written · merge order documented.
 - Stop the dev server(s) you started, by port (`lsof -ti:<port> | xargs kill` —
   your own processes, targeted by the worktree's assigned ports, never blind).
   Remove temp verify scripts (a login helper, DB-check scripts).
+- **Remove only this run's claim marker.** If this run planted
+  `wave-active/<anchor>`, delete that exact local tag after success or abort. Never
+  delete a claim marker observed during a preflight collision or any other
+  `wave-active/*` marker; ownership, not a broad pattern, authorizes cleanup.
 - **Before removing any slice worktree, read its `ANNAHMEN.md`** (an assumptions
   log, gitignored at worktree-root) and propagate each build-time assumption marker
   to the sibling issue it carries. A hand-driven multi-PR / migration landing does
   NOT run `wrapup`'s assumption-propagation step — this is the only place it
   happens; `worktree remove` deletes the log.
-- **Post-merge:** run `anchor-sync` again; verify every leaf issue actually closed
-  (the same checks `wrapup` runs, by hand when landing outside `wrapup`). The
-  anchor closes manually — a parent is not auto-closed on sub-issue completion.
-- A skill edited during the wave → run `codex-adapter-sync` (lives in
-  `.agents/skills/`) in the SAME PR — the mirror-presence-parity lint is a
-  pre-PR gate and blocks a dual-surface skill PR without its mirror.
+- **Post-merge completion sync:** use `§Landing` to reconcile the anchor again and
+  verify every leaf actually closed. Then read the anchor's `Closing Conditions`,
+  `Done when`, and acceptance criteria and make an explicit closure decision:
+  - **No open manual gate:** close the anchor, set its project completion status to
+    the configured done role, and re-read the board item to verify both states.
+    Closing the tracker issue alone is not proof that its workflow field changed.
+  - **Open manual gate:** ask the user in the main thread, naming the exact gate and
+    condition. Confirmation follows the close/status/verify path above; otherwise
+    leave the anchor open and add exactly one completion marker explaining the
+    remaining gate and close condition.
+- **Program propagation:** resolve the anchor's native parent with the
+  project-layer command from `§Landing`. If the parent is a Program-PRD, run the
+  project-layer program sync after the anchor decision. On closure, set the
+  anchor's completion status first so the program can observe the completed wave;
+  run program sync again after close even if landing ran it earlier. If a manual
+  gate remains open, propagation may refresh the program but must not claim wave
+  completion. Absent a filled layer, use equivalent tracker-native parent lookup,
+  completion-field update, re-read, and program propagation commands.
+- A skill edited during the wave → sync its dual-surface mirror in the SAME PR
+  using the tool named by `§Landing` when present; mirror parity remains a pre-PR
+  gate.
 - Leave slice worktrees for the user to inspect, or note they're
   post-merge-removable.
 
-**Done when:** no orphan process · ANNAHMEN propagated · anchor reconciled + leaf
-closes verified · final report lists landed/pulled slices as **X of Y**.
+**Done when:** no orphan process · this run's claim removed · ANNAHMEN propagated ·
+anchor reconciled + leaf closes verified · anchor closure decided and documented ·
+Program-PRD propagation completed or explicitly skipped · final report lists
+landed/pulled slices as **X of Y**.

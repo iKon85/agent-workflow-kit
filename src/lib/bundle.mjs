@@ -34,6 +34,7 @@ export const HELPER_FILES = [
   { path: 'scripts/board-sync.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/execute-ready-check.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/pr-body-check.py', kind: 'script', mode: 0o755 },
+  { path: 'scripts/pr_body_e2e.py', kind: 'script', mode: 0o644 },
   // Mechanical executor for /wrapup (preflight/commit/land) — replaced the
   // Sonnet phase-2 subagent. Imports board_config + anchor_table
   // (both shipped above). Invokable CLI → 0o755.
@@ -91,6 +92,9 @@ export const HELPER_FILES = [
   { path: '.claude/hooks/enforce-worktree-cwd.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/enforce-worktree-discipline.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/slice-handoff-hint.py', kind: 'hook', mode: 0o755 },
+  // Advisory provenance hint for agent Edit/Write events. It reads the local
+  // consumer manifest once and fails open; setup-workflow owns activation.
+  { path: '.claude/hooks/kit-origin-edit-hint.py', kind: 'hook', mode: 0o755 },
   // Profile-driven non-blocking change-lifecycle advisories. The shell Stop
   // entry delegates to its sibling Python adapter; decisions stay in core.py.
   { path: 'scripts/workflow-advisories/core.py', kind: 'script', mode: 0o644 },

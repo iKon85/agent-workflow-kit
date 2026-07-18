@@ -8,6 +8,7 @@ import {
   readManifest, writeManifest, emptyConsumerManifest,
   filesForInstallRole, CONSUMER_INSTALL_ROLE,
   indexByPath,
+  CONSUMER_ORIGIN,
   PACKAGE_MANIFEST_NAME, CONSUMER_MANIFEST_NAME,
 } from '../lib/manifest.mjs';
 
@@ -27,12 +28,19 @@ export async function init({ kitRoot, consumerRoot, force = false }) {
   if (!pkg) throw new Error('kit package manifest not found');
   const prior = await readManifest(join(consumerRoot, CONSUMER_MANIFEST_NAME));
   const tracked = new Set((prior?.installed ?? []).map((e) => e.path));
+  const consumerOwned = new Set(
+    (prior?.installed ?? []).filter((e) => e.origin === CONSUMER_ORIGIN).map((e) => e.path),
+  );
   const packageIdx = indexByPath(pkg, 'files');
 
   const result = { copied: [], skipped: [], seeded: [] };
   const installed = [];
 
   for (const entry of prior?.installed ?? []) {
+    if (entry.origin === CONSUMER_ORIGIN) {
+      installed.push(entry);
+      continue;
+    }
     const packageEntry = packageIdx.get(entry.path);
     if (packageEntry?.installRole === CONSUMER_INSTALL_ROLE || !packageEntry?.installRole) continue;
     if (!await exists(join(consumerRoot, entry.path))) continue;
@@ -41,6 +49,10 @@ export async function init({ kitRoot, consumerRoot, force = false }) {
 
   for (const f of filesForInstallRole(pkg)) {
     const dest = join(consumerRoot, f.path);
+    if (consumerOwned.has(f.path)) {
+      result.skipped.push(f.path);
+      continue;
+    }
     if (await exists(dest) && !tracked.has(f.path) && !force) {
       result.skipped.push(f.path); // pre-existing untracked → never-clobber
       continue;

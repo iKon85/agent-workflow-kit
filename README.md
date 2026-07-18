@@ -348,6 +348,28 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 
 ## Release notes
 
+### 0.28.0
+
+- added: `.claude/hooks/kit-origin-edit-hint.py`
+- added: `scripts/pr_body_e2e.py`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/references/builder-contract.md`
+- changed: `.agents/skills/retro/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/tdd/SKILL.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/hooks/drift-guard.py`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/references/builder-contract.md`
+- changed: `.claude/skills/retro/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/tdd/SKILL.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `scripts/board-sync.py`
+- changed: `scripts/pr-body-check.py`
+
 ### 0.27.1
 
 - changed: `scripts/release-parity.mjs`

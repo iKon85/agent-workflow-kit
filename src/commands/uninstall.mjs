@@ -2,7 +2,10 @@ import { access, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { sha256File } from '../lib/hash.mjs';
 import { hookReferenced } from '../lib/settings.mjs';
-import { writeManifest, readManifest, emptyConsumerManifest, CONSUMER_MANIFEST_NAME } from '../lib/manifest.mjs';
+import {
+  writeManifest, readManifest, emptyConsumerManifest,
+  CONSUMER_MANIFEST_NAME, CONSUMER_ORIGIN,
+} from '../lib/manifest.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
 
@@ -22,6 +25,10 @@ export async function uninstall({ consumerRoot }) {
   for (const e of consumer.installed) {
     const dest = join(consumerRoot, e.path);
     if (!(await exists(dest))) continue; // already gone
+    if (e.origin === CONSUMER_ORIGIN) {
+      res.retained.push(e.path);
+      continue;
+    }
     const userEdited = (await sha256File(dest)) !== e.installedSha256;
     const referenced = e.kind === 'hook' && (await hookReferenced(consumerRoot, e.path));
     if (userEdited || referenced) {

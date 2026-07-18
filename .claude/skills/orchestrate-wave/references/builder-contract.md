@@ -51,12 +51,14 @@ invocation for each in this prompt so the builder cannot guess a wrong one.
 2. Commit your ONE commit on the slice branch FIRST — before any longer verify
    (verify-then-forget-to-commit leaves the orchestrator hand-committing your
    worktree). Do NOT push. Do NOT `--no-verify` (pre-commit hooks must pass).
-3. Run the commands above. Never end your turn with a background command still
-   running.
+3. Run the commands above IN THE FOREGROUND — never background a test/gate
+   command. Use a generous foreground timeout for a long suite and wait for every
+   completed command result. Never end your turn while a command is still running.
 
 ## Report back (concise)
-Files touched · decisions taken · test results (exact output) · commit SHA ·
-STOP items · what the orchestrator should visually verify.
+Files touched · decisions taken · test results (exact completed command results
+and exit status) · commit SHA · STOP items · what the orchestrator should visually
+verify.
 ```
 
 Orchestrator notes:

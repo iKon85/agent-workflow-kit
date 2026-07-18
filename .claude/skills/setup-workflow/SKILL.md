@@ -27,6 +27,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `.github/workflows/agent-workflow-kit-update.yml` | optional tested Kit update pull request for GitHub consumers (Section A2) |
 | `docs/agents/census.md` | optional-census choice, paths, state, and safe disable contract seeded from [census.md](./census.md) (Section A3) |
 | `docs/agents/workflow-capabilities.json` + capability assets | consumer-owned Worktree Lifecycle, Memory Lifecycle, Workflow Advisories, and Safety Guardrails choices (Sections A4–A7) |
+| `.claude/settings.json` | additive activation of the advisory kit-origin Edit/Write hint (Section A8) |
 
 ## Idempotency contract — read before writing anything
 
@@ -57,7 +58,7 @@ Read the current state; don't assume. For every target file, read its first line
 - `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/` — domain-doc layout.
 - `docs/agents/`, `docs/agents/skills/`, `docs/conventions/` — prior output of this skill.
 - `docs/agents/census.md`, `.census/profile.json`, `.census/active.json` — an existing census choice or consumer-owned census to adopt.
-- `docs/agents/workflow-capabilities.json`, `.claude/settings.json`, `git config --get core.hooksPath` — existing capability choices/profile plus Worktree Lifecycle, Workflow Advisories, and Safety Guardrails wiring to adopt.
+- `docs/agents/workflow-capabilities.json`, `.claude/settings.json`, `git config --get core.hooksPath` — existing capability choices/profile plus Worktree Lifecycle, Workflow Advisories, Safety Guardrails, and kit-origin hint wiring to adopt.
 - `.memory/active/`, `.memory/archive/`, and `.memory/receipts/` — consumer-owned Memory Lifecycle policies or recovery evidence to adopt without normalization.
 - `gh auth status` (if GitHub) — is `gh` authenticated, and with which scopes?
 
@@ -243,6 +244,42 @@ The seed's reference consumer uses the parity-on profile. Other consumers are
 opt-in/manual: never copy its package-manager, path, shim, surface, or outage
 decisions without repository evidence and user confirmation.
 
+### 2g. Section A8 — Advisory kit-origin edit hint (non-interactive)
+
+> The shipped kit-origin hook asks the upstream-or-own question before an agent
+> Edit/Write changes a file recorded with `origin: "kit"` in the consumer
+> manifest. It is advisory only: it never blocks, reads the manifest once, uses
+> no network, and silently fails open when the manifest cannot be read. Shell
+> redirection, formatters, and IDE edits are knowingly outside its coverage; the
+> skills remain the rule's primary carrier.
+
+Activate the shipped hook by reconciling this exact entry into
+`.claude/settings.json`:
+
+```json kit-origin-edit-hook-settings
+{
+  "matcher": "Edit|Write",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/kit-origin-edit-hint.py\""
+    }
+  ]
+}
+```
+
+This is an additive, idempotent settings edit, not a settings rewrite:
+
+1. Missing settings → create `{ "hooks": { "PreToolUse": [<entry>] } }`.
+2. Existing valid settings → preserve every consumer key, matcher, command,
+   hook event, ordering, and formatting byte-for-byte; append only `<entry>` to
+   `hooks.PreToolUse`.
+3. If any existing hook already contains the exact command above, do nothing,
+   regardless of its surrounding matcher. A rerun must be byte-identical.
+4. Unreadable/invalid settings, or a non-object `hooks` / non-array
+   `PreToolUse`, are consumer-owned conflicts: leave the file untouched and
+   report the skipped activation. Never replace or normalize them.
+
 ### 3. Section B — Triage labels
 
 > When `triage` processes an incoming issue it applies labels (or your tracker's equivalent). It needs strings you've actually configured, or it creates duplicates.
@@ -340,6 +377,12 @@ For Memory Lifecycle, use only the deterministic setup helper from Section A5.
 Do not copy templates with shell commands or edit the capability profile by
 hand. Report `seeded · adopted · skipped`; do not print memory contents or
 receipt contents.
+
+For `.claude/settings.json`, run the Section A8 reconciliation on fresh and
+already-initialized consumers. Report `activated · already active · skipped
+(consumer-owned conflict)`. Do not make the hook conditional on an optional
+capability choice: its self-filtering, fail-open behavior keeps it inert except
+for matching kit-origin Edit/Write events.
 
 For the **`## Workflow`**, **`## Agent skills`**, and **`## Prod`** blocks, reconcile per section in **both** CLAUDE.md and AGENTS.md that exist:
 

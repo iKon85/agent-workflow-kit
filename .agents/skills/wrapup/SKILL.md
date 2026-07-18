@@ -29,9 +29,21 @@ Hard stop (the only pure precondition): not in a feature worktree / on `main` �
 
 ### 2 · Retro gate (blocking, optional retro-exit — before anything is committed)
 One reminder, not a merge confirmation:
-> "Already ran a retro? **(a)** yes / continue → landing now. **(b)** you want one first → clean abort here, run `/retro`, then `/wrapup` again — repo-file patches then travel in this PR."
+> "Already ran a retro? **(a)** yes / continue → landing now. **(b)** you want one first → the retro starts now; afterwards, invoke `/wrapup` again — repo-file patches then travel in this PR."
 
-(b) → exit cleanly, touch nothing (a skill can't pause/resume another skill). **Never auto-run `/retro`.** The answer materializes as the mandatory `**Retro:**` PR-body line in step 4 — that's recording, not a second question. Why the gate lives here: in a foreign project this is the only portable retro touchpoint; a project-local "offer retro before PR" convention usually answers it already.
+(b) → **invoke the `retro` skill immediately in this run.** Retro is
+model-invocable and non-deploying, and every mutation still has its own approval
+gate. After retro finishes, **land nothing in this run**. Require a **fresh
+explicit `/wrapup` invocation** because retro may have changed the exact diff
+that the next merge authorization covers.
+
+General chaining rule: automatically chain only into a **model-invocable**,
+**non-deploying** workflow. If the named target is user-only, deploys, or
+depends on an external action, **return control to the user** and **state the
+reason**. A forward chain never carries wrapup's merge/deploy authorization
+into another run.
+
+The answer materializes as the mandatory `**Retro:**` PR-body line in step 4 — that's recording, not a second question. Why the gate lives here: in a foreign project this is the only portable retro touchpoint; a project-local "offer retro before PR" convention usually answers it already.
 
 ### 3 · Commit (only if the tree is dirty)
 Judgment first, then the guarded commit:
