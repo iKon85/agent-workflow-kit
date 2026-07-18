@@ -32,10 +32,12 @@ test('HELPER_FILES ships the planning ecosystem (scripts, hook, template)', () =
   assert.ok(paths.includes('docs/agents/wave-anchor-template.md'));
   // the shared board_config loader MUST ship — the 3 scripts import it
   assert.ok(paths.includes('scripts/board_config.py'));
+  assert.ok(paths.includes('scripts/pr_body_e2e.py'));
   // scripts are executable
   assert.equal(HELPER_FILES.find((h) => h.path === 'scripts/board-sync.py').mode, 0o755);
   // board_config is an imported library, not a runnable entrypoint
   assert.equal(HELPER_FILES.find((h) => h.path === 'scripts/board_config.py').mode, 0o644);
+  assert.equal(HELPER_FILES.find((h) => h.path === 'scripts/pr_body_e2e.py').mode, 0o644);
 });
 
 test('HELPER_FILES ships the complete census foundation', () => {

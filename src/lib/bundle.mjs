@@ -34,6 +34,7 @@ export const HELPER_FILES = [
   { path: 'scripts/board-sync.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/execute-ready-check.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/pr-body-check.py', kind: 'script', mode: 0o755 },
+  { path: 'scripts/pr_body_e2e.py', kind: 'script', mode: 0o644 },
   // Mechanical executor for /wrapup (preflight/commit/land) — replaced the
   // Sonnet phase-2 subagent. Imports board_config + anchor_table
   // (both shipped above). Invokable CLI → 0o755.
