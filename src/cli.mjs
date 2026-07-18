@@ -6,6 +6,8 @@ import { init } from './commands/init.mjs';
 import { update } from './commands/update.mjs';
 import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
+import { setOwnership } from './commands/own.mjs';
+import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
 import { createCommandAdapter } from '../scripts/release-state.mjs';
 import { installedIdentityFromDir } from '../scripts/release-parity.mjs';
 
@@ -21,6 +23,7 @@ const args = process.argv.slice(2);
 const cmd = args[0];
 const force = args.includes('--force');
 const yes = args.includes('--yes') || args.includes('-y');
+const owned = args.includes('--owned');
 
 p.intro('agent-workflow-kit');
 
@@ -35,15 +38,11 @@ try {
     p.outro('Next: run /setup-workflow to fill the project layer + board profile. ' +
       'To enable the drift-guard hook, add .claude/hooks/drift-guard.py to your settings.json hooks.');
   } else if (cmd === 'diff') {
-    const r = await diff({ kitRoot: KIT_ROOT, consumerRoot });
+    const r = await diff({ kitRoot: KIT_ROOT, consumerRoot, owned });
     printPlan(r);
     p.outro('Dry run — nothing written. Run `update` to apply.');
   } else if (cmd === 'update') {
-    const decide = async (_action, path) => {
-      if (yes) return true;
-      const ok = await p.confirm({ message: `Upstream removed ${path} — delete it locally?` });
-      return ok === true;
-    };
+    const decide = (action, path) => decideUpdate(action, path, yes);
     const releaseIdentities = await readUpdateRelease();
     const r = await update({
       kitRoot: KIT_ROOT, consumerRoot, now: stamp(), decide, releaseIdentities,
@@ -65,8 +64,13 @@ try {
     if (!ok) { p.cancel('Aborted.'); process.exit(0); }
     const r = await uninstall({ consumerRoot });
     p.outro(`removed ${r.removed.length} · retained (edited/referenced) ${r.retained.length}`);
+  } else if (cmd === 'own' || cmd === 'disown') {
+    if (!args[1]) throw new Error(`Usage: agent-workflow-kit ${cmd} <path>`);
+    const origin = cmd === 'own' ? CONSUMER_ORIGIN : KIT_ORIGIN;
+    await setOwnership({ consumerRoot, path: args[1], origin });
+    p.outro(`${args[1]} is now ${origin}-owned`);
   } else {
-    p.note('Usage: agent-workflow-kit <init|update|diff|uninstall> [--force] [--yes]');
+    p.note('Usage: agent-workflow-kit <init|update|diff|uninstall|own|disown> [<path>] [--force] [--yes] [--owned]');
     p.outro('');
   }
 } catch (err) {
@@ -76,10 +80,33 @@ try {
 
 function printPlan(r) {
   const lines = [];
-  for (const k of ['added', 'updated', 'userModified', 'unchanged', 'deleted', 'keptDeleted'])
+  for (const k of [
+    'added', 'updated', 'userModified', 'consumerOwned', 'unchanged',
+    'deleted', 'keptDeleted', 'collisions',
+  ])
     if (r[k]?.length) lines.push(`${k}: ${r[k].length}`);
   if (r.conflicts?.length) lines.push(`conflicts: ${r.conflicts.length}`);
   p.note(lines.join('\n') || 'no changes', 'plan');
+}
+
+async function decideUpdate(action, path, yes) {
+  if (action === 'delete') {
+    if (yes) return true;
+    return (await p.confirm({ message: `Upstream removed ${path} — delete it locally?` })) === true;
+  }
+  if (action === 'collision') {
+    if (yes) return 'replace';
+    const choice = await p.select({
+      message: `${path} already exists but is not tracked. Choose its ownership:`,
+      options: [
+        { value: 'keep-as-owned', label: 'Keep existing file as consumer-owned' },
+        { value: 'replace', label: 'Replace with kit file' },
+      ],
+    });
+    if (p.isCancel(choice)) throw new Error(`collision decision cancelled for ${path}`);
+    return choice;
+  }
+  throw new Error(`unknown update decision action: ${action}`);
 }
 
 async function readUpdateRelease() {
