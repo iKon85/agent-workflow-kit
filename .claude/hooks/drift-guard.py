@@ -48,8 +48,11 @@ GUARD_ACK_RE = re.compile(r"<!--\s*guard-ack:\s*#?\d+\s+r\d+\s+reason:.+\bby-use
 # Load the shared checker (hyphenated filename → importlib). Repo root = parents[2].
 _CHECKER_PATH = Path(__file__).resolve().parents[2] / "scripts" / "execute-ready-check.py"
 _CENSUS_MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "census" / "index.mjs"
-CENSUS_BRIDGE_TIMEOUT_SECONDS = 15
-CENSUS_PROOF_TIMEOUT_MS = 5_000
+# Production repositories can need more than the former five-second proof and
+# fifteen-second bridge budgets. Keep the default proof comfortably below the
+# outer bridge so a hung repository-local proof still cannot wedge the hook.
+CENSUS_BRIDGE_TIMEOUT_SECONDS = 30
+CENSUS_PROOF_TIMEOUT_MS = 12_000
 
 _CENSUS_SCAN = r"""
 import { readFileSync } from 'node:fs';
