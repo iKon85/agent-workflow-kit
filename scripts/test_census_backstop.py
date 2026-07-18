@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -44,6 +45,35 @@ class CensusBackstopTest(unittest.TestCase):
         (root / ".census" / "active.json").write_text(
             json.dumps(fresh) + "\n", encoding="utf-8"
         )
+
+    def test_census_bridge_uses_production_scale_budgets_and_clamps_proofs(self):
+        temporary, root = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        self.enable(root)
+        calls = []
+
+        def complete_scan(*args, **kwargs):
+            calls.append(kwargs)
+            return subprocess.CompletedProcess(
+                args=args[0], returncode=0,
+                stdout=json.dumps({"state": "bootstrap"}), stderr="",
+            )
+
+        with patch.object(DRIFT_GUARD.subprocess, "run", side_effect=complete_scan):
+            DRIFT_GUARD.scan_census_status(root)
+            DRIFT_GUARD.scan_census_status(root, proof_timeout_ms=10**9)
+
+        default_input = json.loads(calls[0]["input"])
+        clamped_input = json.loads(calls[1]["input"])
+        self.assertEqual(calls[0]["timeout"], 30)
+        self.assertEqual(default_input["proofTimeoutMs"], 12_000)
+        self.assertGreater(clamped_input["proofTimeoutMs"], 0)
+        self.assertLess(clamped_input["proofTimeoutMs"], calls[1]["timeout"] * 1_000)
+
+        for invalid in (False, 1.5, "12000"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ValueError, "proof timeout must be an integer"):
+                    DRIFT_GUARD.scan_census_status(root, proof_timeout_ms=invalid)
 
     def test_missing_disabled_bootstrap_and_offline_are_visible_but_fail_open(self):
         temporary, root = self.make_repo()
@@ -322,15 +352,14 @@ class CensusBackstopTest(unittest.TestCase):
                          ("refresh_required", True))
         self.assertIn("proof:src", failed_test["reasons"])
 
-    def test_activated_census_blocks_when_local_proof_times_out(self):
+    def test_production_scale_proof_completes_and_hung_proofs_stay_bounded(self):
         temporary, root = self.make_repo()
         self.addCleanup(temporary.cleanup)
         module = root / "scanner.mjs"
         test = root / "scanner.test.mjs"
         module.write_text("export function scanLocal() { return ['src']; }\n", encoding="utf-8")
         test.write_text(
-            "import { test } from 'node:test'; "
-            "test('hang', async () => new Promise(resolve => setTimeout(resolve, 250)));\n",
+            "import { test } from 'node:test'; test('proof', () => {});\n",
             encoding="utf-8",
         )
         subprocess.run(["git", "add", "scanner.mjs", "scanner.test.mjs"], cwd=root, check=True)
@@ -341,11 +370,32 @@ class CensusBackstopTest(unittest.TestCase):
         self.enable(root, local_scanners=[scanner])
         self.activate_current(root)
 
+        module.write_text(
+            "export async function scanLocal() { "
+            "await new Promise(resolve => setTimeout(resolve, 5200)); return ['src']; }\n",
+            encoding="utf-8",
+        )
+        valid_started = time.monotonic()
+        valid = DRIFT_GUARD.evaluate_census(root)
+        valid_elapsed = time.monotonic() - valid_started
+        self.assertEqual((valid["state"], valid["block_handoff"]), ("current", False))
+        self.assertGreater(valid_elapsed, 5)
+        self.assertLess(valid_elapsed, DRIFT_GUARD.CENSUS_BRIDGE_TIMEOUT_SECONDS)
+
+        test.write_text(
+            "import { test } from 'node:test'; "
+            "test('hang', async () => new Promise(resolve => setTimeout(resolve, 250)));\n",
+            encoding="utf-8",
+        )
+        module.write_text("export function scanLocal() { return ['src']; }\n", encoding="utf-8")
+        timeout_started = time.monotonic()
         result = DRIFT_GUARD.evaluate_census(root, proof_timeout_ms=25)
+        timeout_elapsed = time.monotonic() - timeout_started
 
         self.assertEqual((result["state"], result["block_handoff"]),
                          ("refresh_required", True))
         self.assertIn("proof:src", result["reasons"])
+        self.assertLess(timeout_elapsed, 2)
 
         test.write_text("import { test } from 'node:test'; test('proof', () => {});\n",
                         encoding="utf-8")
@@ -353,10 +403,13 @@ class CensusBackstopTest(unittest.TestCase):
             "export async function scanLocal() { return new Promise(() => {}); }\n",
             encoding="utf-8",
         )
+        scanner_timeout_started = time.monotonic()
         scanner_timeout = DRIFT_GUARD.evaluate_census(root, proof_timeout_ms=25)
+        scanner_timeout_elapsed = time.monotonic() - scanner_timeout_started
         self.assertEqual((scanner_timeout["state"], scanner_timeout["block_handoff"]),
                          ("refresh_required", True))
         self.assertIn("proof:src", scanner_timeout["reasons"])
+        self.assertLess(scanner_timeout_elapsed, 2)
 
     def test_activated_census_fails_closed_when_bridge_is_unavailable(self):
         temporary, root = self.make_repo()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """board-sync.py — single GitHub Projects-v2 board-sync / sub-issue helper.
 
-Encapsulates the five board mechanics the planning skills used to inline as bare
+Encapsulates the board mechanics the planning skills used to inline as bare
 `gh` snippets (board-to-waves, to-prd, to-issues):
 
   1. GraphQL-Link    — native parent↔child sub-issue link (`link`)
@@ -9,6 +9,10 @@ Encapsulates the five board mechanics the planning skills used to inline as bare
   3. preview-header  — `GraphQL-Features: sub_issues` on every sub-issue call
   4. Wave-Stempel    — stamp the Wave (number) field (`--wave` on `create`/`add`)
   5. board-sync      — add an issue to the board + set Status/Wave/Cluster/Path fields
+  6. next-wave       — rate-efficient title search with a bounded full-scan fallback
+  7. promotion guard — reject a Wave number already held by another anchor
+  8. item-of         — targeted item/field lookup without scanning the whole board
+  9. archive-done    — dry-run-first, bounded-batch archival of active Done items
 
 Board-specific values (field IDs, status names, labels) are NOT inlined here —
 board_config reads them from the `board-sync:profile` block in
@@ -95,6 +99,8 @@ def _status_roles_or_hint(context: str) -> dict:
     return STATUS_ROLES
 PROJECT_ITEM_LIST_LIMIT = 2000
 GH_TIMEOUT_SECONDS = 15  # a hanging gh prompt must not block a session indefinitely
+PROJECT_ITEM_LIST_TIMEOUT_SECONDS = 60  # full-board reads are slower, but still bounded
+ARCHIVE_DONE_BATCH_SIZE = 30
 
 # Sub-issues GraphQL API is behind a preview feature gate per account.
 SUB_ISSUES_HEADER = "GraphQL-Features: sub_issues"
@@ -127,11 +133,13 @@ class GhError(RuntimeError):
 # --- subprocess seam (the only thing tests monkeypatch) ----------------------
 def _gh(args: list[str]) -> str:
     """Run `gh <args>`, return stdout. Raise GhError on non-zero exit or timeout."""
+    timeout = (PROJECT_ITEM_LIST_TIMEOUT_SECONDS
+               if args[:2] == ["project", "item-list"] else GH_TIMEOUT_SECONDS)
     try:
         result = subprocess.run(["gh", *args], capture_output=True, text=True,
-                                 timeout=GH_TIMEOUT_SECONDS)
+                                 timeout=timeout)
     except subprocess.TimeoutExpired as exc:
-        raise GhError(f"gh {' '.join(args)} timed out after {GH_TIMEOUT_SECONDS}s") from exc
+        raise GhError(f"gh {' '.join(args)} timed out after {timeout}s") from exc
     if result.returncode != 0:
         # `gh api graphql` exits non-zero when the response body carries GraphQL
         # `errors` even alongside a partial `data` (stamp-batch's per-alias
@@ -422,6 +430,10 @@ WAVE_TITLE_PREFIX = wave_title_prefix(_CFG)
 _WAVE_PREFIX_RE = re.compile(
     rf"^\s*{re.escape(WAVE_TITLE_PREFIX)}\s+\d+\s*[—–-]\s*", re.IGNORECASE
 )
+_WAVE_NUMBER_RE = re.compile(rf"^{re.escape(WAVE_TITLE_PREFIX)}\s+(\d+)\b")
+_ANCHOR_TITLE_RE = re.compile(
+    rf"^{re.escape(WAVE_TITLE_PREFIX)}\s+(\d+)\s+—\s+"
+)
 # Leading conventional-commit token (`fix:`, `feat(ui):`, `chore!:`) — anchors
 # don't carry these, so strip it when present. Matches only a lowercase token,
 # so prose titles like "Supabase-Residuen entfernen: …" are left intact.
@@ -441,6 +453,26 @@ def wave_title(current: str, wave: int) -> str:
     thema = _CONVENTIONAL_PREFIX_RE.sub("", current)
     thema = _WAVE_PREFIX_RE.sub("", thema).strip()
     return f"{WAVE_TITLE_PREFIX} {wave} — {thema}"
+
+
+def compute_next_wave_from_search(payload: dict) -> Optional[int]:
+    """Return max wave-title number + 1, or None so callers can full-scan."""
+    numbers = []
+    for item in payload.get("items", []):
+        match = _WAVE_NUMBER_RE.match(item.get("title") or "")
+        if match:
+            numbers.append(int(match.group(1)))
+    return max(numbers) + 1 if numbers else None
+
+
+def wave_collision_guard(payload: dict, wave: int, issue: int) -> Optional[str]:
+    """Reject a wave number carried by another anchor; allow replay and leaves."""
+    for item in payload.get("items", []):
+        match = _ANCHOR_TITLE_RE.match(item.get("title") or "")
+        if match and int(match.group(1)) == wave and item.get("number") != issue:
+            return (f"Wave {wave} is already taken by #{item.get('number')} "
+                    f"({item.get('title')!r}); re-read `next-wave` and retry")
+    return None
 
 
 def title_edit_args(issue: int, title: str) -> list[str]:
@@ -511,6 +543,43 @@ def _field_value(issue: int, field_id: str) -> Optional[dict]:
     return extract_field_value(data, PROJECT_NODE_ID, field_id)
 
 
+def extract_item_overview(data: dict, project_node_id: str, field_ids: dict) -> Optional[dict]:
+    """Extract one issue's item id and configured field values for this project."""
+    issue = (data.get("data") or {}).get("repository", {}).get("issue") or {}
+    for node in (issue.get("projectItems") or {}).get("nodes") or []:
+        if (node.get("project") or {}).get("id") != project_node_id:
+            continue
+        by_field = {(value.get("field") or {}).get("id"): value
+                    for value in (node.get("fieldValues") or {}).get("nodes") or []}
+        overview = {"itemId": node.get("id")}
+        for name, field_id in field_ids.items():
+            value = by_field.get(field_id)
+            if value is None:
+                overview[name] = None
+            elif "number" in value:
+                overview[name] = value["number"]
+            elif "name" in value:
+                overview[name] = value["name"]
+            else:
+                overview[name] = value.get("text")
+        return overview
+    return None
+
+
+def cmd_item_of(args) -> int:
+    data = _gh_json(["api", "graphql", "-f", f"query={FIELD_VALUE_QUERY}",
+                     "-F", f"owner={PROJECT_OWNER}", "-F", f"repo={REPO_NAME}",
+                     "-F", f"num={args.issue}"])
+    overview = extract_item_overview(data, PROJECT_NODE_ID, {
+        "wave": WAVE_FIELD_ID, "status": STATUS_FIELD_ID, "cluster": CLUSTER_FIELD_ID,
+    })
+    if overview is None:
+        print("NOT-ON-BOARD")
+        return 1
+    print(json.dumps(overview, ensure_ascii=False))
+    return 0
+
+
 def _write_issue_body(issue: int, new_body: str) -> None:
     """Write an issue body via a temp file + `gh issue edit --body-file` — the
     one shared write mechanic for every body-rewriting command in this file."""
@@ -534,11 +603,99 @@ def _add_and_stamp(url, wave, status, cluster, spec_path, plan_path, dry_run) ->
 
 
 # --- commands ----------------------------------------------------------------
-def cmd_next_wave(_args) -> int:
+def cmd_next_wave(args) -> int:
+    if not getattr(args, "scan", False):
+        payload = _gh_json(["api", "-X", "GET", "search/issues",
+                            "-f", f'q=repo:{REPO} is:issue in:title "{WAVE_TITLE_PREFIX}"',
+                            "-f", "per_page=100", "-f", "sort=created", "-f", "order=desc"])
+        next_wave = compute_next_wave_from_search(payload)
+        if next_wave is not None:
+            print(next_wave)
+            return 0
+        print(f"hint: title search found no '{WAVE_TITLE_PREFIX} <N>' issue; "
+              "falling back to the full board scan", file=sys.stderr)
     items = _gh_json(["project", "item-list", str(PROJECT_NUMBER), "--owner", PROJECT_OWNER,
                       "--limit", str(PROJECT_ITEM_LIST_LIMIT), "--format", "json"]).get("items", [])
     print(compute_next_wave(items))
     return 0
+
+
+def extract_done_items(items: list[dict], done_status: str) -> list[dict]:
+    return [item for item in items
+            if item.get("id") and item.get("status") == done_status
+            and not item.get("archived", False) and not item.get("isArchived", False)]
+
+
+def build_archive_mutation(item_ids: list[str]) -> str:
+    calls = []
+    for index, item_id in enumerate(item_ids):
+        calls.append(
+            f"a{index}: archiveProjectV2Item(input: "
+            f"{{projectId: {json.dumps(PROJECT_NODE_ID)}, itemId: {json.dumps(item_id)}}}) "
+            "{ item { id } }"
+        )
+    return "mutation { " + " ".join(calls) + " }"
+
+
+def parse_archive_response(response: dict, item_ids: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
+    data = response.get("data") or {}
+    errors = {error["path"][0]: error.get("message", "unknown GraphQL error")
+              for error in response.get("errors") or [] if error.get("path")}
+    global_errors = [error.get("message", "unknown GraphQL error")
+                     for error in response.get("errors") or [] if not error.get("path")]
+    fallback = "; ".join(global_errors) or "no successful response"
+    succeeded, failed = [], []
+    for index, item_id in enumerate(item_ids):
+        alias = f"a{index}"
+        if data.get(alias) and data[alias].get("item"):
+            succeeded.append(item_id)
+        else:
+            failed.append((item_id, errors.get(alias, fallback)))
+    return succeeded, failed
+
+
+def cmd_archive_done(args) -> int:
+    done_status = resolve_status_role("done", _status_roles_or_hint("archive-done"))
+    payload = _gh_json(["project", "item-list", str(PROJECT_NUMBER),
+                        "--owner", PROJECT_OWNER, "--limit", str(PROJECT_ITEM_LIST_LIMIT),
+                        "--format", "json", "--jq",
+                        "{items: [.items[] | {id, status, archived, isArchived}], "
+                        "totalCount: .totalCount}"])
+    items = payload.get("items", [])
+    total_count = payload.get("totalCount", len(items))
+    if total_count > len(items):
+        raise ValueError(f"project item-list returned {len(items)} of {total_count} items; "
+                         "refusing a partial archive")
+    done_items = extract_done_items(items, done_status)
+    print(f"archive-done: {len(done_items)} of {total_count} active items have status {done_status}")
+    if not done_items:
+        print("archive-done: nothing to archive (idempotent)")
+        return 0
+    chunks = [done_items[start:start + ARCHIVE_DONE_BATCH_SIZE]
+              for start in range(0, len(done_items), ARCHIVE_DONE_BATCH_SIZE)]
+    if not args.apply:
+        for chunk in chunks:
+            _print_dry(["api", "graphql", "-f",
+                        f"query={build_archive_mutation([item['id'] for item in chunk])}"])
+        print("archive-done: dry-run only; pass --apply to archive")
+        return 0
+    succeeded, failed = [], []
+    for chunk in chunks:
+        item_ids = [item["id"] for item in chunk]
+        query = build_archive_mutation(item_ids)
+        try:
+            output = _gh(["api", "graphql", "-f", f"query={query}"])
+        except GhError as exc:
+            output = getattr(exc, "stdout", "") or ""
+            if not output:
+                raise
+        batch_succeeded, batch_failed = parse_archive_response(json.loads(output), item_ids)
+        succeeded += batch_succeeded
+        failed += batch_failed
+    print(f"archive-done: {len(succeeded)} of {len(done_items)} Done items archived")
+    for item_id, message in failed:
+        print(f"  ERROR {item_id}: {message}")
+    return 1 if failed else 0
 
 
 def cmd_parent_of(args) -> int:
@@ -792,6 +949,13 @@ def cmd_promote(args) -> int:
     mismatch = wave_mismatch_guard(current.get("number") if current else None, args.wave)
     if mismatch:
         print(f"error: {mismatch}", file=sys.stderr)
+        return 1
+    search = _gh_json(["api", "-X", "GET", "search/issues",
+                       "-f", f'q=repo:{REPO} is:issue in:title "{WAVE_TITLE_PREFIX} {args.wave}"',
+                       "-f", "per_page=100"])
+    collision = wave_collision_guard(search, args.wave, args.issue)
+    if collision:
+        print(f"error: {collision}", file=sys.stderr)
         return 1
     done: list[str] = []
     try:
@@ -1089,7 +1253,22 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="board-sync.py", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("next-wave", help="print the next monotone wave number").set_defaults(func=cmd_next_wave)
+    nw = sub.add_parser("next-wave", help="print the next monotone wave number "
+                                           "(cheap title search; --scan reads the full board)")
+    nw.add_argument("--scan", action="store_true")
+    nw.set_defaults(func=cmd_next_wave)
+
+    archive = sub.add_parser(
+        "archive-done",
+        help="preview archival of active Done items; --apply performs bounded batches",
+    )
+    archive.add_argument("--apply", action="store_true",
+                         help="perform archival (the default is a non-mutating dry-run)")
+    archive.set_defaults(func=cmd_archive_done)
+
+    item = sub.add_parser("item-of", help="targeted item id and field lookup for one issue")
+    item.add_argument("--issue", type=int, required=True)
+    item.set_defaults(func=cmd_item_of)
 
     po = sub.add_parser("parent-of", help="print an issue's parent number or FREI")
     po.add_argument("issue", type=int)
