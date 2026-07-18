@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import { sha256File } from './hash.mjs';
 import { lineDiff, writeAtomic } from './atomicWrite.mjs';
 import { hookReferenced } from './settings.mjs';
+import { validateConsumerFile } from './consumerPath.mjs';
 import {
   CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, emptyConsumerManifest,
-  CONSUMER_INSTALL_ROLE, filesForInstallRole,
+  CONSUMER_INSTALL_ROLE, CONSUMER_ORIGIN, KIT_ORIGIN, filesForInstallRole,
   indexByPath, readManifest, writeManifest,
 } from './manifest.mjs';
 
@@ -28,7 +29,40 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
   for (const file of installable) {
     const dest = join(consumerRoot, file.path);
     const prior = installedIdx.get(file.path);
-    const current = (await exists(dest)) ? await sha256File(dest) : null;
+    if (prior?.origin === CONSUMER_ORIGIN) {
+      nextInstalled.push(withInstallRole(prior));
+      result.consumerOwned.push(file.path);
+      continue;
+    }
+    const present = await exists(dest);
+    if (!prior && present) {
+      await validateConsumerFile(consumerRoot, file.path);
+      const decision = await decide('collision', file.path);
+      if (decision === false || decision === null || decision === undefined) {
+        if (dryRun) {
+          result.collisions.push(file.path);
+          continue;
+        }
+        throw new Error(`collision decision required for ${file.path}`);
+      }
+      if (decision !== 'keep-as-owned' && decision !== 'replace') {
+        throw new Error(`collision decision for ${file.path} must be keep-as-owned or replace`);
+      }
+      const destinationSha256 = await sha256File(dest);
+      result.collisionResolutions.push({
+        path: file.path, outcome: decision, destinationSha256,
+      });
+      if (decision === 'keep-as-owned') {
+        nextInstalled.push(entry(file, destinationSha256, CONSUMER_ORIGIN));
+        result.consumerOwned.push(file.path);
+      } else {
+        if (!dryRun) await writeAtomic(dest, await readFile(join(kitRoot, file.path)), file.mode);
+        nextInstalled.push(entry(file, file.sha256));
+        result.added.push(file.path);
+      }
+      continue;
+    }
+    const current = present ? await sha256File(dest) : null;
     if (!prior || current === null) {
       if (!dryRun) await writeAtomic(dest, await readFile(join(kitRoot, file.path)), file.mode);
       nextInstalled.push(entry(file, file.sha256));
@@ -56,6 +90,11 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
 
   for (const prior of consumer.installed) {
     if (pkgIdx.has(prior.path)) continue;
+    if (prior.origin === CONSUMER_ORIGIN) {
+      nextInstalled.push(withInstallRole(prior));
+      result.consumerOwned.push(prior.path);
+      continue;
+    }
     const dest = join(consumerRoot, prior.path);
     const current = (await exists(dest)) ? await sha256File(dest) : null;
     const userEdited = current !== null && current !== prior.installedSha256;
@@ -86,15 +125,15 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
 
 function emptyResult() {
   return {
-    unchanged: [], updated: [], conflicts: [], userModified: [],
-    added: [], deleted: [], keptDeleted: [], manifestChanged: false,
+    unchanged: [], updated: [], conflicts: [], collisions: [], collisionResolutions: [], userModified: [],
+    added: [], deleted: [], keptDeleted: [], consumerOwned: [], manifestChanged: false,
   };
 }
 
-function entry(file, installedSha256) {
+function entry(file, installedSha256, origin = KIT_ORIGIN) {
   return {
     path: file.path, kind: file.kind, ownerSkill: file.ownerSkill, surface: file.surface,
-    installedSha256, origin: 'kit', installRole: CONSUMER_INSTALL_ROLE,
+    installedSha256, origin, installRole: CONSUMER_INSTALL_ROLE,
   };
 }
 

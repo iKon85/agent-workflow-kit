@@ -320,13 +320,31 @@ npx github:iKon85/agent-workflow-kit uninstall   # remove kit-installed files
 - a file you **didn't** touch fast-forwards to the new version;
 - a file you **did** edit is kept — the incoming version is backed up with a
   timestamp and a diff is printed, never silently overwritten;
+- a file you intentionally fork can be detached with
+  `npx github:iKon85/agent-workflow-kit own <path>` and returned to kit ownership
+  with `npx github:iKon85/agent-workflow-kit disown <path>`; owned files are
+  skipped by updates even after the package stops shipping them;
 - a file removed upstream is offered for deletion (a hook still referenced by your
   `settings.json` is kept regardless);
-- new skills are added.
+- a new kit path that already exists locally is reported as a collision: choose
+  either to keep the existing file as consumer-owned or replace it with kit bytes;
+- new skills without a local collision are added.
 
-`uninstall` removes what the kit installed and retains anything you edited or
-still reference. Flags: `--force` (overwrite pre-existing files on `init`),
-`--yes` / `-y` (non-interactive).
+Ownership survives repeated `init`, including `init --force`: consumer-owned
+files are never overwritten. `uninstall` preserves consumer-owned files on disk
+but detaches them from the manifest, ending ownership tracking; it also retains
+anything edited or still referenced. The manifest remains only when other
+retained entries still require it.
+
+Use `diff --owned` to inspect owned paths without changing them. Each path is
+reported as `changed-upstream`, `removed-upstream`, `missing-locally`,
+`identical`, or `unsafe-path`; binary files report only size and hashes.
+Containment and file type are revalidated when read.
+
+Ownership commands are designed for a single-user CLI workflow and are not
+concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
+`--force` (overwrite pre-existing untracked files on `init`), `--yes` / `-y`
+(accept non-interactive update decisions).
 
 ## Release notes
 

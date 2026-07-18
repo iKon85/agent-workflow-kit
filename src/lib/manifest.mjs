@@ -13,6 +13,8 @@ import { writeAtomic } from './atomicWrite.mjs';
 export const CONSUMER_MANIFEST_NAME = 'agent-workflow-kit.json';
 export const PACKAGE_MANIFEST_NAME = 'agent-workflow-kit.package.json';
 export const CONSUMER_INSTALL_ROLE = 'consumer';
+export const KIT_ORIGIN = 'kit';
+export const CONSUMER_ORIGIN = 'consumer';
 
 /**
  * Parse a JSON manifest, or null if the file does not exist. A corrupt file
@@ -65,4 +67,20 @@ export function indexByPath(manifest, key) {
   const idx = new Map();
   for (const entry of (manifest?.[key] ?? [])) idx.set(entry.path, entry);
   return idx;
+}
+
+/** Return a manifest with one tracked entry moved to the requested ownership state. */
+export function withOrigin(manifest, path, origin) {
+  if (![KIT_ORIGIN, CONSUMER_ORIGIN].includes(origin)) {
+    throw new Error(`invalid manifest origin: ${origin}`);
+  }
+  const current = (manifest?.installed ?? []).find((entry) => entry.path === path);
+  if (!current) throw new Error(`unknown tracked path: ${path}`);
+  if ((current.origin ?? KIT_ORIGIN) === origin) {
+    throw new Error(`${path} is already ${origin}-owned`);
+  }
+  return {
+    ...manifest,
+    installed: manifest.installed.map((entry) => entry.path === path ? { ...entry, origin } : entry),
+  };
 }
