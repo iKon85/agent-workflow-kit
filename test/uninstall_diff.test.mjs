@@ -13,6 +13,7 @@ import { makeKit, makeEmptyDir, cleanup } from './helpers.mjs';
 const exists = (p) => access(p).then(() => true, () => false);
 const P = '.claude/skills/to-prd/SKILL.md';
 const H = '.claude/hooks/my-hook.py';
+const Q = '.claude/skills/to-issues/SKILL.md';
 
 test('diff classifies an upstream change without writing', async () => {
   const kit = await makeKit({ [P]: 'v1\n' });
@@ -128,6 +129,51 @@ test('uninstall retains a hook file still referenced by settings.json (safety ne
     assert.equal(await exists(join(consumer, H)), true, 'hook file not removed');
     const mf = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
     assert.equal(mf.installed.find((e) => e.path === H).orphanedByUninstall, true);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('uninstall preserves a consumer-owned file but removes its ownership entry and an otherwise-empty manifest', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const manifestPath = join(consumer, CONSUMER_MANIFEST_NAME);
+    const manifest = await readManifest(manifestPath);
+    manifest.installed.find((entry) => entry.path === P).origin = 'consumer';
+    await writeManifest(manifestPath, manifest);
+
+    const result = await uninstall({ consumerRoot: consumer });
+
+    assert.ok(result.retained.includes(P));
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'v1\n');
+    assert.equal(await exists(manifestPath), false, 'ownership tracking ended with no retained entries');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('uninstall detaches consumer-owned entries while keeping the manifest for an edited survivor', async () => {
+  const kit = await makeKit({ [P]: 'owned\n', [Q]: 'kit\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const manifestPath = join(consumer, CONSUMER_MANIFEST_NAME);
+    const manifest = await readManifest(manifestPath);
+    manifest.installed.find((entry) => entry.path === P).origin = 'consumer';
+    await writeManifest(manifestPath, manifest);
+    await writeFile(join(consumer, Q), 'consumer edit\n');
+
+    const result = await uninstall({ consumerRoot: consumer });
+
+    assert.ok(result.retained.includes(P));
+    assert.ok(result.retained.includes(Q));
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'owned\n');
+    assert.equal(await readFile(join(consumer, Q), 'utf8'), 'consumer edit\n');
+    const after = await readManifest(manifestPath);
+    assert.deepEqual(after.installed.map((entry) => entry.path), [Q]);
+    assert.equal(after.installed[0].orphanedByUninstall, true);
   } finally {
     await cleanup(kit, consumer);
   }
