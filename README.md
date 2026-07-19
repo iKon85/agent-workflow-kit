@@ -348,6 +348,10 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 
 ## Release notes
 
+### 0.29.1
+
+- Metadata-only release.
+
 ### 0.29.0
 
 - added: `scripts/codex-exec.sh`
