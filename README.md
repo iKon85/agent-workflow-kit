@@ -348,6 +348,29 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 
 ## Release notes
 
+### 0.29.0
+
+- added: `scripts/codex-exec.sh`
+- added: `scripts/codex_proc.py`
+- added: `scripts/find-by-marker.py`
+- added: `scripts/marker_lib.py`
+- added: `scripts/render-anchor.py`
+- changed: `.agents/skills/board-to-waves/SKILL.md`
+- changed: `.agents/skills/to-issues/SKILL.md`
+- changed: `.agents/skills/to-prd/SKILL.md`
+- changed: `.agents/skills/to-waves/SKILL.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/skills/board-to-waves/SKILL.md`
+- changed: `.claude/skills/codex-build/SKILL.md`
+- changed: `.claude/skills/codex-review/SKILL.md`
+- changed: `.claude/skills/grill-me-codex/SKILL.md`
+- changed: `.claude/skills/grill-with-docs-codex/SKILL.md`
+- changed: `.claude/skills/to-issues/SKILL.md`
+- changed: `.claude/skills/to-prd/SKILL.md`
+- changed: `.claude/skills/to-waves/SKILL.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `scripts/board-sync.py`
+
 ### 0.28.0
 
 - added: `.claude/hooks/kit-origin-edit-hint.py`

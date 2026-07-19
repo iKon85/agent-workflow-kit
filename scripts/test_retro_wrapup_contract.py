@@ -77,6 +77,12 @@ class WrapupChainingContract(unittest.TestCase):
                 for phrase in required:
                     self.assertIn(phrase, text)
 
+    def test_wrapup_does_not_forbid_its_affirmative_retro_chain(self):
+        for surface in SURFACES:
+            with self.subTest(surface=surface):
+                text = contract_text(surface, "wrapup")
+                self.assertNotIn("never run by this skill", text.lower())
+
     def test_only_model_invocable_non_deploying_workflows_chain(self):
         required = (
             "model-invocable",
