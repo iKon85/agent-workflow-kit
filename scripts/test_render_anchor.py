@@ -83,6 +83,22 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
                 ):
                     render_anchor.render_documents("Lean anchor\n", prd)
 
+    def test_plan_revision_requires_numeric_canonical_value(self):
+        for lookalike in ("rfoo", "r5!"):
+            with self.subTest(lookalike=lookalike, valid_revision=True):
+                malformed = f"**plan_revision:** {lookalike}"
+                prd = f"{malformed}\n**plan_revision:** r5\n\n# PRD\n"
+                rendered = render_anchor.render_documents("Lean anchor\n", prd)
+                self.assertIn(malformed, rendered.archive_body)
+
+            with self.subTest(lookalike=lookalike, valid_revision=False):
+                with self.assertRaisesRegex(
+                    ValueError, "exactly one canonical plan_revision"
+                ):
+                    render_anchor.render_documents(
+                        "Lean anchor\n", f"**plan_revision:** {lookalike}\n# PRD\n"
+                    )
+
     def test_malformed_marker_lookalikes_are_preserved(self):
         lookalikes = (
             "<!-- prd-source-id: alpha --> trailing -->",
@@ -170,17 +186,20 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
 
 class PromotionStateTableTest(unittest.TestCase):
     EXPECTED_ROWS = {
-        "initial": ("`B=no`, `C=0`, `P=absent`", "render + write body"),
+        "initial": (
+            "`S=yes`, `B=no`, `C=0`, `P=absent`",
+            "render + write body",
+        ),
         "body-written": (
-            "`B=yes`, `C=0`, `P=absent`",
+            "`S=n/a`, `B=yes`, `C=0`, `P=absent`",
             "reconcile + write archive comment",
         ),
         "comment-written": (
-            "`B=yes`, `C=exact-1`, `P=absent`",
+            "`S=n/a`, `B=yes`, `C=exact-1`, `P=absent`",
             "promote board state",
         ),
         "promoted": (
-            "`B=yes`, `C=exact-1`, `P=complete`",
+            "`S=n/a`, `B=yes`, `C=exact-1`, `P=complete`",
             "no-op; continue publish audit",
         ),
     }
@@ -233,6 +252,15 @@ class PromotionStateTableTest(unittest.TestCase):
             self.assertNotIn(
                 "wrong/missing `B` → rerender and rewrite the body", text, str(path)
             )
+
+    def test_stale_source_snapshot_stops_before_body_write(self):
+        for path in SKILLS:
+            text = path.read_text(encoding="utf-8")
+            self.assertRegex(text, r"Pre:\s+`S=yes`, `B=no`", str(path))
+            self.assertRegex(text, r"Post:\s+`S=n/a`, `B=yes`", str(path))
+            self.assertIn("`S=no`", text, str(path))
+            self.assertIn("re-fetch the remote body", text, str(path))
+            self.assertRegex(text, r"never\s+write the\s+stale render", str(path))
 
 
 if __name__ == "__main__":

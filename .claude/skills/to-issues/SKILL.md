@@ -160,13 +160,17 @@ the stable `📄 Full PRD` marker and strips every canonical marker line
 from the source body's head block. Marker-looking text in a quote, fence, or
 later section is content and remains untouched.
 
-Promotion uses the remote issue itself as its journal. Classify three
-observations before every resume: `B=yes|no` says whether the fetched issue body
-is byte-identical to `/tmp/anchor.md`. `C=0|exact-1|wrong-1|duplicates(<ids>)`
-classifies stable-marker comments: none; exactly one whose whole body is
-byte-identical to `/tmp/prd-archive.md`; exactly one with different bytes; or
-multiple matches with every comment ID retained. `P=absent|complete|partial`
-classifies only promotion-owned board state. `P=absent` accepts either an
+Promotion uses the remote issue itself as its journal. Classify four
+observations before every resume. Before transition 1, `S=yes|no` compares a
+freshly fetched remote body byte-for-byte with `/tmp/source-prd.md`, the source
+snapshot that produced both rendered outputs. Once `B=yes`, that source
+snapshot is no longer active and `S=n/a`. `B=yes|no` says whether the fetched
+issue body is byte-identical to `/tmp/anchor.md`.
+`C=0|exact-1|wrong-1|duplicates(<ids>)` classifies stable-marker comments:
+none; exactly one whose whole body is byte-identical to
+`/tmp/prd-archive.md`; exactly one with different bytes; or multiple matches
+with every comment ID retained. `P=absent|complete|partial` classifies only
+promotion-owned board state. `P=absent` accepts either an
 ordinary pre-state (no `type:cluster`, Wave unset, no `Welle` title prefix) or a
 valid Stufe-1p pre-state (`wave-stub` present, no `type:cluster`, and the
 pre-stamped Wave/title match `$WAVE`). `P=complete` requires `type:cluster`, the
@@ -195,36 +199,40 @@ start-of-body marker. The four valid states and their sole resume action are:
 <!-- promotion-state-table:start -->
 | State | Observable predicates | Resume action |
 |---|---|---|
-| `initial` | `B=no`, `C=0`, `P=absent` | render + write body |
-| `body-written` | `B=yes`, `C=0`, `P=absent` | reconcile + write archive comment |
-| `comment-written` | `B=yes`, `C=exact-1`, `P=absent` | promote board state |
-| `promoted` | `B=yes`, `C=exact-1`, `P=complete` | no-op; continue publish audit |
+| `initial` | `S=yes`, `B=no`, `C=0`, `P=absent` | render + write body |
+| `body-written` | `S=n/a`, `B=yes`, `C=0`, `P=absent` | reconcile + write archive comment |
+| `comment-written` | `S=n/a`, `B=yes`, `C=exact-1`, `P=absent` | promote board state |
+| `promoted` | `S=n/a`, `B=yes`, `C=exact-1`, `P=complete` | no-op; continue publish audit |
 <!-- promotion-state-table:end -->
 
 Each transition is idempotent and has an explicit contract:
 
-1. **Write body (`initial → body-written`).** Pre: `B=no`, `C=0`,
-   `P=absent`.
+1. **Write body (`initial → body-written`).** Pre: `S=yes`, `B=no`, `C=0`,
+   `P=absent`. Fetch the remote body again immediately before the command and
+   recompute `S`; a prior fetch is not sufficient.
    Run `gh issue edit <prd#> --body-file /tmp/anchor.md`, refetch the body, and
-   require a byte match. Post: `B=yes`, `C=0`, `P=absent`.
-2. **Write archive (`body-written → comment-written`).** Pre: `B=yes`,
+   require a byte match. Post: `S=n/a`, `B=yes`, `C=0`, `P=absent`.
+2. **Write archive (`body-written → comment-written`).** Pre: `S=n/a`, `B=yes`,
    `C=0`, `P=absent`. Re-run the pagination-aware lookup immediately before
    create; if it now yields `C=exact-1`, classify as `comment-written` and do
    not create. `C=wrong-1` or `C=duplicates(<ids>)` is drift and enters repair,
    never create. Only `C=0` runs `gh issue comment <prd#> --body-file
    /tmp/prd-archive.md`, then immediately paginate and reconcile again. Post:
-   `B=yes`, `C=exact-1`, `P=absent`.
-3. **Promote (`comment-written → promoted`).** Pre: `B=yes`, `C=exact-1`,
-   `P=absent`. Run `python3 scripts/board-sync.py promote --issue <prd#> --wave
-   "$WAVE"`, refetch body, comments, labels, Wave, and title. Post: `B=yes`,
-   `C=exact-1`, `P=complete`. Re-running `promote` with the same Wave is the
-   repair for `P=partial`; a different Wave remains a hard stop.
+   `S=n/a`, `B=yes`, `C=exact-1`, `P=absent`.
+3. **Promote (`comment-written → promoted`).** Pre: `S=n/a`, `B=yes`,
+   `C=exact-1`, `P=absent`. Run `python3 scripts/board-sync.py promote --issue <prd#> --wave
+   "$WAVE"`, refetch body, comments, labels, Wave, and title. Post: `S=n/a`,
+   `B=yes`, `C=exact-1`, `P=complete`. Re-running `promote` with the same Wave
+   is the repair for `P=partial`; a different Wave remains a hard stop.
 
 Any other predicate combination is drift, not a fifth state. Repair it
-explicitly, then reclassify. `B=no` outside the valid `initial` tuple means
-**STOP**, report the body diff against `/tmp/anchor.md`, and require an explicit
-operator decision to restore the rendered anchor or adopt the remote edit and
-rerender both outputs; never overwrite remote journal evidence automatically.
+explicitly, then reclassify. `S=no` before transition 1 means **STOP**: report
+the diff between the fresh remote body and `/tmp/source-prd.md`, never write the
+stale render, re-fetch the remote body into a reviewed source snapshot, and
+rerender both outputs before recomputing `S`. `B=no` outside the valid `initial` tuple
+means **STOP**, report the body diff against `/tmp/anchor.md`, and require
+an explicit operator decision to restore the rendered anchor or adopt the remote
+edit and rerender both outputs; never overwrite remote journal evidence automatically.
 Only transition 1 performs the approved source-to-anchor body write without
 this drift gate. `C=wrong-1` → report its ID and explicitly update it to the
 rendered archive; `P=complete` with `C=0` → create/reconcile the archive without

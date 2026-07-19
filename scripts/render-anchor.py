@@ -13,8 +13,9 @@ from marker_lib import marker_value
 
 
 PLAN_REVISION_RE = re.compile(
-    r"^\s*\*\*plan_revision:\*\*\s*(r[^\s]+)\s*$"
+    r"^\s*\*\*plan_revision:\*\*\s*(r\d+)\s*$"
 )
+PLAN_REVISION_LOOKALIKE_RE = re.compile(r"^\s*\*\*plan_revision:\*\*.*$")
 HTML_MARKER_RE = re.compile(
     r"^\s*<!--\s*(prd-source-id|prd-content-fp|prd):\s*([^>\r\n]+?)\s*-->\s*$"
 )
@@ -49,7 +50,12 @@ def _strip_head_markers(source: str) -> tuple[list[str], str]:
     for line in source.splitlines(keepends=True):
         bare = line.rstrip("\r\n")
         marker = _canonical_marker(bare)
-        if not bare.strip() or marker or HTML_COMMENT_RE.fullmatch(bare):
+        if (
+            not bare.strip()
+            or marker
+            or HTML_COMMENT_RE.fullmatch(bare)
+            or PLAN_REVISION_LOOKALIKE_RE.fullmatch(bare)
+        ):
             end += len(line)
             if marker:
                 if marker[0] == "plan_revision":
