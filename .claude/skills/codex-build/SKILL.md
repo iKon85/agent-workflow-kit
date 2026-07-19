@@ -65,12 +65,41 @@ OUTPUT: End with a report — files changed (one line each: path + what/why),
 EOF
 ```
 
+Use this guard for every wrapper round. The conditional assignment is safe
+under `set -e`: a non-zero wrapper exit reaches the structured failure branch
+instead of terminating before cleanup.
+
+```bash
+run_codex_round() {
+  if ROUND_RESULT=$("$@"); then
+    ROUND_EXIT=0
+  else
+    ROUND_EXIT=$?
+  fi
+  ROUND_STATUS=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", "EXEC_FAILED"))')
+  if (( ROUND_EXIT != 0 )) || [[ "$ROUND_STATUS" != OK ]]; then
+    printf '%s\n' "$ROUND_RESULT" >&2
+    FAILED_RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("runId", ""))')
+    if [[ -z "$FAILED_RUN_ID" && "${2:-}" == resume ]]; then
+      FAILED_RUN_ID=${3:-}
+    fi
+    if [[ -n "$FAILED_RUN_ID" ]]; then
+      scripts/codex-exec.sh abort "$FAILED_RUN_ID"
+    fi
+    if [[ "$ROUND_STATUS" == HUNG ]]; then
+      printf '%s\n' 'STOP: ask the user whether to retry once with a fresh run or stop delegation and let Claude take over.' >&2
+    fi
+    return 1
+  fi
+  RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
+  CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+}
+```
+
 ## Step 2 — Launch Codex (fresh wrapper-owned session)
 
 ```bash
-ROUND_RESULT=$(scripts/codex-exec.sh new --profile build --mode workspace-write --prompt-file "$P")
-RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
-CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+run_codex_round scripts/codex-exec.sh new --profile build --mode workspace-write --prompt-file "$P" || exit 1
 ```
 
 - The `build` profile establishes and persists `workspace-write`; never request
@@ -84,12 +113,10 @@ CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; prin
   foreign Codex processes.
 - `RUN_ID` is opaque. Retain it only for resume/finalize/abort; harvest the
   report from `CODEX_REPORT` before deleting run state.
-- On any failed or cancelled result, preserve the structured wrapper output and
-  abort that run when a `RUN_ID` exists. Never target a process directly:
-
-```bash
-scripts/codex-exec.sh abort "$RUN_ID"
-```
+- The guard surfaces every failed or cancelled structured result, aborts only
+  when the result or a resume call supplies a known run ID, executes the `HUNG`
+  user-choice path, and stops before report handling. Never target a process
+  directly.
 
 - **Heads-up on completion (required):** when a background Codex run finishes, the FIRST line of your next message to the user must be a loud standalone banner — `🔔 CODEX FINISHED — <what> (exit ok/fail) — verifying now` — BEFORE any verification output. The user is not watching tool calls; never let a completed build slide silently into the verify phase.
 
@@ -107,8 +134,7 @@ Codex's report is advisory. Verify yourself:
 Problems found → resume the SAME session (Codex keeps its context; cheaper and better than a fresh run). Write the fix list to a second temp file (`$CODEX_TMP/fix-prompt.txt`), same contract discipline: exact problem, exact file, proof expected, same allowed-write set.
 
 ```bash
-ROUND_RESULT=$(scripts/codex-exec.sh resume "$RUN_ID" --prompt-file "$CODEX_TMP/fix-prompt.txt")
-CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+run_codex_round scripts/codex-exec.sh resume "$RUN_ID" --prompt-file "$CODEX_TMP/fix-prompt.txt" || exit 1
 ```
 
 The wrapper enforces the persisted workspace-write mode on every resume.
@@ -133,7 +159,14 @@ Present: 3-bullet summary of what was built, files-changed list, proof-test outp
 
 - Commit ONLY after that finalize succeeds — and Claude writes the commit,
   never Codex.
-- Rejected → ask what's wrong, route back to Step 4 (or take over directly if fix rounds are spent).
+- Rejected with another requested fix → keep the known run and route back to
+  Step 4 (or take over directly if fix rounds are spent).
+- Cancellation or a decision to stop delegation → abort the known run before
+  returning control:
+
+  ```bash
+  scripts/codex-exec.sh abort "$RUN_ID"
+  ```
 
 ## Hard rules
 

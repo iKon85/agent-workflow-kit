@@ -77,32 +77,55 @@ Maintain `ROUND` (start 1) and the wrapper's opaque `RUN_ID`.
 
 > You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and any repo files you need; you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End your reply with EXACTLY one line: `VERDICT: APPROVED` if the plan is sound enough to implement, or `VERDICT: REVISE` if it still has material problems.
 
+Use this guard for every wrapper round. The conditional assignment is safe
+under `set -e`: a non-zero wrapper exit reaches the structured failure branch
+instead of terminating before cleanup.
+
+```bash
+run_codex_round() {
+  if ROUND_RESULT=$("$@"); then
+    ROUND_EXIT=0
+  else
+    ROUND_EXIT=$?
+  fi
+  ROUND_STATUS=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", "EXEC_FAILED"))')
+  if (( ROUND_EXIT != 0 )) || [[ "$ROUND_STATUS" != OK ]]; then
+    printf '%s\n' "$ROUND_RESULT" >&2
+    FAILED_RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("runId", ""))')
+    if [[ -z "$FAILED_RUN_ID" && "${2:-}" == resume ]]; then
+      FAILED_RUN_ID=${3:-}
+    fi
+    if [[ -n "$FAILED_RUN_ID" ]]; then
+      scripts/codex-exec.sh abort "$FAILED_RUN_ID"
+    fi
+    if [[ "$ROUND_STATUS" == HUNG ]]; then
+      printf '%s\n' 'STOP: ask the user whether to retry once with a fresh run or continue without cross-model review.' >&2
+    fi
+    return 1
+  fi
+  RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
+  CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+}
+```
+
 **Round 1** creates the session and returns the opaque run ID plus the report:
 
 ```bash
-ROUND_RESULT=$(scripts/codex-exec.sh new --profile review --mode read-only --prompt "$REVIEW_PROMPT")
-RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
-CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+run_codex_round scripts/codex-exec.sh new --profile review --mode read-only --prompt "$REVIEW_PROMPT" || exit 1
 ```
 
 **Rounds 2..MAX** resume the same wrapper-owned session; do not pass a mode
 again because the wrapper enforces the persisted read-only mode:
 
 ```bash
-ROUND_RESULT=$(scripts/codex-exec.sh resume "$RUN_ID" --prompt "I revised the plan. Re-review PLAN.md. Same rules. End with VERDICT: APPROVED or VERDICT: REVISE.")
-CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+run_codex_round scripts/codex-exec.sh resume "$RUN_ID" --prompt "I revised the plan. Re-review PLAN.md. Same rules. End with VERDICT: APPROVED or VERDICT: REVISE." || exit 1
 ```
 
 The wrapper owns stdin closure, hang detection, the overall timeout, stderr
-redaction, and its process group. If it reports `HUNG`, stop and offer the user
-the choice to retry once or continue without the cross-model review. Never
-inspect, signal, or kill foreign Codex processes. On any failed or cancelled
-path, retain the wrapper result for diagnosis and, when `RUN_ID` is available,
-clean up only that run:
-
-```bash
-scripts/codex-exec.sh abort "$RUN_ID"
-```
+redaction, and its process group. The guard surfaces every structured failure,
+aborts only when the result or a resume call supplies a known run ID, executes
+the `HUNG` user-choice path, and stops before report handling. Never inspect,
+signal, or kill foreign Codex processes.
 
 **Each round, after Codex returns:**
 1. Read `CODEX_REPORT`. Append to `LOG_FILE`: `## Round <n> — Codex` + the full critique.
