@@ -182,12 +182,72 @@ release_lease() {
 }
 
 release_or_fail() {
-  local state_dir=$1 lease_token=$2 run_id=$3
-  release_lease "$state_dir" "$lease_token" || {
-    emit_json status=EXEC_FAILED error=LEASE_RELEASE_FAILED \
-      "message=Run lease could not be released" "runId=$run_id"
-    return 1
-  }
+  local state_dir=$1 lease_token=$2 run_id=$3 original=${4:-} release_rc
+  release_lease "$state_dir" "$lease_token" && return 0
+  release_rc=$?
+  python3 - "$original" "$run_id" "$release_rc" <<'PY'
+import json
+import signal
+import sys
+
+raw, run_id, raw_rc = sys.argv[1:]
+try:
+    output = json.loads(raw)
+    if not isinstance(output, dict) or not isinstance(output.get("status"), str):
+        raise ValueError
+except (json.JSONDecodeError, ValueError):
+    rc = int(raw_rc)
+    exit_status = rc
+    signal_name = None
+    if rc >= 128:
+        try:
+            signal_name = signal.Signals(rc - 128).name
+            exit_status = None
+        except ValueError:
+            pass
+    output = {
+        "status": "EXEC_FAILED",
+        "error": "LEASE_RELEASE_FAILED",
+        "message": "Run lease could not be released",
+        "runId": run_id,
+        "originalExitStatus": exit_status,
+        "signal": signal_name,
+    }
+else:
+    output["cleanupStatus"] = "FAILED"
+    output["cleanupError"] = "LEASE_RELEASE_FAILED"
+    output["cleanupMessage"] = "Run lease could not be released"
+print(json.dumps(output, sort_keys=True))
+PY
+  return 1
+}
+
+supervisor_failed() {
+  local run_id=$1 process_status=$2
+  python3 - "$run_id" "$process_status" <<'PY'
+import json
+import signal
+import sys
+
+run_id, raw_status = sys.argv[1:]
+process_status = int(raw_status)
+exit_status = process_status
+signal_name = None
+if process_status >= 128:
+    try:
+        signal_name = signal.Signals(process_status - 128).name
+        exit_status = None
+    except ValueError:
+        pass
+print(json.dumps({
+    "status": "EXEC_FAILED",
+    "error": "ROUND_SUPERVISOR_FAILED",
+    "message": "Round supervisor exited without structured output",
+    "runId": run_id,
+    "originalExitStatus": exit_status,
+    "signal": signal_name,
+}, sort_keys=True))
+PY
 }
 
 new_run() {
@@ -236,12 +296,11 @@ new_run() {
   }
   output=$(launch_round "$state_dir" 1 "$lease_token")
   rc=$?
-  release_or_fail "$state_dir" "$lease_token" "$run_id" || return 1
+  release_or_fail "$state_dir" "$lease_token" "$run_id" "$output" || return 1
   if [[ -n $output ]]; then
     printf '%s\n' "$output" || return 1
   else
-    emit_json status=EXEC_FAILED error=ROUND_SUPERVISOR_FAILED \
-      "message=Round supervisor exited without structured output" "runId=$run_id"
+    supervisor_failed "$run_id" "$rc"
     return 1
   fi
   return "$rc"
@@ -289,10 +348,9 @@ resume_run() {
   }
   output=$(resume_run_locked "$state_dir" "$lease_token")
   rc=$?
-  release_or_fail "$state_dir" "$lease_token" "$RUN_ID" || return 1
+  release_or_fail "$state_dir" "$lease_token" "$RUN_ID" "$output" || return 1
   if [[ -z $output ]]; then
-    emit_json status=EXEC_FAILED error=ROUND_SUPERVISOR_FAILED \
-      "message=Round supervisor exited without structured output" "runId=$RUN_ID"
+    supervisor_failed "$RUN_ID" "$rc"
     return 1
   fi
   printf '%s\n' "$output" || return 1

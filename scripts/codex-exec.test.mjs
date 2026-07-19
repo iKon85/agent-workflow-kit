@@ -347,6 +347,49 @@ test('stale cleanup tolerates a state disappearing after candidate listing', asy
   }
 });
 
+test('stale cleanup cannot delete a run whose resume acquired the shared lease', async () => {
+  const fx = fixture();
+  const original = invoke(fx, launchArgs()).output;
+  utimesSync(original.stateDir, 0, 0);
+  const marker = join(fx.dir, 'cleanup-listed');
+  const cleanupRun = spawn(helper, launchArgs(), {
+    cwd: root, encoding: 'utf8', env: {
+      ...process.env,
+      CODEX_EXEC_STATE_ROOT: fx.stateRoot,
+      CODEX_EXEC_STALE_SECONDS: '1',
+      CODEX_EXEC_TEST_CLEANUP_PAUSE_MARKER: marker,
+      FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
+    },
+  });
+  cleanupRun.stdout.on('data', () => {});
+  let resumed;
+  try {
+    assert.ok(await waitFor(() => exists(marker)));
+    resumed = spawn(helper, [
+      'resume', original.runId, '--codex-bin', fake, '--prompt', 'Again',
+      '--timeout', '5', '--probe-timeout', '1',
+    ], {
+      cwd: root, encoding: 'utf8', env: {
+        ...process.env,
+        CODEX_EXEC_STATE_ROOT: fx.stateRoot,
+        FAKE_CODEX_SCENARIO: 'group-hang',
+        FAKE_CODEX_PAUSE_MS: '5000',
+        FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
+      },
+    });
+    resumed.stdout.on('data', () => {});
+    assert.ok(await waitFor(() => readJson(join(original.stateDir, 'runtime.json'))?.round === 2));
+    assert.ok(await waitFor(() => cleanupRun.exitCode !== null, 3_000));
+    assert.equal(cleanupRun.exitCode, 0);
+    assert.equal(exists(join(original.stateDir, 'runtime.json')), true);
+    assert.equal(invoke(fx, ['abort', original.runId]).output.status, 'OK');
+    assert.ok(await waitFor(() => resumed.exitCode !== null, 3_000));
+  } finally {
+    cleanupRun.kill('SIGKILL');
+    resumed?.kill('SIGKILL');
+  }
+});
+
 test('stale cleanup removes abandoned runtime state without signaling its persisted pgid', () => {
   const fx = fixture();
   const decoy = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true });
@@ -536,6 +579,9 @@ test('a runtime publication failure reaps the owned child before releasing its l
     FAKE_CODEX_PAUSE_MS: '5000',
   });
   assert.notEqual(result.status, 0);
+  assert.equal(result.output.error, 'ROUND_SUPERVISOR_FAILED');
+  assert.equal(result.output.originalExitStatus, 1);
+  assert.equal(result.output.signal, null);
   const pid = Number(readFileSync(childPid, 'utf8'));
   assert.equal(await waitFor(() => !alive(pid), 1_000), true);
   const [stateName] = readdirSync(fx.stateRoot);
@@ -561,12 +607,28 @@ test('lease release failure is structured and cannot masquerade as a successful 
   const fx = fixture();
   const result = invoke(fx, launchArgs(), { CODEX_EXEC_TEST_LEASE_RELEASE_FAIL: '1' });
   assert.notEqual(result.status, 0);
-  assert.equal(result.output.error, 'LEASE_RELEASE_FAILED');
+  assert.equal(result.output.status, 'OK');
+  assert.equal(result.output.cleanupStatus, 'FAILED');
+  assert.equal(result.output.cleanupError, 'LEASE_RELEASE_FAILED');
   assert.ok(result.output.runId);
   assert.equal(result.stdout.trim().split('\n').length, 1);
   const stateDir = join(fx.stateRoot, `codex-exec.${result.output.runId}`);
   assert.equal(exists(join(stateDir, 'round.lease')), true);
   assert.equal(invoke(fx, ['resume', result.output.runId]).output.error, 'ACTIVE_RUN');
+});
+
+test('lease release failure preserves a non-OK round classification and signal', () => {
+  const fx = fixture();
+  const result = invoke(fx, launchArgs(), {
+    CODEX_EXEC_TEST_LEASE_RELEASE_FAIL: '1',
+    FAKE_CODEX_SCENARIO: 'silent',
+    FAKE_CODEX_PAUSE_MS: '1000',
+  });
+  assert.notEqual(result.status, 0);
+  assert.equal(result.output.status, 'HUNG');
+  assert.equal(result.output.signal, 'SIGTERM');
+  assert.equal(result.output.cleanupStatus, 'FAILED');
+  assert.equal(result.output.cleanupError, 'LEASE_RELEASE_FAILED');
 });
 
 test('timeout kills descendants after the process-group leader has exited', () => {

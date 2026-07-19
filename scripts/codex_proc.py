@@ -112,14 +112,19 @@ def valid_owner(owner: dict | None) -> bool:
     )
 
 
-def acquire_lease_for_state(state_dir: Path) -> str | None:
+def acquire_lease_for_state(state_dir: Path, fallback_round: int | None = None) -> str | None:
     lease = lease_dir(state_dir)
     try:
         lease.mkdir(mode=0o700)
     except (FileExistsError, FileNotFoundError):
         return None
     try:
-        round_number = int((state_dir / "next-round").read_text(encoding="utf-8").strip())
+        try:
+            round_number = int((state_dir / "next-round").read_text(encoding="utf-8").strip())
+        except (FileNotFoundError, OSError, UnicodeDecodeError, ValueError):
+            if fallback_round is None:
+                raise
+            round_number = fallback_round
         if round_number < 1:
             raise ValueError
         token = secrets.token_hex(32)
@@ -150,7 +155,7 @@ def release_lease_for_state(state_dir: Path, token: str) -> bool:
         remove_durable(lease / LEASE_OWNER_NAME)
         lease.rmdir()
         fsync_directory(state_dir)
-    except FileNotFoundError:
+    except OSError:
         return False
     return True
 
@@ -468,6 +473,26 @@ def live_lease(state_dir: Path, now: float, stale_seconds: float) -> bool:
     return math.isfinite(acquired_at) and 0 <= now - acquired_at < stale_seconds
 
 
+def claim_cleanup_lease(state_dir: Path, now: float, stale_seconds: float) -> str | None:
+    token = acquire_lease_for_state(state_dir, fallback_round=1)
+    if token:
+        return token
+    if live_lease(state_dir, now, stale_seconds):
+        return None
+    if live_runtime(state_dir / "runtime.json", now, stale_seconds):
+        return None
+    lease = lease_dir(state_dir)
+    quarantine = state_dir / f".stale-lease.{secrets.token_hex(8)}"
+    try:
+        lease.rename(quarantine)
+    except (FileNotFoundError, OSError):
+        return None
+    try:
+        return acquire_lease_for_state(state_dir, fallback_round=1)
+    finally:
+        shutil.rmtree(quarantine, ignore_errors=True)
+
+
 def live_runtime(runtime_path: Path, now: float, stale_seconds: float) -> bool:
     runtime = read_object(runtime_path)
     if not runtime:
@@ -506,27 +531,35 @@ def cleanup(args: argparse.Namespace) -> int:
     for _, state_dir in candidates:
         if removed >= args.max_delete:
             break
-        run_id = state_dir.name.removeprefix("codex-exec.")
-        identity = state_dir / "run-id"
-        protected = (
-            (state_dir / "debug-retain").exists()
-            or live_runtime(state_dir / "runtime.json", now, args.stale_seconds)
-            or live_lease(state_dir, now, args.stale_seconds)
-        )
         try:
-            valid = identity.read_text().strip() == run_id
-        except (FileNotFoundError, OSError):
-            valid = False
-        try:
-            old_enough = now - state_dir.stat().st_mtime >= args.stale_seconds
-        except FileNotFoundError:
-            continue
-        if valid and not protected and old_enough:
-            try:
-                shutil.rmtree(state_dir)
-            except FileNotFoundError:
+            preclaim_mtime = state_dir.stat().st_mtime
+            if now - preclaim_mtime < args.stale_seconds:
                 continue
-            removed += 1
+        except (FileNotFoundError, OSError):
+            continue
+        token = claim_cleanup_lease(state_dir, now, args.stale_seconds)
+        if not token:
+            continue
+        deleted = False
+        try:
+            try:
+                valid = (state_dir / "run-id").read_text().strip() == state_dir.name.removeprefix("codex-exec.")
+            except (FileNotFoundError, OSError):
+                continue
+            protected = (
+                (state_dir / "debug-retain").exists()
+                or live_runtime(state_dir / "runtime.json", time.time(), args.stale_seconds)
+            )
+            if valid and now - preclaim_mtime >= args.stale_seconds and not protected:
+                try:
+                    shutil.rmtree(state_dir)
+                except FileNotFoundError:
+                    continue
+                deleted = True
+                removed += 1
+        finally:
+            if not deleted and state_dir.exists():
+                release_lease_for_state(state_dir, token)
     return 0
 
 
