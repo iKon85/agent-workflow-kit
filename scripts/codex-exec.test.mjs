@@ -611,10 +611,17 @@ test('lease release failure is structured and cannot masquerade as a successful 
   assert.equal(result.output.cleanupStatus, 'FAILED');
   assert.equal(result.output.cleanupError, 'LEASE_RELEASE_FAILED');
   assert.ok(result.output.runId);
+  assert.doesNotMatch(result.stderr, /Traceback/);
   assert.equal(result.stdout.trim().split('\n').length, 1);
   const stateDir = join(fx.stateRoot, `codex-exec.${result.output.runId}`);
   assert.equal(exists(join(stateDir, 'round.lease')), true);
   assert.equal(invoke(fx, ['resume', result.output.runId]).output.error, 'ACTIVE_RUN');
+  const handled = invoke(fx, ['handle-failure', '--result', JSON.stringify(result.output)]);
+  assert.notEqual(handled.status, 0);
+  assert.equal(handled.output.status, 'OK');
+  assert.equal(handled.output.cleanupError, 'LEASE_RELEASE_FAILED');
+  assert.equal(handled.output.recoveryCleanupStatus, 'FAILED');
+  assert.equal(handled.output.recoveryCleanupError, 'ABORT_FAILED');
 });
 
 test('lease release failure preserves a non-OK round classification and signal', () => {

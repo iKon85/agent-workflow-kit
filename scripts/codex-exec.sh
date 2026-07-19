@@ -439,7 +439,8 @@ except (json.JSONDecodeError, ValueError):
         },
     }
 else:
-    if status == "OK":
+    cleanup_failed = result.get("cleanupStatus") == "FAILED"
+    if status == "OK" and not cleanup_failed:
         parsed = {
             "kind": "ok",
             "resolved": "",
@@ -452,7 +453,9 @@ else:
     else:
         malformed_fields = any(
             key in result and not isinstance(result[key], str)
-            for key in ("error", "message")
+            for key in (
+                "error", "message", "cleanupStatus", "cleanupError", "cleanupMessage",
+            )
         )
         result_run_id = result.get("runId")
         malformed_run_id = (
@@ -503,9 +506,14 @@ try:
     cleanup = json.loads(sys.argv[2])
 except json.JSONDecodeError:
     cleanup = {}
-original["cleanupStatus"] = "FAILED"
-original["cleanupError"] = cleanup.get("error", "CLEANUP_FAILED")
-original["cleanupMessage"] = cleanup.get("message", "Run cleanup failed")
+if original.get("cleanupStatus") == "FAILED":
+    original["recoveryCleanupStatus"] = "FAILED"
+    original["recoveryCleanupError"] = cleanup.get("error", "CLEANUP_FAILED")
+    original["recoveryCleanupMessage"] = cleanup.get("message", "Run recovery cleanup failed")
+else:
+    original["cleanupStatus"] = "FAILED"
+    original["cleanupError"] = cleanup.get("error", "CLEANUP_FAILED")
+    original["cleanupMessage"] = cleanup.get("message", "Run cleanup failed")
 print(json.dumps(original, separators=(",", ":"), sort_keys=True))
 PY
       )
