@@ -1,0 +1,247 @@
+#!/usr/bin/env bash
+set -u
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROC_HELPER="$SCRIPT_DIR/codex_proc.py"
+TESTED_VERSIONS=("0.137.0" "0.144.6")
+STATE_ROOT=${CODEX_EXEC_STATE_ROOT:-${TMPDIR:-/tmp}/codex-exec-state}
+
+emit_json() {
+  python3 - "$@" <<'PY'
+import json, sys
+fields = {}
+for pair in sys.argv[1:]:
+    key, value = pair.split("=", 1)
+    fields[key] = value
+print(json.dumps(fields, sort_keys=True))
+PY
+}
+
+fail() {
+  local error=$1 message=$2 status=${3:-EXEC_FAILED}
+  emit_json "status=$status" "error=$error" "message=$message"
+  return 1
+}
+
+positive_number() {
+  python3 - "$1" <<'PY' >/dev/null 2>&1
+import math, sys
+try:
+    value = float(sys.argv[1])
+    assert math.isfinite(value) and value > 0
+except (ValueError, AssertionError):
+    raise SystemExit(1)
+PY
+}
+
+find_state() {
+  local run_id=$1
+  [[ $run_id =~ ^[A-Za-z0-9]+$ ]] || return 1
+  local candidate="$STATE_ROOT/codex-exec.$run_id"
+  [[ -d $candidate && -f $candidate/run-id ]] || return 1
+  [[ $(<"$candidate/run-id") == "$run_id" ]] || return 1
+  printf '%s\n' "$candidate"
+}
+
+preflight() {
+  local codex_bin=$1 quiet=${2:-false} version_text version auth help resume_help platform allowed=false
+  if [[ ! -x $codex_bin ]] && ! command -v "$codex_bin" >/dev/null 2>&1; then
+    fail CODEX_NOT_FOUND "Codex executable not found"
+    return 1
+  fi
+  version_text=$("$codex_bin" --version 2>&1) || {
+    fail VERSION_CHECK_FAILED "Unable to read Codex version"
+    return 1
+  }
+  version=${version_text##* }
+  for tested in "${TESTED_VERSIONS[@]}"; do
+    [[ $version == "$tested" ]] && allowed=true
+  done
+  if [[ $allowed != true ]]; then
+    fail UNTESTED_VERSION "Codex version is not in the exact tested allowlist"
+    return 1
+  fi
+  platform=$(uname -s)
+  if [[ $platform != Linux && $platform != Darwin ]] || ! python3 -c 'import os; assert hasattr(os, "setsid")' >/dev/null 2>&1; then
+    fail MISSING_CAPABILITY "Platform cannot create an owned process group"
+    return 1
+  fi
+  help=$("$codex_bin" exec --help 2>&1) || true
+  if [[ $help != *--json* || $help != *--sandbox* || $help != *resume* ]]; then
+    fail MISSING_CAPABILITY "Codex exec lacks required JSON, sandbox, or resume capability"
+    return 1
+  fi
+  resume_help=$("$codex_bin" exec resume --help 2>&1) || true
+  if [[ $resume_help != *--config* || $resume_help != *--json* ]]; then
+    fail MISSING_CAPABILITY "Codex exec resume lacks required config or JSON capability"
+    return 1
+  fi
+  auth=$("$codex_bin" login status 2>&1) || {
+    fail AUTH_REQUIRED "$auth" AUTH
+    return 1
+  }
+  [[ $quiet == true ]] || emit_json status=OK "version=$version" "auth=$auth" "platform=$platform"
+}
+
+parse_options() {
+  CODEX_BIN=codex PROFILE= SANDBOX= PROMPT= PROMPT_FILE= RUN_ID= TIMEOUT= PROBE_TIMEOUT= DEBUG_RETAIN=false
+  while (($#)); do
+    case $1 in
+      --codex-bin|--profile|--sandbox|--prompt|--prompt-file|--run-id|--timeout|--probe-timeout)
+        (($# >= 2)) || { fail INVALID_ARGUMENT "Missing value for $1"; return 1; }
+        case $1 in
+          --codex-bin) CODEX_BIN=$2 ;;
+          --profile) PROFILE=$2 ;;
+          --sandbox) SANDBOX=$2 ;;
+          --prompt) PROMPT=$2 ;;
+          --prompt-file) PROMPT_FILE=$2 ;;
+          --run-id) RUN_ID=$2 ;;
+          --timeout) TIMEOUT=$2 ;;
+          --probe-timeout) PROBE_TIMEOUT=$2 ;;
+        esac
+        shift 2 ;;
+      --debug-retain) DEBUG_RETAIN=true; shift ;;
+      *) fail INVALID_ARGUMENT "Unknown option: $1"; return 1 ;;
+    esac
+  done
+}
+
+prepare_prompt() {
+  local state_dir=$1
+  TEMP_PROMPT="$state_dir/.prompt-input"
+  if [[ -n $PROMPT_FILE ]]; then
+    [[ -f $PROMPT_FILE ]] || { fail PROMPT_NOT_FOUND "Prompt file not found"; return 1; }
+    cp "$PROMPT_FILE" "$TEMP_PROMPT"
+  elif [[ -n $PROMPT ]]; then
+    printf '%s' "$PROMPT" >"$TEMP_PROMPT"
+  else
+    fail PROMPT_REQUIRED "A prompt or prompt file is required"
+    return 1
+  fi
+  chmod 600 "$TEMP_PROMPT"
+}
+
+launch_round() {
+  local state_dir=$1 round=$2 thread_id=${3:-} result rc
+  prepare_prompt "$state_dir" || return 1
+  local command
+  if [[ -z $thread_id ]]; then
+    command=("$CODEX_BIN" exec --json --sandbox "$SANDBOX" -)
+  else
+    command=("$CODEX_BIN" exec resume "$thread_id" -c "sandbox_mode=$SANDBOX" --json -)
+  fi
+  python3 "$PROC_HELPER" run --state-dir "$state_dir" --round "$round" \
+    --profile "$PROFILE" --sandbox "$SANDBOX" --timeout "$TIMEOUT" \
+    --probe-timeout "$PROBE_TIMEOUT" --prompt-file "$TEMP_PROMPT" -- "${command[@]}"
+  rc=$?
+  rm -f "$TEMP_PROMPT"
+  result="$state_dir/round-$round.result.json"
+  if [[ -f $result ]]; then
+    python3 - "$result" "$state_dir" "$round" <<'PY'
+import json, pathlib, sys
+result = json.loads(pathlib.Path(sys.argv[1]).read_text())
+state = pathlib.Path(sys.argv[2])
+if result.get("threadId"):
+    (state / "thread-id").write_text(result["threadId"] + "\n")
+(state / "next-round").write_text(str(int(sys.argv[3]) + 1) + "\n")
+PY
+  fi
+  return "$rc"
+}
+
+new_run() {
+  parse_options "$@" || return 1
+  PROFILE=${PROFILE:-review}
+  SANDBOX=${SANDBOX:-read-only}
+  [[ $PROFILE == review || $PROFILE == build ]] || { fail INVALID_PROFILE "Profile must be review or build"; return 1; }
+  [[ $SANDBOX != danger-full-access ]] || {
+    fail DANGER_FULL_ACCESS_REJECTED "danger-full-access is not a supported lifecycle mode"; return 1;
+  }
+  [[ $SANDBOX == read-only || $SANDBOX == workspace-write ]] || {
+    fail INVALID_SANDBOX "Sandbox must be read-only or workspace-write"; return 1;
+  }
+  [[ -n $PROMPT || -n $PROMPT_FILE ]] || { fail PROMPT_REQUIRED "A prompt or prompt file is required"; return 1; }
+  TIMEOUT=${TIMEOUT:-$([[ $PROFILE == review ]] && echo 600 || echo 1800)}
+  PROBE_TIMEOUT=${PROBE_TIMEOUT:-$([[ $PROFILE == review ]] && echo 30 || echo 60)}
+  positive_number "$TIMEOUT" && positive_number "$PROBE_TIMEOUT" || {
+    fail INVALID_TIMEOUT "Timeouts must be finite positive numbers"; return 1;
+  }
+  preflight "$CODEX_BIN" true || return 1
+  mkdir -p "$STATE_ROOT" && chmod 700 "$STATE_ROOT"
+  python3 "$PROC_HELPER" cleanup --state-root "$STATE_ROOT" \
+    --stale-seconds "${CODEX_EXEC_STALE_SECONDS:-604800}" \
+    --max-delete "${CODEX_EXEC_STALE_MAX_DELETE:-8}" || {
+      fail STALE_CLEANUP_FAILED "Bounded stale-state cleanup failed"; return 1;
+    }
+  local state_dir run_id
+  state_dir=$(mktemp -d "$STATE_ROOT/codex-exec.XXXXXXXX") || return 1
+  chmod 700 "$state_dir"
+  run_id=${state_dir##*.}
+  printf '%s\n' "$run_id" >"$state_dir/run-id"
+  printf '%s\n' "$PROFILE" >"$state_dir/profile"
+  printf '%s\n' "$SANDBOX" >"$state_dir/sandbox"
+  printf '1\n' >"$state_dir/next-round"
+  chmod 600 "$state_dir"/*
+  launch_round "$state_dir" 1
+}
+
+resume_run() {
+  parse_options "$@" || return 1
+  [[ -n $RUN_ID ]] || { fail RUN_ID_REQUIRED "Resume requires --run-id"; return 1; }
+  local state_dir stored_sandbox thread_id round
+  state_dir=$(find_state "$RUN_ID") || { fail RUN_NOT_FOUND "Run state does not exist"; return 1; }
+  stored_sandbox=$(<"$state_dir/sandbox")
+  PROFILE=$(<"$state_dir/profile")
+  if [[ -n $SANDBOX && $SANDBOX != "$stored_sandbox" ]]; then
+    fail MODE_MISMATCH "Resume sandbox differs from persisted mode"
+    return 1
+  fi
+  SANDBOX=$stored_sandbox
+  [[ -f $state_dir/thread-id ]] || { fail NO_THREAD "Run has no resumable thread" NO-THREAD; return 1; }
+  thread_id=$(<"$state_dir/thread-id")
+  round=$(<"$state_dir/next-round")
+  TIMEOUT=${TIMEOUT:-$([[ $PROFILE == review ]] && echo 600 || echo 1800)}
+  PROBE_TIMEOUT=${PROBE_TIMEOUT:-$([[ $PROFILE == review ]] && echo 30 || echo 60)}
+  positive_number "$TIMEOUT" && positive_number "$PROBE_TIMEOUT" || {
+    fail INVALID_TIMEOUT "Timeouts must be finite positive numbers"; return 1;
+  }
+  preflight "$CODEX_BIN" true || return 1
+  launch_round "$state_dir" "$round" "$thread_id"
+}
+
+finish_run() {
+  local action=$1; shift
+  parse_options "$@" || return 1
+  [[ -n $RUN_ID ]] || { fail RUN_ID_REQUIRED "$action requires --run-id"; return 1; }
+  local state_dir
+  state_dir=$(find_state "$RUN_ID") || { fail RUN_NOT_FOUND "Run state does not exist"; return 1; }
+  if [[ $action == abort ]]; then
+    python3 "$PROC_HELPER" cancel --state-dir "$state_dir" || {
+      fail ABORT_FAILED "Owned process group did not stop"; return 1;
+    }
+  elif [[ -f $state_dir/runtime.json ]]; then
+    fail ACTIVE_RUN "Use abort for an active run"
+    return 1
+  fi
+  if [[ $DEBUG_RETAIN == false ]]; then
+    rm -rf -- "$state_dir"
+  else
+    : >"$state_dir/debug-retain"
+  fi
+  emit_json status=OK "action=$action" "runId=$RUN_ID" "retained=$DEBUG_RETAIN"
+}
+
+main() {
+  local action=${1:-}
+  [[ -n $action ]] || { fail ACTION_REQUIRED "Expected preflight, new, resume, finalize, or abort"; return 1; }
+  shift
+  case $action in
+    preflight) parse_options "$@" && preflight "$CODEX_BIN" ;;
+    new) new_run "$@" ;;
+    resume) resume_run "$@" ;;
+    finalize|abort) finish_run "$action" "$@" ;;
+    *) fail INVALID_ACTION "Unknown action: $action" ;;
+  esac
+}
+
+main "$@"
