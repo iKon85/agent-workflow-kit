@@ -34,7 +34,7 @@ function invoke(fx, args, extraEnv = {}) {
 }
 
 const launchArgs = (profile = 'review') => [
-  'new', '--codex-bin', fake, '--profile', profile, '--sandbox', 'read-only',
+  'new', '--codex-bin', fake, '--profile', profile, '--mode', 'read-only',
   '--prompt', 'Return a verdict', '--timeout', '2', '--probe-timeout', '0.15',
 ];
 const exists = (path) => { try { statSync(path); return true; } catch { return false; } };
@@ -68,7 +68,7 @@ test('preflight accepts only exact tested versions and capabilities before launc
   assert.equal(exists(fx.launchLog), false);
 });
 
-test('new and resume preserve immutable rounds and reject sandbox drift', () => {
+test('new and resume preserve immutable rounds and reject mode drift', () => {
   const fx = fixture();
   const first = invoke(fx, launchArgs());
   assert.equal(first.output.status, 'OK');
@@ -78,8 +78,8 @@ test('new and resume preserve immutable rounds and reject sandbox drift', () => 
   assert.ok(exists(join(first.output.stateDir, 'round-1.result.json')));
 
   const second = invoke(fx, [
-    'resume', '--codex-bin', fake, '--run-id', first.output.runId,
-    '--sandbox', 'read-only', '--prompt', 'Again', '--timeout', '2',
+    'resume', first.output.runId, '--codex-bin', fake,
+    '--prompt', 'Again', '--timeout', '2',
   ]);
   assert.equal(second.output.status, 'OK');
   assert.equal(second.output.round, 2);
@@ -92,40 +92,42 @@ test('new and resume preserve immutable rounds and reject sandbox drift', () => 
   assert.equal(resumeCommand[4], 'sandbox_mode=read-only');
 
   const mismatch = invoke(fx, [
-    'resume', '--codex-bin', fake, '--run-id', first.output.runId,
-    '--sandbox', 'workspace-write', '--prompt', 'No',
+    'resume', first.output.runId, '--codex-bin', fake,
+    '--mode', 'workspace-write', '--prompt', 'No',
   ]);
   assert.equal(mismatch.output.error, 'MODE_MISMATCH');
   assert.equal(invoke(fx, ['resume', '--codex-bin', fake]).output.error, 'RUN_ID_REQUIRED');
 });
 
-test('invalid timeout and sandbox inputs fail before launch', () => {
+test('invalid timeout and mode inputs fail before launch', () => {
   const fx = fixture();
   const timeout = invoke(fx, launchArgs().map((value, index, all) => (
     all[index - 1] === '--timeout' ? 'NaN' : value
   )));
   assert.equal(timeout.output.error, 'INVALID_TIMEOUT');
-  const sandbox = invoke(fx, launchArgs().map((value, index, all) => (
-    all[index - 1] === '--sandbox' ? 'anything-goes' : value
+  const mode = invoke(fx, launchArgs().map((value, index, all) => (
+    all[index - 1] === '--mode' ? 'anything-goes' : value
   )));
-  assert.equal(sandbox.output.error, 'INVALID_SANDBOX');
+  assert.equal(mode.output.error, 'INVALID_MODE');
   const danger = invoke(fx, launchArgs().map((value, index, all) => (
-    all[index - 1] === '--sandbox' ? 'danger-full-access' : value
+    all[index - 1] === '--mode' ? 'danger-full-access' : value
   )));
   assert.equal(danger.output.error, 'DANGER_FULL_ACCESS_REJECTED');
+  const legacyFlag = invoke(fx, launchArgs().map((value) => value === '--mode' ? '--sandbox' : value));
+  assert.equal(legacyFlag.output.error, 'INVALID_ARGUMENT');
   assert.equal(exists(fx.launchLog), false);
 });
 
 test('finalize deletes state, debug-retain preserves diagnostics, and finalized resume fails', () => {
   const fx = fixture();
   const run = invoke(fx, launchArgs()).output;
-  const finalized = invoke(fx, ['finalize', '--run-id', run.runId]);
+  const finalized = invoke(fx, ['finalize', run.runId]);
   assert.equal(finalized.output.status, 'OK');
   assert.equal(exists(run.stateDir), false);
-  assert.equal(invoke(fx, ['resume', '--run-id', run.runId]).output.error, 'RUN_NOT_FOUND');
+  assert.equal(invoke(fx, ['resume', run.runId]).output.error, 'RUN_NOT_FOUND');
 
   const retained = invoke(fx, launchArgs()).output;
-  invoke(fx, ['finalize', '--run-id', retained.runId, '--debug-retain']);
+  invoke(fx, ['finalize', retained.runId, '--debug-retain']);
   assert.ok(exists(join(retained.stateDir, 'round-1.prompt.txt')));
   assert.ok(exists(join(retained.stateDir, 'round-1.stderr.log')));
 });
@@ -253,7 +255,7 @@ test('abort cancels an active run, deletes its state, and spares a decoy', async
       .find((name) => exists(join(fx.stateRoot, name, 'run-id'))));
     assert.ok(stateName);
     const runId = readFileSync(join(fx.stateRoot, stateName, 'run-id'), 'utf8').trim();
-    const aborted = invoke(fx, ['abort', '--run-id', runId]);
+    const aborted = invoke(fx, ['abort', runId]);
     assert.equal(aborted.output.status, 'OK');
     const exit = await waitFor(() => running.exitCode !== null && running.exitCode, 3_000);
     assert.notEqual(exit, null);

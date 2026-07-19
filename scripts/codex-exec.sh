@@ -84,15 +84,15 @@ preflight() {
 }
 
 parse_options() {
-  CODEX_BIN=codex PROFILE= SANDBOX= PROMPT= PROMPT_FILE= RUN_ID= TIMEOUT= PROBE_TIMEOUT= DEBUG_RETAIN=false
+  CODEX_BIN=codex PROFILE= MODE= SANDBOX= PROMPT= PROMPT_FILE= RUN_ID= TIMEOUT= PROBE_TIMEOUT= DEBUG_RETAIN=false
   while (($#)); do
     case $1 in
-      --codex-bin|--profile|--sandbox|--prompt|--prompt-file|--run-id|--timeout|--probe-timeout)
+      --codex-bin|--profile|--mode|--prompt|--prompt-file|--run-id|--timeout|--probe-timeout)
         (($# >= 2)) || { fail INVALID_ARGUMENT "Missing value for $1"; return 1; }
         case $1 in
           --codex-bin) CODEX_BIN=$2 ;;
           --profile) PROFILE=$2 ;;
-          --sandbox) SANDBOX=$2 ;;
+          --mode) MODE=$2 ;;
           --prompt) PROMPT=$2 ;;
           --prompt-file) PROMPT_FILE=$2 ;;
           --run-id) RUN_ID=$2 ;;
@@ -152,14 +152,15 @@ PY
 new_run() {
   parse_options "$@" || return 1
   PROFILE=${PROFILE:-review}
-  SANDBOX=${SANDBOX:-read-only}
+  MODE=${MODE:-read-only}
   [[ $PROFILE == review || $PROFILE == build ]] || { fail INVALID_PROFILE "Profile must be review or build"; return 1; }
-  [[ $SANDBOX != danger-full-access ]] || {
+  [[ $MODE != danger-full-access ]] || {
     fail DANGER_FULL_ACCESS_REJECTED "danger-full-access is not a supported lifecycle mode"; return 1;
   }
-  [[ $SANDBOX == read-only || $SANDBOX == workspace-write ]] || {
-    fail INVALID_SANDBOX "Sandbox must be read-only or workspace-write"; return 1;
+  [[ $MODE == read-only || $MODE == workspace-write ]] || {
+    fail INVALID_MODE "Mode must be read-only or workspace-write"; return 1;
   }
+  SANDBOX=$MODE
   [[ -n $PROMPT || -n $PROMPT_FILE ]] || { fail PROMPT_REQUIRED "A prompt or prompt file is required"; return 1; }
   TIMEOUT=${TIMEOUT:-$([[ $PROFILE == review ]] && echo 600 || echo 1800)}
   PROBE_TIMEOUT=${PROBE_TIMEOUT:-$([[ $PROFILE == review ]] && echo 30 || echo 60)}
@@ -192,8 +193,8 @@ resume_run() {
   state_dir=$(find_state "$RUN_ID") || { fail RUN_NOT_FOUND "Run state does not exist"; return 1; }
   stored_sandbox=$(<"$state_dir/sandbox")
   PROFILE=$(<"$state_dir/profile")
-  if [[ -n $SANDBOX && $SANDBOX != "$stored_sandbox" ]]; then
-    fail MODE_MISMATCH "Resume sandbox differs from persisted mode"
+  if [[ -n $MODE && $MODE != "$stored_sandbox" ]]; then
+    fail MODE_MISMATCH "Resume mode differs from persisted mode"
     return 1
   fi
   SANDBOX=$stored_sandbox
@@ -231,6 +232,22 @@ finish_run() {
   emit_json status=OK "action=$action" "runId=$RUN_ID" "retained=$DEBUG_RETAIN"
 }
 
+dispatch_run_id_action() {
+  local action=$1; shift
+  if (($#)) && [[ $1 != --* ]]; then
+    local positional_run_id=$1; shift
+    if [[ $action == resume ]]; then
+      resume_run --run-id "$positional_run_id" "$@"
+    else
+      finish_run "$action" --run-id "$positional_run_id" "$@"
+    fi
+  elif [[ $action == resume ]]; then
+    resume_run "$@"
+  else
+    finish_run "$action" "$@"
+  fi
+}
+
 main() {
   local action=${1:-}
   [[ -n $action ]] || { fail ACTION_REQUIRED "Expected preflight, new, resume, finalize, or abort"; return 1; }
@@ -238,8 +255,7 @@ main() {
   case $action in
     preflight) parse_options "$@" && preflight "$CODEX_BIN" ;;
     new) new_run "$@" ;;
-    resume) resume_run "$@" ;;
-    finalize|abort) finish_run "$action" "$@" ;;
+    resume|finalize|abort) dispatch_run_id_action "$action" "$@" ;;
     *) fail INVALID_ACTION "Unknown action: $action" ;;
   esac
 }
