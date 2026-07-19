@@ -79,5 +79,4 @@ STOP → diagnose in the main conversation, fix, re-run `land` (an already-merge
 
 ## Out of scope
 - Live-verify / DoD: must happen **before** `/wrapup` — this skill lands, it does not verify.
-- `/retro`: offered before landing (step 2), never run by this skill.
 - Other worktrees / their servers stay untouched.
