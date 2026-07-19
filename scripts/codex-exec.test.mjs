@@ -132,6 +132,127 @@ test('finalize deletes state, debug-retain preserves diagnostics, and finalized 
   assert.ok(exists(join(retained.stateDir, 'round-1.stderr.log')));
 });
 
+test('handle-failure preserves a failed new result without inventing an abort target', () => {
+  const fx = fixture();
+  const failure = {
+    status: 'AUTH', error: 'AUTH_REQUIRED', message: 'Login required',
+    originalExitStatus: 23, signal: null, diagnostic: { source: 'preflight' },
+  };
+  const handled = invoke(fx, ['handle-failure', '--result', JSON.stringify(failure)]);
+  assert.notEqual(handled.status, 0);
+  assert.deepEqual(handled.output, failure);
+  assert.equal(exists(fx.stateRoot), false);
+});
+
+test('handle-failure prefers a failed resume result run id and aborts that run', () => {
+  const fx = fixture();
+  const run = invoke(fx, launchArgs()).output;
+  const failed = invoke(fx, [
+    'resume', run.runId, '--codex-bin', fake, '--prompt', 'Again',
+    '--timeout', '2', '--probe-timeout', '0.15',
+  ], { FAKE_CODEX_SCENARIO: 'silent', FAKE_CODEX_PAUSE_MS: '1000' });
+  assert.equal(failed.output.status, 'HUNG');
+  assert.equal(exists(run.stateDir), true);
+
+  const handled = invoke(fx, [
+    'handle-failure', '--result', JSON.stringify(failed.output), '--run-id', 'wrongFallback',
+  ]);
+  assert.notEqual(handled.status, 0);
+  assert.equal(handled.output.status, 'HUNG');
+  assert.equal(handled.output.runId, run.runId);
+  assert.equal(exists(run.stateDir), false);
+});
+
+test('handle-failure aborts the explicit fallback after a valid resume preflight failure', () => {
+  const fx = fixture();
+  const run = invoke(fx, launchArgs()).output;
+  const failed = invoke(fx, [
+    'resume', run.runId, '--codex-bin', fake, '--prompt', 'Again',
+  ], { FAKE_CODEX_VERSION: '9.9.9' });
+  assert.equal(failed.output.error, 'UNTESTED_VERSION');
+  assert.equal(failed.output.runId, undefined);
+
+  const handled = invoke(fx, [
+    'handle-failure', '--result', JSON.stringify(failed.output), '--run-id', run.runId,
+  ]);
+  assert.notEqual(handled.status, 0);
+  assert.deepEqual(handled.output, failed.output);
+  assert.equal(exists(run.stateDir), false);
+});
+
+test('handle-failure sanitizes malformed input and aborts only its explicit fallback', () => {
+  const fx = fixture();
+  const run = invoke(fx, launchArgs()).output;
+  const handled = invoke(fx, [
+    'handle-failure', '--result', 'not-json super-secret raw bytes', '--run-id', run.runId,
+  ]);
+  assert.notEqual(handled.status, 0);
+  assert.equal(handled.output.status, 'MALFORMED_RESULT');
+  assert.equal(handled.output.error, 'MALFORMED_RESULT');
+  assert.doesNotMatch(handled.stdout, /super-secret|raw bytes/);
+  assert.equal(exists(run.stateDir), false);
+});
+
+test('handle-failure rejects an unknown result status as malformed', () => {
+  const fx = fixture();
+  const handled = invoke(fx, [
+    'handle-failure', '--result', JSON.stringify({
+      status: 'MYSTERY_FAILURE', message: 'do not surface this arbitrary value',
+    }),
+  ]);
+  assert.notEqual(handled.status, 0);
+  assert.equal(handled.output.status, 'MALFORMED_RESULT');
+  assert.equal(handled.output.error, 'MALFORMED_RESULT');
+  assert.doesNotMatch(handled.stdout, /MYSTERY_FAILURE|arbitrary value/);
+});
+
+test('handle-failure rejects OK results without aborting their run', () => {
+  const fx = fixture();
+  const run = invoke(fx, launchArgs()).output;
+  const handled = invoke(fx, [
+    'handle-failure', '--result', JSON.stringify({
+      status: 'OK', runId: run.runId, message: 42,
+    }), '--run-id', run.runId,
+  ]);
+  assert.notEqual(handled.status, 0);
+  assert.equal(handled.output.error, 'RESULT_NOT_FAILED');
+  assert.equal(exists(run.stateDir), true);
+});
+
+test('handle-failure treats an invalid embedded run id as malformed and aborts the valid fallback', () => {
+  const fx = fixture();
+  const run = invoke(fx, launchArgs()).output;
+  const handled = invoke(fx, [
+    'handle-failure',
+    '--result', JSON.stringify({ status: 'HUNG', runId: `../${run.runId}` }),
+    '--run-id', run.runId,
+  ]);
+  assert.notEqual(handled.status, 0);
+  assert.equal(handled.output.status, 'MALFORMED_RESULT');
+  assert.equal(handled.output.error, 'MALFORMED_RESULT');
+  assert.equal(handled.output.runId, undefined);
+  assert.equal(exists(run.stateDir), false);
+});
+
+test('handle-failure preserves classification when cleanup of a valid result id fails', () => {
+  const fx = fixture();
+  const fallback = invoke(fx, launchArgs()).output;
+  const failure = {
+    status: 'HUNG', runId: 'validButMissing', originalExitStatus: 17, signal: 'SIGTERM',
+  };
+  const handled = invoke(fx, [
+    'handle-failure', '--result', JSON.stringify(failure), '--run-id', fallback.runId,
+  ]);
+  assert.notEqual(handled.status, 0);
+  assert.equal(handled.output.status, failure.status);
+  assert.equal(handled.output.runId, failure.runId);
+  assert.equal(handled.output.originalExitStatus, failure.originalExitStatus);
+  assert.equal(handled.output.signal, failure.signal);
+  assert.equal(handled.output.cleanupStatus, 'FAILED');
+  assert.equal(handled.output.cleanupError, 'RUN_NOT_FOUND');
+  assert.equal(exists(fallback.stateDir), true);
+});
+
 test('automatic stale cleanup is bounded and never removes retained or active state', () => {
   const fx = fixture();
   mkdirSync(fx.stateRoot, { recursive: true, mode: 0o700 });

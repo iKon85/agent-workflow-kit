@@ -232,6 +232,127 @@ finish_run() {
   emit_json status=OK "action=$action" "runId=$RUN_ID" "retained=$DEBUG_RETAIN"
 }
 
+handle_failure() {
+  local result= fallback_run_id= result_set=false parsed kind resolved output cleanup_output cleanup_rc=0
+  while (($#)); do
+    case $1 in
+      --result|--run-id)
+        (($# >= 2)) || { fail INVALID_ARGUMENT "Missing value for $1"; return 1; }
+        if [[ $1 == --result ]]; then
+          result=$2
+          result_set=true
+        else
+          fallback_run_id=$2
+        fi
+        shift 2 ;;
+      *) fail INVALID_ARGUMENT "Unknown option: $1"; return 1 ;;
+    esac
+  done
+  [[ $result_set == true ]] || { fail RESULT_REQUIRED "handle-failure requires --result"; return 1; }
+
+  parsed=$(python3 - "$result" "$fallback_run_id" <<'PY'
+import json
+import sys
+
+raw, fallback = sys.argv[1:]
+known_statuses = {
+    "OK", "AUTH", "CANCELLED", "HUNG", "TIMEOUT", "SIGNALLED",
+    "EXEC_FAILED", "MALFORMED-JSON", "NO-THREAD", "NO-VERDICT",
+}
+try:
+    result = json.loads(raw)
+    if not isinstance(result, dict):
+        raise ValueError
+    status = result.get("status")
+    if not isinstance(status, str) or status not in known_statuses:
+        raise ValueError
+except (json.JSONDecodeError, ValueError):
+    parsed = {
+        "kind": "malformed",
+        "resolved": fallback,
+        "output": {
+            "status": "MALFORMED_RESULT",
+            "error": "MALFORMED_RESULT",
+            "message": "Failure result was empty or malformed",
+        },
+    }
+else:
+    if status == "OK":
+        parsed = {
+            "kind": "ok",
+            "resolved": "",
+            "output": {
+                "status": "EXEC_FAILED",
+                "error": "RESULT_NOT_FAILED",
+                "message": "handle-failure requires a non-OK result",
+            },
+        }
+    else:
+        malformed_fields = any(
+            key in result and not isinstance(result[key], str)
+            for key in ("error", "message")
+        )
+        result_run_id = result.get("runId")
+        malformed_run_id = (
+            "runId" in result
+            and (
+                not isinstance(result_run_id, str)
+                or not result_run_id
+                or not result_run_id.isascii()
+                or not result_run_id.isalnum()
+            )
+        )
+        if malformed_fields or malformed_run_id:
+            parsed = {
+                "kind": "malformed",
+                "resolved": fallback,
+                "output": {
+                    "status": "MALFORMED_RESULT",
+                    "error": "MALFORMED_RESULT",
+                    "message": "Failure result was empty or malformed",
+                },
+            }
+        else:
+            output = result
+            if result_run_id:
+                resolved = result_run_id
+            else:
+                resolved = fallback
+            parsed = {"kind": "failure", "resolved": resolved, "output": output}
+print(json.dumps(parsed, separators=(",", ":"), sort_keys=True))
+PY
+  ) || {
+    fail MALFORMED_RESULT "Failure result was empty or malformed" MALFORMED_RESULT
+    return 1
+  }
+  kind=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["kind"])' "$parsed")
+  resolved=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["resolved"])' "$parsed")
+  output=$(python3 -c 'import json,sys; print(json.dumps(json.loads(sys.argv[1])["output"], separators=(",", ":"), sort_keys=True))' "$parsed")
+
+  if [[ $kind != ok && -n $resolved ]]; then
+    cleanup_output=$(finish_run abort --run-id "$resolved") || cleanup_rc=$?
+    if ((cleanup_rc)); then
+      output=$(python3 - "$output" "$cleanup_output" <<'PY'
+import json
+import sys
+
+original = json.loads(sys.argv[1])
+try:
+    cleanup = json.loads(sys.argv[2])
+except json.JSONDecodeError:
+    cleanup = {}
+original["cleanupStatus"] = "FAILED"
+original["cleanupError"] = cleanup.get("error", "CLEANUP_FAILED")
+original["cleanupMessage"] = cleanup.get("message", "Run cleanup failed")
+print(json.dumps(original, separators=(",", ":"), sort_keys=True))
+PY
+      )
+    fi
+  fi
+  printf '%s\n' "$output"
+  return 1
+}
+
 dispatch_run_id_action() {
   local action=$1; shift
   if (($#)) && [[ $1 != --* ]]; then
@@ -250,12 +371,13 @@ dispatch_run_id_action() {
 
 main() {
   local action=${1:-}
-  [[ -n $action ]] || { fail ACTION_REQUIRED "Expected preflight, new, resume, finalize, or abort"; return 1; }
+  [[ -n $action ]] || { fail ACTION_REQUIRED "Expected preflight, new, resume, finalize, abort, or handle-failure"; return 1; }
   shift
   case $action in
     preflight) parse_options "$@" && preflight "$CODEX_BIN" ;;
     new) new_run "$@" ;;
     resume|finalize|abort) dispatch_run_id_action "$action" "$@" ;;
+    handle-failure) handle_failure "$@" ;;
     *) fail INVALID_ACTION "Unknown action: $action" ;;
   esac
 }
