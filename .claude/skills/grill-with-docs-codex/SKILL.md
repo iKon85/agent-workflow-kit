@@ -210,6 +210,13 @@ caller stops before report handling. A surfaced `HUNG` returns to the user for
 the choice to retry once with a fresh run or proceed without cross-model
 review. Never inspect, signal, or kill foreign Codex processes.
 
+Separately, cancellation or a decision to stop orchestration after an OK round
+but before normal finalize must abort the known run:
+
+```bash
+scripts/codex-exec.sh abort "$RUN_ID"
+```
+
 ### Each round
 1. Read `CODEX_REPORT`; append `## Round <n> — Codex` + critique to `LOG_FILE`.
 2. Last line verdict: `APPROVED` → Resolution (converged); `REVISE` → Claude decides what's worth acting on (final arbiter), revise `PLAN_FILE`, append `### Claude's response` (what changed/rejected + why), increment.

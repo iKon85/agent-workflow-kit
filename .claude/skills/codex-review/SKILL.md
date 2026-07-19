@@ -110,6 +110,13 @@ surfaced `HUNG` returns to the user for the choice to retry once with a fresh
 run or continue without cross-model review. Never inspect, signal, or kill
 foreign Codex processes.
 
+Separately, cancellation or a decision to stop orchestration after an OK round
+but before normal finalize must abort the known run:
+
+```bash
+scripts/codex-exec.sh abort "$RUN_ID"
+```
+
 **Each round, after Codex returns:**
 1. Read `CODEX_REPORT`. Append to `LOG_FILE`: `## Round <n> — Codex` + the full critique.
 2. Grep the last line for the verdict token.

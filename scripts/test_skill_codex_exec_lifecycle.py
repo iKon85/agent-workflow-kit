@@ -83,14 +83,24 @@ class CodexExecSkillLifecycleTests(unittest.TestCase):
                 )
                 self.assertEqual(parsed.returncode, 0, parsed.stderr)
 
-    def test_codex_build_human_gate_distinguishes_rejection_and_cancellation(self):
-        body = self.skills["codex-build"][1]
-        gate = body.split("## Step 5 — Human gate", 1)[1].split("## Hard rules", 1)[0]
-        rejection = gate.index("Rejected with another requested fix")
-        cancellation = gate.index("Cancellation or a decision to stop delegation")
-        abort = gate.index('scripts/codex-exec.sh abort "$RUN_ID"')
-        self.assertLess(rejection, cancellation)
-        self.assertLess(cancellation, abort)
+    def test_all_skills_abort_known_run_on_orchestration_cancellation(self):
+        for name, (_, body) in self.skills.items():
+            with self.subTest(skill=name):
+                cancellation = re.search(
+                    r"[Cc]ancellation or a decision to stop (?:orchestration|delegation)"
+                    r".*?scripts/codex-exec\.sh abort \"\$RUN_ID\"",
+                    body,
+                    re.DOTALL,
+                )
+                self.assertIsNotNone(cancellation)
+                self.assertRegex(body, r"scripts/codex-exec\.sh finalize [\"']?\$RUN_ID")
+
+        build = self.skills["codex-build"][1]
+        gate = build.split("## Step 5 — Human gate", 1)[1].split("## Hard rules", 1)[0]
+        self.assertLess(
+            gate.index("Rejected with another requested fix"),
+            gate.index("Cancellation or a decision to stop delegation"),
+        )
 
     def test_no_skill_reimplements_codex_process_or_failure_mechanics(self):
         forbidden = {
