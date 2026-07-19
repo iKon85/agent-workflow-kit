@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -178,6 +178,16 @@ test('packed scoped artifact keeps the existing npx default-bin inference', asyn
     const packed = JSON.parse(execFileSync('npm', [
       'pack', '--pack-destination', destination, '--json',
     ], { cwd: REPO, encoding: 'utf8' }));
+    const packedByPath = new Map(packed[0].files.map((file) => [file.path, file]));
+    execFileSync('tar', ['-xzf', join(destination, packed[0].filename), '-C', destination]);
+    for (const { path, mode } of WAVE_152_HELPERS) {
+      assert.equal(packedByPath.get(path)?.mode, mode, `packed mode mismatch: ${path}`);
+      assert.equal(
+        (await stat(join(destination, 'package', path))).mode & 0o777,
+        mode,
+        `extracted mode mismatch: ${path}`,
+      );
+    }
     const output = execFileSync('npx', [
       '--yes', '--offline', `./${packed[0].filename}`,
     ], { cwd: destination, encoding: 'utf8' });
