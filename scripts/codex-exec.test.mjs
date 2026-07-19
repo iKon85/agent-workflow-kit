@@ -132,6 +132,7 @@ test('finalize deletes state, debug-retain preserves diagnostics, and finalized 
   invoke(fx, ['finalize', retained.runId, '--debug-retain']);
   assert.ok(exists(join(retained.stateDir, 'round-1.prompt.txt')));
   assert.ok(exists(join(retained.stateDir, 'round-1.stderr.log')));
+  assert.equal(invoke(fx, ['resume', retained.runId]).output.error, 'RUN_FINALIZED');
 });
 
 test('handle-failure preserves a failed new result without inventing an abort target', () => {

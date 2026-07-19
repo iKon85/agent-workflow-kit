@@ -223,6 +223,9 @@ new_run() {
 
 resume_run_locked() {
   local state_dir=$1 lease_token=$2 stored_sandbox thread_id round
+  [[ ! -f $state_dir/debug-retain ]] || {
+    fail RUN_FINALIZED "Run was finalized with debug retention"; return 1;
+  }
   stored_sandbox=$(<"$state_dir/sandbox")
   PROFILE=$(<"$state_dir/profile")
   if [[ -n $MODE && $MODE != "$stored_sandbox" ]]; then
@@ -288,8 +291,8 @@ finish_run() {
   if [[ $DEBUG_RETAIN == false ]]; then
     rm -rf -- "$state_dir"
   else
-    release_lease "$state_dir" "$lease_token" || true
     : >"$state_dir/debug-retain"
+    release_lease "$state_dir" "$lease_token" || true
   fi
   emit_json status=OK "action=$action" "runId=$RUN_ID" "retained=$DEBUG_RETAIN"
 }
