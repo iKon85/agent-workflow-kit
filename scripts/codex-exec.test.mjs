@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
-  closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, statSync,
-  utimesSync, writeFileSync,
+  closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmdirSync, rmSync,
+  statSync, utimesSync, writeFileSync,
 } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -317,6 +317,36 @@ test('invalid stale cleanup limits fail before launch and preserve an active run
   }
 });
 
+test('stale cleanup tolerates a state disappearing after candidate listing', async () => {
+  const fx = fixture();
+  mkdirSync(fx.stateRoot, { recursive: true, mode: 0o700 });
+  const disappearing = join(fx.stateRoot, 'codex-exec.disappearing');
+  mkdirSync(disappearing, { mode: 0o700 });
+  writeFileSync(join(disappearing, 'run-id'), 'disappearing\n');
+  utimesSync(disappearing, 0, 0);
+  const marker = join(fx.dir, 'cleanup-listed');
+  const running = spawn(helper, launchArgs(), {
+    cwd: root, encoding: 'utf8', env: {
+      ...process.env,
+      CODEX_EXEC_STATE_ROOT: fx.stateRoot,
+      CODEX_EXEC_STALE_SECONDS: '1',
+      CODEX_EXEC_TEST_CLEANUP_PAUSE_MARKER: marker,
+      FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
+    },
+  });
+  let stdout = '';
+  running.stdout.on('data', (chunk) => { stdout += chunk; });
+  try {
+    assert.ok(await waitFor(() => exists(marker)));
+    rmSync(disappearing, { recursive: true });
+    assert.ok(await waitFor(() => running.exitCode !== null, 3_000));
+    assert.equal(running.exitCode, 0);
+    assert.equal(JSON.parse(stdout.trim().split('\n').at(-1)).status, 'OK');
+  } finally {
+    running.kill('SIGKILL');
+  }
+});
+
 test('stale cleanup removes abandoned runtime state without signaling its persisted pgid', () => {
   const fx = fixture();
   const decoy = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true });
@@ -494,6 +524,49 @@ test('a broken result output sink cannot strand runtime or lease ownership', () 
   assert.equal(exists(join(stateDir, 'latest')), true);
   assert.equal(exists(join(stateDir, 'runtime.json')), false);
   assert.equal(exists(join(stateDir, 'round.lease')), false);
+});
+
+test('a runtime publication failure reaps the owned child before releasing its lease', async () => {
+  const fx = fixture();
+  const childPid = join(fx.dir, 'supervised.pid');
+  const result = invoke(fx, launchArgs('build'), {
+    CODEX_EXEC_TEST_CHILD_PID_FILE: childPid,
+    CODEX_EXEC_TEST_RUNTIME_WRITE_FAIL: '1',
+    FAKE_CODEX_SCENARIO: 'group-hang',
+    FAKE_CODEX_PAUSE_MS: '5000',
+  });
+  assert.notEqual(result.status, 0);
+  const pid = Number(readFileSync(childPid, 'utf8'));
+  assert.equal(await waitFor(() => !alive(pid), 1_000), true);
+  const [stateName] = readdirSync(fx.stateRoot);
+  const stateDir = join(fx.stateRoot, stateName);
+  assert.equal(exists(join(stateDir, 'runtime.json')), false);
+  assert.equal(exists(join(stateDir, 'round.lease')), false);
+});
+
+test('debug-retain marker failure is visible and never reports finalize success', () => {
+  const fx = fixture();
+  const run = invoke(fx, launchArgs()).output;
+  mkdirSync(join(run.stateDir, 'debug-retain'));
+  const finalized = invoke(fx, ['finalize', run.runId, '--debug-retain']);
+  assert.notEqual(finalized.status, 0);
+  assert.equal(finalized.output.error, 'DEBUG_RETAIN_FAILED');
+  assert.equal(exists(run.stateDir), true);
+  assert.equal(exists(join(run.stateDir, 'round.lease')), false);
+  rmdirSync(join(run.stateDir, 'debug-retain'));
+  assert.equal(invoke(fx, ['abort', run.runId]).output.status, 'OK');
+});
+
+test('lease release failure is structured and cannot masquerade as a successful round', () => {
+  const fx = fixture();
+  const result = invoke(fx, launchArgs(), { CODEX_EXEC_TEST_LEASE_RELEASE_FAIL: '1' });
+  assert.notEqual(result.status, 0);
+  assert.equal(result.output.error, 'LEASE_RELEASE_FAILED');
+  assert.ok(result.output.runId);
+  assert.equal(result.stdout.trim().split('\n').length, 1);
+  const stateDir = join(fx.stateRoot, `codex-exec.${result.output.runId}`);
+  assert.equal(exists(join(stateDir, 'round.lease')), true);
+  assert.equal(invoke(fx, ['resume', result.output.runId]).output.error, 'ACTIVE_RUN');
 });
 
 test('timeout kills descendants after the process-group leader has exited', () => {

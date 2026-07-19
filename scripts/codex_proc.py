@@ -386,8 +386,19 @@ def run_round(args: argparse.Namespace) -> int:
             stderr=subprocess.PIPE,
             start_new_session=True,
         )
-        publish_runtime(state_dir, token, args.round, "running")
-        stdout, returncode, reason = drain_process(args, process, token)
+        try:
+            pid_marker = os.environ.get("CODEX_EXEC_TEST_CHILD_PID_FILE")
+            if pid_marker:
+                atomic_write(Path(pid_marker), f"{process.pid}\n")
+            if os.environ.get("CODEX_EXEC_TEST_RUNTIME_WRITE_FAIL") == "1":
+                raise OSError("injected runtime publication failure")
+            publish_runtime(state_dir, token, args.round, "running")
+            stdout, returncode, reason = drain_process(args, process, token)
+        except BaseException:
+            terminate_group(process)
+            process.wait()
+            remove_runtime_if_owned(state_dir, token, args.round)
+            raise
     reason = settle_before_publication(args, token, reason)
     result = classification(reason, returncode, stdout)
     result.update({
@@ -411,6 +422,8 @@ def lease_acquire(args: argparse.Namespace) -> int:
 
 
 def lease_release(args: argparse.Namespace) -> int:
+    if os.environ.get("CODEX_EXEC_TEST_LEASE_RELEASE_FAIL") == "1":
+        return 1
     return 0 if release_lease_for_state(Path(args.state_dir), args.token) else 1
 
 
@@ -479,8 +492,18 @@ def cleanup(args: argparse.Namespace) -> int:
     root = Path(args.state_root)
     now = time.time()
     removed = 0
-    candidates = sorted(root.glob("codex-exec.*"), key=lambda path: path.stat().st_mtime)
-    for state_dir in candidates:
+    candidates = []
+    for state_dir in root.glob("codex-exec.*"):
+        try:
+            candidates.append((state_dir.stat().st_mtime, state_dir))
+        except FileNotFoundError:
+            continue
+    candidates.sort(key=lambda candidate: candidate[0])
+    marker = os.environ.get("CODEX_EXEC_TEST_CLEANUP_PAUSE_MARKER")
+    if marker:
+        atomic_write(Path(marker), "listed\n")
+        time.sleep(0.3)
+    for _, state_dir in candidates:
         if removed >= args.max_delete:
             break
         run_id = state_dir.name.removeprefix("codex-exec.")
@@ -494,8 +517,15 @@ def cleanup(args: argparse.Namespace) -> int:
             valid = identity.read_text().strip() == run_id
         except (FileNotFoundError, OSError):
             valid = False
-        if valid and not protected and now - state_dir.stat().st_mtime >= args.stale_seconds:
-            shutil.rmtree(state_dir)
+        try:
+            old_enough = now - state_dir.stat().st_mtime >= args.stale_seconds
+        except FileNotFoundError:
+            continue
+        if valid and not protected and old_enough:
+            try:
+                shutil.rmtree(state_dir)
+            except FileNotFoundError:
+                continue
             removed += 1
     return 0
 

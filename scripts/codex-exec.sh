@@ -178,7 +178,16 @@ acquire_lease() {
 }
 
 release_lease() {
-  python3 "$PROC_HELPER" lease-release --state-dir "$1" --token "$2" >/dev/null 2>&1
+  python3 "$PROC_HELPER" lease-release --state-dir "$1" --token "$2" >/dev/null
+}
+
+release_or_fail() {
+  local state_dir=$1 lease_token=$2 run_id=$3
+  release_lease "$state_dir" "$lease_token" || {
+    emit_json status=EXEC_FAILED error=LEASE_RELEASE_FAILED \
+      "message=Run lease could not be released" "runId=$run_id"
+    return 1
+  }
 }
 
 new_run() {
@@ -212,7 +221,7 @@ new_run() {
     --stale-seconds "$stale_seconds" --max-delete "$stale_max_delete" || {
       fail STALE_CLEANUP_FAILED "Bounded stale-state cleanup failed"; return 1;
     }
-  local state_dir run_id lease_token rc
+  local state_dir run_id lease_token rc output
   state_dir=$(mktemp -d "$STATE_ROOT/codex-exec.XXXXXXXX") || return 1
   chmod 700 "$state_dir"
   run_id=${state_dir##*.}
@@ -225,9 +234,16 @@ new_run() {
     fail ACTIVE_RUN "Run state is already owned by another lifecycle action"
     return 1
   }
-  launch_round "$state_dir" 1 "$lease_token"
+  output=$(launch_round "$state_dir" 1 "$lease_token")
   rc=$?
-  release_lease "$state_dir" "$lease_token" || true
+  release_or_fail "$state_dir" "$lease_token" "$run_id" || return 1
+  if [[ -n $output ]]; then
+    printf '%s\n' "$output" || return 1
+  else
+    emit_json status=EXEC_FAILED error=ROUND_SUPERVISOR_FAILED \
+      "message=Round supervisor exited without structured output" "runId=$run_id"
+    return 1
+  fi
   return "$rc"
 }
 
@@ -261,7 +277,7 @@ resume_run_locked() {
 resume_run() {
   parse_options "$@" || return 1
   [[ -n $RUN_ID ]] || { fail RUN_ID_REQUIRED "Resume requires --run-id"; return 1; }
-  local state_dir lease_token rc
+  local state_dir lease_token rc output
   state_dir=$(find_state "$RUN_ID") || { fail RUN_NOT_FOUND "Run state does not exist"; return 1; }
   lease_token=$(acquire_lease "$state_dir") || {
     if [[ -d $state_dir ]]; then
@@ -271,9 +287,15 @@ resume_run() {
     fi
     return 1
   }
-  resume_run_locked "$state_dir" "$lease_token"
+  output=$(resume_run_locked "$state_dir" "$lease_token")
   rc=$?
-  release_lease "$state_dir" "$lease_token" || true
+  release_or_fail "$state_dir" "$lease_token" "$RUN_ID" || return 1
+  if [[ -z $output ]]; then
+    emit_json status=EXEC_FAILED error=ROUND_SUPERVISOR_FAILED \
+      "message=Round supervisor exited without structured output" "runId=$RUN_ID"
+    return 1
+  fi
+  printf '%s\n' "$output" || return 1
   return "$rc"
 }
 
@@ -293,16 +315,23 @@ finish_run() {
       return 1
     }
     if [[ -f $state_dir/runtime.json ]]; then
-      release_lease "$state_dir" "$lease_token" || true
+      release_or_fail "$state_dir" "$lease_token" "$RUN_ID" || return 1
       fail ACTIVE_RUN "Use abort for an active run"
       return 1
     fi
   fi
   if [[ $DEBUG_RETAIN == false ]]; then
-    rm -rf -- "$state_dir"
+    if ! rm -rf -- "$state_dir"; then
+      fail CLEANUP_FAILED "Run state could not be removed"
+      return 1
+    fi
   else
-    : >"$state_dir/debug-retain"
-    release_lease "$state_dir" "$lease_token" || true
+    if ! : >"$state_dir/debug-retain"; then
+      release_or_fail "$state_dir" "$lease_token" "$RUN_ID" || return 1
+      fail DEBUG_RETAIN_FAILED "Debug-retain marker could not be created"
+      return 1
+    fi
+    release_or_fail "$state_dir" "$lease_token" "$RUN_ID" || return 1
   fi
   emit_json status=OK "action=$action" "runId=$RUN_ID" "retained=$DEBUG_RETAIN"
 }
