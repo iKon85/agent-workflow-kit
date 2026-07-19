@@ -101,6 +101,29 @@ test('new and resume preserve immutable rounds and reject mode drift', () => {
   assert.equal(invoke(fx, ['resume', '--codex-bin', fake]).output.error, 'RUN_ID_REQUIRED');
 });
 
+test('resume rejects tampered persisted profile and sandbox before launch', () => {
+  const fx = fixture();
+  const sandboxRun = invoke(fx, launchArgs()).output;
+  const launchesBeforeSandboxTamper = readFileSync(fx.launchLog, 'utf8');
+  writeFileSync(join(sandboxRun.stateDir, 'sandbox'), 'danger-full-access\n');
+
+  const sandboxTamper = invoke(fx, [
+    'resume', sandboxRun.runId, '--codex-bin', fake, '--prompt', 'Again',
+  ]);
+  assert.equal(sandboxTamper.output.error, 'INVALID_STATE');
+  assert.equal(readFileSync(fx.launchLog, 'utf8'), launchesBeforeSandboxTamper);
+
+  const profileRun = invoke(fx, launchArgs()).output;
+  const launchesBeforeProfileTamper = readFileSync(fx.launchLog, 'utf8');
+  writeFileSync(join(profileRun.stateDir, 'profile'), 'unbounded\n');
+
+  const profileTamper = invoke(fx, [
+    'resume', profileRun.runId, '--codex-bin', fake, '--prompt', 'Again',
+  ]);
+  assert.equal(profileTamper.output.error, 'INVALID_STATE');
+  assert.equal(readFileSync(fx.launchLog, 'utf8'), launchesBeforeProfileTamper);
+});
+
 test('invalid timeout and mode inputs fail before launch', () => {
   const fx = fixture();
   const timeout = invoke(fx, launchArgs().map((value, index, all) => (

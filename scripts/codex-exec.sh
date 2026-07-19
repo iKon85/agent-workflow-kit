@@ -307,12 +307,23 @@ new_run() {
 }
 
 resume_run_locked() {
-  local state_dir=$1 lease_token=$2 stored_sandbox thread_id round
+  local state_dir=$1 lease_token=$2 stored_profile stored_sandbox thread_id round
   [[ ! -f $state_dir/debug-retain ]] || {
     fail RUN_FINALIZED "Run was finalized with debug retention"; return 1;
   }
+  [[ -f $state_dir/profile && ! -L $state_dir/profile \
+    && -f $state_dir/sandbox && ! -L $state_dir/sandbox ]] || {
+    fail INVALID_STATE "Persisted profile or sandbox state is missing or unsafe"; return 1;
+  }
+  stored_profile=$(<"$state_dir/profile")
   stored_sandbox=$(<"$state_dir/sandbox")
-  PROFILE=$(<"$state_dir/profile")
+  [[ $stored_profile == review || $stored_profile == build ]] || {
+    fail INVALID_STATE "Persisted profile is not in the exact allowlist"; return 1;
+  }
+  [[ $stored_sandbox == read-only || $stored_sandbox == workspace-write ]] || {
+    fail INVALID_STATE "Persisted sandbox is not in the exact allowlist"; return 1;
+  }
+  PROFILE=$stored_profile
   if [[ -n $MODE && $MODE != "$stored_sandbox" ]]; then
     fail MODE_MISMATCH "Resume mode differs from persisted mode"
     return 1
