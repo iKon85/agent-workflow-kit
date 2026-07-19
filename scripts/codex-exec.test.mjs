@@ -288,6 +288,35 @@ test('automatic stale cleanup is bounded and never removes retained or active st
   assert.ok(remaining.includes('codex-exec.active'));
 });
 
+test('invalid stale cleanup limits fail before launch and preserve an active run', async () => {
+  const fx = fixture();
+  const running = spawn(helper, launchArgs('build'), {
+    cwd: root, encoding: 'utf8', env: {
+      ...process.env, CODEX_EXEC_STATE_ROOT: fx.stateRoot,
+      FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_PAUSE_MS: '5000',
+      FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
+    },
+  });
+  running.stdout.on('data', () => {});
+  try {
+    const stateName = await waitFor(() => exists(fx.stateRoot) && readdirSync(fx.stateRoot)
+      .find((name) => readJson(join(fx.stateRoot, name, 'runtime.json'))?.phase === 'running'));
+    assert.ok(stateName);
+    const stateDir = join(fx.stateRoot, stateName);
+    const runId = readFileSync(join(stateDir, 'run-id'), 'utf8').trim();
+    const invalidAge = invoke(fx, launchArgs(), { CODEX_EXEC_STALE_SECONDS: '-1' });
+    assert.equal(invalidAge.output.error, 'INVALID_STALE_CONFIG');
+    const invalidCount = invoke(fx, launchArgs(), { CODEX_EXEC_STALE_MAX_DELETE: '1.5' });
+    assert.equal(invalidCount.output.error, 'INVALID_STALE_CONFIG');
+    assert.equal(exists(join(stateDir, 'runtime.json')), true);
+    assert.equal(readFileSync(fx.launchLog, 'utf8').trim().split('\n').length, 1);
+    assert.equal(invoke(fx, ['abort', runId]).output.status, 'OK');
+    assert.ok(await waitFor(() => running.exitCode !== null, 3_000));
+  } finally {
+    running.kill('SIGKILL');
+  }
+});
+
 test('stale cleanup removes abandoned runtime state without signaling its persisted pgid', () => {
   const fx = fixture();
   const decoy = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true });

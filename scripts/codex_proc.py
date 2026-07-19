@@ -474,6 +474,8 @@ def live_runtime(runtime_path: Path, now: float, stale_seconds: float) -> bool:
 
 
 def cleanup(args: argparse.Namespace) -> int:
+    if not math.isfinite(args.stale_seconds) or args.stale_seconds <= 0 or args.max_delete < 0:
+        return 2
     root = Path(args.state_root)
     now = time.time()
     removed = 0

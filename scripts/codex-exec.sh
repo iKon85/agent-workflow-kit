@@ -62,6 +62,10 @@ except (ValueError, AssertionError):
 PY
 }
 
+nonnegative_integer() {
+  [[ $1 =~ ^[0-9]+$ ]]
+}
+
 find_state() {
   local run_id=$1
   [[ $run_id =~ ^[A-Za-z0-9]+$ ]] || return 1
@@ -195,11 +199,17 @@ new_run() {
   positive_number "$TIMEOUT" && positive_number "$PROBE_TIMEOUT" || {
     fail INVALID_TIMEOUT "Timeouts must be finite positive numbers"; return 1;
   }
+  local stale_seconds stale_max_delete
+  stale_seconds=${CODEX_EXEC_STALE_SECONDS:-604800}
+  stale_max_delete=${CODEX_EXEC_STALE_MAX_DELETE:-8}
+  positive_number "$stale_seconds" && nonnegative_integer "$stale_max_delete" || {
+    fail INVALID_STALE_CONFIG "Stale cleanup limits must be a positive finite age and nonnegative integer count"
+    return 1
+  }
   preflight "$CODEX_BIN" true || return 1
   mkdir -p "$STATE_ROOT" && chmod 700 "$STATE_ROOT"
   python3 "$PROC_HELPER" cleanup --state-root "$STATE_ROOT" \
-    --stale-seconds "${CODEX_EXEC_STALE_SECONDS:-604800}" \
-    --max-delete "${CODEX_EXEC_STALE_MAX_DELETE:-8}" || {
+    --stale-seconds "$stale_seconds" --max-delete "$stale_max_delete" || {
       fail STALE_CLEANUP_FAILED "Bounded stale-state cleanup failed"; return 1;
     }
   local state_dir run_id lease_token rc
