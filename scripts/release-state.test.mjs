@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import {
   createCommandAdapter, githubReleaseArgs, inspectRelease, isMissingRelease,
@@ -48,6 +51,55 @@ test('post-merge status inspection is read-only and reports the reconstructable 
   const fixture = adapter({ npmPublished: true });
   assert.deepEqual(await inspectRelease(fixture), { status: 'awaiting-github', identity });
   assert.deepEqual(fixture.events, ['read npm', 'read github']);
+});
+
+test('local Claude overrides cannot change the packed release identity or enter the tarball', async () => {
+  const fixture = await mkdtemp(join(tmpdir(), 'awkit-local-overrides-'));
+  await mkdir(join(fixture, '.claude'), { recursive: true });
+  await Promise.all([
+    ['package.json', 'package.json'],
+    ['agent-workflow-kit.package.json', 'agent-workflow-kit.package.json'],
+    ['.claude/.npmignore', '.claude/.npmignore'],
+  ].map(([source, destination]) => copyFile(join(REPO, source), join(fixture, destination))));
+  await writeFile(join(fixture, '.claude/shipped.json'), '{"shipped":true}\n');
+
+  const overrides = [
+    ['.claude/settings.local.json', randomUUID()],
+    ['.claude/settings.local.json.backup', randomUUID()],
+  ];
+
+  const clean = await createCommandAdapter({ repoRoot: fixture });
+  const local = await createCommandAdapter({ repoRoot: fixture });
+  try {
+    const { identity: publishedIdentity } = await clean.local();
+    for (const [path, canary] of overrides) {
+      await writeFile(join(fixture, path), `${canary}\n`);
+    }
+
+    const { identity, tarball } = await local.local();
+    assert.deepEqual(identity, publishedIdentity);
+    assert.deepEqual(await inspectRelease({
+      local: async () => ({ identity, tarball }),
+      npm: async () => publishedIdentity,
+      github: async () => publishedIdentity,
+    }), { status: 'released', identity: publishedIdentity });
+
+    const paths = new Set(
+      execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' })
+        .trim().split('\n').map((path) => path.replace(/^package\//, '')),
+    );
+    assert.ok(paths.has('.claude/shipped.json'));
+    const contents = execFileSync('tar', ['-xOzf', tarball], {
+      encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
+    });
+    for (const [path, canary] of overrides) {
+      assert.ok(!paths.has(path), `packed local override: ${path}`);
+      assert.doesNotMatch(contents, new RegExp(canary));
+    }
+  } finally {
+    await Promise.all([clean.dispose(), local.dispose()]);
+    await rm(fixture, { recursive: true, force: true });
+  }
 });
 
 test('an unpublished npm version is reconstructable when npm reports ETARGET', () => {
