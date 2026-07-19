@@ -83,20 +83,34 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
                 ):
                     render_anchor.render_documents("Lean anchor\n", prd)
 
-    def test_prd_source_lookalike_rejected_by_marker_lib_is_preserved(self):
-        lookalike = "<!-- prd-source-id: alpha > trailing -->"
-        prd = (
-            f"{lookalike}\n"
-            "<!-- prd-content-fp: abc123 -->\n"
-            "**plan_revision:** r5\n"
-            "<!-- prd: awaiting-decomposition -->\n\n# PRD\n"
+    def test_malformed_marker_lookalikes_are_preserved(self):
+        lookalikes = (
+            "<!-- prd-source-id: alpha --> trailing -->",
+            "<!-- prd-content-fp: abc > trailing -->",
+            "<!-- prd: program > trailing -->",
         )
+        for lookalike in lookalikes:
+            with self.subTest(lookalike=lookalike):
+                prd = (
+                    f"{lookalike}\n"
+                    "<!-- prd-source-id: canonical -->\n"
+                    "<!-- prd-content-fp: abc123 -->\n"
+                    "**plan_revision:** r5\n"
+                    "<!-- prd: awaiting-decomposition -->\n\n# PRD\n"
+                )
 
-        rendered = render_anchor.render_documents("Lean anchor\n", prd)
+                rendered = render_anchor.render_documents("Lean anchor\n", prd)
 
-        self.assertIn(lookalike, rendered.archive_body)
-        self.assertNotIn("prd-content-fp", rendered.archive_body)
-        self.assertNotIn("awaiting-decomposition", rendered.archive_body)
+                self.assertIn(lookalike, rendered.archive_body)
+                self.assertNotIn(
+                    "<!-- prd-source-id: canonical -->", rendered.archive_body
+                )
+                self.assertNotIn(
+                    "<!-- prd-content-fp: abc123 -->", rendered.archive_body
+                )
+                self.assertNotIn(
+                    "<!-- prd: awaiting-decomposition -->", rendered.archive_body
+                )
 
     def test_cli_emits_each_document_without_mutating_inputs(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -170,6 +184,13 @@ class PromotionStateTableTest(unittest.TestCase):
             "no-op; continue publish audit",
         ),
     }
+    EXPECTED_BOARD_OBSERVATIONS = {
+        "ordinary-prestate": "absent",
+        "stufe-1p-prestate": "absent",
+        "promoted": "complete",
+        "cluster-only": "partial",
+        "wrong-wave": "partial",
+    }
 
     def test_all_four_observable_states_have_one_resume_action(self):
         for path in SKILLS:
@@ -190,6 +211,28 @@ class PromotionStateTableTest(unittest.TestCase):
             self.assertIn("`C=duplicates(<ids>)`", text, str(path))
             self.assertIn("`P=partial`", text, str(path))
             self.assertIn("drift and enters repair", text, str(path))
+
+    def test_stufe_1p_prestamp_is_not_partial_promotion(self):
+        for path in SKILLS:
+            text = path.read_text(encoding="utf-8")
+            start = text.index("<!-- promotion-board-observation-table:start -->")
+            end = text.index("<!-- promotion-board-observation-table:end -->", start)
+            rows = {}
+            for line in text[start:end].splitlines():
+                if line.startswith("| `"):
+                    cells = [cell.strip() for cell in line.strip("|").split("|")]
+                    rows[cells[0].strip("`")] = cells[2].strip("`")
+            self.assertEqual(rows, self.EXPECTED_BOARD_OBSERVATIONS, str(path))
+
+    def test_post_initial_body_drift_requires_an_operator_decision(self):
+        for path in SKILLS:
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("outside the valid `initial` tuple", text, str(path))
+            self.assertIn("report the body diff", text, str(path))
+            self.assertRegex(text, r"explicit\s+operator decision", str(path))
+            self.assertNotIn(
+                "wrong/missing `B` → rerender and rewrite the body", text, str(path)
+            )
 
 
 if __name__ == "__main__":

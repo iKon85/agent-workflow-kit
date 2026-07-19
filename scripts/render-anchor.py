@@ -16,7 +16,7 @@ PLAN_REVISION_RE = re.compile(
     r"^\s*\*\*plan_revision:\*\*\s*(r[^\s]+)\s*$"
 )
 HTML_MARKER_RE = re.compile(
-    r"^\s*<!--\s*(prd-source-id|prd-content-fp|prd):\s*.+?\s*-->\s*$"
+    r"^\s*<!--\s*(prd-source-id|prd-content-fp|prd):\s*([^>\r\n]+?)\s*-->\s*$"
 )
 HTML_COMMENT_RE = re.compile(r"^\s*<!--.*-->\s*$")
 

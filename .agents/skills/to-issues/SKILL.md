@@ -166,10 +166,13 @@ is byte-identical to `/tmp/anchor.md`. `C=0|exact-1|wrong-1|duplicates(<ids>)`
 classifies stable-marker comments: none; exactly one whose whole body is
 byte-identical to `/tmp/prd-archive.md`; exactly one with different bytes; or
 multiple matches with every comment ID retained. `P=absent|complete|partial`
-classifies the board promotion: absent means none of `type:cluster`, Wave
-`$WAVE`, and the `Welle $WAVE — …` title is present; complete means all three
-are present; every mixed combination is partial. Fetch comments with the
-paginated API, never the first page alone:
+classifies only promotion-owned board state. `P=absent` accepts either an
+ordinary pre-state (no `type:cluster`, Wave unset, no `Welle` title prefix) or a
+valid Stufe-1p pre-state (`wave-stub` present, no `type:cluster`, and the
+pre-stamped Wave/title match `$WAVE`). `P=complete` requires `type:cluster`, the
+expected Wave/title, and no remaining `wave-stub`. Every other combination —
+including a different Wave — is `P=partial`. Fetch comments with the paginated
+API, never the first page alone:
 
 ```bash
 gh api --paginate --slurp \
@@ -178,6 +181,16 @@ gh api --paginate --slurp \
 
 Flatten every returned page, retain the comment `id`, and exact-match the
 start-of-body marker. The four valid states and their sole resume action are:
+
+<!-- promotion-board-observation-table:start -->
+| Scenario | Observable board facts | P classification |
+|---|---|---|
+| `ordinary-prestate` | no cluster; Wave unset; no Wave title | `absent` |
+| `stufe-1p-prestate` | wave-stub; no cluster; expected Wave/title | `absent` |
+| `promoted` | cluster; expected Wave/title; no wave-stub | `complete` |
+| `cluster-only` | cluster; Wave/title missing | `partial` |
+| `wrong-wave` | any different Wave value | `partial` |
+<!-- promotion-board-observation-table:end -->
 
 <!-- promotion-state-table:start -->
 | State | Observable predicates | Resume action |
@@ -208,14 +221,19 @@ Each transition is idempotent and has an explicit contract:
    repair for `P=partial`; a different Wave remains a hard stop.
 
 Any other predicate combination is drift, not a fifth state. Repair it
-explicitly, then reclassify: wrong/missing `B` → rerender and rewrite the body;
-`C=wrong-1` → report its ID and explicitly update it to the rendered archive;
-`P=complete` with `C=0` → create/reconcile the archive without demoting;
-`P=partial` → rerun same-Wave `promote`. `C=duplicates(<ids>)` always means
-**STOP and report every comment ID**. An operator must choose and explicitly
-delete/update the duplicates, then rerun the paginated lookup; never select the
-first match or silently discard one. No local operation journal is written:
-these observations are the journal.
+explicitly, then reclassify. `B=no` outside the valid `initial` tuple means
+**STOP**, report the body diff against `/tmp/anchor.md`, and require an explicit
+operator decision to restore the rendered anchor or adopt the remote edit and
+rerender both outputs; never overwrite remote journal evidence automatically.
+Only transition 1 performs the approved source-to-anchor body write without
+this drift gate. `C=wrong-1` → report its ID and explicitly update it to the
+rendered archive; `P=complete` with `C=0` → create/reconcile the archive without
+demoting. For `P=partial`, a different Wave is a hard stop; otherwise rerun
+same-Wave `promote`. `C=duplicates(<ids>)` always means **STOP and report every
+comment ID**. An operator must choose and explicitly delete/update the
+duplicates, then rerun the paginated lookup; never select the first match or
+silently discard one. No local operation journal is written: these
+observations are the journal.
 
 ```bash
 # 3. Continue only from the `promoted` state.
