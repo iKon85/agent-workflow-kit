@@ -53,6 +53,7 @@ from node_kind import classify_node, PROGRAM  # noqa: E402
 # "open blocker" predicate, shared with the execute-ready drift check;
 # native dependencies (API) are the truth.
 from issue_deps import open_blocker_numbers, splice_blocked_by_section  # noqa: E402
+from marker_lib import first_marker  # noqa: E402
 
 # --- Board profile (SSOT: docs/agents/board-sync.md `board-sync:profile`) ----
 # No inline board IDs: board_config reads them from the profile so the published
@@ -162,15 +163,10 @@ def _print_dry(args: list[str]) -> None:
 
 
 # --- pure logic (directly unit-tested) ---------------------------------------
-_PROGRAM_CREATE_IDENTITY_RE = re.compile(
-    r"<!--\s*(program-(?:stub|leaf)-source):\s*([^>]+?)\s*-->"
-)
-
-
 def extract_program_create_identity(body: str) -> Optional[str]:
     """Stable to-waves identity carried by a stub/leaf body, if present."""
-    match = _PROGRAM_CREATE_IDENTITY_RE.search(body)
-    return f"{match.group(1)}: {match.group(2).strip()}" if match else None
+    marker = first_marker(body, ("program-stub-source", "program-leaf-source"))
+    return f"{marker[0]}: {marker[1]}" if marker else None
 
 
 def _find_open_issue_by_program_identity(body: str) -> Optional[dict]:

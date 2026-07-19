@@ -49,11 +49,21 @@ gh project item-list 1 --owner <owner> --limit 500 --format json   # check targe
 - **Mode A — idempotency via two separate markers in the body:**
   - **Stable source identity** `<!-- prd-source-id: <id> -->` — **never** changes across plan content edits (otherwise search-before-create misses the changed re-run → duplicate). **Default rule** for `<id>` (identity ≠ content; set on the **first** to-prd run, **never** changed after — the slug then lives in the issue body and is discoverable via search-before-create): kebab-case slug of the plan topic. Priority: **(1)** explicitly passed ID / durable issue number → **(2)** existing slug from a prior run (found via search-before-create) → **(3)** new kebab-case slug from the plan/title topic. The `PLAN.md` path is only a **secondary hint** (not stable across worktrees; external specs have none), **never** the identity itself.
   - **Separate content fingerprint** `<!-- prd-content-fp: <hash> -->` — only for diff/audit/bump decisions, **not** for identity.
-- **search-before-create:** **no** reliance on GitHub Search (doesn't index HTML comments). Bounded, local:
+- **search-before-create:** use the shared all-state exact-marker lookup (it uses
+  `gh api --paginate`, discards REST pull-request items, and never relies on
+  GitHub Search or a capped issue list):
   ```bash
-  gh issue list --repo <owner>/<repo> --state open --limit 500 --json number,body,labels
-  # filter locally on `prd-source-id: <id>` → 1 match ⇒ update; >1 ⇒ STOP+report; 0 ⇒ create
+  python3 scripts/find-by-marker.py --kind prd-source-id --slug "<id>"
   ```
+  Branch on its JSON contract (`count`, `issues[].number`, `issues[].state`,
+  `verdict`): `0` / `create` → create; exactly one `open` / `update` → update
+  that issue; exactly one `closed` / `user-decision` → ask the user whether to
+  reopen, use a new identity, or stop; `>1` / `STOP` → stop and report every
+  number/state. Never auto-delete or silently replace a closed/duplicate identity.
+  Immediately after a Mode-A create, run the same lookup with
+  `--created <new-issue-number>`. Continue only when it returns exactly the
+  newly-created open issue; duplicate reconciliation is a loud `STOP` that
+  reports both/all numbers for user-decided resolution.
 
 ## 4. Write the Draft PRD (deliverable)
 

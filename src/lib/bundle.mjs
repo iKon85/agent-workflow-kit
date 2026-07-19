@@ -31,6 +31,10 @@ export const HELPER_FILES = [
   // execute-ready-check.py (drift check). Library (imported, not run) → 0o644.
   // MUST ship or both ImportError on arrival.
   { path: 'scripts/issue_deps.py', kind: 'script', mode: 0o644 },
+  // Exact issue-identity marker grammar shared by board-sync.py and the
+  // all-state lookup CLI. Library → 0o644; invokable CLI → 0o755.
+  { path: 'scripts/marker_lib.py', kind: 'script', mode: 0o644 },
+  { path: 'scripts/find-by-marker.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/board-sync.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/execute-ready-check.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/pr-body-check.py', kind: 'script', mode: 0o755 },
