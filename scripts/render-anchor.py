@@ -38,12 +38,12 @@ def _canonical_marker(line: str) -> tuple[str, str] | None:
     kind = marker.group(1)
     if kind == "prd-source-id":
         value = marker_value(line, kind)
-        return (kind, value or "")
+        return (kind, value) if value is not None else None
     return (kind, "")
 
 
-def _strip_head_markers(source: str) -> tuple[str | None, str]:
-    revision = None
+def _strip_head_markers(source: str) -> tuple[list[str], str]:
+    revisions: list[str] = []
     end = 0
     kept: list[str] = []
     for line in source.splitlines(keepends=True):
@@ -53,7 +53,7 @@ def _strip_head_markers(source: str) -> tuple[str | None, str]:
             end += len(line)
             if marker:
                 if marker[0] == "plan_revision":
-                    revision = marker[1]
+                    revisions.append(marker[1])
             else:
                 kept.append(line)
             continue
@@ -62,14 +62,15 @@ def _strip_head_markers(source: str) -> tuple[str | None, str]:
         kept = []
     while kept and not kept[0].strip():
         kept.pop(0)
-    return revision, "".join(kept) + source[end:]
+    return revisions, "".join(kept) + source[end:]
 
 
 def render_documents(anchor_template: str, prd_body: str) -> RenderedDocuments:
     """Return the filled anchor template and marker-free PRD archive."""
-    revision, archive_source = _strip_head_markers(prd_body)
-    if not revision:
-        raise ValueError("source PRD head has no canonical plan_revision")
+    revisions, archive_source = _strip_head_markers(prd_body)
+    if len(revisions) != 1:
+        raise ValueError("source PRD head must have exactly one canonical plan_revision")
+    revision = revisions[0]
     archive_header = (
         f"📄 Full PRD (archive, {revision}) — "
         "the body carries navigation/decisions only\n\n"
@@ -93,9 +94,10 @@ def main(argv: list[str] | None = None) -> int:
         args.template.read_bytes().decode("utf-8"),
         args.prd.read_bytes().decode("utf-8"),
     )
-    sys.stdout.write(
+    output = (
         rendered.anchor_body if args.document == "anchor" else rendered.archive_body
     )
+    sys.stdout.buffer.write(output.encode("utf-8"))
     return 0
 
 

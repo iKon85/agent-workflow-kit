@@ -160,12 +160,16 @@ the stable `📄 Full PRD` marker and strips every canonical marker line
 from the source body's head block. Marker-looking text in a quote, fence, or
 later section is content and remains untouched.
 
-Promotion uses the remote issue itself as its journal. Define three observable
-predicates before every resume: `B` = the fetched issue body is byte-identical
-to `/tmp/anchor.md`; `C` = the set of comments whose body starts with the stable
-`📄 Full PRD` marker; `P` = `type:cluster`, Wave `$WAVE`, and the
-`Welle $WAVE — …` title are all present. Fetch comments with the paginated API,
-never the first page alone:
+Promotion uses the remote issue itself as its journal. Classify three
+observations before every resume: `B=yes|no` says whether the fetched issue body
+is byte-identical to `/tmp/anchor.md`. `C=0|exact-1|wrong-1|duplicates(<ids>)`
+classifies stable-marker comments: none; exactly one whose whole body is
+byte-identical to `/tmp/prd-archive.md`; exactly one with different bytes; or
+multiple matches with every comment ID retained. `P=absent|complete|partial`
+classifies the board promotion: absent means none of `type:cluster`, Wave
+`$WAVE`, and the `Welle $WAVE — …` title is present; complete means all three
+are present; every mixed combination is partial. Fetch comments with the
+paginated API, never the first page alone:
 
 ```bash
 gh api --paginate --slurp \
@@ -178,39 +182,40 @@ start-of-body marker. The four valid states and their sole resume action are:
 <!-- promotion-state-table:start -->
 | State | Observable predicates | Resume action |
 |---|---|---|
-| `initial` | `B=no`, `C=0`, `P=no` | render + write body |
-| `body-written` | `B=yes`, `C=0`, `P=no` | reconcile + write archive comment |
-| `comment-written` | `B=yes`, `C=1`, `P=no` | promote board state |
-| `promoted` | `B=yes`, `C=1`, `P=yes` | no-op; continue publish audit |
+| `initial` | `B=no`, `C=0`, `P=absent` | render + write body |
+| `body-written` | `B=yes`, `C=0`, `P=absent` | reconcile + write archive comment |
+| `comment-written` | `B=yes`, `C=exact-1`, `P=absent` | promote board state |
+| `promoted` | `B=yes`, `C=exact-1`, `P=complete` | no-op; continue publish audit |
 <!-- promotion-state-table:end -->
 
 Each transition is idempotent and has an explicit contract:
 
-1. **Write body (`initial → body-written`).** Pre: `B=no`, `C=0`, `P=no`.
+1. **Write body (`initial → body-written`).** Pre: `B=no`, `C=0`,
+   `P=absent`.
    Run `gh issue edit <prd#> --body-file /tmp/anchor.md`, refetch the body, and
-   require a byte match. Post: `B=yes`, `C=0`, `P=no`.
+   require a byte match. Post: `B=yes`, `C=0`, `P=absent`.
 2. **Write archive (`body-written → comment-written`).** Pre: `B=yes`,
-   `C=0`, `P=no`. Re-run the pagination-aware lookup immediately before create;
-   if it now finds one exact archive, classify as `comment-written` and do not
-   create. Otherwise run `gh issue comment <prd#> --body-file
+   `C=0`, `P=absent`. Re-run the pagination-aware lookup immediately before
+   create; if it now yields `C=exact-1`, classify as `comment-written` and do
+   not create. `C=wrong-1` or `C=duplicates(<ids>)` is drift and enters repair,
+   never create. Only `C=0` runs `gh issue comment <prd#> --body-file
    /tmp/prd-archive.md`, then immediately paginate and reconcile again. Post:
-   exactly one matching comment, its body byte-identical to the rendered
-   archive, so `B=yes`, `C=1`, `P=no`.
-3. **Promote (`comment-written → promoted`).** Pre: `B=yes`, `C=1`,
-   `P=no`. Run `python3 scripts/board-sync.py promote --issue <prd#> --wave
+   `B=yes`, `C=exact-1`, `P=absent`.
+3. **Promote (`comment-written → promoted`).** Pre: `B=yes`, `C=exact-1`,
+   `P=absent`. Run `python3 scripts/board-sync.py promote --issue <prd#> --wave
    "$WAVE"`, refetch body, comments, labels, Wave, and title. Post: `B=yes`,
-   `C=1`, `P=yes`. Re-running `promote` with the same Wave is the repair for a
-   partial board write; a different Wave remains a hard stop.
+   `C=exact-1`, `P=complete`. Re-running `promote` with the same Wave is the
+   repair for `P=partial`; a different Wave remains a hard stop.
 
 Any other predicate combination is drift, not a fifth state. Repair it
 explicitly, then reclassify: wrong/missing `B` → rerender and rewrite the body;
-one marker comment with wrong bytes → report its ID and explicitly update it;
-promoted with no archive → create/reconcile the archive without demoting;
-partial `P` → rerun same-Wave `promote`. If lookup returns more than one marker
-comment, **STOP and report every comment ID**. An operator must choose and
-explicitly delete/update the duplicates, then rerun the paginated lookup;
-never select the first match or silently discard one. No local operation
-journal is written: these observations are the journal.
+`C=wrong-1` → report its ID and explicitly update it to the rendered archive;
+`P=complete` with `C=0` → create/reconcile the archive without demoting;
+`P=partial` → rerun same-Wave `promote`. `C=duplicates(<ids>)` always means
+**STOP and report every comment ID**. An operator must choose and explicitly
+delete/update the duplicates, then rerun the paginated lookup; never select the
+first match or silently discard one. No local operation journal is written:
+these observations are the journal.
 
 ```bash
 # 3. Continue only from the `promoted` state.
