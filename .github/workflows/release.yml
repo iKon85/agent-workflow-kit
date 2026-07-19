@@ -3,7 +3,6 @@ name: Release
 on:
   push:
     branches: [main]
-    paths: [package.json]
   workflow_dispatch:
 
 concurrency:
@@ -15,7 +14,48 @@ permissions:
   id-token: write
 
 jobs:
+  # Gate the release on a git diff of the pushed range instead of the
+  # on.push `paths:` filter. GitHub omits a merge commit's changed files
+  # from the push event's file list, so a version-bump PR merged to main
+  # never matches a `paths: [package.json]` filter and the release
+  # silently no-ops (forcing a manual workflow_dispatch). Comparing
+  # github.event.before..github.sha with git sees the merge commit's real
+  # diff and fires reliably on a normal PR merge, while still skipping
+  # publish on unrelated main pushes.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decide whether package.json changed in this push
+        id: check
+        run: |
+          run=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            run=true
+          else
+            before="${{ github.event.before }}"
+            # Skip the git-diff branch when `before` is empty or the
+            # all-zeros sha (first push / branch create) — that commit
+            # does not exist locally and cannot be diffed.
+            if printf '%s' "$before" | grep -Eq '^[0-9a-f]{40}$' \
+              && [ "$before" != "0000000000000000000000000000000000000000" ]; then
+              if git diff --name-only "$before" "${{ github.sha }}" | grep -Fxq 'package.json'; then
+                run=true
+              fi
+            fi
+          fi
+          if [ "$run" != "true" ]; then
+            echo "package.json unchanged — no release."
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   publish:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
