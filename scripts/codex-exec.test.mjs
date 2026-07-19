@@ -225,7 +225,11 @@ test('timeout kills only the owned group and leaves a decoy sibling alive', () =
 test('timeout kills descendants after the process-group leader has exited', () => {
   const fx = fixture();
   const childPid = join(fx.dir, 'orphan.pid');
-  const args = launchArgs().map((value, index, all) => all[index - 1] === '--timeout' ? '0.35' : value);
+  const args = launchArgs().map((value, index, all) => {
+    if (all[index - 1] === '--timeout') return '0.35';
+    if (all[index - 1] === '--probe-timeout') return '1';
+    return value;
+  });
   const result = invoke(fx, args, {
     FAKE_CODEX_SCENARIO: 'orphan-group', FAKE_CODEX_CHILD_PID: childPid,
   });
