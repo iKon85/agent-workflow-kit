@@ -97,11 +97,21 @@ Body from `docs/agents/wave-anchor-template.md` **stage 1** (header + cluster or
 
 **Idempotency — stub marker + search-before-create (mandatory, BEFORE `create`).** Re-runs of board-to-waves must **not** produce duplicate stubs (a duplicate stub would confuse Mode-B identity in `to-prd`). Mirrors the `to-prd` pattern:
 - **Stable stub marker** `<!-- wave-stub-source: <topic-slug> -->` as the **first body line** of every stub. `<topic-slug>` = kebab-case slug of the gate outcome; set on the **first** run, **never** changed after (identity ≠ content — the slug stays findable even if members/size change later).
-- **search-before-create** per candidate **before** the `create`. **No** reliance on GitHub search (doesn't index HTML comments) — bounded, local:
+- **search-before-create** per candidate **before** the `create`, through the
+  shared all-state exact-marker lookup (it uses `gh api --paginate`, discards REST
+  pull-request items, and never relies on GitHub Search or a capped issue list):
   ```bash
-  gh issue list --repo <owner>/<repo> --state open --limit 500 --json number,body,labels
-  # locally filter on `wave-stub-source: <topic-slug>` → 1 match ⇒ skip + report (stub exists); >1 ⇒ STOP + report; 0 ⇒ create
+  python3 scripts/find-by-marker.py --kind wave-stub-source --slug "<topic-slug>"
   ```
+  Branch on its JSON contract (`count`, `issues[].number`, `issues[].state`,
+  `verdict`): `0` / `create` → create; exactly one `open` / `update` → skip the
+  create and report/update that stub; exactly one `closed` / `user-decision` → ask
+  the user whether to reopen, use a new identity, or stop; `>1` / `STOP` → stop
+  and report every number/state. Never auto-delete or silently replace a
+  closed/duplicate identity. Immediately after create, run the same lookup with
+  `--created <new-issue-number>`; continue only when it returns exactly the
+  newly-created open issue. Duplicate reconciliation stops loudly and reports
+  both/all numbers for user-decided resolution.
 
 **Create the candidate stub (cluster/wave-less)** — issue **without** `type:cluster` and **without** `--wave` (exactly one `type:*` + one `priority:*`; title **without** a `Welle <N>` prefix, since the wave number is only assigned at promotion), **with `--wave-stub`** (a searchable "awaiting planning" filter — the HTML marker above is only locally greppable, GitHub doesn't index it), attach to the board, triaged-role status (clustered, not yet planned). `to-prd` then matures the stub (Mode B) into a Draft PRD, `to-issues` promotes it to an anchor (sets `type:cluster` + Wave then, **strips `wave-stub`** — the stub leaves the planning list):
 ```bash

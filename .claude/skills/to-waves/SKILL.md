@@ -192,10 +192,22 @@ A re-run of to-waves on the same program is **delta-apply** and doubles as
   bottom-up `wave-stub-source` marker; `<prd-source-id>` is the PRD's own source
   slug). These never change across revisions — they are the identity for
   search-before-create.
-- **Delta apply.** Filter existing issues locally by their source marker
-  (`gh issue list --json number,body` + a local filter, no reliance on GitHub search —
-  it does not index HTML comments). For each planned stub/leaf: **match** → update in
-  place (never duplicate); **missing** → create; a live issue carrying a
+- **Delta apply.** Resolve every planned identity through the shared all-state,
+  exact-marker CLI (it uses `gh api --paginate`, discards REST pull-request
+  items, and does not rely on GitHub Search or a capped issue list):
+  ```bash
+  python3 scripts/find-by-marker.py --kind program-stub-source --slug "<prd-source-id>/w<N>"
+  python3 scripts/find-by-marker.py --kind program-leaf-source --slug "<prd-source-id>/<local-id>"
+  ```
+  Branch on each JSON result (`count`, `issues[].number`, `issues[].state`,
+  `verdict`): `0` / `create` → create; exactly one `open` / `update` → update in
+  place; exactly one `closed` / `user-decision` → ask the user whether to reopen,
+  use a new identity, or stop; `>1` / `STOP` → stop and report every number/state.
+  Never auto-delete or silently replace a closed/duplicate identity. Immediately
+  after every create, run the same lookup with `--created <new-issue-number>` and
+  continue only when exactly the newly-created open issue is returned; a duplicate
+  reconciliation stops loudly with both/all numbers for user-decided resolution.
+  A live issue carrying a
   `program-*-source` for this program that the current plan no longer references →
   report as **orphaned** (do not auto-close — closing is the abort convention, §8).
   Cross-check the native children (`children-of <prd#>` and each stub) against the
