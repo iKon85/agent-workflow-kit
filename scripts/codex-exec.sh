@@ -23,6 +23,34 @@ fail() {
   return 1
 }
 
+fail_process() {
+  local error=$1 message=$2 status=$3 process_status=$4
+  python3 - "$error" "$message" "$status" "$process_status" <<'PY'
+import json
+import signal
+import sys
+
+error, message, status, raw_status = sys.argv[1:]
+process_status = int(raw_status)
+exit_status = process_status
+signal_name = None
+if process_status >= 128:
+    try:
+        signal_name = signal.Signals(process_status - 128).name
+        exit_status = None
+    except ValueError:
+        pass
+print(json.dumps({
+    "status": status,
+    "error": error,
+    "message": message,
+    "originalExitStatus": exit_status,
+    "signal": signal_name,
+}, sort_keys=True))
+PY
+  return 1
+}
+
 positive_number() {
   python3 - "$1" <<'PY' >/dev/null 2>&1
 import math, sys
@@ -44,7 +72,7 @@ find_state() {
 }
 
 preflight() {
-  local codex_bin=$1 quiet=${2:-false} version_text version auth help resume_help platform allowed=false
+  local codex_bin=$1 quiet=${2:-false} version_text version auth auth_rc help resume_help platform allowed=false
   if [[ ! -x $codex_bin ]] && ! command -v "$codex_bin" >/dev/null 2>&1; then
     fail CODEX_NOT_FOUND "Codex executable not found"
     return 1
@@ -76,10 +104,12 @@ preflight() {
     fail MISSING_CAPABILITY "Codex exec resume lacks required config or JSON capability"
     return 1
   fi
-  auth=$("$codex_bin" login status 2>&1) || {
-    fail AUTH_REQUIRED "$auth" AUTH
+  auth=$("$codex_bin" login status 2>&1)
+  auth_rc=$?
+  if ((auth_rc)); then
+    fail_process AUTH_REQUIRED "$auth" AUTH "$auth_rc"
     return 1
-  }
+  fi
   [[ $quiet == true ]] || emit_json status=OK "version=$version" "auth=$auth" "platform=$platform"
 }
 
@@ -122,7 +152,7 @@ prepare_prompt() {
 }
 
 launch_round() {
-  local state_dir=$1 round=$2 thread_id=${3:-} rc
+  local state_dir=$1 round=$2 lease_token=$3 thread_id=${4:-} rc
   prepare_prompt "$state_dir" || return 1
   local command
   if [[ -z $thread_id ]]; then
@@ -132,10 +162,19 @@ launch_round() {
   fi
   python3 "$PROC_HELPER" run --state-dir "$state_dir" --round "$round" \
     --profile "$PROFILE" --sandbox "$SANDBOX" --timeout "$TIMEOUT" \
-    --probe-timeout "$PROBE_TIMEOUT" --prompt-file "$TEMP_PROMPT" -- "${command[@]}"
+    --probe-timeout "$PROBE_TIMEOUT" --prompt-file "$TEMP_PROMPT" \
+    --lease-token "$lease_token" -- "${command[@]}"
   rc=$?
   rm -f "$TEMP_PROMPT"
   return "$rc"
+}
+
+acquire_lease() {
+  python3 "$PROC_HELPER" lease-acquire --state-dir "$1"
+}
+
+release_lease() {
+  python3 "$PROC_HELPER" lease-release --state-dir "$1" --token "$2" >/dev/null 2>&1
 }
 
 new_run() {
@@ -163,7 +202,7 @@ new_run() {
     --max-delete "${CODEX_EXEC_STALE_MAX_DELETE:-8}" || {
       fail STALE_CLEANUP_FAILED "Bounded stale-state cleanup failed"; return 1;
     }
-  local state_dir run_id
+  local state_dir run_id lease_token rc
   state_dir=$(mktemp -d "$STATE_ROOT/codex-exec.XXXXXXXX") || return 1
   chmod 700 "$state_dir"
   run_id=${state_dir##*.}
@@ -172,14 +211,18 @@ new_run() {
   printf '%s\n' "$SANDBOX" >"$state_dir/sandbox"
   printf '1\n' >"$state_dir/next-round"
   chmod 600 "$state_dir"/*
-  launch_round "$state_dir" 1
+  lease_token=$(acquire_lease "$state_dir") || {
+    fail ACTIVE_RUN "Run state is already owned by another lifecycle action"
+    return 1
+  }
+  launch_round "$state_dir" 1 "$lease_token"
+  rc=$?
+  release_lease "$state_dir" "$lease_token" || true
+  return "$rc"
 }
 
-resume_run() {
-  parse_options "$@" || return 1
-  [[ -n $RUN_ID ]] || { fail RUN_ID_REQUIRED "Resume requires --run-id"; return 1; }
-  local state_dir stored_sandbox thread_id round
-  state_dir=$(find_state "$RUN_ID") || { fail RUN_NOT_FOUND "Run state does not exist"; return 1; }
+resume_run_locked() {
+  local state_dir=$1 lease_token=$2 stored_sandbox thread_id round
   stored_sandbox=$(<"$state_dir/sandbox")
   PROFILE=$(<"$state_dir/profile")
   if [[ -n $MODE && $MODE != "$stored_sandbox" ]]; then
@@ -195,27 +238,57 @@ resume_run() {
   positive_number "$TIMEOUT" && positive_number "$PROBE_TIMEOUT" || {
     fail INVALID_TIMEOUT "Timeouts must be finite positive numbers"; return 1;
   }
+  [[ ! -f $state_dir/runtime.json ]] || {
+    fail ACTIVE_RUN "Run has an unreconciled active runtime"; return 1;
+  }
   preflight "$CODEX_BIN" true || return 1
-  launch_round "$state_dir" "$round" "$thread_id"
+  launch_round "$state_dir" "$round" "$lease_token" "$thread_id"
+}
+
+resume_run() {
+  parse_options "$@" || return 1
+  [[ -n $RUN_ID ]] || { fail RUN_ID_REQUIRED "Resume requires --run-id"; return 1; }
+  local state_dir lease_token rc
+  state_dir=$(find_state "$RUN_ID") || { fail RUN_NOT_FOUND "Run state does not exist"; return 1; }
+  lease_token=$(acquire_lease "$state_dir") || {
+    if [[ -d $state_dir ]]; then
+      fail ACTIVE_RUN "Run state is already owned by another lifecycle action"
+    else
+      fail RUN_NOT_FOUND "Run state does not exist"
+    fi
+    return 1
+  }
+  resume_run_locked "$state_dir" "$lease_token"
+  rc=$?
+  release_lease "$state_dir" "$lease_token" || true
+  return "$rc"
 }
 
 finish_run() {
   local action=$1; shift
   parse_options "$@" || return 1
   [[ -n $RUN_ID ]] || { fail RUN_ID_REQUIRED "$action requires --run-id"; return 1; }
-  local state_dir
+  local state_dir lease_token
   state_dir=$(find_state "$RUN_ID") || { fail RUN_NOT_FOUND "Run state does not exist"; return 1; }
   if [[ $action == abort ]]; then
-    python3 "$PROC_HELPER" cancel --state-dir "$state_dir" || {
-      fail ABORT_FAILED "Owned process group did not stop"; return 1;
+    lease_token=$(python3 "$PROC_HELPER" abort-claim --state-dir "$state_dir") || {
+      fail ABORT_FAILED "Run ownership could not be claimed for cleanup"; return 1;
     }
-  elif [[ -f $state_dir/runtime.json ]]; then
-    fail ACTIVE_RUN "Use abort for an active run"
-    return 1
+  else
+    lease_token=$(acquire_lease "$state_dir") || {
+      fail ACTIVE_RUN "Use abort for an active run"
+      return 1
+    }
+    if [[ -f $state_dir/runtime.json ]]; then
+      release_lease "$state_dir" "$lease_token" || true
+      fail ACTIVE_RUN "Use abort for an active run"
+      return 1
+    fi
   fi
   if [[ $DEBUG_RETAIN == false ]]; then
     rm -rf -- "$state_dir"
   else
+    release_lease "$state_dir" "$lease_token" || true
     : >"$state_dir/debug-retain"
   fi
   emit_json status=OK "action=$action" "runId=$RUN_ID" "retained=$DEBUG_RETAIN"

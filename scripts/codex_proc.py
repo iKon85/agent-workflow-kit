@@ -26,7 +26,8 @@ CANCEL_REQUESTED = False
 HEARTBEAT_INTERVAL_SECONDS = 0.1
 CANCEL_WAIT_SECONDS = 2.0
 OWNERSHIP_TOKEN = re.compile(r"^[0-9a-f]{64}$")
-RESULT_NAME = re.compile(r"^round-[1-9][0-9]*\.result\.json$")
+LEASE_DIR_NAME = "round.lease"
+LEASE_OWNER_NAME = "owner.json"
 
 
 def request_cancel(_signum: int, _frame: object) -> None:
@@ -91,6 +92,78 @@ def publish_runtime(state_dir: Path, token: str, round_number: int, phase: str) 
     )
 
 
+def lease_dir(state_dir: Path) -> Path:
+    return state_dir / LEASE_DIR_NAME
+
+
+def lease_owner(state_dir: Path) -> dict | None:
+    return read_object(lease_dir(state_dir) / LEASE_OWNER_NAME)
+
+
+def valid_owner(owner: dict | None) -> bool:
+    if not owner:
+        return False
+    token = owner.get("token")
+    round_number = owner.get("round")
+    return bool(
+        isinstance(token, str) and OWNERSHIP_TOKEN.fullmatch(token)
+        and isinstance(round_number, int) and not isinstance(round_number, bool)
+        and round_number >= 1
+    )
+
+
+def acquire_lease_for_state(state_dir: Path) -> str | None:
+    lease = lease_dir(state_dir)
+    try:
+        lease.mkdir(mode=0o700)
+    except (FileExistsError, FileNotFoundError):
+        return None
+    try:
+        round_number = int((state_dir / "next-round").read_text(encoding="utf-8").strip())
+        if round_number < 1:
+            raise ValueError
+        token = secrets.token_hex(32)
+        atomic_write(
+            lease / LEASE_OWNER_NAME,
+            json.dumps({
+                "token": token,
+                "round": round_number,
+                "acquiredAt": time.time(),
+            }, sort_keys=True) + "\n",
+        )
+        fsync_directory(state_dir)
+        return token
+    except (FileNotFoundError, OSError, UnicodeDecodeError, ValueError):
+        shutil.rmtree(lease, ignore_errors=True)
+        return None
+    except BaseException:
+        shutil.rmtree(lease, ignore_errors=True)
+        raise
+
+
+def release_lease_for_state(state_dir: Path, token: str) -> bool:
+    lease = lease_dir(state_dir)
+    owner = lease_owner(state_dir)
+    if not valid_owner(owner) or owner.get("token") != token:
+        return False
+    try:
+        remove_durable(lease / LEASE_OWNER_NAME)
+        lease.rmdir()
+        fsync_directory(state_dir)
+    except FileNotFoundError:
+        return False
+    return True
+
+
+def remove_runtime_if_owned(state_dir: Path, token: str, round_number: int) -> bool:
+    runtime_path = state_dir / "runtime.json"
+    runtime = read_object(runtime_path)
+    if not runtime or runtime.get("token") != token or runtime.get("round") != round_number:
+        return False
+    remove_durable(runtime_path)
+    return True
+
+
 def matching_cancel_request(state_dir: Path, token: str, round_number: int) -> bool:
     request = read_object(state_dir / "cancel.request")
     return bool(
@@ -140,17 +213,24 @@ def parse_events(stdout: bytes) -> tuple[bool, str | None, str | None]:
         if not isinstance(event, dict):
             malformed = True
             continue
+        event_type = event.get("type")
+        if not isinstance(event_type, str):
+            malformed = True
+            continue
         if "item" in event and not isinstance(event["item"], dict):
             malformed = True
             continue
-        if event.get("type") == "thread.started":
+        item = event.get("item", {})
+        if "item" in event and not isinstance(item.get("type"), str):
+            malformed = True
+            continue
+        if event_type == "thread.started":
             candidate = event.get("thread_id")
             if not isinstance(candidate, str):
                 malformed = True
             else:
                 thread_id = candidate
-        item = event.get("item", {})
-        if event.get("type") == "item.completed" and item.get("type") == "agent_message":
+        if event_type == "item.completed" and item.get("type") == "agent_message":
             candidate = item.get("text")
             if not isinstance(candidate, str):
                 malformed = True
@@ -268,7 +348,7 @@ def settle_before_publication(args: argparse.Namespace, token: str,
     return reason
 
 
-def publish_result(args: argparse.Namespace, result: dict) -> None:
+def publish_result(args: argparse.Namespace, token: str, result: dict) -> None:
     state_dir = Path(args.state_dir)
     if result.get("threadId"):
         atomic_write(state_dir / "thread-id", result["threadId"] + "\n")
@@ -276,8 +356,9 @@ def publish_result(args: argparse.Namespace, result: dict) -> None:
     result_path = state_dir / f"round-{args.round}.result.json"
     exclusive_write(result_path, json.dumps(result, sort_keys=True) + "\n")
     atomic_write(state_dir / "latest", result_path.name + "\n")
+    if not remove_runtime_if_owned(state_dir, token, args.round):
+        raise RuntimeError("runtime ownership changed before terminal publication")
     print(json.dumps(result, sort_keys=True), flush=True)
-    remove_durable(state_dir / "runtime.json")
 
 
 def run_round(args: argparse.Namespace) -> int:
@@ -291,7 +372,12 @@ def run_round(args: argparse.Namespace) -> int:
     prompt_path.write_bytes(Path(args.prompt_file).read_bytes())
     signal.signal(signal.SIGINT, request_cancel)
     signal.signal(signal.SIGTERM, request_cancel)
-    token = secrets.token_hex(32)
+    token = args.lease_token
+    owner = lease_owner(state_dir)
+    if not valid_owner(owner) or owner.get("token") != token or owner.get("round") != args.round:
+        raise SystemExit("round lease ownership mismatch")
+    if (state_dir / "runtime.json").exists():
+        raise SystemExit("run already has an active runtime")
     with prompt_path.open("rb") as prompt:
         process = subprocess.Popen(
             command,
@@ -311,47 +397,62 @@ def run_round(args: argparse.Namespace) -> int:
         "profile": args.profile,
         "sandbox": args.sandbox,
     })
-    publish_result(args, result)
+    publish_result(args, token, result)
     return 0 if result["status"] == "OK" else 1
 
 
-def cancel(args: argparse.Namespace) -> int:
+def lease_acquire(args: argparse.Namespace) -> int:
     state_dir = Path(args.state_dir)
-    runtime = state_dir / "runtime.json"
-    if not runtime.exists():
-        return 0 if terminal_result_ready(state_dir) else 1
-    ownership = read_object(runtime)
-    if not ownership:
+    token = acquire_lease_for_state(state_dir)
+    if not token:
         return 1
-    token = ownership.get("token")
-    round_number = ownership.get("round")
-    if not isinstance(token, str) or not OWNERSHIP_TOKEN.fullmatch(token):
-        return 1
-    if not isinstance(round_number, int) or isinstance(round_number, bool) or round_number < 1:
-        return 1
-    atomic_write(
-        state_dir / "cancel.request",
-        json.dumps({
-            "token": token,
-            "round": round_number,
-            "requestedAt": time.time(),
-        }, sort_keys=True) + "\n",
-    )
+    print(token, flush=True)
+    return 0
+
+
+def lease_release(args: argparse.Namespace) -> int:
+    return 0 if release_lease_for_state(Path(args.state_dir), args.token) else 1
+
+
+def abort_claim(args: argparse.Namespace) -> int:
+    state_dir = Path(args.state_dir)
     deadline = time.monotonic() + CANCEL_WAIT_SECONDS
-    while runtime.exists() and time.monotonic() < deadline:
+    while time.monotonic() < deadline:
+        runtime_path = state_dir / "runtime.json"
+        runtime = read_object(runtime_path)
+        runtime_is_live = live_runtime(
+            runtime_path, time.time(), CANCEL_WAIT_SECONDS,
+        )
+        token = None if runtime_is_live else acquire_lease_for_state(state_dir)
+        if token:
+            print(token, flush=True)
+            return 0
+        ownership = runtime or lease_owner(state_dir)
+        if not valid_owner(ownership):
+            time.sleep(0.02)
+            continue
+        token = ownership["token"]
+        round_number = ownership["round"]
+        atomic_write(
+            state_dir / "cancel.request",
+            json.dumps({
+                "token": token,
+                "round": round_number,
+                "requestedAt": time.time(),
+            }, sort_keys=True) + "\n",
+        )
         time.sleep(0.02)
-    return 0 if not runtime.exists() and terminal_result_ready(state_dir) else 1
+    return 1
 
 
-def terminal_result_ready(state_dir: Path) -> bool:
-    try:
-        result_name = (state_dir / "latest").read_text(encoding="utf-8").strip()
-    except (FileNotFoundError, OSError, UnicodeDecodeError):
+def live_lease(state_dir: Path, now: float, stale_seconds: float) -> bool:
+    owner = lease_owner(state_dir)
+    if not valid_owner(owner):
         return False
-    if not RESULT_NAME.fullmatch(result_name):
+    acquired_at = owner.get("acquiredAt")
+    if not isinstance(acquired_at, (int, float)) or isinstance(acquired_at, bool):
         return False
-    result = read_object(state_dir / result_name)
-    return bool(result and isinstance(result.get("status"), str))
+    return math.isfinite(acquired_at) and 0 <= now - acquired_at < stale_seconds
 
 
 def live_runtime(runtime_path: Path, now: float, stale_seconds: float) -> bool:
@@ -385,6 +486,7 @@ def cleanup(args: argparse.Namespace) -> int:
         protected = (
             (state_dir / "debug-retain").exists()
             or live_runtime(state_dir / "runtime.json", now, args.stale_seconds)
+            or live_lease(state_dir, now, args.stale_seconds)
         )
         try:
             valid = identity.read_text().strip() == run_id
@@ -407,8 +509,14 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--timeout", required=True, type=float)
     run.add_argument("--probe-timeout", required=True, type=float)
     run.add_argument("--prompt-file", required=True)
+    run.add_argument("--lease-token", required=True)
     run.add_argument("command", nargs=argparse.REMAINDER)
-    stop = commands.add_parser("cancel")
+    acquire = commands.add_parser("lease-acquire")
+    acquire.add_argument("--state-dir", required=True)
+    release = commands.add_parser("lease-release")
+    release.add_argument("--state-dir", required=True)
+    release.add_argument("--token", required=True)
+    stop = commands.add_parser("abort-claim")
     stop.add_argument("--state-dir", required=True)
     stale = commands.add_parser("cleanup")
     stale.add_argument("--state-root", required=True)
@@ -419,5 +527,11 @@ def parser() -> argparse.ArgumentParser:
 
 if __name__ == "__main__":
     parsed = parser().parse_args()
-    actions = {"run": run_round, "cancel": cancel, "cleanup": cleanup}
+    actions = {
+        "run": run_round,
+        "lease-acquire": lease_acquire,
+        "lease-release": lease_release,
+        "abort-claim": abort_claim,
+        "cleanup": cleanup,
+    }
     sys.exit(actions[parsed.action](parsed))

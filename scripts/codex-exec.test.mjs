@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
-  mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, utimesSync, writeFileSync,
+  closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, statSync,
+  utimesSync, writeFileSync,
 } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -331,6 +332,7 @@ for (const [scenario, status] of [
 
 for (const scenario of [
   'json-null', 'json-array', 'json-scalar', 'item-null', 'item-array',
+  'event-type-null', 'event-type-array', 'item-type-null', 'item-type-array',
   'thread-non-string', 'verdict-non-string',
 ]) {
   test(`${scenario} is a structured MALFORMED-JSON result without traceback`, () => {
@@ -346,6 +348,8 @@ test('auth failure is classified before launch and leaves no run state', () => {
   const fx = fixture();
   const result = invoke(fx, launchArgs(), { FAKE_CODEX_SCENARIO: 'auth-fail' });
   assert.equal(result.output.status, 'AUTH');
+  assert.equal(result.output.originalExitStatus, 1);
+  assert.equal(result.output.signal, null);
   assert.equal(exists(fx.launchLog), false);
   assert.equal(exists(fx.stateRoot) ? readdirSync(fx.stateRoot).length : 0, 0);
 });
@@ -394,11 +398,72 @@ test('timeout kills only the owned group and leaves a decoy sibling alive', () =
       FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_PAUSE_MS: '2000', FAKE_CODEX_CHILD_PID: childPid,
     });
     assert.equal(result.output.status, 'TIMEOUT');
+    assert.equal(exists(result.output.stateDir), true);
+    assert.equal(readFileSync(join(result.output.stateDir, 'latest'), 'utf8').trim(), 'round-1.result.json');
     assert.equal(alive(decoy.pid), true);
     assert.equal(alive(Number(readFileSync(childPid, 'utf8'))), false);
   } finally {
     decoy.kill('SIGKILL');
   }
+});
+
+test('a concurrent resume and finalize cannot steal an owned round lease', async () => {
+  const fx = fixture();
+  const first = invoke(fx, launchArgs()).output;
+  const running = spawn(helper, [
+    'resume', first.runId, '--codex-bin', fake, '--prompt', 'Again',
+    '--timeout', '5', '--probe-timeout', '1',
+  ], {
+    cwd: root, encoding: 'utf8', env: {
+      ...process.env, CODEX_EXEC_STATE_ROOT: fx.stateRoot,
+      FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_PAUSE_MS: '5000',
+      FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
+    },
+  });
+  running.stdout.on('data', () => {});
+  try {
+    assert.ok(await waitFor(() => readJson(join(first.stateDir, 'runtime.json'))?.round === 2));
+    const duplicate = invoke(fx, [
+      'resume', first.runId, '--codex-bin', fake, '--prompt', 'Duplicate',
+    ]);
+    assert.equal(duplicate.output.error, 'ACTIVE_RUN');
+    const finalized = invoke(fx, ['finalize', first.runId]);
+    assert.equal(finalized.output.error, 'ACTIVE_RUN');
+    const roundTwoLaunches = readFileSync(fx.launchLog, 'utf8').trim().split('\n')
+      .map((line) => JSON.parse(line))
+      .filter((args) => args[0] === 'exec' && args[1] === 'resume');
+    assert.equal(roundTwoLaunches.length, 1);
+    assert.equal(invoke(fx, ['abort', first.runId]).output.status, 'OK');
+    assert.ok(await waitFor(() => running.exitCode !== null, 3_000));
+  } finally {
+    running.kill('SIGKILL');
+  }
+});
+
+test('a broken result output sink cannot strand runtime or lease ownership', () => {
+  if (process.platform !== 'linux') return;
+  const fx = fixture();
+  const full = openSync('/dev/full', 'w');
+  try {
+    spawnSync(helper, launchArgs(), {
+      cwd: root,
+      stdio: ['ignore', full, 'pipe'],
+      timeout: 8_000,
+      env: {
+        ...process.env,
+        CODEX_EXEC_STATE_ROOT: fx.stateRoot,
+        FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
+      },
+    });
+  } finally {
+    closeSync(full);
+  }
+  const [stateName] = readdirSync(fx.stateRoot);
+  const stateDir = join(fx.stateRoot, stateName);
+  assert.equal(exists(join(stateDir, 'round-1.result.json')), true);
+  assert.equal(exists(join(stateDir, 'latest')), true);
+  assert.equal(exists(join(stateDir, 'runtime.json')), false);
+  assert.equal(exists(join(stateDir, 'round.lease')), false);
 });
 
 test('timeout kills descendants after the process-group leader has exited', () => {

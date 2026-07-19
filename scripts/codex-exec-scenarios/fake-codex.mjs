@@ -84,6 +84,18 @@ switch (scenario) {
   case 'item-array':
     emit({ type: 'item.completed', item: [] });
     break;
+  case 'event-type-null':
+    emit({ type: null });
+    break;
+  case 'event-type-array':
+    emit({ type: [] });
+    break;
+  case 'item-type-null':
+    emit({ type: 'item.completed', item: { type: null } });
+    break;
+  case 'item-type-array':
+    emit({ type: 'item.completed', item: { type: [] } });
+    break;
   case 'thread-non-string':
     emit({ type: 'thread.started', thread_id: 42 });
     break;
