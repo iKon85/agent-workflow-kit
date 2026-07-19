@@ -65,41 +65,17 @@ OUTPUT: End with a report — files changed (one line each: path + what/why),
 EOF
 ```
 
-Use this guard for every wrapper round. The conditional assignment is safe
-under `set -e`: a non-zero wrapper exit reaches the structured failure branch
-instead of terminating before cleanup.
-
-```bash
-run_codex_round() {
-  if ROUND_RESULT=$("$@"); then
-    ROUND_EXIT=0
-  else
-    ROUND_EXIT=$?
-  fi
-  ROUND_STATUS=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", "EXEC_FAILED"))')
-  if (( ROUND_EXIT != 0 )) || [[ "$ROUND_STATUS" != OK ]]; then
-    printf '%s\n' "$ROUND_RESULT" >&2
-    FAILED_RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("runId", ""))')
-    if [[ -z "$FAILED_RUN_ID" && "${2:-}" == resume ]]; then
-      FAILED_RUN_ID=${3:-}
-    fi
-    if [[ -n "$FAILED_RUN_ID" ]]; then
-      scripts/codex-exec.sh abort "$FAILED_RUN_ID"
-    fi
-    if [[ "$ROUND_STATUS" == HUNG ]]; then
-      printf '%s\n' 'STOP: ask the user whether to retry once with a fresh run or stop delegation and let Claude take over.' >&2
-    fi
-    return 1
-  fi
-  RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
-  CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
-}
-```
-
 ## Step 2 — Launch Codex (fresh wrapper-owned session)
 
 ```bash
-run_codex_round scripts/codex-exec.sh new --profile build --mode workspace-write --prompt-file "$P" || exit 1
+if ROUND_RESULT=$(scripts/codex-exec.sh new --profile build --mode workspace-write --prompt-file "$P"); then
+  RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
+  CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+else
+  FAILURE_RESULT=$(scripts/codex-exec.sh handle-failure --result "$ROUND_RESULT") || :
+  printf '%s\n' "$FAILURE_RESULT" >&2
+  exit 1
+fi
 ```
 
 - The `build` profile establishes and persists `workspace-write`; never request
@@ -108,15 +84,14 @@ run_codex_round scripts/codex-exec.sh new --profile build --mode workspace-write
   the declared set. Work outside those bounds belongs to Claude and must be
   split out of the spec.
 - The wrapper owns stdin closure, hang detection, the overall build timeout,
-  stderr redaction, and the launched process group. A `HUNG` result requires a
-  user choice: retry once or stop delegation. Never inspect, signal, or kill
-  foreign Codex processes.
+  stderr redaction, and the launched process group. Never inspect, signal, or
+  kill foreign Codex processes.
 - `RUN_ID` is opaque. Retain it only for resume/finalize/abort; harvest the
   report from `CODEX_REPORT` before deleting run state.
-- The guard surfaces every failed or cancelled structured result, aborts only
-  when the result or a resume call supplies a known run ID, executes the `HUNG`
-  user-choice path, and stops before report handling. Never target a process
-  directly.
+- `handle-failure` surfaces every failed or cancelled structured result plus
+  cleanup metadata; the caller then stops before report handling. A surfaced
+  `HUNG` returns to the user for the choice to retry once with a fresh run or
+  stop delegation and let Claude take over. Never target a process directly.
 
 - **Heads-up on completion (required):** when a background Codex run finishes, the FIRST line of your next message to the user must be a loud standalone banner — `🔔 CODEX FINISHED — <what> (exit ok/fail) — verifying now` — BEFORE any verification output. The user is not watching tool calls; never let a completed build slide silently into the verify phase.
 
@@ -134,7 +109,13 @@ Codex's report is advisory. Verify yourself:
 Problems found → resume the SAME session (Codex keeps its context; cheaper and better than a fresh run). Write the fix list to a second temp file (`$CODEX_TMP/fix-prompt.txt`), same contract discipline: exact problem, exact file, proof expected, same allowed-write set.
 
 ```bash
-run_codex_round scripts/codex-exec.sh resume "$RUN_ID" --prompt-file "$CODEX_TMP/fix-prompt.txt" || exit 1
+if ROUND_RESULT=$(scripts/codex-exec.sh resume "$RUN_ID" --prompt-file "$CODEX_TMP/fix-prompt.txt"); then
+  CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+else
+  FAILURE_RESULT=$(scripts/codex-exec.sh handle-failure --result "$ROUND_RESULT" --run-id "$RUN_ID") || :
+  printf '%s\n' "$FAILURE_RESULT" >&2
+  exit 1
+fi
 ```
 
 The wrapper enforces the persisted workspace-write mode on every resume.

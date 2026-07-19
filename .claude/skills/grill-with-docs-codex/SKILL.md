@@ -178,54 +178,37 @@ Invoked with e.g. `rounds=3` → use it. Echo resolved values first.
 ### Review prompt (each round)
 > You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and `CONTEXT.md`/ADRs for the domain language) and any repo files you need (you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, domain-language mismatches, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End with EXACTLY one line: `VERDICT: APPROVED` or `VERDICT: REVISE`.
 
-Use this guard for every wrapper round. The conditional assignment is safe
-under `set -e`: a non-zero wrapper exit reaches the structured failure branch
-instead of terminating before cleanup.
-
-```bash
-run_codex_round() {
-  if ROUND_RESULT=$("$@"); then
-    ROUND_EXIT=0
-  else
-    ROUND_EXIT=$?
-  fi
-  ROUND_STATUS=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status", "EXEC_FAILED"))')
-  if (( ROUND_EXIT != 0 )) || [[ "$ROUND_STATUS" != OK ]]; then
-    printf '%s\n' "$ROUND_RESULT" >&2
-    FAILED_RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("runId", ""))')
-    if [[ -z "$FAILED_RUN_ID" && "${2:-}" == resume ]]; then
-      FAILED_RUN_ID=${3:-}
-    fi
-    if [[ -n "$FAILED_RUN_ID" ]]; then
-      scripts/codex-exec.sh abort "$FAILED_RUN_ID"
-    fi
-    if [[ "$ROUND_STATUS" == HUNG ]]; then
-      printf '%s\n' 'STOP: ask the user whether to retry once with a fresh run or proceed without cross-model review.' >&2
-    fi
-    return 1
-  fi
-  RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
-  CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
-}
-```
-
 ### Round 1 — fresh wrapper-owned session
 
 ```bash
-run_codex_round scripts/codex-exec.sh new --profile review --mode read-only --prompt "$REVIEW_PROMPT" || exit 1
+if ROUND_RESULT=$(scripts/codex-exec.sh new --profile review --mode read-only --prompt "$REVIEW_PROMPT"); then
+  RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
+  CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+else
+  FAILURE_RESULT=$(scripts/codex-exec.sh handle-failure --result "$ROUND_RESULT") || :
+  printf '%s\n' "$FAILURE_RESULT" >&2
+  exit 1
+fi
 ```
 
 ### Rounds 2..MAX — resume SAME session
 
 ```bash
-run_codex_round scripts/codex-exec.sh resume "$RUN_ID" --prompt "I revised the plan. Re-review PLAN.md — check prior findings + flag anything new. End with VERDICT: APPROVED or VERDICT: REVISE." || exit 1
+if ROUND_RESULT=$(scripts/codex-exec.sh resume "$RUN_ID" --prompt "I revised the plan. Re-review PLAN.md — check prior findings + flag anything new. End with VERDICT: APPROVED or VERDICT: REVISE."); then
+  CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+else
+  FAILURE_RESULT=$(scripts/codex-exec.sh handle-failure --result "$ROUND_RESULT" --run-id "$RUN_ID") || :
+  printf '%s\n' "$FAILURE_RESULT" >&2
+  exit 1
+fi
 ```
 
 The wrapper persists read-only mode and owns stdin closure, hang detection, the
-overall timeout, stderr redaction, and its process group. The guard surfaces
-every structured failure for `LOG_FILE`, aborts only when the result or a resume
-call supplies a known run ID, executes the `HUNG` user-choice path, and stops
-before report handling. Never inspect, signal, or kill foreign Codex processes.
+overall timeout, stderr redaction, and its process group. `handle-failure`
+surfaces the structured status and cleanup metadata for `LOG_FILE`, then the
+caller stops before report handling. A surfaced `HUNG` returns to the user for
+the choice to retry once with a fresh run or proceed without cross-model
+review. Never inspect, signal, or kill foreign Codex processes.
 
 ### Each round
 1. Read `CODEX_REPORT`; append `## Round <n> — Codex` + critique to `LOG_FILE`.
