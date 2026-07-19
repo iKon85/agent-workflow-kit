@@ -143,33 +143,77 @@ else
   WAVE="$CURRENT"                                    # Stufe-1p Program-stub — reuse
 fi
 
-# 2. render the LEAN Tier-2 anchor body from docs/agents/wave-anchor-template.md into /tmp/anchor.md:
-#    body header `**Welle $WAVE — <Thema>**`, **plan_revision:** r<N> at top (before the first
-#    heading), the FILLED Slices table (you know the cut), the To-Do checklist collapsed to its
-#    one-line summary. The full grilled PRD does NOT go into the body (: every slice
-#    session's `--json body` read loads the whole body — a <details> block collapses only in
-#    the browser). Save it to /tmp/prd-archive.md instead — **with ALL embedded PRD markers
-#    stripped** (`plan_revision`, `prd-source-id`, `prd-content-fp`,
-#    `<!-- prd: awaiting-decomposition -->`; a stray second `plan_revision` on the issue is
-#    exactly the Retro confusion) — posted as ISSUE COMMENT #1 in step 2b.
-#    The anchor carries its own markers at the head. The issue TITLE is rewritten to
-#    `Welle N — <Thema>` by the promote step below (step 3) — do NOT set it here; promote
-#    prepends the wave prefix (and strips any `fix:`/`feat:` prefix) idempotently.
-#    Rewrite the PRD body via skill-prose gh (body-fill is issue CONTENT, NOT a board write — the
-#    helper owns board state only; cf. test_plan_body_fill_is_not_a_board_sync_op; gh-lint allows a
-#    non-workflow-label `gh issue edit`). Content-edit FIRST so a failure stops before board mutation:
-gh issue edit <prd#> --body-file /tmp/anchor.md
+# 2. Fill /tmp/anchor-template.md from docs/agents/wave-anchor-template.md (Tier 2):
+#    body header `**Welle $WAVE — <Topic>**`, anchor-owned markers at the head,
+#    filled Slices table, and the To-Do checklist collapsed to one line. Save the
+#    unchanged source PRD body as /tmp/source-prd.md. The renderer reads only those
+#    two files and writes only stdout: no GitHub/network call and no mutation.
+python3 scripts/render-anchor.py --template /tmp/anchor-template.md \
+  --prd /tmp/source-prd.md --document anchor > /tmp/anchor.md
+python3 scripts/render-anchor.py --template /tmp/anchor-template.md \
+  --prd /tmp/source-prd.md --document archive > /tmp/prd-archive.md
+```
 
-# 2b. archive the full PRD as comment #1 on the anchor: one click away for a human,
-#     loaded only on demand by an agent (`--json body` never fetches comments). First line:
-#     `📄 Full PRD (archive, r<N>) — the body carries navigation/decisions only`.
-#     Idempotent re-run: a comment already starting with `📄 Full PRD (archive` → skip, never duplicate:
-gh issue comment <prd#> --body-file /tmp/prd-archive.md
+The anchor output is the filled template byte-for-byte. The archive starts with
+the stable `📄 Full PRD` marker and strips every canonical marker line
+(`plan_revision`, `prd-source-id`, `prd-content-fp`, `<!-- prd: … -->`) only
+from the source body's head block. Marker-looking text in a quote, fence, or
+later section is content and remains untouched.
 
-# 3. set the board state (type:cluster + Wave). If THIS fails AFTER the body edit, the title/body are
-#    already rewritten → STOP, report "board state incomplete (body/title already changed)", and
-#    re-run the idempotent promote (do not leave a silent partial state):
-python3 scripts/board-sync.py promote --issue <prd#> --wave "$WAVE"   # sets type:cluster + Wave + title `Welle N — …`
+Promotion uses the remote issue itself as its journal. Define three observable
+predicates before every resume: `B` = the fetched issue body is byte-identical
+to `/tmp/anchor.md`; `C` = the set of comments whose body starts with the stable
+`📄 Full PRD` marker; `P` = `type:cluster`, Wave `$WAVE`, and the
+`Welle $WAVE — …` title are all present. Fetch comments with the paginated API,
+never the first page alone:
+
+```bash
+gh api --paginate --slurp \
+  "repos/<owner>/<repo>/issues/<prd#>/comments?per_page=100"
+```
+
+Flatten every returned page, retain the comment `id`, and exact-match the
+start-of-body marker. The four valid states and their sole resume action are:
+
+<!-- promotion-state-table:start -->
+| State | Observable predicates | Resume action |
+|---|---|---|
+| `initial` | `B=no`, `C=0`, `P=no` | render + write body |
+| `body-written` | `B=yes`, `C=0`, `P=no` | reconcile + write archive comment |
+| `comment-written` | `B=yes`, `C=1`, `P=no` | promote board state |
+| `promoted` | `B=yes`, `C=1`, `P=yes` | no-op; continue publish audit |
+<!-- promotion-state-table:end -->
+
+Each transition is idempotent and has an explicit contract:
+
+1. **Write body (`initial → body-written`).** Pre: `B=no`, `C=0`, `P=no`.
+   Run `gh issue edit <prd#> --body-file /tmp/anchor.md`, refetch the body, and
+   require a byte match. Post: `B=yes`, `C=0`, `P=no`.
+2. **Write archive (`body-written → comment-written`).** Pre: `B=yes`,
+   `C=0`, `P=no`. Re-run the pagination-aware lookup immediately before create;
+   if it now finds one exact archive, classify as `comment-written` and do not
+   create. Otherwise run `gh issue comment <prd#> --body-file
+   /tmp/prd-archive.md`, then immediately paginate and reconcile again. Post:
+   exactly one matching comment, its body byte-identical to the rendered
+   archive, so `B=yes`, `C=1`, `P=no`.
+3. **Promote (`comment-written → promoted`).** Pre: `B=yes`, `C=1`,
+   `P=no`. Run `python3 scripts/board-sync.py promote --issue <prd#> --wave
+   "$WAVE"`, refetch body, comments, labels, Wave, and title. Post: `B=yes`,
+   `C=1`, `P=yes`. Re-running `promote` with the same Wave is the repair for a
+   partial board write; a different Wave remains a hard stop.
+
+Any other predicate combination is drift, not a fifth state. Repair it
+explicitly, then reclassify: wrong/missing `B` → rerender and rewrite the body;
+one marker comment with wrong bytes → report its ID and explicitly update it;
+promoted with no archive → create/reconcile the archive without demoting;
+partial `P` → rerun same-Wave `promote`. If lookup returns more than one marker
+comment, **STOP and report every comment ID**. An operator must choose and
+explicitly delete/update the duplicates, then rerun the paginated lookup;
+never select the first match or silently discard one. No local operation
+journal is written: these observations are the journal.
+
+```bash
+# 3. Continue only from the `promoted` state.
 
 # 4. create each child (dependency order), then link it under the anchor — BEFORE the §7 exit audit,
 #    so the checker sees the anchor's children (a childless type:cluster anchor mis-reads as a leaf)
