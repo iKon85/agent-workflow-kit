@@ -41,7 +41,7 @@ For a cross-cutting plan, run `python3 .claude/hooks/drift-guard.py --census-sta
 
 When the decision tree is resolved and we're aligned, **write the agreed plan to `PLAN.md`** in this structure, then move to Act 2:
 
-> **Where to write it:** `PLAN.md` + `PLAN-REVIEW-LOG.md` are per-session scratch — write them in the working directory the implementing session will actually use, and run Codex from there (`-C <dir>` on the round-1 `exec`; `exec resume` rejects both `-C` and `-s`, so run resume from that cwd and force read-only via `-c sandbox_mode="read-only"`). A project may gitignore these files, so don't rely on git to carry them across checkouts/worktrees. In worktree-based repos, create the issue worktree BEFORE this write and plan inside it.
+> **Where to write it:** `PLAN.md` + `PLAN-REVIEW-LOG.md` are per-session scratch — write them in the working directory the implementing session will actually use, and invoke the wrapper from that directory. A project may gitignore these files, so don't rely on git to carry them across checkouts/worktrees. In worktree-based repos, create the issue worktree BEFORE this write and plan inside it.
 
 ```markdown
 # Plan: <task>
@@ -76,8 +76,9 @@ Act 1 (grill) complete — plan locked with the user. MAX_ROUNDS=<n>.
 Now hand the locked plan to Codex for adversarial review. Same engine, mechanics verified end-to-end (2026-06-04).
 
 ### Prerequisites (verify once, fast)
-- `codex --version` ≥ 0.130 (older CLIs error on the default `gpt-5.5` model).
-- Codex authenticated (prior `codex login`; ChatGPT account is fine). On auth/model error, surface it — don't silently retry.
+- Let `scripts/codex-exec.sh` preflight Codex before launch. It enforces the
+  exact tested-version allowlist, authentication, platform, and capabilities;
+  surface any failure rather than retrying silently.
 - Do NOT pin `-m`. Use the config default. Pinning `gpt-5.x-codex` variants 400s on ChatGPT-account auth.
 - **Echo the active model before Round 1** so the user can confirm: read the `model` line from `~/.codex/config.toml` (absent = "CLI default"); state it alongside the resolved tunables. If the user objects, stop before burning a round.
 
@@ -93,49 +94,45 @@ If invoked with e.g. `rounds=3`, use that for `MAX_ROUNDS`. Echo resolved values
 ### The review prompt (sent each round)
 > You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` and any repo files you need (you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End your reply with EXACTLY one line: `VERDICT: APPROVED` if the plan is sound enough to implement, or `VERDICT: REVISE` if it still has material problems.
 
-### Round 1 — fresh session (capture `thread_id`)
-Stream `--json` to a FILE, never pipe to `grep` — `codex exec --json | grep` deadlocks on codex-cli ≥0.137. **Always launch with `< /dev/null`** — a backgrounded `codex exec … &` without it blocks on stdin and sits at **0 CPU / 0 bytes** forever (the #1 cause of the "silent hang"; verified 2026-06-09). Background it so a **90s liveness probe** still catches a genuine sandbox deadlock.
-```bash
-CODEX_TMP="/tmp/codex-$(pwd | sha1sum | cut -c1-8)"; mkdir -p "$CODEX_TMP"   # run-unique per worktree cwd: STABLE across round-1+resume turns, collision-free under parallel sessions
-codex exec -s read-only --json -o $CODEX_TMP/verdict.txt "$(cat REVIEW_PROMPT)" \
-  < /dev/null > $CODEX_TMP/r1.jsonl 2>/dev/null &
-CODEX_PID=$!
-sleep 90                                          # liveness probe (REQUIRED)
-if kill -0 "$CODEX_PID" 2>/dev/null; then
-  CPU=$(ps -o time= -p "$CODEX_PID" 2>/dev/null | tr -dc '0-9:')   # cumulative CPU, e.g. 00:00:00
-  BYTES=$(wc -c < $CODEX_TMP/r1.jsonl 2>/dev/null || echo 0)
-  if [ "${CPU:-00:00:00}" = "00:00:00" ] && [ "${BYTES:-0}" -eq 0 ]; then
-    kill -9 "$CODEX_PID" 2>/dev/null; echo "CODEX-HUNG"   # alive + 0 CPU + 0 bytes = blocked, NOT working
-  fi
-fi
-wait "$CODEX_PID" 2>/dev/null
-THREAD_ID=$(grep -o '"thread_id":"[^"]*"' $CODEX_TMP/r1.jsonl | head -1 | cut -d'"' -f4)
-```
-- **`CODEX-HUNG` printed** (alive + 0 CPU + 0 bytes at 90s) → **first suspect the stdin block**: confirm the launch has `< /dev/null` and retry. That fixes it in nearly every case. **NEVER `pgrep`/`kill` codex procs to "clear contention"** — that murders the user's live, unrelated codex sessions and does **not** fix a stdin hang. Only if `< /dev/null` is present and it still hangs (genuine sandbox deadlock) → **STOP Act 2**: tell the user, offer to sign off without the cross-model review or retry once. Don't touch other codex processes.
-- **Healthy:** CPU climbs past `00:00:00` and/or `$CODEX_TMP/r1.jsonl` grows; `THREAD_ID` parses; critique lands in `$CODEX_TMP/verdict.txt`. `2>/dev/null` hides cosmetic MCP/auth noise.
-- **Clean finish but no verdict file + no `THREAD_ID`** = auth/model failure → stop, tell the user.
+### Round 1 — fresh wrapper-owned session
 
-### Rounds 2..MAX — resume the SAME session (Codex remembers its prior critiques)
 ```bash
-# resume REJECTS -s. Force read-only via -c sandbox_mode, or Codex inherits
-# config.toml (possibly danger-full-access) and could WRITE files. This is the
-# single most important safety line in the skill — verified 2026-06-04.
-CODEX_TMP="/tmp/codex-$(pwd | sha1sum | cut -c1-8)"; mkdir -p "$CODEX_TMP"   # run-unique per worktree cwd: STABLE across round-1+resume turns, collision-free under parallel sessions
-codex exec resume "$THREAD_ID" -c sandbox_mode="read-only" --json \
-  -o $CODEX_TMP/verdict.txt \
-  "I revised the plan. Re-review PLAN.md — check whether your prior findings are addressed and flag anything new. End with VERDICT: APPROVED or VERDICT: REVISE." \
-  < /dev/null 2>/dev/null >/dev/null &
+ROUND_RESULT=$(scripts/codex-exec.sh new --profile review --mode read-only --prompt "$REVIEW_PROMPT")
+RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
+CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
 ```
-Wrap resume in the **same 90s liveness probe** (background + `wait`). Resume discards the `--json` stream, so probe on the verdict file: `BYTES=$(wc -c < $CODEX_TMP/verdict.txt)` plus the `CPU` check — `00:00:00` CPU + empty verdict at 90s → kill, treat as `CODEX-HUNG`, same STOP path as round 1. Both `codex exec` and `codex exec resume` support `--json` and `-o/--output-last-message`.
 
-**Overall ceiling (both rounds):** the 90s probe catches silent hangs, not long stuck runs. Cap every `codex exec` / `codex exec resume` at **10 minutes** — via Claude Code's Bash tool pass `timeout: 600000` on the tool call (the default 2-minute tool timeout would kill real reviews mid-run); in a plain shell prefix `timeout 600` (macOS: `gtimeout 600` via coreutils). If the ceiling trips, treat it as a failed round: stop and tell the user rather than retrying blind.
+### Rounds 2..MAX — resume the SAME session
+
+```bash
+ROUND_RESULT=$(scripts/codex-exec.sh resume "$RUN_ID" --prompt "I revised the plan. Re-review PLAN.md — check whether your prior findings are addressed and flag anything new. End with VERDICT: APPROVED or VERDICT: REVISE.")
+CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
+```
+
+The wrapper persists read-only mode and owns stdin closure, hang detection, the
+overall timeout, stderr redaction, and its process group. If it reports `HUNG`,
+stop and offer the user the choice to retry once or sign off without the
+cross-model review. Never inspect, signal, or kill foreign Codex processes. On
+any failed or cancelled path, preserve the result and clean up only the known
+run:
+
+```bash
+scripts/codex-exec.sh abort "$RUN_ID"
+```
 
 ### Each round, after Codex returns
-1. Read `$CODEX_TMP/verdict.txt`; append to `LOG_FILE`: `## Round <n> — Codex` + the full critique.
+1. Read `CODEX_REPORT`; append to `LOG_FILE`: `## Round <n> — Codex` + the full critique.
 2. Grep the last line for the verdict:
    - `VERDICT: APPROVED` → break to Resolution (converged).
    - `VERDICT: REVISE` → Claude decides **what's actually worth acting on** (Claude is final arbiter — Codex advises, doesn't command). Revise `PLAN_FILE`. Append `### Claude's response` to `LOG_FILE`: what changed, what was rejected, why. Increment round.
 3. If round > `MAX_ROUNDS` → break to Resolution (deadlock).
+
+After harvesting the final report and updating the log, delete the successful
+run state:
+
+```bash
+scripts/codex-exec.sh finalize "$RUN_ID"
+```
 
 ### Resolution (you sign off — final gate)
 - **APPROVED:** present the final `PLAN_FILE`, a 3-bullet summary of what the two acts improved, and the round count. Ask: *"Grilled + survived N rounds of Codex. Implement it now — Codex builds it (`/codex-build`), Claude builds it, or stop here?"* Code only on a yes. **No code is written during either act.**
@@ -149,7 +146,8 @@ If the user picks Codex: invoke the `codex-build` skill with `SPEC_FILE=PLAN.md`
 
 ## Hard rules
 - Act 1 always precedes Act 2 — don't write `PLAN.md` until the grill has actually resolved the decision tree with the user.
-- Codex is read-only EVERY round — `-s read-only` first call, `-c sandbox_mode="read-only"` on every resume (resume has no `-s`). It never writes.
+- Codex is read-only EVERY round — establish it once through the wrapper's
+  `review` + `read-only` new call; every resume inherits it.
 - The loop ALWAYS terminates at `MAX_ROUNDS`.
 - Claude is final arbiter on every REVISE — incorporate good critiques, reject bad ones *with a logged reason*. Don't cave to everything (defeats the cross-model check) and don't ignore it (defeats the point).
 - Code only after the user's final sign-off.

@@ -13,12 +13,14 @@ The role-flip of `/codex-review`: there, Claude builds the plan and Codex critiq
 
 ## Prerequisites (verify once, fast)
 
-- `codex --version` ≥ 0.130 (older CLIs error on the default `gpt-5.5` model).
-- Codex authenticated (prior `codex login`; ChatGPT account is fine). On auth/model error, surface it — don't silently retry.
+- Let `scripts/codex-exec.sh` preflight Codex before launch. It enforces the
+  exact tested-version allowlist, authentication, platform, and capabilities;
+  surface any failure rather than retrying silently.
 - Do NOT pin `-m` or model config (e.g. `model_reasoning_effort`) unless the user asks. Pinning `gpt-5.x-codex` variants 400s on ChatGPT-account auth; config defaults come from `~/.codex/config.toml`.
 - **Echo the active model at kickoff** so the user can confirm: read the `model` line from `~/.codex/config.toml` (absent = "CLI default"); state it with the resolved tunables. If the user objects, stop before launching the build.
-- **Codex has a native image-generation tool** in `codex exec` sessions (ChatGPT-account backed, no API key; upstream-verified 2026-07-08). Specs may therefore include "generate these image assets yourself" steps: name exact file paths, dimensions, and style in the prompt contract.
-- Run from the target working directory's root (both `exec` and `resume` then need no `-C`; `resume` doesn't support `-C` anyway).
+- **Codex has a native image-generation tool** in delegated sessions (ChatGPT-account backed, no API key; upstream-verified 2026-07-08). Specs may therefore include "generate these image assets yourself" steps: name exact file paths, dimensions, and style in the prompt contract.
+- Run the wrapper from the target working directory's root so every round keeps
+  the same bounded workspace.
 
 ## Tunables (read from args, else default)
 
@@ -63,17 +65,32 @@ OUTPUT: End with a report — files changed (one line each: path + what/why),
 EOF
 ```
 
-## Step 2 — Launch Codex (fresh session, capture `thread_id`)
+## Step 2 — Launch Codex (fresh wrapper-owned session)
 
 ```bash
-codex exec -s workspace-write --json -o "$CODEX_TMP/build.txt" - <"$P" 2>/dev/null | grep '"type":"thread.started"'
+ROUND_RESULT=$(scripts/codex-exec.sh new --profile build --mode workspace-write --prompt-file "$P")
+RUN_ID=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runId"])')
+CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
 ```
 
-- **`-s workspace-write`, never `--yolo` / `--dangerously-bypass-approvals-and-sandbox`, and never weaken the approval policy.** The sandbox bounds Codex to the working directory; the allowed-write gate (Step 3) bounds it further to the declared set. If the build genuinely needs something outside the sandbox (network installs, system config), that step is Claude's, not Codex's — split it out of the spec.
-- Prompt goes via stdin (`- <"$P"`) — this both avoids quoting bugs AND sidesteps the non-TTY stdin hang (`codex exec` blocks forever waiting on stdin EOF under Claude Code's Bash tool; feeding the file gives immediate EOF).
-- Parse `thread_id` from the `{"type":"thread.started","thread_id":"..."}` line → `THREAD_ID`. Codex's final report lands in `$CODEX_TMP/build.txt` — read that file; don't parse the JSONL stream for content.
-- `2>/dev/null` suppresses cosmetic MCP/auth stderr noise. Confirm success by the report file + a `thread.started` line; neither → failed run (auth/model) — stop and tell the user.
-- **Timing:** foreground with `timeout: 600000` on the Bash tool call (default 2-min tool timeout kills real builds). If the spec is clearly >10 min of work (multi-file feature, migration, anything with image generation), launch with `run_in_background: true` instead and read the `-o` file when it exits. Don't kill a quiet background run early — Codex builds are legitimately slow.
+- The `build` profile establishes and persists `workspace-write`; never request
+  `danger-full-access` or weaken the approval policy. The wrapper bounds Codex
+  to the working directory, and the allowed-write gate (Step 3) narrows it to
+  the declared set. Work outside those bounds belongs to Claude and must be
+  split out of the spec.
+- The wrapper owns stdin closure, hang detection, the overall build timeout,
+  stderr redaction, and the launched process group. A `HUNG` result requires a
+  user choice: retry once or stop delegation. Never inspect, signal, or kill
+  foreign Codex processes.
+- `RUN_ID` is opaque. Retain it only for resume/finalize/abort; harvest the
+  report from `CODEX_REPORT` before deleting run state.
+- On any failed or cancelled result, preserve the structured wrapper output and
+  abort that run when a `RUN_ID` exists. Never target a process directly:
+
+```bash
+scripts/codex-exec.sh abort "$RUN_ID"
+```
+
 - **Heads-up on completion (required):** when a background Codex run finishes, the FIRST line of your next message to the user must be a loud standalone banner — `🔔 CODEX FINISHED — <what> (exit ok/fail) — verifying now` — BEFORE any verification output. The user is not watching tool calls; never let a completed build slide silently into the verify phase.
 
 ## Step 3 — Verify (Claude, always, never delegated)
@@ -83,33 +100,48 @@ Codex's report is advisory. Verify yourself:
 1. **Allowed-write gate:** `git status --porcelain=v1` — every changed AND untracked path must be inside the allowed-write set from Step 0.4. Any path outside it is a finding: surface it to the user before anything else, and don't fold it silently into the diff review.
 2. Read the FULL diff (`git diff`). Judge it like a contributor PR: correctness, spec fidelity, style match with surrounding code, nothing touched outside scope.
 3. Run `PROOF_CMD` yourself (or the focused tests for the changed area). Codex's pasted output doesn't count as proof.
-4. Append to `LOG_FILE` under `## Act 3 — Build`: `### Round <n> — Codex build` + its report summary + `### Claude's verdict` + what passed/failed review.
+4. Append to `LOG_FILE` under `## Act 3 — Build`: `### Round <n> — Codex build` + `CODEX_REPORT` + `### Claude's verdict` + what passed/failed review.
 
 ## Step 4 — Fix loop (same session, bounded)
 
 Problems found → resume the SAME session (Codex keeps its context; cheaper and better than a fresh run). Write the fix list to a second temp file (`$CODEX_TMP/fix-prompt.txt`), same contract discipline: exact problem, exact file, proof expected, same allowed-write set.
 
 ```bash
-# resume has no -s and no -C: run from the repo dir and force the sandbox via
-# config override, or Codex inherits config.toml's sandbox_mode (possibly
-# read-only — can't write; possibly danger-full-access — must never run).
-codex exec resume "$THREAD_ID" -c sandbox_mode="workspace-write" --json \
-  -o "$CODEX_TMP/build.txt" - <"$CODEX_TMP/fix-prompt.txt" 2>/dev/null >/dev/null
+ROUND_RESULT=$(scripts/codex-exec.sh resume "$RUN_ID" --prompt-file "$CODEX_TMP/fix-prompt.txt")
+CODEX_REPORT=$(printf '%s\n' "$ROUND_RESULT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["verdict"])')
 ```
 
-Re-verify (Step 3, including the allowed-write gate) after each round. After `MAX_FIX_ROUNDS` failed rounds: STOP delegating — Claude takes over and finishes the remaining fixes directly. Log the takeover. Ping-ponging trivia through delegation burns more than it saves.
+The wrapper enforces the persisted workspace-write mode on every resume.
+Re-verify (Step 3, including the allowed-write gate) after each round. After
+`MAX_FIX_ROUNDS` failed rounds: abort this run, STOP delegating, and let Claude
+take over and finish the remaining fixes directly. Log the takeover.
+
+```bash
+scripts/codex-exec.sh abort "$RUN_ID"
+```
 
 ## Step 5 — Human gate (diff sign-off)
 
 Present: 3-bullet summary of what was built, files-changed list, proof-test output (pass/fail, verbatim tail), rounds used, any spec deviations. Ask: *"Codex built it, proof passes, diff reviewed. Commit?"*
 
-- Commit ONLY on yes — and Claude writes the commit, never Codex.
+- On yes, harvest and log the final report, then delete the wrapper state before
+  Claude commits:
+
+  ```bash
+  scripts/codex-exec.sh finalize "$RUN_ID"
+  ```
+
+- Commit ONLY after that finalize succeeds — and Claude writes the commit,
+  never Codex.
 - Rejected → ask what's wrong, route back to Step 4 (or take over directly if fix rounds are spent).
 
 ## Hard rules
 
 - Clean tree before launch. Always. No exceptions.
-- **Sandbox is bounded every round:** `-s workspace-write` on exec, `-c sandbox_mode="workspace-write"` on every resume. Never `--yolo`, never `danger-full-access`, never a weakened approval policy — if the task can't be done inside those bounds, it isn't a Codex delegation.
+- **The mode is bounded every round:** establish `workspace-write` in the
+  wrapper's new call and let every resume inherit it. Never `--yolo`, never
+  `danger-full-access`, never a weakened approval policy — if the task can't
+  be done inside those bounds, it isn't a Codex delegation.
 - The allowed-write gate runs after EVERY round — out-of-set writes are findings, not noise.
 - Claude never skips the diff read. Codex claims are advisory until Claude has read the diff and run the proof.
 - Fix loop terminates at `MAX_FIX_ROUNDS` — then Claude takes over. No unbounded delegation ping-pong.
@@ -121,6 +153,6 @@ Present: 3-bullet summary of what was built, files-changed list, proof-test outp
 - Don't build without a spec — that's designing by delegation, and it fails. Route to `/grill-me-codex` or `/codex-review` first.
 - Don't use for ~<20-line single-obvious-change edits — just make the edit.
 - Don't pin `-codex` model variants on ChatGPT-account auth — 400s.
-- Don't resume with `--last` — capture and use the explicit `THREAD_ID` (parallel sessions make `--last` grab the wrong thread). And ECHO the id into the command visibly before running: `resume` with a missing/garbage id can silently fall back to the most recent session instead of erroring (observed upstream 2026-07-08) — a wrong-target resume looks exactly like a successful one.
-- Don't parse the JSONL stream for the report — read the `-o` file.
+- Don't resume with `--last`; use the wrapper's explicit opaque `RUN_ID` so
+  parallel sessions cannot target each other.
 - Don't let Codex commit, and don't auto-commit yourself — human gate first.
