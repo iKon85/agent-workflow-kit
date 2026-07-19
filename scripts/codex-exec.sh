@@ -122,7 +122,7 @@ prepare_prompt() {
 }
 
 launch_round() {
-  local state_dir=$1 round=$2 thread_id=${3:-} result rc
+  local state_dir=$1 round=$2 thread_id=${3:-} rc
   prepare_prompt "$state_dir" || return 1
   local command
   if [[ -z $thread_id ]]; then
@@ -135,17 +135,6 @@ launch_round() {
     --probe-timeout "$PROBE_TIMEOUT" --prompt-file "$TEMP_PROMPT" -- "${command[@]}"
   rc=$?
   rm -f "$TEMP_PROMPT"
-  result="$state_dir/round-$round.result.json"
-  if [[ -f $result ]]; then
-    python3 - "$result" "$state_dir" "$round" <<'PY'
-import json, pathlib, sys
-result = json.loads(pathlib.Path(sys.argv[1]).read_text())
-state = pathlib.Path(sys.argv[2])
-if result.get("threadId"):
-    (state / "thread-id").write_text(result["threadId"] + "\n")
-(state / "next-round").write_text(str(int(sys.argv[3]) + 1) + "\n")
-PY
-  fi
   return "$rc"
 }
 

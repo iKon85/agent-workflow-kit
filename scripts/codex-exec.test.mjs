@@ -39,6 +39,7 @@ const launchArgs = (profile = 'review') => [
 ];
 const exists = (path) => { try { statSync(path); return true; } catch { return false; } };
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+const readJson = (path) => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; } };
 const waitFor = async (predicate, timeout = 2_000) => {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
@@ -193,6 +194,15 @@ test('handle-failure sanitizes malformed input and aborts only its explicit fall
   assert.equal(exists(run.stateDir), false);
 });
 
+test('handle-failure sanitizes an empty result without inventing a cleanup target', () => {
+  const fx = fixture();
+  const handled = invoke(fx, ['handle-failure', '--result', '']);
+  assert.notEqual(handled.status, 0);
+  assert.equal(handled.output.status, 'MALFORMED_RESULT');
+  assert.equal(handled.output.error, 'MALFORMED_RESULT');
+  assert.equal(exists(fx.stateRoot), false);
+});
+
 test('handle-failure rejects an unknown result status as malformed', () => {
   const fx = fixture();
   const handled = invoke(fx, [
@@ -261,7 +271,9 @@ test('automatic stale cleanup is bounded and never removes retained or active st
     mkdirSync(dir, { mode: 0o700 });
     writeFileSync(join(dir, 'run-id'), `${name}\n`);
     if (name === 'retained') writeFileSync(join(dir, 'debug-retain'), '');
-    if (name === 'active') writeFileSync(join(dir, 'runtime.json'), '{}');
+    if (name === 'active') writeFileSync(join(dir, 'runtime.json'), JSON.stringify({
+      token: 'a'.repeat(64), round: 1, phase: 'running', heartbeat: Date.now() / 1000,
+    }));
     utimesSync(dir, 0, 0);
   }
   const result = invoke(fx, launchArgs(), {
@@ -272,6 +284,29 @@ test('automatic stale cleanup is bounded and never removes retained or active st
   assert.equal(remaining.filter((name) => /^codex-exec\.old/.test(name)).length, 1);
   assert.ok(remaining.includes('codex-exec.retained'));
   assert.ok(remaining.includes('codex-exec.active'));
+});
+
+test('stale cleanup removes abandoned runtime state without signaling its persisted pgid', () => {
+  const fx = fixture();
+  const decoy = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true });
+  try {
+    const stateDir = join(fx.stateRoot, 'codex-exec.abandoned');
+    mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+    writeFileSync(join(stateDir, 'run-id'), 'abandoned\n');
+    writeFileSync(join(stateDir, 'runtime.json'), JSON.stringify({
+      token: 'b'.repeat(64), round: 1, phase: 'running', heartbeat: 0,
+      pid: decoy.pid, pgid: decoy.pid,
+    }));
+    utimesSync(stateDir, 0, 0);
+    const result = invoke(fx, launchArgs(), {
+      CODEX_EXEC_STALE_SECONDS: '1', CODEX_EXEC_STALE_MAX_DELETE: '8',
+    });
+    assert.equal(result.output.status, 'OK');
+    assert.equal(exists(stateDir), false);
+    assert.equal(alive(decoy.pid), true);
+  } finally {
+    decoy.kill('SIGKILL');
+  }
 });
 
 for (const [scenario, status] of [
@@ -291,6 +326,19 @@ for (const [scenario, status] of [
       assert.doesNotMatch(readFileSync(join(result.output.stateDir, 'round-1.stderr.log'), 'utf8'), /super-secret/);
     }
     if (scenario === 'signal') assert.equal(result.output.signal, 'SIGTERM');
+  });
+}
+
+for (const scenario of [
+  'json-null', 'json-array', 'json-scalar', 'item-null', 'item-array',
+  'thread-non-string', 'verdict-non-string',
+]) {
+  test(`${scenario} is a structured MALFORMED-JSON result without traceback`, () => {
+    const fx = fixture();
+    const result = invoke(fx, launchArgs(), { FAKE_CODEX_SCENARIO: scenario });
+    assert.equal(result.output.status, 'MALFORMED-JSON');
+    assert.equal(readFileSync(join(result.output.stateDir, 'latest'), 'utf8').trim(), 'round-1.result.json');
+    assert.doesNotMatch(result.stderr, /Traceback/);
   });
 }
 
@@ -315,6 +363,14 @@ test('review profile declares a silent pre-thread process HUNG', () => {
   const fx = fixture();
   const result = invoke(fx, launchArgs(), {
     FAKE_CODEX_SCENARIO: 'silent', FAKE_CODEX_PAUSE_MS: '2000',
+  });
+  assert.equal(result.output.status, 'HUNG');
+});
+
+test('pre-thread activity resets the HUNG probe but later silence still becomes HUNG', () => {
+  const fx = fixture();
+  const result = invoke(fx, launchArgs(), {
+    FAKE_CODEX_SCENARIO: 'startup-byte-silence', FAKE_CODEX_PAUSE_MS: '1000',
   });
   assert.equal(result.output.status, 'HUNG');
 });
@@ -360,6 +416,63 @@ test('timeout kills descendants after the process-group leader has exited', () =
   assert.equal(alive(Number(readFileSync(childPid, 'utf8'))), false);
 });
 
+test('abort never signals a pgid copied into stale runtime state', async () => {
+  const fx = fixture();
+  const decoy = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true });
+  try {
+    await new Promise((resolve) => decoy.once('spawn', resolve));
+    const stateDir = join(fx.stateRoot, 'codex-exec.stale');
+    mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+    writeFileSync(join(stateDir, 'run-id'), 'stale\n');
+    writeFileSync(join(stateDir, 'runtime.json'), JSON.stringify({
+      token: 'c'.repeat(64), round: 1, phase: 'running', heartbeat: 0,
+      pid: decoy.pid, pgid: decoy.pid,
+    }));
+    const aborted = invoke(fx, ['abort', 'stale']);
+    assert.equal(aborted.output.error, 'ABORT_FAILED');
+    assert.equal(exists(stateDir), true);
+    assert.equal(alive(decoy.pid), true);
+    assert.equal(await waitFor(() => decoy.exitCode !== null, 300), null);
+  } finally {
+    decoy.kill('SIGKILL');
+  }
+});
+
+test('settling keeps finalize out and lets abort await a published CANCELLED result', async () => {
+  const fx = fixture();
+  const settleMarker = join(fx.dir, 'settling.marker');
+  const running = spawn(helper, launchArgs('build'), {
+    cwd: root, encoding: 'utf8', env: {
+      ...process.env, CODEX_EXEC_STATE_ROOT: fx.stateRoot,
+      FAKE_CODEX_LAUNCH_LOG: fx.launchLog, CODEX_EXEC_TEST_SETTLE_MARKER: settleMarker,
+    },
+  });
+  let stdout = '';
+  let stderr = '';
+  running.stdout.on('data', (chunk) => { stdout += chunk; });
+  running.stderr.on('data', (chunk) => { stderr += chunk; });
+  try {
+    const stateName = await waitFor(() => exists(settleMarker) && exists(fx.stateRoot)
+      && readdirSync(fx.stateRoot).find((name) => readJson(join(fx.stateRoot, name, 'runtime.json'))?.phase === 'settling'));
+    assert.ok(stateName);
+    const stateDir = join(fx.stateRoot, stateName);
+    const runId = readFileSync(join(stateDir, 'run-id'), 'utf8').trim();
+    const finalized = invoke(fx, ['finalize', runId]);
+    assert.equal(finalized.output.error, 'ACTIVE_RUN');
+    assert.equal(exists(stateDir), true);
+
+    const aborted = invoke(fx, ['abort', runId]);
+    assert.equal(aborted.output.status, 'OK');
+    const exited = await waitFor(() => running.exitCode !== null, 3_000);
+    assert.equal(exited, true);
+    assert.equal(JSON.parse(stdout.trim().split('\n').at(-1)).status, 'CANCELLED');
+    assert.doesNotMatch(stderr, /Traceback|FileNotFoundError/);
+    assert.equal(exists(stateDir), false);
+  } finally {
+    running.kill('SIGKILL');
+  }
+});
+
 test('abort cancels an active run, deletes its state, and spares a decoy', async () => {
   const fx = fixture();
   const decoy = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)']);
@@ -386,6 +499,50 @@ test('abort cancels an active run, deletes its state, and spares a decoy', async
   } finally {
     running.kill('SIGKILL');
     decoy.kill('SIGKILL');
+  }
+});
+
+test('handle-failure selects one of two simultaneous live runs and leaves the other intact', async () => {
+  const fx = fixture();
+  const start = () => spawn(helper, launchArgs('build'), {
+    cwd: root, encoding: 'utf8', env: {
+      ...process.env, CODEX_EXEC_STATE_ROOT: fx.stateRoot,
+      FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_PAUSE_MS: '5000',
+      FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
+    },
+  });
+  const first = start();
+  const second = start();
+  try {
+    const states = await waitFor(() => {
+      if (!exists(fx.stateRoot)) return null;
+      const names = readdirSync(fx.stateRoot)
+        .filter((name) => exists(join(fx.stateRoot, name, 'runtime.json')));
+      return names.length === 2 ? names.sort() : null;
+    }, 3_000);
+    assert.ok(states);
+    const selectedDir = join(fx.stateRoot, states[0]);
+    const otherDir = join(fx.stateRoot, states[1]);
+    const selectedId = readFileSync(join(selectedDir, 'run-id'), 'utf8').trim();
+    const otherId = readFileSync(join(otherDir, 'run-id'), 'utf8').trim();
+
+    const handled = invoke(fx, [
+      'handle-failure', '--result', JSON.stringify({ status: 'HUNG', runId: selectedId }),
+      '--run-id', otherId,
+    ]);
+    assert.equal(handled.output.status, 'HUNG');
+    assert.equal(exists(selectedDir), false);
+    assert.equal(exists(join(otherDir, 'runtime.json')), true);
+    assert.ok(await waitFor(() => (
+      [first, second].filter((child) => child.exitCode === null).length === 1
+    ), 2_000));
+
+    const cleanup = invoke(fx, ['abort', otherId]);
+    assert.equal(cleanup.output.status, 'OK');
+    assert.ok(await waitFor(() => first.exitCode !== null && second.exitCode !== null, 3_000));
+  } finally {
+    first.kill('SIGKILL');
+    second.kill('SIGKILL');
   }
 });
 

@@ -57,6 +57,10 @@ switch (scenario) {
   case 'silent':
     await sleep(pause);
     break;
+  case 'startup-byte-silence':
+    process.stderr.write('x');
+    await sleep(pause);
+    break;
   case 'quiet-post-thread':
     started();
     await sleep(pause);
@@ -64,6 +68,28 @@ switch (scenario) {
     break;
   case 'malformed':
     console.log('{definitely-not-json');
+    break;
+  case 'json-null':
+    emit(null);
+    break;
+  case 'json-array':
+    emit([]);
+    break;
+  case 'json-scalar':
+    emit('scalar');
+    break;
+  case 'item-null':
+    emit({ type: 'item.completed', item: null });
+    break;
+  case 'item-array':
+    emit({ type: 'item.completed', item: [] });
+    break;
+  case 'thread-non-string':
+    emit({ type: 'thread.started', thread_id: 42 });
+    break;
+  case 'verdict-non-string':
+    started();
+    emit({ type: 'item.completed', item: { type: 'agent_message', text: 42 } });
     break;
   case 'missing-thread':
     verdict();
