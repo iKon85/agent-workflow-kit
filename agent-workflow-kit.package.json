@@ -2427,7 +2427,7 @@
       "path": "scripts/codex-exec.sh",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "165c07e1943b2d6b8c283c7f3d652a8ecada6a69c0946db19d1d41b06625c9e9",
+      "sha256": "c5d60648cb09343996efc98614dbd0c78b18672891bf466e5a8c5aba359d5df8",
       "mode": 493,
       "origin": "kit"
     },
