@@ -23,8 +23,8 @@ A line carrying `portability-lint: ok` is exempt — line-scoped, for deliberate
 doc counterexamples.
 
 This file also asserts mirror parity:
-- every dual-surface skill has the same set of distributed `*.md` files in both
-  trees (catches a forgotten mirror file);
+- every dual-surface skill has the same set of distributed files in both trees
+  (catches a forgotten mirror support file of any type);
 - generic/vendored dual-surface skill bodies match after stripping paired
   `mirror-xform` regions. The paired marker convention lets codex-adapter-sync
   keep legitimate Codex body translations local instead of maintaining a central
@@ -220,12 +220,36 @@ def enforced_skills() -> set[str]:
             if e["class"] in ENFORCED_CLASSES}
 
 
-def skill_md_set(tree: str, name: str) -> set[str]:
-    """Relative posix paths of every distributed *.md under one tree's skill dir."""
-    d = REPO_ROOT / tree / name
-    if not d.is_dir():
+def distributed_file_set(skill_dir: Path) -> set[str]:
+    """Relative paths of every distributed file under one skill directory."""
+    if not skill_dir.is_dir():
         return set()
-    return {p.relative_to(d).as_posix() for p in d.rglob("*.md")}
+    return {
+        p.relative_to(skill_dir).as_posix()
+        for p in skill_dir.rglob("*")
+        if p.is_file()
+    }
+
+
+def skill_file_set(tree: str, name: str) -> set[str]:
+    return distributed_file_set(REPO_ROOT / tree / name)
+
+
+def skill_md_set(tree: str, name: str) -> set[str]:
+    """Markdown subset used by the body and structure parity checks."""
+    return {p for p in skill_file_set(tree, name) if p.endswith(".md")}
+
+
+def mirror_presence_drift(name: str, claude: set[str], codex: set[str]) -> list[str]:
+    problems = [
+        f"{name}: .claude/skills/{name}/{rel} has no codex mirror"
+        for rel in sorted(claude - codex)
+    ]
+    problems.extend(
+        f"{name}: .agents/skills/{name}/{rel} has no claude source"
+        for rel in sorted(codex - claude)
+    )
+    return problems
 
 
 def dual_surface_skills() -> list[str]:
@@ -486,21 +510,16 @@ class ProfileValueLiteralNegativeFixture(unittest.TestCase):
 
 class MirrorPresenceParity(unittest.TestCase):
     """LEAN mirror parity: a dual-surface skill has the SAME set of distributed
-    *.md files in both trees. Presence/file-set only — not content (codex-adapter-sync
-    legitimately translates body model-dispatch; full content parity is a follow-up).
+    files in both trees. Presence/file-set only; Markdown content parity is handled
+    separately because codex-adapter-sync legitimately translates body model-dispatch.
     Catches a forgotten / orphaned mirror file (Codex R1#11 first half)."""
 
-    def test_dual_surface_md_filesets_match(self):
+    def test_dual_surface_distributed_filesets_match(self):
         problems = []
         for name in sorted(dual_surface_skills()):
-            claude = skill_md_set(".claude/skills", name)
-            codex = skill_md_set(".agents/skills", name)
-            only_claude = claude - codex
-            only_codex = codex - claude
-            for f in sorted(only_claude):
-                problems.append(f"{name}: .claude/skills/{name}/{f} has no codex mirror")
-            for f in sorted(only_codex):
-                problems.append(f"{name}: .agents/skills/{name}/{f} has no claude source")
+            claude = skill_file_set(".claude/skills", name)
+            codex = skill_file_set(".agents/skills", name)
+            problems.extend(mirror_presence_drift(name, claude, codex))
         self.assertEqual(
             problems, [],
             "mirror file-set drift — run codex-adapter-sync to add/remove the mirror "
@@ -539,6 +558,26 @@ class MirrorContentParity(unittest.TestCase):
 
 class MirrorParityFixture(unittest.TestCase):
     """The file-set comparison catches an orphaned mirror file (regression guard)."""
+
+    def test_non_markdown_support_file_is_detected(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            claude = Path(d) / "claude"
+            codex = Path(d) / "codex"
+            (claude / "assets").mkdir(parents=True)
+            codex.mkdir()
+            (claude / "SKILL.md").write_text("# Example\n", encoding="utf-8")
+            (codex / "SKILL.md").write_text("# Example\n", encoding="utf-8")
+            (claude / "assets/example.yml").write_text("enabled: true\n", encoding="utf-8")
+
+            self.assertEqual(
+                mirror_presence_drift(
+                    "example",
+                    distributed_file_set(claude),
+                    distributed_file_set(codex),
+                ),
+                ["example: .claude/skills/example/assets/example.yml has no codex mirror"],
+            )
 
     def test_extra_mirror_file_is_detected(self):
         claude = {"SKILL.md", "tests.md"}
