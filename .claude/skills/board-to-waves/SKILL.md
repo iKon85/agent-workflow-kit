@@ -21,6 +21,20 @@ description: >-
 
 **Survey the board → cluster open issues by theme → anchor stub issues.** Systematizes how Welle F came about: first look at what's open and what fits together, then form thematic waves. Result lands durably as an anchor issue on the board (GitHub = SSOT), not as a chat list.
 
+<!-- readiness:required-preflight:start -->
+## 0. Required readiness preflight
+
+This is the first executable workflow step. From the project root, before any remote write or other `gh`/`board-sync.py` command, run this read-only check:
+
+```bash
+node scripts/readiness.mjs check --skill board-to-waves --json
+```
+
+- `verdict=ready`: continue with the existing workflow without announcing the check. **Ready is silent.**
+- `verdict=blocked`: `STOP` before any mutation. Report every required capability as `<capability>=<state>` so `missing`, `pending`, and `invalid` remain distinct, then give exactly one recovery path: **Run `/setup-workflow`, then rerun `/board-to-waves`.** Do not fall back to bare tracker or board commands.
+- `managedBoard=not-applicable`: `STOP` and report that `/board-to-waves` is **inapplicable** for a project that deliberately has no managed board. This is a terminal project decision, not invalid evidence and not a partially active mode.
+<!-- readiness:required-preflight:end -->
+
 ## Pipeline Position
 
 ```

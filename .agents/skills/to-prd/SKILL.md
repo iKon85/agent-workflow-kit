@@ -10,6 +10,20 @@ description: "Turn a locked plan (PLAN.md in the worktree, conversation context,
 
 Takes an **already-locked plan** and publishes it as a **Draft-PRD issue**. **Never invents requirements** — only synthesizes what's already decided. Pipeline: `board-to-waves → grill(-with-docs) → to-prd → to-issues`. The **grill sits upstream**; to-prd writes the PRD after the grill. **Slicing + promotion to an anchor (cluster/Wave, child link) = `to-issues`** (future), not here.
 
+<!-- readiness:required-preflight:start -->
+## 0. Required readiness preflight
+
+This is the first executable workflow step. From the project root, before any remote write or other `gh`/`board-sync.py` command, run this read-only check:
+
+```bash
+node scripts/readiness.mjs check --skill to-prd --json
+```
+
+- `verdict=ready`: continue with the existing workflow without announcing the check. **Ready is silent.**
+- `verdict=blocked`: `STOP` before any mutation. Report every required capability as `<capability>=<state>` so `missing`, `pending`, and `invalid` remain distinct, then give exactly one recovery path: **Run `/setup-workflow`, then rerun `/to-prd`.** Do not fall back to bare tracker or board commands.
+- `managedBoard=not-applicable`: `STOP` and report that `/to-prd` is **inapplicable** for a project that deliberately has no managed board. This is a terminal project decision, not invalid evidence and not a partially active mode.
+<!-- readiness:required-preflight:end -->
+
 Board constants (project node, field/status IDs) + helpers live **consumer-side**: read `docs/agents/board-sync.md` from the project root + use the helper `scripts/board-sync.py` (missing → `/setup-workflow` scaffolds the project layer). Issue body **always** via `--body-file` (inline `--body` with backticks/parens crashes bash).
 
 ## 1. Input — source-agnostic
