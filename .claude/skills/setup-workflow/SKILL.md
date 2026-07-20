@@ -331,7 +331,36 @@ Seed `## Workflow` from [workflow-overview.md](./workflow-overview.md) when the 
 
 > `wrapup` and live-verify reference where this project deploys (host, command, URL). It lives in the `## Prod` block of CLAUDE.md/AGENTS.md, not a separate file.
 
-Ask for the deploy target in plain terms (where does this ship, how is it deployed, what's the live URL?). Record it for the `## Prod` block (Write step). If the user has no deploy target, skip — do not invent one.
+First run `node scripts/readiness.mjs check --skill wrapup --json`. If
+`prodTarget` is `ready`, adopt the evidence, clear any superseded pending
+decision with `node scripts/readiness.mjs decision clear prodTarget`, and do
+not ask again. Malformed or divergent `## Prod` evidence is `invalid`: leave
+all instruction files untouched, show the conflict, and stop this section
+until the user resolves it.
+
+For a missing or pending target, ask where this ships, how it is deployed, and
+what the live URL is. Offer only the bounded choices permitted by the readiness
+catalog:
+
+- **Configure now** — collect a non-empty host/platform, deploy command or
+  trigger, and live URL. Preview the exact local `## Prod` replacement for
+  every applicable existing Claude/Codex instruction surface and obtain
+  approval before writing it. Any external mutation retains its own separate
+  preview and approval; approving the local block never approves repository,
+  hosting, DNS, or deployment changes.
+- **Configure later** — run
+  `node scripts/readiness.mjs decision set prodTarget pending`; create or alter
+  no `## Prod` block, and report exactly:
+  `wrapup.deployReport omitted (prodTarget pending)`.
+- **Not applicable** — offer only when the manifest catalog entry has
+  `allowNotApplicable: true`; record it with `readiness.mjs decision set` and
+  deactivate the dependent block (or the whole skill when the declaration
+  requires the capability). `prodTarget` does not permit this choice, so never
+  offer it for Prod.
+
+Ready and terminal `not-applicable` choices are not re-asked. A pending choice
+remains deliberately retryable so a later `setup-workflow` run can take the
+Configure-now path. Never invent a deploy target.
 
 ### 8b. Section H — Size-Profil (optional LoC-offender gate, non-interactive)
 
@@ -391,6 +420,14 @@ For the **`## Workflow`**, **`## Agent skills`**, and **`## Prod`** blocks, reco
 - If **neither** exists → ask the user which surface(s) to create (**default `CLAUDE.md`**), then write there.
 - If a `## Workflow` block already exists → skip it; this block is often repo-specific.
 - If an `## Agent skills` / `## Prod` block already exists → update its contents in-place; never duplicate or clobber surrounding user content.
+- For Configure now, apply the approved `## Prod` preview to every applicable
+  existing surface as one coherent local change. Preserve each file's
+  `## Workflow` and `## Agent skills` blocks byte-for-byte, including spacing,
+  and leave all unrelated setup blocks untouched. Re-read every written Prod
+  body and run `node scripts/readiness.mjs check --skill wrapup --json`; all
+  surfaces must agree and `activeBlocks` must be exactly `["deployReport"]`.
+  Only then clear a prior `prodTarget` decision. A partial write is not ready:
+  restore the previewed surface set before reporting the section complete.
 
 `## Workflow` block:
 
@@ -411,7 +448,7 @@ Use [workflow-overview.md](./workflow-overview.md) verbatim as the generic seed.
 [one-line summary — single- or multi-context]. See `docs/agents/domain.md`.
 ```
 
-`## Prod` block (only if Section F produced a deploy target):
+`## Prod` block (only if Section G's Configure-now path produced a deploy target):
 
 ```markdown
 ## Prod

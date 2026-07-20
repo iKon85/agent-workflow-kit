@@ -59,6 +59,23 @@ class RetroEnforcementContract(unittest.TestCase):
 
 
 class WrapupChainingContract(unittest.TestCase):
+    def test_prod_readiness_degrades_reporting_without_blocking_landing(self):
+        required = (
+            "readiness.mjs check --skill wrapup --json",
+            "Prod readiness is pending or missing; deploy reporting omitted.",
+            "landing continues normally",
+            "never authorizes the agent to invent or configure a deploy target",
+            "<!-- readiness:block deployReport -->",
+            "<!-- readiness:end -->",
+        )
+        for surface in SURFACES:
+            with self.subTest(surface=surface):
+                text = skill(surface, "wrapup")
+                for phrase in required:
+                    self.assertIn(phrase, text)
+                self.assertEqual(text.count("<!-- readiness:block deployReport -->"), 1)
+                self.assertEqual(text.count("<!-- readiness:end -->"), 1)
+
     def test_retro_is_model_invocable_on_both_surfaces(self):
         for surface in SURFACES:
             with self.subTest(surface=surface):
