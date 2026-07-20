@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile, access, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { init } from '../src/commands/init.mjs';
-import { update } from '../src/commands/update.mjs';
+import { renderUpdateFailure, update } from '../src/commands/update.mjs';
+import { activateCandidate } from '../src/lib/updateCandidate.mjs';
 import { makeKit, makeEmptyDir, cleanup } from './helpers.mjs';
 import { PACKAGE_MANIFEST_NAME, readManifest, writeManifest } from '../src/lib/manifest.mjs';
 import { sha256 } from '../src/lib/hash.mjs';
@@ -22,6 +23,13 @@ function releaseIdentities(version = '0.1.0', name = '@ikon85/agent-workflow-kit
 }
 
 const verify = async () => {};
+
+test('failed update output names its transaction phase and consumer state', () => {
+  assert.equal(renderUpdateFailure({
+    error: 'disk write failed',
+    failure: { phase: 'activation', consumerState: 'rolled-back' },
+  }), 'candidate update failed · phase: activation · consumerState: rolled-back · disk write failed');
+});
 
 // re-write a kit file + its package-manifest hash to simulate an upstream change
 async function bumpKit(kitRoot, path, content) {
@@ -159,6 +167,61 @@ test('a generated-stub destination race fails in activation and preserves consum
     assert.deepEqual(result.failure, { phase: 'activation', consumerState: 'unchanged' });
     assert.match(result.error, /consumer changed during verification/);
     assert.equal(await readFile(join(consumer, stub), 'utf8'), 'late consumer evidence\n');
+    assert.deepEqual(await readFile(manifestPath), manifestBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('mid-activation failure rolls back generated and kit-owned bytes without clobbering legacy evidence', async () => {
+  const oldReadiness = { readiness: { contractVersion: 1, capabilities: {} }, skills: {} };
+  const nextReadiness = {
+    readiness: { contractVersion: 1, capabilities: {
+      localCiRecipe: { evidence: {
+        type: 'sentinel', paths: ['docs/agents/skills/local-ci.md'], allowLegacy: true,
+      } },
+      orchestrateWaveRecipe: { evidence: {
+        type: 'sentinel', paths: ['docs/agents/skills/orchestrate-wave.md'], allowLegacy: true,
+      } },
+    } },
+    skills: {
+      'local-ci': { readiness: { required: ['localCiRecipe'] } },
+      'orchestrate-wave': { readiness: { optionalBlocks: { projectRecipe: 'orchestrateWaveRecipe' } } },
+    },
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  const generated = 'docs/agents/skills/local-ci.md';
+  const legacy = 'docs/agents/skills/orchestrate-wave.md';
+  try {
+    await setKitReadiness(kit, oldReadiness);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await rm(join(consumer, generated), { force: true });
+    await writeFile(join(consumer, legacy), '# Legacy project recipe\n');
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifestBefore = await readFile(manifestPath);
+    const readinessBefore = await readFile(join(consumer, READINESS_MANIFEST));
+    await setKitReadiness(kit, nextReadiness);
+    let copiedBeforeFault = false;
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+      activate: (options) => activateCandidate({
+        ...options,
+        afterGenerated: async () => {
+          copiedBeforeFault = await exists(join(consumer, generated));
+          throw new Error('injected activation failure');
+        },
+      }),
+    });
+
+    assert.equal(copiedBeforeFault, true);
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.failure, { phase: 'activation', consumerState: 'rolled-back' });
+    assert.match(result.error, /injected activation failure/);
+    assert.equal(await exists(join(consumer, generated)), false);
+    assert.equal(await readFile(join(consumer, legacy), 'utf8'), '# Legacy project recipe\n');
+    assert.deepEqual(await readFile(join(consumer, READINESS_MANIFEST)), readinessBefore);
     assert.deepEqual(await readFile(manifestPath), manifestBefore);
   } finally {
     await cleanup(kit, consumer);

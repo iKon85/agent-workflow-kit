@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import * as p from '@clack/prompts';
 import { init } from './commands/init.mjs';
-import { update } from './commands/update.mjs';
+import { renderUpdateFailure, update } from './commands/update.mjs';
 import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
 import { setOwnership } from './commands/own.mjs';
@@ -49,7 +49,7 @@ try {
     });
     printPlan(r);
     for (const c of r.conflicts) p.note(c.diff || '(binary/!text)', `conflict (not applied): ${c.path}`);
-    if (r.state === 'failed') throw new Error(`candidate update failed: ${r.error}`);
+    if (r.state === 'failed') throw new Error(renderUpdateFailure(r));
     if (r.state === 'conflicted') {
       p.note(r.report.recommendation, 'recommendation');
       p.outro(`not applied · conflicts ${r.conflicts.length}`);

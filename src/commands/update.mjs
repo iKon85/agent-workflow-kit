@@ -11,6 +11,12 @@ import {
 
 const RELEASE_NAME = '@ikon85/agent-workflow-kit';
 
+export function renderUpdateFailure(result) {
+  const failure = result.failure ?? { phase: 'unknown', consumerState: 'unknown' };
+  return `candidate update failed · phase: ${failure.phase} · ` +
+    `consumerState: ${failure.consumerState} · ${result.error}`;
+}
+
 /**
  * Transactionally reconcile a consumer with a parity-proven kit release.
  * checking -> preview/awaiting_decision -> staging -> verifying -> terminal state.
@@ -18,7 +24,8 @@ const RELEASE_NAME = '@ikon85/agent-workflow-kit';
 export async function update(options) {
   const {
     kitRoot, consumerRoot, decide = () => false, dryRun = false,
-    releaseIdentities, verify = verifyCandidate, signal, onState = () => {}, resumeFrom,
+    releaseIdentities, verify = verifyCandidate, activate = activateCandidate,
+    signal, onState = () => {}, resumeFrom,
   } = options;
   const history = [];
   const transition = async (state) => { history.push(state); await onState(state); };
@@ -70,7 +77,7 @@ export async function update(options) {
     return { ...await terminal(resolvedPreview, 'applied', history, transition), status: 'current' };
   }
   return applyTransaction({
-    kitRoot, consumerRoot, pkg, preview: resolvedPreview, decisions, verify, signal, resumeFrom,
+    kitRoot, consumerRoot, pkg, preview: resolvedPreview, decisions, verify, activate, signal, resumeFrom,
     consumerManifestBefore, priorReadinessManifest, nextReadinessManifest, history, transition,
   });
 }
@@ -108,7 +115,7 @@ async function resolvePreview({ kitRoot, consumerRoot, preview, decisions, decid
 
 async function applyTransaction(context) {
   const {
-    kitRoot, consumerRoot, pkg, preview, decisions, verify, signal, resumeFrom,
+    kitRoot, consumerRoot, pkg, preview, decisions, verify, activate, signal, resumeFrom,
     consumerManifestBefore, priorReadinessManifest, nextReadinessManifest, history, transition,
   } = context;
   let candidateRoot = resumeFrom;
@@ -145,7 +152,7 @@ async function applyTransaction(context) {
     await verify(candidateRoot);
     if (signal?.aborted) return abort();
     phase = 'activation';
-    await activateCandidate({
+    await activate({
       candidateRoot, consumerRoot, pkg, preview, consumerManifestBefore,
     });
     return { ...await terminal(preview, 'applied', history, transition), status: 'updated' };

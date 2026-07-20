@@ -36,6 +36,7 @@ export async function stageConsumer(consumerRoot) {
 /** Activate only verified kit-owned deltas, rolling every touched path back on failure. */
 export async function activateCandidate({
   candidateRoot, consumerRoot, pkg, preview, consumerManifestBefore,
+  afterGenerated = async () => {},
 }) {
   const changed = [...preview.added, ...preview.updated];
   const generated = preview.generated ?? [];
@@ -67,6 +68,7 @@ export async function activateCandidate({
     for (const path of generated) {
       await writeAtomic(join(consumerRoot, path), await readFile(join(candidateRoot, path)));
     }
+    await afterGenerated();
     for (const path of preview.deleted) await rm(join(consumerRoot, path), { force: true });
     await writeAtomic(
       join(consumerRoot, CONSUMER_MANIFEST_NAME),
