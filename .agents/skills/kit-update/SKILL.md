@@ -34,11 +34,29 @@ release contain the same artifact.
    `npm test` command there, and activates only a verified candidate. A staging
    or verification failure leaves the installed tree byte-identical.
 
+   The staged candidate also adopts the current readiness schema without
+   invoking `setup-workflow`: it preserves explicit readiness decisions and
+   legacy project evidence, and seeds only newly introduced safe project-layer
+   stubs whose destinations are absent. Those generated consumer-owned paths
+   are destination-race checked and activate or roll back in the same
+   transaction as kit files and the consumer manifest. Never create project
+   data, infer an external fact, or manufacture `pending`/`not-applicable` to
+   make a capability appear ready.
+
 3. Read the terminal report. `aktuell` proves a second run found no upstream
    delta. A conflict report names and counts every category and leaves every
    consumer file untouched. Follow its recommendation and resolve each named
    conflict manually; never auto-merge, delete a local edit, or silently choose
    the incoming copy.
+
+   Read all four availability categories alongside the file delta: newly
+   available skill core, newly degraded optional blocks, newly blocked skill
+   core, and still unresolved capability states. Missing readiness for genuinely
+   new behavior does not block a compatible kit update; only that behavior stays
+   unavailable. A compatible update must stop if it would make previously
+   available skill core unavailable. `--yes` answers only package reconciliation
+   questions and never supplies a readiness decision. Automated update pull
+   requests carry the same availability summary and remain manual-merge only.
 
    For each conflicted kit-shipped file, always ask the user whether the local
    edit is a generic improvement or project-specific; never decide or act
@@ -74,4 +92,6 @@ release contain the same artifact.
 The update API reports `checking -> preview/awaiting_decision -> staging ->
 verifying -> applied | conflicted | failed | aborted`. `conflicted`, `failed`,
 and `aborted` never authorize partial activation. The existing manifest,
-three-way diff, and atomic-write seams remain the source of truth.
+three-way diff, and atomic-write seams remain the source of truth. A failure
+also names its transaction phase and whether consumer state stayed unchanged or
+was rolled back.

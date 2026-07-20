@@ -86,6 +86,14 @@ function printPlan(r) {
   ])
     if (r[k]?.length) lines.push(`${k}: ${r[k].length}`);
   if (r.conflicts?.length) lines.push(`conflicts: ${r.conflicts.length}`);
+  if (r.availability) {
+    for (const [key, label] of [
+      ['newlyAvailable', 'newly available'], ['newlyDegraded', 'newly degraded'],
+      ['newlyBlocked', 'newly blocked'], ['stillUnresolved', 'still unresolved'],
+    ]) {
+      lines.push(`${label}: ${r.availability[key].join(', ') || 'none'}`);
+    }
+  }
   for (const owned of r.ownedDiffs ?? []) {
     lines.push(`${owned.state} ${owned.path}`);
     if (owned.binary) {
