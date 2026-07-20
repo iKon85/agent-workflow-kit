@@ -8,6 +8,7 @@ import {
   readManifest, writeManifest, emptyConsumerManifest,
   filesForInstallRole, CONSUMER_INSTALL_ROLE,
   indexByPath,
+  readReadinessContract,
   CONSUMER_ORIGIN,
   PACKAGE_MANIFEST_NAME, CONSUMER_MANIFEST_NAME,
 } from '../lib/manifest.mjs';
@@ -27,6 +28,7 @@ export async function init({ kitRoot, consumerRoot, force = false }) {
   const pkg = await readManifest(join(kitRoot, PACKAGE_MANIFEST_NAME));
   if (!pkg) throw new Error('kit package manifest not found');
   const prior = await readManifest(join(consumerRoot, CONSUMER_MANIFEST_NAME));
+  const readiness = await readReadinessContract(kitRoot);
   const tracked = new Set((prior?.installed ?? []).map((e) => e.path));
   const consumerOwned = new Set(
     (prior?.installed ?? []).filter((e) => e.origin === CONSUMER_ORIGIN).map((e) => e.path),
@@ -68,7 +70,7 @@ export async function init({ kitRoot, consumerRoot, force = false }) {
 
   await writeManifest(
     join(consumerRoot, CONSUMER_MANIFEST_NAME),
-    { ...emptyConsumerManifest(pkg.kitVersion), installed }
+    { ...emptyConsumerManifest(pkg.kitVersion, prior, readiness), installed }
   );
 
   for (const stub of STUB_TARGETS) {

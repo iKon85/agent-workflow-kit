@@ -24,6 +24,7 @@ test('project-release is a shipped dual-surface own-work entry point with one en
     readFile(join(REPO, 'agent-workflow-kit.package.json'), 'utf8'),
   ]);
   assert.deepEqual(JSON.parse(manifestText).skills['project-release'], {
+    readiness: { required: ['projectReleaseProfile'] },
     class: 'generic',
     publish: true,
     entryPoint: true,

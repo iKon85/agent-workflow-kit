@@ -5,6 +5,7 @@ import { hookReferenced } from '../lib/settings.mjs';
 import {
   writeManifest, readManifest, emptyConsumerManifest,
   CONSUMER_MANIFEST_NAME, CONSUMER_ORIGIN,
+  readReadinessContract,
 } from '../lib/manifest.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
@@ -18,6 +19,7 @@ const exists = (p) => access(p).then(() => true, () => false);
 export async function uninstall({ consumerRoot }) {
   const consumer = await readManifest(join(consumerRoot, CONSUMER_MANIFEST_NAME));
   if (!consumer) throw new Error('not initialised — nothing to uninstall');
+  const readiness = await readReadinessContract(consumerRoot);
 
   const res = { removed: [], retained: [] };
   const retainedEntries = [];
@@ -42,7 +44,9 @@ export async function uninstall({ consumerRoot }) {
 
   const manifestPath = join(consumerRoot, CONSUMER_MANIFEST_NAME);
   if (retainedEntries.length) {
-    await writeManifest(manifestPath, { ...emptyConsumerManifest(consumer.kitVersion), installed: retainedEntries });
+    await writeManifest(manifestPath, {
+      ...emptyConsumerManifest(consumer.kitVersion, consumer, readiness), installed: retainedEntries,
+    });
   } else {
     await rm(manifestPath, { force: true });
   }

@@ -38,6 +38,11 @@ test('HELPER_FILES ships the planning ecosystem (scripts, hook, template)', () =
   // board_config is an imported library, not a runnable entrypoint
   assert.equal(HELPER_FILES.find((h) => h.path === 'scripts/board_config.py').mode, 0o644);
   assert.equal(HELPER_FILES.find((h) => h.path === 'scripts/pr_body_e2e.py').mode, 0o644);
+  assert.equal(HELPER_FILES.find((h) => h.path === 'scripts/readiness.mjs').mode, 0o755);
+  assert.ok(paths.includes('.claude/skills/skill-manifest.json'));
+  assert.ok(paths.includes('src/lib/sentinel.mjs'));
+  assert.ok(paths.includes('src/lib/manifest.mjs'));
+  assert.ok(paths.includes('src/lib/atomicWrite.mjs'));
 });
 
 test('HELPER_FILES ships the complete census foundation', () => {

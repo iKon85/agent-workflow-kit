@@ -4,6 +4,13 @@ import { join, relative } from 'node:path';
 // The planning skills are not usable without their helper ecosystem (Codex R2#1).
 // These ship alongside the skills. Paths are relative to the bundle/consumer root.
 export const HELPER_FILES = [
+  // Readiness declarations and their deterministic consumer-side command ship
+  // together; the manifest remains the only capability/dependency registry.
+  { path: '.claude/skills/skill-manifest.json', kind: 'doc', mode: 0o644 },
+  { path: 'scripts/readiness.mjs', kind: 'script', mode: 0o755 },
+  { path: 'src/lib/sentinel.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/manifest.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/atomicWrite.mjs', kind: 'script', mode: 0o644 },
   // Shared profile loader imported by the three planning scripts — they read
   // every board-specific value from docs/agents/board-sync.md through it, so it
   // MUST ship or they are broken-on-arrival. Library (imported, not run) → 0o644.

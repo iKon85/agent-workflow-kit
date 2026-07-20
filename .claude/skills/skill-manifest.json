@@ -1,8 +1,37 @@
 {
   "schema_version": 1,
   "description": "Public skill classification and publishing SSOT.",
+  "readiness": {
+    "contractVersion": 1,
+    "capabilities": {
+      "issueTracker": { "evidence": { "type": "sentinel", "paths": ["docs/agents/issue-tracker.md"], "allowLegacy": true } },
+      "triageLabels": { "evidence": { "type": "sentinel", "paths": ["docs/agents/triage-labels.md"], "allowLegacy": true } },
+      "managedBoard": { "allowNotApplicable": true, "evidence": { "type": "board-profile", "paths": ["docs/agents/board-sync.md"] } },
+      "specCompleteness": { "evidence": { "type": "sentinel", "paths": ["docs/conventions/spec-completeness.md"], "allowLegacy": true } },
+      "localCiRecipe": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/local-ci.md"], "allowLegacy": true } },
+      "projectReleaseProfile": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "validator": "project-release" } },
+      "securityAuditRunbook": { "evidence": { "type": "runbook-reference", "paths": ["docs/agents/skills/security-audit.md"], "allowLegacy": true } },
+      "prodTarget": { "evidence": { "type": "prod-section", "paths": ["CLAUDE.md", "AGENTS.md"] } },
+      "orchestrateWaveRecipe": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/orchestrate-wave.md"], "allowLegacy": true } },
+      "specCritiqueLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/spec-self-critique.md"], "allowLegacy": true } },
+      "codeReviewLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/code-review.md"], "allowLegacy": true } },
+      "verifySpikeLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/verify-spike.md"], "allowLegacy": true } },
+      "auditSkillsLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/audit-skills.md"], "allowLegacy": true } },
+      "worktreeRecoveryLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/git-worktree-recover.md"], "allowLegacy": true } },
+      "domainDocs": { "evidence": { "type": "sentinel", "paths": ["docs/agents/domain.md"], "allowLegacy": true } },
+      "censusChoice": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["census"] } },
+      "memoryLifecycle": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["memoryLifecycle"] } },
+      "worktreeLifecycle": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["worktreeLifecycle"] } },
+      "workflowAdvisories": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["workflowAdvisories"] } },
+      "safetyGuardrails": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["safetyGuardrails"] } },
+      "workflowSummary": { "evidence": { "type": "nonempty", "paths": ["CLAUDE.md", "AGENTS.md"] } },
+      "locProfile": { "evidence": { "type": "json", "paths": ["docs/agents/max-lines-allowlist.json"] } },
+      "kitOriginHint": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["kitOriginHint"] } }
+    }
+  },
   "skills": {
     "to-prd": {
+      "readiness": { "required": ["issueTracker", "managedBoard"] },
       "class": "generic",
       "publish": true,
       "entryPoint": true,
@@ -13,6 +42,7 @@
       "provenance": "matt-pocock"
     },
     "to-issues": {
+      "readiness": { "required": ["issueTracker", "managedBoard", "specCompleteness"] },
       "class": "generic",
       "publish": true,
       "entryPoint": true,
@@ -51,6 +81,7 @@
       "provenance": "own"
     },
     "wrapup": {
+      "readiness": { "optionalBlocks": { "deployReport": "prodTarget" } },
       "class": "generic",
       "publish": true,
       "entryPoint": true,
@@ -61,6 +92,7 @@
       "provenance": "own"
     },
     "verify-spike": {
+      "readiness": { "optionalBlocks": { "projectPlacement": "verifySpikeLayer" } },
       "class": "generic",
       "publish": true,
       "entryPoint": true,
@@ -81,6 +113,7 @@
       "provenance": "own"
     },
     "spec-self-critique": {
+      "readiness": { "optionalBlocks": { "projectEnrichment": "specCritiqueLayer" } },
       "class": "generic",
       "publish": true,
       "surfaces": [
@@ -90,6 +123,7 @@
       "provenance": "own"
     },
     "code-review": {
+      "readiness": { "optionalBlocks": { "projectEnrichment": "codeReviewLayer" } },
       "class": "generic",
       "publish": true,
       "surfaces": [
@@ -118,6 +152,7 @@
       "provenance": "own"
     },
     "board-to-waves": {
+      "readiness": { "required": ["issueTracker", "managedBoard"] },
       "class": "generic",
       "publish": true,
       "entryPoint": true,
@@ -138,6 +173,7 @@
       "provenance": "own"
     },
     "to-waves": {
+      "readiness": { "required": ["issueTracker", "managedBoard", "specCompleteness"] },
       "class": "generic",
       "publish": true,
       "entryPoint": true,
@@ -187,6 +223,7 @@
       "provenance": "matt-pocock"
     },
     "triage": {
+      "readiness": { "required": ["issueTracker", "managedBoard", "triageLabels"] },
       "class": "vendored",
       "publish": true,
       "entryPoint": true,
@@ -327,6 +364,7 @@
       "provenance": "own"
     },
     "audit-skills": {
+      "readiness": { "optionalBlocks": { "projectChecks": "auditSkillsLayer" } },
       "class": "generic",
       "publish": true,
       "entryPoint": false,
@@ -337,6 +375,7 @@
       "provenance": "own"
     },
     "local-ci": {
+      "readiness": { "required": ["localCiRecipe"] },
       "class": "generic",
       "publish": true,
       "entryPoint": false,
@@ -347,6 +386,10 @@
       "provenance": "own"
     },
     "orchestrate-wave": {
+      "readiness": {
+        "required": ["issueTracker", "managedBoard"],
+        "optionalBlocks": { "projectRecipe": "orchestrateWaveRecipe" }
+      },
       "class": "generic",
       "publish": true,
       "entryPoint": true,
@@ -357,6 +400,7 @@
       "provenance": "own"
     },
     "git-worktree-recover": {
+      "readiness": { "optionalBlocks": { "projectRecovery": "worktreeRecoveryLayer" } },
       "class": "generic",
       "publish": true,
       "entryPoint": false,
@@ -367,6 +411,7 @@
       "provenance": "own"
     },
     "security-audit": {
+      "readiness": { "required": ["securityAuditRunbook"] },
       "class": "generic",
       "publish": true,
       "entryPoint": false,
@@ -388,6 +433,7 @@
       "provenance": "own"
     },
     "project-release": {
+      "readiness": { "required": ["projectReleaseProfile"] },
       "class": "generic",
       "publish": true,
       "entryPoint": true,
