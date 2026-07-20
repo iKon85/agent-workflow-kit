@@ -107,7 +107,7 @@
       "ownerSkill": "codex-adapter-sync",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "3a8ad73c4bfce8c01e561d2dc0c7f0e24d9ac85c1bb2c8c0194a2de278cd6a2d",
+      "sha256": "ae398e40308e6ad8d6091c418435e2dca8a4f67e526ab85efa88e8e57c0354c2",
       "mode": 420,
       "origin": "kit"
     },
@@ -2024,6 +2024,14 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/skill-manifest.json",
+      "kind": "doc",
+      "installRole": "consumer",
+      "sha256": "290cc3e847a10cb10b4ecb17cf0d45be0f60f95e96b7a70417b3e8da0a32e23c",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/spec-self-critique/scenarios.md",
       "kind": "skill",
       "ownerSkill": "spec-self-critique",
@@ -2576,6 +2584,14 @@
       "origin": "kit"
     },
     {
+      "path": "scripts/readiness.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "f5e8bc2e724f72d1aa9f94c4f8d87b8f4d3f9843797cd6ae59f48e563dc7c7fb",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
       "path": "scripts/release-delta-guard.mjs",
       "kind": "script",
       "installRole": "maintainer",
@@ -2728,6 +2744,22 @@
       "origin": "kit"
     },
     {
+      "path": "src/lib/atomicWrite.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "dbb971617ae641127857341a02cc029f30633ab5ef0c6efff2bab27b95794a9f",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/manifest.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "171eba2662054379c40c1c629110fa8e34353de72e136004b861b2ac6a4edc13",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "src/lib/release-apply.mjs",
       "kind": "script",
       "installRole": "consumer",
@@ -2748,6 +2780,14 @@
       "kind": "script",
       "installRole": "consumer",
       "sha256": "7d0a8da3740ed1eb79edb80f0eedb3cd1de47692d4886c6b119b39073a6468d1",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/sentinel.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "f99d28d2053d55222650d2ca426509d3f56eec5ef70709bbf8c4a278bf80024e",
       "mode": 420,
       "origin": "kit"
     }
