@@ -50,3 +50,30 @@ agent hooks expose parts of it.
 An independently activatable rule that prevents or detects an unsafe agent or
 repository action. Guardrails may share activation and reporting machinery,
 but each retains its own applicability and failure policy.
+
+## Capability readiness
+
+**Capability**:
+A project-specific prerequisite that activates a skill or a bounded part of a
+skill when its evidence is present and valid.
+_Avoid_: Feature flag, setup checkbox
+
+**Capability readiness**:
+The live-derived state of a Capability: `ready`, `pending`, `not-applicable`,
+`missing`, or `invalid`.
+_Avoid_: Setup complete, enabled flag
+
+**Readiness Decision**:
+A durable consumer choice of `pending` or `not-applicable`; it is not a cache
+of evidence-derived readiness.
+_Avoid_: Readiness state, generated default
+
+**Required Capability**:
+A Capability whose unavailable state prevents the dependent skill from safely
+running at all.
+_Avoid_: Global setup gate
+
+**Optional Block**:
+A stable, manifest-declared region of a skill that is excluded when its
+Capability is unavailable while the rest of the skill remains usable.
+_Avoid_: Optional skill, prose fallback

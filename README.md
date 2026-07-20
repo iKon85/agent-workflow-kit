@@ -348,6 +348,38 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 
 ## Release notes
 
+### 0.31.0
+
+- changed: `.agents/skills/board-to-waves/SKILL.md`
+- changed: `.agents/skills/code-review/SKILL.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/local-ci/SKILL.md`
+- changed: `.agents/skills/project-release/SKILL.md`
+- changed: `.agents/skills/security-audit/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/spec-self-critique/SKILL.md`
+- changed: `.agents/skills/to-issues/SKILL.md`
+- changed: `.agents/skills/to-prd/SKILL.md`
+- changed: `.agents/skills/to-waves/SKILL.md`
+- changed: `.agents/skills/triage/SKILL.md`
+- changed: `.agents/skills/verify-spike/SKILL.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/skills/board-to-waves/SKILL.md`
+- changed: `.claude/skills/code-review/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/local-ci/SKILL.md`
+- changed: `.claude/skills/project-release/SKILL.md`
+- changed: `.claude/skills/security-audit/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/spec-self-critique/SKILL.md`
+- changed: `.claude/skills/to-issues/SKILL.md`
+- changed: `.claude/skills/to-prd/SKILL.md`
+- changed: `.claude/skills/to-waves/SKILL.md`
+- changed: `.claude/skills/triage/SKILL.md`
+- changed: `.claude/skills/verify-spike/SKILL.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `scripts/kit-update-pr.mjs`
+
 ### 0.30.0
 
 - added: `.claude/skills/skill-manifest.json`
