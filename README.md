@@ -348,6 +348,15 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 
 ## Release notes
 
+### 0.30.0
+
+- added: `.claude/skills/skill-manifest.json`
+- added: `scripts/readiness.mjs`
+- added: `src/lib/atomicWrite.mjs`
+- added: `src/lib/manifest.mjs`
+- added: `src/lib/sentinel.mjs`
+- changed: `.agents/skills/codex-adapter-sync/SKILL.md`
+
 ### 0.29.1
 
 - Metadata-only release.
