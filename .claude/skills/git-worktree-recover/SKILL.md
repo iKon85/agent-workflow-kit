@@ -26,11 +26,36 @@ discipline and its guards) didn't stop it.
 
 ## Precondition
 
-If your project has a prevention layer — a SessionStart warning on active
-worktrees, a pre-edit guard that blocks edits on the wrong branch — this skill
-handles the case where that layer did NOT prevent a misplaced commit. Your project
-layer names those guards (`docs/agents/skills/git-worktree-recover.md`, seeded as
-an empty stub by `/setup-workflow`).
+This generic recovery remains usable whether or not the project has prevention
+guards or a custom worktree setup command.
+
+## Readiness preflight — first
+
+<!-- readiness:optional-preflight:start -->
+Before assessing refs or moving a branch, run this once from the project root:
+
+```bash
+node scripts/readiness.mjs check --skill git-worktree-recover --json
+```
+
+- `ready`: continue silently with generic recovery and the active
+  `projectRecovery` block.
+- `degraded`: keep generic reflog recovery active, omit only
+  `projectRecovery`, and emit exactly one concise summary: `Readiness degraded
+  — inactive block projectRecovery (worktreeRecoveryLayer: <state>). Run
+  /setup-workflow, configure docs/agents/skills/git-worktree-recover.md, then
+  rerun this skill.`
+- `blocked`: stop before continuing and report the non-ready required capability
+  plus the exact `/setup-workflow` recovery path.
+- Invalid evidence is always visible in that one summary; never interpret it as
+  an opt-out or invent a project command.
+<!-- readiness:optional-preflight:end -->
+
+<!-- readiness:block projectRecovery -->
+When `projectRecovery` is active, read
+`docs/agents/skills/git-worktree-recover.md` and apply its named prevention
+guards and exact worktree setup command around the generic recovery below.
+<!-- readiness:end -->
 
 ---
 
@@ -130,15 +155,11 @@ it.
 
 ## Phase 5 — Set up a worktree
 
-Set the recovered branch up cleanly in its own worktree. If your project has a
-worktree-setup command, use it (it typically runs `git worktree add`, installs
-deps and copies env files); otherwise:
+Set the recovered branch up cleanly in its own worktree. The generic fallback is:
 
 ```bash
 git worktree add <path> <recovered-branch>
 ```
-
-Your project layer names the exact command and what it copies.
 
 **Verify after setup:**
 

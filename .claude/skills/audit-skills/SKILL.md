@@ -23,6 +23,35 @@ skills the other steps rely on drift, and nothing fixes them unless a recipe doe
 Not for: rewriting a domain skill's content on demand (that is the skill itself),
 or auditing application code (a code review or a diagnosis does that).
 
+## Readiness preflight — first
+
+<!-- readiness:optional-preflight:start -->
+Before enumerating skills, launching research subagents, or editing any skill,
+run this once from the project root:
+
+```bash
+node scripts/readiness.mjs check --skill audit-skills --json
+```
+
+- `ready`: continue silently with the generic audit and the active
+  `projectChecks` block.
+- `degraded`: keep the generic audit active, omit only `projectChecks`, and emit
+  exactly one concise summary: `Readiness degraded — inactive block
+  projectChecks (auditSkillsLayer: <state>). Run /setup-workflow, configure
+  docs/agents/skills/audit-skills.md, then rerun this skill.`
+- `blocked`: stop before continuing and report the non-ready required capability
+  plus the exact `/setup-workflow` recovery path.
+- Invalid evidence is always visible in that one summary; never interpret it as
+  an opt-out or invent project checks.
+<!-- readiness:optional-preflight:end -->
+
+<!-- readiness:block projectChecks -->
+When `projectChecks` is active, read
+`docs/agents/skills/audit-skills.md` and apply its concrete class assignments,
+project-specific guard commands, and drift checks in addition to the generic
+recipe below.
+<!-- readiness:end -->
+
 ## Standing guards (run without this audit)
 
 Two automatic nets catch the most common drift classes before an audit — this
@@ -31,7 +60,7 @@ recipe complements them, it does not replace them:
 1. **A skill-sync test** — for any un-guessable enumeration a skill documents (a
    status→bucket map, a design-token list), a test parses the value out of the
    SKILL.md and asserts equality with the code constant. Drift breaks the build.
-   Your project layer names the concrete tests.
+   Run the concrete tests available in the repository.
 2. **The drift-hint hook** (`.claude/hooks/skill-drift-hint.py`) + a per-skill
    `SOURCES.txt`: at SessionStart it flags any skill whose declared source file
    is newer in git than its SKILL.md.
@@ -79,8 +108,9 @@ plus the `SOURCES.txt` files. Sort every skill into one of three classes:
    scripts or hooks with no `SOURCES.txt` and no hook net. No hook warns, so
    re-check them manually each audit.
 
-Your project layer assigns each concrete skill to a class — a completeness gate
-catches the next new skill that would otherwise stay invisible.
+Derive each concrete skill's class from the manifest, its `SOURCES.txt`, and the
+repository surfaces — a completeness gate catches the next new skill that would
+otherwise stay invisible.
 
 ### 2. Audit in parallel — one subagent per skill
 
@@ -129,8 +159,7 @@ alongside the Claude source), sync the mirror in the **same** change — otherwi
 the second surface rots silently. Mirror the body, but preserve each surface's
 own frontmatter: a mirror's `description` may be deliberately condensed, so never
 blind-copy the whole file over it. A `SOURCES.txt` is a plain anchor list and can
-be mirrored verbatim. Your project layer names the surfaces and the exact
-transform.
+be mirrored verbatim. Use the repository's declared surfaces and exact transform.
 
 ## Done
 

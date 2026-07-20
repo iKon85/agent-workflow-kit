@@ -21,13 +21,46 @@ correctly, AFK. Subagents BUILD; **you** integrate + verify + land.
 The anchor, its sub-issues and the locked plan doc contain the verbatim contracts
 you must NOT paraphrase.
 
-> **Phase 0 probes a project layer.** Concrete tooling — exact test/verify
+## Readiness preflight — first
+
+<!-- readiness:optional-preflight:start -->
+Before reading from the issue tracker, claiming a wave, creating worktrees, or
+making any local or remote mutation, run this once from the project root:
+
+```bash
+node scripts/readiness.mjs check --skill orchestrate-wave --json
+```
+
+- `ready`: continue silently with the required tracker/board context and the
+  active `projectRecipe` block.
+- `degraded`: required tracker and managed-board evidence is ready, so keep the
+  complete generic orchestration fallback active, omit only `projectRecipe`,
+  and emit exactly one concise summary: `Readiness degraded — inactive block
+  projectRecipe (orchestrateWaveRecipe: <state>); using the generic
+  orchestration fallback. Run /setup-workflow, configure
+  docs/agents/skills/orchestrate-wave.md, then rerun this skill.`
+- `blocked`: `STOP` before tracker access, dispatch, claims, worktrees, or other
+  mutation. Report `issueTracker=<state>` and `managedBoard=<state>`, then give
+  exactly one recovery path: **Run `/setup-workflow`, then rerun
+  `/orchestrate-wave`.** Never fall back to bare tracker or board commands.
+- `managedBoard=not-applicable`: `STOP` and report that `/orchestrate-wave` is
+  inapplicable without a managed board. This is a terminal project decision,
+  not invalid evidence and not a partially active mode.
+- Invalid evidence is always visible and never treated as an opt-out.
+<!-- readiness:optional-preflight:end -->
+
+<!-- readiness:block projectRecipe -->
+> **Phase 0 consumes the active project recipe.** Concrete tooling — exact test/verify
 > commands, a DB/tunnel setup, a headless login recipe, brand checks, deploy
 > lockstep — is project-specific and lives in a **project layer** this skill reads
 > at runtime, not in this skeleton. The skeleton names the layer's sections
 > (`§Setup`, `§Builder Commands`, `§Builder Hard Rules`, `§Integration Suites`,
 > `§Verify Recipe`, `§Headless Login`, `§Landing`) and falls back to generic
 > instructions when the layer is absent. See **Phase 0**.
+>
+> When `projectRecipe` is active, read the filled project layer before applying
+> any phase-specific command below.
+<!-- readiness:end -->
 
 ## Standing rules (all phases)
 
@@ -67,15 +100,11 @@ you must NOT paraphrase.
 1. **Read everything**: the anchor body, every sub-issue body (each has a Handoff
    block: scope, blast-radius, live-verify, PR line), and the locked plan /
    plan-review doc in the planning worktree (file-exact).
-2. **Probe the project layer.** Read the project layer doc for this skill (the
-   consumer's `docs/agents/skills/orchestrate-wave.md` or the path your project
-   uses). If its `§`-sections carry **filled** content, follow the project recipe
-   wherever a phase below points at a `§`-section. If the file is only a
-   `setup-workflow` sentinel stub (empty headings, no real content) or absent,
-   treat the layer as **ABSENT** → use the generic fallback in each phase and warn
-   **once** that `/setup-workflow` plus project maintenance fill the layer (the
-   commands/tunnel/login can't be guessed). Never treat an empty heading as a
-   verify recipe.
+2. **Select exact commands or the generic fallback.** If the readiness result
+   activated `projectRecipe`, use the loaded filled recipe wherever a phase below
+   points at a `§`-section. Otherwise use each phase's generic fallback; the
+   preflight's single degraded summary is the only warning. Never guess a project
+   command, tunnel, login, or verify recipe.
 3. **Preflight — refuse a wave already in flight, otherwise claim it.** Before
    dispatch, inspect all three same-machine collision signals: **(a)** an existing
    `wave-active/<anchor>` tag; **(b)** any slice branch ahead of the wave's current
@@ -96,10 +125,10 @@ you must NOT paraphrase.
    tunnel or service the live-verify depends on. Absent layer → start whatever your
    live-verify environment requires before Phase 4.
 
-**Done when:** anchor + every sub-issue + plan read · project layer probed
-(filled → project recipe; stub/absent → generic + one-time warning) · preflight
-clean + this run's local claim planted · wave branch ff'd to `origin/main` + deps
-installed · project setup steps running.
+**Done when:** anchor + every sub-issue + plan read · readiness result consumed
+(active `projectRecipe` → exact recipe; inactive → generic fallback) · collision
+preflight clean + this run's local claim planted · wave branch ff'd to
+`origin/main` + deps installed · project setup steps running.
 
 ## Phase 1 — Disjointness recon (the load-bearing step)
 

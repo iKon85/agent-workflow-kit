@@ -1,0 +1,26 @@
+{
+  "kitVersion": "0.31.0",
+  "readinessContractVersion": 1,
+  "readinessDecisions": {
+    "prodTarget": "pending"
+  },
+  "installed": [],
+  "readinessFixture": {
+    "evidenceStyle": "current-sentinel",
+    "evidence": {
+      "docs/agents/issue-tracker.md": "<!-- setup-workflow: state=filled -->\n# Issue tracker\nGitHub Issues is authoritative.\n",
+      "docs/agents/board-sync.md": "<!-- board-sync:profile -->\n```json\n{\"repo\":\"owner/repo\",\"project\":{\"owner\":\"owner\",\"number\":1,\"nodeId\":\"PVT_1\"},\"fields\":{\"status\":{\"id\":\"STATUS\",\"options\":{\"Done\":\"DONE\"},\"roles\":{\"done\":\"Done\"}},\"wave\":\"WAVE\",\"cluster\":\"CLUSTER\"},\"labels\":{\"readyForAgent\":\"ready-for-agent\"}}\n```\n",
+      "docs/agents/skills/audit-skills.md": "<!-- setup-workflow: state=stub -->\n",
+      "docs/agents/skills/git-worktree-recover.md": "<!-- setup-workflow: state=stub -->\n",
+      "docs/agents/skills/orchestrate-wave.md": "<!-- setup-workflow: state=stub -->\n"
+    },
+    "skills": {
+      "audit-skills": { "verdict": "degraded", "inactiveBlocks": ["projectChecks"] },
+      "git-worktree-recover": { "verdict": "degraded", "inactiveBlocks": ["projectRecovery"] },
+      "orchestrate-wave": { "verdict": "degraded", "inactiveBlocks": ["projectRecipe"] }
+    },
+    "expectedDecisions": {
+      "prodTarget": "pending"
+    }
+  }
+}
