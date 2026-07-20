@@ -1,7 +1,7 @@
 ---
 name: wrapup
 disable-model-invocation: true
-"description": "Use ONLY when the user types /wrapup. Session-end \"land & clean\" for a finished feature/fix worktree — merges the open PR (= triggers prod deploy), kills the worktree dev server, removes the worktree + local branch, and fast-forwards the main checkout so main is current again, then sweeps merged-branch leftovers (local + stale remote whose PR is merged). If the slice isn't landed yet, it first makes it landable (Step 0): commits a dirty tree (after an .env/secret check), pushes, and opens the PR — reusing one if it already exists. User-triggered only (never auto-invoke, never hook). Aborts hard only on: not in a feature worktree, a detected .env/secret, a rejected push, a conflicting PR, or red (FAILURE) checks."
+"description": "Use ONLY when the user types /wrapup. Session-end \"land & clean\" for a finished feature/fix worktree — merges the open PR, kills the worktree dev server, removes the worktree + local branch, and fast-forwards the main checkout so main is current again, then sweeps merged-branch leftovers (local + stale remote whose PR is merged). If the slice isn't landed yet, it first makes it landable (Step 0): commits a dirty tree (after an .env/secret check), pushes, and opens the PR — reusing one if it already exists. User-triggered only (never auto-invoke, never hook). Aborts hard only on: not in a feature worktree, a detected .env/secret, a rejected push, a conflicting PR, or red (FAILURE) checks."
 ---
 
 # wrapup — land PR & tear down worktree
@@ -10,7 +10,11 @@ Trigger: user types `/wrapup` (optionally with a PR number). **Manual only** —
 
 ## ⚠ Spec context
 
-**Merging to `main` = prod deploy.** The agent never deploys on its own — the user's `/wrapup` input IS the explicit merge+deploy authorization for that run. Never call this skill from a hook, another skill, or autonomously. Deploy banner before the merge, no y/n confirmation (deliberate); the pre-flight hard stops are non-negotiable.
+The user's `/wrapup` input IS the explicit landing authorization for that run.
+It authorizes the normal merge flow whether Prod readiness is ready or degraded;
+it never authorizes the agent to invent or configure a deploy target. Never call
+this skill from a hook, another skill, or autonomously. There is no second merge
+confirmation; the pre-flight hard stops are non-negotiable.
 
 ## Execution model — script does mechanics, the agent does judgment
 
@@ -26,6 +30,17 @@ Run **in the worktree**:
 python3 scripts/wrapup-land.py preflight
 ```
 Hard stop (the only pure precondition): not in a feature worktree / on `main` — the script exits 1. The report carries everything the later steps need: dirty files, `.env` hits, secret-grep hits, issue + parent (leaf vs. anchor slice), existing PR + whether its body has a `**Retro:**` line, parsed `ANNAHMEN.md` drift lines, profile values (`retro_values`, `vor_bau`, remote-sweep switch).
+
+Then run:
+
+```bash
+node scripts/readiness.mjs check --skill wrapup --json
+```
+
+`prodTarget: ready` activates only `deployReport` below. `pending` or `missing`
+omits that block, emits exactly one concise note — `Prod readiness is pending or missing; deploy reporting omitted.` — and landing continues normally.
+`invalid` means malformed or divergent Prod evidence: STOP and report the
+conflicting instruction surfaces; never choose a target on the user's behalf.
 
 ### 2 · Retro gate (blocking, optional retro-exit — before anything is committed)
 One reminder, not a merge confirmation:
@@ -72,10 +87,17 @@ One call covers: push → PR create/reuse (+ drift markers merged into the body)
 STOP → diagnose in the main conversation, fix, re-run `land` (an already-merged PR resumes at teardown).
 
 ### 6 · Post-merge (agent)
-- **Deploy banner**, one line: `⚠ PR #<pr> merged → main deploys (~7 min live).`
 - **Sibling propagation:** for each `drift_markers` entry in the land report, append the note to the target issue's `vor_bau` section + re-stamp its `plan_revision`. Log-based markers → **write directly, then show what was written where** (mandatory report — visibility moved from a pre-gate into the report, decision 2026-07-06); fallback candidates the user hasn't confirmed yet → confirm first. Program context widens the target set to unbuilt wave-stubs/leaves and the Program-PRD itself — same append-only mechanism. **Exception:** appends to the Program-PRD or unbuilt wave-stubs do **not** re-stamp `plan_revision` — that stays reserved for structural wave-plan edits via the `to-waves` escalation path; a mere drift note must not stale-block published stubs.
 - **Anchor close:** report says `anchor_complete: true` → `gh issue close <anchor> -c "Wave complete — all slices merged via PR #<pr>."` and verify board status Done. The guard keeps anchors away from every auto-close — this verified close is the only close path; without it the anchor stays silently open after the last slice. **Then re-run the upward propagation**: the land-time `program-sync` ran BEFORE this close, so on a wave-completing slice the Wellenplan still shows 🔄 and the Phasen-Gate stays unchecked — after the board shows Done, run `python3 scripts/board-sync.py program-sync <program-prd#>` once more (the report's `program_sync.program` names it; skip when the report says the parent is not a program). Board auto-rules can lag the close (Close→Done race) — verify Done first, that's what the token reads.
-- **Report**, concise, from the land JSON: PR merged · issue close (auto/manual) · worktree removed · branch deleted · sweep counts local/remote · anchor synced + complete/pending · program propagation (`program_sync`: Wellenplan refreshed / gates checked / skipped) · propagation writes (what → where) · `main` at `<sha>` · deploy running.
+- **Report**, concise, from the land JSON: PR merged · issue close (auto/manual) · worktree removed · branch deleted · sweep counts local/remote · anchor synced + complete/pending · program propagation (`program_sync`: Wellenplan refreshed / gates checked / skipped) · propagation writes (what → where) · `main` at `<sha>`.
+
+<!-- readiness:block deployReport -->
+- **Deploy-aware report:** read the coherent `## Prod` block; before merging,
+  state the configured deploy trigger and expected outcome. After merge, report
+  the configured target and its actual known state. Do not claim a deployment
+  is running or live unless the configured trigger and observed evidence prove
+  it; keep unknown timing explicit.
+<!-- readiness:end -->
 
 ## Out of scope
 - Live-verify / DoD: must happen **before** `/wrapup` — this skill lands, it does not verify.
