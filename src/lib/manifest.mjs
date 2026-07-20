@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { writeAtomic } from './atomicWrite.mjs';
 
 // Two manifests (Codex R1#9 / R3#1):
@@ -15,6 +16,8 @@ export const PACKAGE_MANIFEST_NAME = 'agent-workflow-kit.package.json';
 export const CONSUMER_INSTALL_ROLE = 'consumer';
 export const KIT_ORIGIN = 'kit';
 export const CONSUMER_ORIGIN = 'consumer';
+export const READINESS_CONTRACT_VERSION = 1;
+export const READINESS_MANIFEST_PATH = '.claude/skills/skill-manifest.json';
 
 /**
  * Parse a JSON manifest, or null if the file does not exist. A corrupt file
@@ -51,8 +54,29 @@ export async function writeManifest(path, obj) {
   await writeAtomic(path, JSON.stringify(obj, null, 2) + '\n');
 }
 
-export function emptyConsumerManifest(kitVersion) {
-  return { kitVersion, installRole: CONSUMER_INSTALL_ROLE, installed: [] };
+export async function readReadinessContract(root) {
+  const manifest = await readManifest(join(root, READINESS_MANIFEST_PATH));
+  return manifest?.readiness ?? null;
+}
+
+function retainedDecisions(prior, readiness) {
+  const allowed = readiness?.capabilities ? new Set(Object.keys(readiness.capabilities)) : null;
+  return Object.fromEntries(Object.entries(prior.readinessDecisions ?? {}).filter(
+    ([name, value]) => (!allowed || allowed.has(name)) && (value === 'pending'
+      || (value === 'not-applicable' && readiness?.capabilities?.[name]?.allowNotApplicable)),
+  ));
+}
+
+export function emptyConsumerManifest(kitVersion, prior = {}, readiness = null) {
+  prior ??= {};
+  return {
+    ...prior,
+    kitVersion,
+    installRole: CONSUMER_INSTALL_ROLE,
+    readinessContractVersion: readiness?.contractVersion ?? READINESS_CONTRACT_VERSION,
+    readinessDecisions: retainedDecisions(prior, readiness),
+    installed: [],
+  };
 }
 
 /** Package entries without a role predate role-aware installs and remain consumer-owned. */

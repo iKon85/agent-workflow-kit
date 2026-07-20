@@ -153,3 +153,40 @@ test('re-running init preserves consumer-owned files and manifest entries, inclu
     await cleanup(kit, consumer);
   }
 });
+
+test('init and re-init preserve manifest extensions and establish readiness contract v1', async () => {
+  const kit = await makeKit({
+    '.claude/skills/to-prd/SKILL.md': '# to-prd\n',
+    '.claude/skills/skill-manifest.json': JSON.stringify({
+      readiness: {
+        contractVersion: 1,
+        capabilities: { prodTarget: {}, managedBoard: { allowNotApplicable: true } },
+      },
+      skills: {},
+    }),
+  });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const path = join(consumer, CONSUMER_MANIFEST_NAME);
+    const manifest = await readManifest(path);
+    assert.equal(manifest.readinessContractVersion, 1);
+    assert.deepEqual(manifest.readinessDecisions, {});
+    await writeManifest(path, {
+      ...manifest,
+      readinessDecisions: {
+        prodTarget: 'pending', managedBoard: 'not-applicable', unknownCapability: 'pending',
+      },
+      consumerExtension: { keep: true },
+    });
+
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const after = await readManifest(path);
+    assert.deepEqual(after.readinessDecisions, {
+      prodTarget: 'pending', managedBoard: 'not-applicable',
+    });
+    assert.deepEqual(after.consumerExtension, { keep: true });
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});

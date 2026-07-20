@@ -356,6 +356,32 @@ test('a consumer manifest changed during verification is preserved byte-for-byte
   }
 });
 
+test('ordinary update preserves readiness decisions and unknown manifest extensions', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifest = await readManifest(manifestPath);
+    await writeManifest(manifestPath, {
+      ...manifest,
+      readinessDecisions: { prodTarget: 'pending' },
+      consumerExtension: { keep: true },
+    });
+    await bumpKit(kit, P, 'v2\n');
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+    });
+    assert.equal(result.state, 'applied');
+    const after = await readManifest(manifestPath);
+    assert.deepEqual(after.readinessDecisions, { prodTarget: 'pending' });
+    assert.deepEqual(after.consumerExtension, { keep: true });
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('update does NOT mutate or back up a user-edited file when it reports a conflict', async () => {
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();

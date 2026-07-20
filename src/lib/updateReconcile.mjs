@@ -8,6 +8,7 @@ import {
   CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, emptyConsumerManifest,
   CONSUMER_INSTALL_ROLE, CONSUMER_ORIGIN, KIT_ORIGIN, filesForInstallRole,
   indexByPath, readManifest, writeManifest,
+  readReadinessContract,
 } from './manifest.mjs';
 
 const exists = (path) => access(path).then(() => true, () => false);
@@ -18,6 +19,7 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
   if (!pkg) throw new Error('kit package manifest not found');
   const consumer = await readManifest(join(consumerRoot, CONSUMER_MANIFEST_NAME));
   if (!consumer) throw new Error('not initialised — run `init` first');
+  const readiness = await readReadinessContract(kitRoot);
 
   const installedIdx = indexByPath(consumer, 'installed');
   const packageIdx = indexByPath(pkg, 'files');
@@ -117,7 +119,7 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
 
   if (!dryRun) {
     await writeManifest(join(consumerRoot, CONSUMER_MANIFEST_NAME), {
-      ...emptyConsumerManifest(pkg.kitVersion), installed: nextInstalled,
+      ...emptyConsumerManifest(pkg.kitVersion, consumer, readiness), installed: nextInstalled,
     });
   }
   return result;

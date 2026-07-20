@@ -79,6 +79,30 @@ test('uninstall retains user-edited files and keeps a marked manifest', async ()
     assert.equal(await exists(join(consumer, P)), true, 'edited file kept');
     const mf = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
     assert.equal(mf.installed.find((e) => e.path === P).orphanedByUninstall, true);
+    assert.equal(mf.readinessContractVersion, 1);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('retained-file uninstall preserves unknown manifest extensions and decisions', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const path = join(consumer, CONSUMER_MANIFEST_NAME);
+    const manifest = await readManifest(path);
+    await writeManifest(path, {
+      ...manifest,
+      readinessDecisions: { prodTarget: 'pending' },
+      consumerExtension: 'keep-me',
+    });
+    await writeFile(join(consumer, P), 'edited\n');
+
+    await uninstall({ consumerRoot: consumer });
+    const after = await readManifest(path);
+    assert.equal(after.consumerExtension, 'keep-me');
+    assert.deepEqual(after.readinessDecisions, { prodTarget: 'pending' });
   } finally {
     await cleanup(kit, consumer);
   }
