@@ -1,13 +1,21 @@
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { assertConsumerReleaseParity } from '../../scripts/release-parity.mjs';
-import { activateCandidate, stageConsumer, verifyCandidate } from '../lib/updateCandidate.mjs';
+import {
+  activateCandidate, adoptReadinessCandidate, readReadinessManifest, stageConsumer, verifyCandidate,
+} from '../lib/updateCandidate.mjs';
 import { reconcile } from '../lib/updateReconcile.mjs';
 import {
   CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, readManifest,
 } from '../lib/manifest.mjs';
 
 const RELEASE_NAME = '@ikon85/agent-workflow-kit';
+
+export function renderUpdateFailure(result) {
+  const failure = result.failure ?? { phase: 'unknown', consumerState: 'unknown' };
+  return `candidate update failed · phase: ${failure.phase} · ` +
+    `consumerState: ${failure.consumerState} · ${result.error}`;
+}
 
 /**
  * Transactionally reconcile a consumer with a parity-proven kit release.
@@ -16,7 +24,8 @@ const RELEASE_NAME = '@ikon85/agent-workflow-kit';
 export async function update(options) {
   const {
     kitRoot, consumerRoot, decide = () => false, dryRun = false,
-    releaseIdentities, verify = verifyCandidate, signal, onState = () => {}, resumeFrom,
+    releaseIdentities, verify = verifyCandidate, activate = activateCandidate,
+    signal, onState = () => {}, resumeFrom,
   } = options;
   const history = [];
   const transition = async (state) => { history.push(state); await onState(state); };
@@ -30,6 +39,8 @@ export async function update(options) {
     throw new Error('not initialised — run `init` first');
   }
   const consumerManifestBefore = await readFile(consumerManifestPath);
+  const priorReadinessManifest = await readReadinessManifest(consumerRoot);
+  const nextReadinessManifest = await readReadinessManifest(kitRoot);
 
   const decisions = new Map();
   const choosePreview = async (action, path) => {
@@ -39,7 +50,21 @@ export async function update(options) {
     return decisions.get(key);
   };
   const preview = await reconcile({ kitRoot, consumerRoot, decide: choosePreview, dryRun: true });
+  let previewFailure;
+  try {
+    Object.assign(preview, await previewReadinessAdoption({
+      kitRoot, consumerRoot, priorReadinessManifest, nextReadinessManifest,
+    }));
+  } catch (error) {
+    previewFailure = error;
+  }
   await transition('preview');
+  if (previewFailure) {
+    return {
+      ...await terminal(preview, 'failed', history, transition), error: previewFailure.message,
+      failure: { phase: 'staging', consumerState: 'unchanged' },
+    };
+  }
   if (dryRun) return { ...preview, state: 'preview', history };
   if (preview.conflicts.length) return terminal(preview, 'conflicted', history, transition);
   const resolvedPreview = await resolvePreview({
@@ -52,9 +77,26 @@ export async function update(options) {
     return { ...await terminal(resolvedPreview, 'applied', history, transition), status: 'current' };
   }
   return applyTransaction({
-    kitRoot, consumerRoot, pkg, preview: resolvedPreview, decisions, verify, signal, resumeFrom,
-    consumerManifestBefore, history, transition,
+    kitRoot, consumerRoot, pkg, preview: resolvedPreview, decisions, verify, activate, signal, resumeFrom,
+    consumerManifestBefore, priorReadinessManifest, nextReadinessManifest, history, transition,
   });
+}
+
+async function previewReadinessAdoption(context) {
+  const { kitRoot, consumerRoot, priorReadinessManifest, nextReadinessManifest } = context;
+  const candidateRoot = await stageConsumer(consumerRoot);
+  try {
+    await reconcile({
+      kitRoot, consumerRoot: candidateRoot,
+      decide: (action) => action === 'collision' ? 'keep-as-owned' : false,
+    });
+    return await adoptReadinessCandidate({
+      candidateRoot, consumerRoot, priorManifest: priorReadinessManifest,
+      nextManifest: nextReadinessManifest,
+    });
+  } finally {
+    await rm(candidateRoot, { recursive: true, force: true });
+  }
 }
 
 async function resolvePreview({ kitRoot, consumerRoot, preview, decisions, decide, transition }) {
@@ -73,11 +115,12 @@ async function resolvePreview({ kitRoot, consumerRoot, preview, decisions, decid
 
 async function applyTransaction(context) {
   const {
-    kitRoot, consumerRoot, pkg, preview, decisions, verify, signal, resumeFrom,
-    consumerManifestBefore, history, transition,
+    kitRoot, consumerRoot, pkg, preview, decisions, verify, activate, signal, resumeFrom,
+    consumerManifestBefore, priorReadinessManifest, nextReadinessManifest, history, transition,
   } = context;
   let candidateRoot = resumeFrom;
   let keepCandidate = false;
+  let phase = 'staging';
   try {
     await transition('staging');
     if (candidateRoot && preview.collisionResolutions.length) {
@@ -90,6 +133,16 @@ async function applyTransaction(context) {
         decide: (action, path) => decisions.get(decisionKey(action, path)),
       });
     }
+    const readiness = await adoptReadinessCandidate({
+      candidateRoot, consumerRoot, priorManifest: priorReadinessManifest,
+      nextManifest: nextReadinessManifest,
+    });
+    preview.generated = readiness.generated;
+    preview.availability = readiness.availability;
+    if (readiness.incompatible.length) {
+      throw new Error(`monotonic compatibility would block existing skill core: ${readiness.incompatible.join(', ')}`);
+    }
+    phase = 'verification';
     await transition('verifying');
     const abort = async () => {
       keepCandidate = true;
@@ -98,12 +151,16 @@ async function applyTransaction(context) {
     if (signal?.aborted) return abort();
     await verify(candidateRoot);
     if (signal?.aborted) return abort();
-    await activateCandidate({
+    phase = 'activation';
+    await activate({
       candidateRoot, consumerRoot, pkg, preview, consumerManifestBefore,
     });
     return { ...await terminal(preview, 'applied', history, transition), status: 'updated' };
   } catch (error) {
-    return { ...await terminal(preview, 'failed', history, transition), error: error.message };
+    return {
+      ...await terminal(preview, 'failed', history, transition), error: error.message,
+      failure: { phase, consumerState: error.consumerState ?? 'unchanged' },
+    };
   } finally {
     if (candidateRoot && !keepCandidate) await rm(candidateRoot, { recursive: true, force: true });
   }

@@ -28,6 +28,27 @@ test('a successful update creates one stable update pull request', async () => {
   ]);
 });
 
+test('automated update pull requests carry the behavior availability summary', async () => {
+  const h = harness({ update: {
+    exitCode: 0,
+    stdout: [
+      'newly available: orchestrate-wave',
+      'newly degraded: orchestrate-wave.projectRecipe',
+      'newly blocked: none',
+      'still unresolved: orchestrateWaveRecipe:invalid',
+    ].join('\n'),
+    stderr: '',
+  } });
+
+  await orchestrateUpdatePullRequest(h.options);
+
+  const created = h.calls.find((call) => Array.isArray(call) && call[0] === 'create')[1];
+  assert.match(created.body, /## Availability/);
+  assert.match(created.body, /newly degraded: orchestrate-wave\.projectRecipe/);
+  assert.match(created.body, /still unresolved: orchestrateWaveRecipe:invalid/);
+  assert.match(created.body, /never merged automatically/);
+});
+
 test('a conflict produces a structured report without touching the stable branch', async () => {
   const h = harness({ update: { exitCode: 2, stdout: 'conflicts: 1', stderr: '' } });
   const report = await orchestrateUpdatePullRequest(h.options);
