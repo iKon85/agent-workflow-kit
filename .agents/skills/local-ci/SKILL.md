@@ -20,6 +20,22 @@ live in the **project layer** for this skill (its `docs/agents/skills/local-ci.m
 seeded as an empty stub by `/setup-workflow` and filled per project). This
 skeleton names the two profiles generically; run the two your project layer names.
 
+## Required readiness preflight
+
+Before running a guard, hook, test, or any other project command, run:
+
+```sh
+node scripts/readiness.mjs check --skill local-ci --json
+```
+
+Treat the result as authoritative. A `ready` verdict is silent: continue with
+the existing gate and its safety rules. For a `blocked` verdict, stop without
+running any guessed command and report `Local CI unavailable`, the
+`localCiRecipe` state (`missing`, `pending`, `not-applicable`, or `invalid`),
+and one recovery path: run `/setup-workflow`, then fill
+`docs/agents/skills/local-ci.md` with the project's exact commands. Never infer
+commands from package scripts, hooks, CI configuration, or another repository.
+
 ## When
 
 - **Before opening ANY PR** → run the full local gate. Red → fix it, or defer a

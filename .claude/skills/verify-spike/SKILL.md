@@ -21,10 +21,29 @@ This is the "Verify First" rule with a runnable harness behind it: when you cann
 
 If the question is really "what should this be", it is not a verify-spike — those are open, not yes/no.
 
+## Readiness preflight — first
+
+<!-- readiness:optional-preflight:start -->
+Before framing or running the spike, run this once from the project root:
+
+```bash
+node scripts/readiness.mjs check --skill verify-spike --json
+```
+
+- `ready`: continue without a readiness message. Ready is silent.
+- `degraded`: keep the generic empirical spike active, omit only the inactive block `projectPlacement`, and emit exactly one concise summary: `Readiness degraded — inactive block projectPlacement (verifySpikeLayer: <state>). Run /setup-workflow, configure docs/agents/skills/verify-spike.md, then rerun this skill.`
+- `blocked`: stop before continuing and report the non-ready required capability plus the exact `/setup-workflow` recovery path.
+- Invalid is always visible: include the `invalid` capability state in the single summary and never treat it as an opt-out. Do not emit separate warnings later in the workflow.
+<!-- readiness:optional-preflight:end -->
+
+<!-- readiness:block projectPlacement -->
+When `projectPlacement` is active, read `docs/agents/skills/verify-spike.md` and follow its project-specific harness-placement and import rules.
+<!-- readiness:end -->
+
 ## Steps
 
 1. **Frame one falsifiable question.** Write it down as a single sentence with a yes/no answer and the exact version/context it is scoped to — e.g. "Does `customType.mapFromDriverValue` run on `drizzle-orm@1.0.0-rc.3` + node-postgres?". Name what a YES vs a NO looks like in the output *before* you run anything.
-2. **Build the smallest harness that forces the answer.** Borrow the feedback-loop toolkit from `diagnose` Phase 1 — a one-call throwaway script, a fixture replay, a tiny HTTP/curl probe, a headless-browser assertion. Pick the cheapest one that touches the real thing (real lib version, real runtime, the actual DB read). One command to run; locate it in a clearly-throwaway path (`scratch/`, `*.spike.ts`). If a project layer exists at `docs/agents/skills/verify-spike.md`, follow its harness-placement/import rules — some repos need spikes inside a package dir so real imports resolve.
+2. **Build the smallest harness that forces the answer.** Borrow the feedback-loop toolkit from `diagnose` Phase 1 — a one-call throwaway script, a fixture replay, a tiny HTTP/curl probe, a headless-browser assertion. Pick the cheapest one that touches the real thing (real lib version, real runtime, the actual DB read). One command to run; locate it in a clearly-throwaway path (`scratch/`, `*.spike.ts`).
 3. **Run it and capture the proof.** Keep the raw output — the value, the error, the stack, the HTTP status. The verdict is only as good as the evidence pasted under it.
 4. **Record the verdict durably, with its evidence inline.** Yes/No + the proof (output snippet / `file:line` / version) + the date + the scope it was checked at. Sink it where the decision lives: an ADR, the issue body, the plan, or a PR comment. A verdict without inline evidence is just an unverified claim — keep the proof attached so a later reader does not have to re-run the spike to trust it.
 5. **Delete the harness.** The *answer* is the only keeper. Remove the spike code (or fold the proven fact into real code) so nothing throwaway rots in the repo.

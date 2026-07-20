@@ -213,6 +213,28 @@ class IdempotencyRule(unittest.TestCase):
 
 
 class SeedTemplatesValid(unittest.TestCase):
+    def test_prod_readiness_choice_and_transaction_contract_is_complete(self):
+        for surface in (".claude", ".agents"):
+            text = (REPO / surface / "skills/setup-workflow/SKILL.md").read_text(
+                encoding="utf-8"
+            )
+            for token in (
+                "Configure now", "Configure later",
+                "decision set prodTarget pending",
+                "wrapup.deployReport omitted (prodTarget pending)",
+                "`prodTarget` does not permit this choice",
+                "Preview the exact local `## Prod` replacement",
+                "external mutation retains its own separate",
+                "activeBlocks` must be exactly `[\"deployReport\"]`",
+            ):
+                self.assertIn(token, text, f"{surface} missing {token!r}")
+            preserve = re.search(
+                r"Preserve each file's\s+`## Workflow` and `## Agent skills` "
+                r"blocks byte-for-byte",
+                text,
+            )
+            self.assertIsNotNone(preserve, surface)
+
     def test_census_effect_contract_executes_every_transition_and_repeats_without_writes(self):
         effects = load_census_setup_effects()
         self.assertEqual(

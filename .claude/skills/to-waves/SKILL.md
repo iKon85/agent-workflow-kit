@@ -14,6 +14,20 @@ Takes a **Program-PRD** — the native Sub-Issue anchor over a multi-wave progra
 The **grill and to-prd sit upstream**; to-waves runs once the Program-PRD exists.
 It **never invents structure** — it only unfolds what the plan already decided.
 
+<!-- readiness:required-preflight:start -->
+## 0. Required readiness preflight
+
+This is the first executable workflow step. From the project root, before any remote write or other `gh`/`board-sync.py` command, run this read-only check:
+
+```bash
+node scripts/readiness.mjs check --skill to-waves --json
+```
+
+- `verdict=ready`: continue with the existing workflow without announcing the check. **Ready is silent.**
+- `verdict=blocked`: `STOP` before any mutation. Report every required capability as `<capability>=<state>` so `issueTracker`, `managedBoard`, and `specCompleteness` failures — including distinct `missing`, `pending`, and `invalid` states — stay visible, then give exactly one recovery path: **Run `/setup-workflow`, then rerun `/to-waves`.** Do not fall back to bare tracker or board commands.
+- `managedBoard=not-applicable`: `STOP` and report that `/to-waves` is **inapplicable** for a project that deliberately has no managed board. This is a terminal project decision, not invalid evidence and not a partially active mode.
+<!-- readiness:required-preflight:end -->
+
 Board constants (project node, field/status IDs) + helpers live **consumer-side**:
 read `docs/agents/board-sync.md` from the project root + use the helper
 `scripts/board-sync.py` (missing → `/setup-workflow` scaffolds the project layer).
@@ -36,8 +50,8 @@ target, an anchor is already a single wave.
 
 ## 2. Parse + validate — the graph preflight
 
-Run the graph preflight first — it is **read-only** (a single board read, zero
-mutations):
+After the required readiness preflight, run the graph preflight before preview or
+publication — it is **read-only** (a single board read, zero mutations):
 
 ```bash
 python3 scripts/board-sync.py validate-graph --issue <prd#>

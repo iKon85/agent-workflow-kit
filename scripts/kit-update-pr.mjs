@@ -33,13 +33,26 @@ export async function orchestrateUpdatePullRequest(options) {
     return { status: 'failed', branch, reason: 'multiple-open-pull-requests' };
   }
   await publishBranch(branch);
-  const input = { title: UPDATE_TITLE, body: UPDATE_BODY, branch };
+  const input = { title: UPDATE_TITLE, body: pullRequestBody(update.stdout), branch };
   if (pulls.length === 1) {
     await updatePullRequest(pulls[0].number, input);
     return { status: 'updated', branch, pullRequest: pulls[0].number };
   }
   await createPullRequest(input);
   return { status: 'created', branch };
+}
+
+function pullRequestBody(stdout = '') {
+  const labels = ['newly available:', 'newly degraded:', 'newly blocked:', 'still unresolved:'];
+  const clean = stdout.replaceAll(/\x1b\[[0-9;]*m/g, '');
+  const summary = clean.split('\n')
+    .map((line) => line.trim())
+    .filter((line) => labels.some((label) => line.includes(label)))
+    .map((line) => line.slice(Math.min(...labels.map((label) => {
+      const index = line.indexOf(label);
+      return index < 0 ? line.length : index;
+    }))));
+  return [UPDATE_BODY, '## Availability', summary.join('\n') || 'No readiness availability changes reported.'].join('\n\n');
 }
 
 export function createSystemAdapters({
