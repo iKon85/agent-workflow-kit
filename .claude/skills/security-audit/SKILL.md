@@ -13,6 +13,24 @@ generic runbook structure ships as a template you copy and fill:
 your actual stack, and keep it as the checklist single source of truth. Read your
 filled runbook first.
 
+## Required readiness preflight
+
+Before reading application code, creating a tracking issue, launching either
+model, or writing audit scratch files, run:
+
+```sh
+node scripts/readiness.mjs check --skill security-audit --json
+```
+
+Treat the result as authoritative. A `ready` verdict is silent: continue with
+the existing two-model procedure and all human approval gates. For a `blocked`
+verdict, stop without starting an audit or mutating repository or remote state
+and report `Security Audit unavailable`, the `securityAuditRunbook` state
+(`missing`, `pending`, `not-applicable`, or `invalid`), and one recovery path:
+run `/setup-workflow`, then fill `docs/agents/skills/security-audit.md` and the
+project runbook it references. Never guess the stack, security scope, commands,
+tracking anchor, or board wiring.
+
 **Scope guard:** code + config only. Infrastructure (firewall, exposed ports,
 TLS, SSH, backups) is audited **separately** — an exposed database port beats any
 code fix. Keep the two audits apart.

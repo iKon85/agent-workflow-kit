@@ -9,6 +9,24 @@ Prepare a consumer-owned multi-package release through the kit's shared
 SemVer, preview, and transactional apply engine. This skill changes only the
 profiled version files. It does not commit, tag, push, publish, or merge.
 
+## Required readiness preflight
+
+Before previewing a release or changing any version file, run:
+
+```sh
+node scripts/readiness.mjs check --skill project-release --json
+```
+
+Treat the result as authoritative. A `ready` verdict is silent and hands
+execution to `scripts/project-release.mjs`; the helper remains the authority
+for preview, confirmation, validation, and transactional apply. For a
+`blocked` verdict, stop without invoking that helper or changing files and
+report `Project Release unavailable`, the `projectReleaseProfile` state
+(`missing`, `pending`, `not-applicable`, or `invalid`), and one recovery path:
+run `/setup-workflow`, then fill the `projectRelease` section in
+`docs/agents/workflow-capabilities.json`. Never infer packages, version files,
+tag prefixes, or versions.
+
 ## Profile contract
 
 Read `docs/agents/workflow-capabilities.json`. The consumer owns this file and
