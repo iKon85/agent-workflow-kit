@@ -9,7 +9,19 @@ description: "Break a plan, spec, or PRD into independently-grabbable issues on 
 
 Break a plan into independently-grabbable issues using vertical slices (tracer bullets).
 
-The issue tracker and triage label vocabulary should have been provided to you — run `/setup-workflow` if not.
+<!-- readiness:required-preflight:start -->
+## 0. Required readiness preflight
+
+This is the first executable workflow step. From the project root, before any remote write or other `gh`/`board-sync.py` command, run this read-only check:
+
+```bash
+node scripts/readiness.mjs check --skill to-issues --json
+```
+
+- `verdict=ready`: continue with the existing workflow without announcing the check. **Ready is silent.**
+- `verdict=blocked`: `STOP` before any mutation. Report every required capability as `<capability>=<state>` so `issueTracker`, `managedBoard`, and `specCompleteness` failures — including distinct `missing`, `pending`, and `invalid` states — stay visible, then give exactly one recovery path: **Run `/setup-workflow`, then rerun `/to-issues`.** Do not fall back to bare tracker or board commands.
+- `managedBoard=not-applicable`: `STOP` and report that `/to-issues` is **inapplicable** for a project that deliberately has no managed board. This is a terminal project decision, not invalid evidence and not a partially active mode.
+<!-- readiness:required-preflight:end -->
 
 ## Process
 
