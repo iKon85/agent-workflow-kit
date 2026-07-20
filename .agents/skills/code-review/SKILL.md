@@ -16,7 +16,26 @@ A code-review compares one diff against **two independent axes** — Standards a
 | "Why is this broken / slow?" (root-cause of a known defect) | `diagnose` |
 | "Clean this up — reuse, simplify, cut waste." (no bug-hunting) | a dedicated simplification pass |
 
-## Preflight (fail-fast, before either axis starts)
+## Readiness preflight — first
+
+<!-- readiness:optional-preflight:start -->
+Before the diff preflight or either review axis, run this once from the project root:
+
+```bash
+node scripts/readiness.mjs check --skill code-review --json
+```
+
+- `ready`: continue without a readiness message. Ready is silent.
+- `degraded`: keep the generic two-axis review active, omit only the inactive block `projectEnrichment`, and emit exactly one concise summary: `Readiness degraded — inactive block projectEnrichment (codeReviewLayer: <state>). Run /setup-workflow, configure docs/agents/code-review.md, then rerun this skill.`
+- `blocked`: stop before continuing and report the non-ready required capability plus the exact `/setup-workflow` recovery path.
+- Invalid is always visible: include the `invalid` capability state in the single summary and never treat it as an opt-out. Do not emit separate warnings later in the workflow.
+<!-- readiness:optional-preflight:end -->
+
+<!-- readiness:block projectEnrichment -->
+When `projectEnrichment` is active, read `docs/agents/code-review.md` first. Apply its project-specific guidance about which sources count and how this method relates to adjacent tools already running in the environment.
+<!-- readiness:end -->
+
+## Diff preflight (fail-fast, before either axis starts)
 
 1. **Fixed point** — whatever the requester names: a SHA, branch, tag, `main`, `HEAD~N`. Missing → ask; do not guess.
 2. **Three-dot diff against the merge-base** — `git diff <fixed-point>...HEAD` (three dots, not two — two dots diffs tip-to-tip and pulls in unrelated upstream changes), plus the commit list: `git log <fixed-point>..HEAD --oneline`.
@@ -24,7 +43,7 @@ A code-review compares one diff against **two independent axes** — Standards a
 
 ## Axis 1 — Standards
 
-**Sources.** This repo's own documented conventions: a root convention file (`CLAUDE.md`/`AGENTS.md`/`CONTRIBUTING.md` — whichever this repo uses), any per-package convention files in a monorepo, a `docs/conventions/` folder. If `docs/agents/code-review.md` exists (this skill's project layer, seeded by `/setup-workflow`), read it first — it names exactly which sources count here and how this method relates to any other review tooling already running in this environment. Absent that file, gather the sources yourself from the repo root before reviewing.
+**Sources.** This repo's own documented conventions: a root convention file (`CLAUDE.md`/`AGENTS.md`/`CONTRIBUTING.md` — whichever this repo uses), any per-package convention files in a monorepo, and a `docs/conventions/` folder. Gather these generic sources from the repo root before reviewing.
 
 **Plus a Fowler-smell baseline** (*Refactoring*, ch. 3) — applies even when the repo documents nothing. Each smell is a **judgment call** (flag as "possible X"), never a hard violation:
 
@@ -61,4 +80,4 @@ A code-review compares one diff against **two independent axes** — Standards a
 
 ## Relationship to adjacent review tooling
 
-This skill governs one thing: a diff/branch/PR review split into Standards vs. Spec. It is not the only review-shaped tool an environment may have — a pre-code plan-review loop, a security-specific audit, a pure reuse/simplification pass, or a dedicated reviewer subagent can all coexist with it; each stays its own axis, not a replacement for this one. If this repo has seeded `docs/agents/code-review.md`, it names the concrete adjacent tools and how they relate; absent that, treat any other review tool you find as complementary unless it explicitly says otherwise.
+This skill governs one thing: a diff/branch/PR review split into Standards vs. Spec. It is not the only review-shaped tool an environment may have — a pre-code plan-review loop, a security-specific audit, a pure reuse/simplification pass, or a dedicated reviewer subagent can all coexist with it; each stays its own axis, not a replacement for this one. Without active project enrichment, treat any other review tool you find as complementary unless it explicitly says otherwise.

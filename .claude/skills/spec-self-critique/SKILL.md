@@ -11,15 +11,24 @@ A portable, structural self-review pass over a freshly written spec/plan. The **
 
 - After a spec was written/edited (a `SPEC.md` / `PLAN.md`, or a spec/design doc), BEFORE the user-review gate.
 
-## Step 0 — Project-layer probe
+## Readiness preflight — first
 
-First, check whether a project layer exists: from the project root, look for `docs/agents/skills/spec-self-critique.md`.
+<!-- readiness:optional-preflight:start -->
+Before any other step, run this once from the project root:
 
-- **Present** → **full pass**: run the 12 generic checks AND apply the per-point enrichment that file defines (incidents, grep patterns, extra sub-checks).
-- **Absent** → **base pass**: run the 12 generic checks only, then add this one-line warning to the summary:
-  > ⚠ No project layer found (`docs/agents/skills/spec-self-critique.md`) — only the generic base checks ran. `/setup-workflow` creates the layer; it fills in project-specific content via `/retro`.
+```bash
+node scripts/readiness.mjs check --skill spec-self-critique --json
+```
 
-> **Routing — keep this skeleton clean.** Project-specific checks, incidents, and grep patterns belong in the project layer (`docs/agents/skills/spec-self-critique.md`), **NOT here**. `/retro` appends new project-specific lore to the project layer, never into this generic skeleton.
+- `ready`: continue without a readiness message. Ready is silent.
+- `degraded`: keep the generic 12-point critique active, omit only the inactive block `projectEnrichment`, and emit exactly one concise summary: `Readiness degraded — inactive block projectEnrichment (specCritiqueLayer: <state>). Run /setup-workflow, configure docs/agents/skills/spec-self-critique.md, then rerun this skill.`
+- `blocked`: stop before continuing and report the non-ready required capability plus the exact `/setup-workflow` recovery path.
+- Invalid is always visible: include the `invalid` capability state in the single summary and never treat it as an opt-out. Do not emit separate warnings later in the workflow.
+<!-- readiness:optional-preflight:end -->
+
+<!-- readiness:block projectEnrichment -->
+When `projectEnrichment` is active, read `docs/agents/skills/spec-self-critique.md` and apply its per-point enrichment, including project-specific incidents, grep patterns, conventions, and extra sub-checks. Project-specific checks belong in that layer, **not here**; `/retro` appends new project-specific lore there rather than into this generic skeleton.
+<!-- readiness:end -->
 
 ## Altitude — a portable kit concept
 
@@ -63,7 +72,7 @@ Self-Critique complete — <N> corrections:
 - ...
 ```
 
-or, if none were needed: `Self-Critique complete — no corrections needed.` (append the Step-0 layer-absent warning if it applied). THEN ask the user-review question.
+or, if none were needed: `Self-Critique complete — no corrections needed.` THEN ask the user-review question.
 
 ## The 12-point checklist
 
