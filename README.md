@@ -348,6 +348,15 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 
 ## Release notes
 
+### 0.32.0
+
+- changed: `.agents/skills/audit-skills/SKILL.md`
+- changed: `.agents/skills/git-worktree-recover/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/audit-skills/SKILL.md`
+- changed: `.claude/skills/git-worktree-recover/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+
 ### 0.31.0
 
 - changed: `.agents/skills/board-to-waves/SKILL.md`

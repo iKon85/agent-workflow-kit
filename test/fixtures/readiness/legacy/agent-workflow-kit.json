@@ -1,0 +1,20 @@
+{
+  "kitVersion": "0.29.0",
+  "installed": [],
+  "readinessFixture": {
+    "evidenceStyle": "legacy-non-sentinel",
+    "evidence": {
+      "docs/agents/issue-tracker.md": "# Issue tracker\nGitHub Issues is authoritative.\n",
+      "docs/agents/board-sync.md": "<!-- board-sync:profile -->\n```json\n{\"repo\":\"owner/repo\",\"project\":{\"owner\":\"owner\",\"number\":1,\"nodeId\":\"PVT_1\"},\"fields\":{\"status\":{\"id\":\"STATUS\",\"options\":{\"Done\":\"DONE\"},\"roles\":{\"done\":\"Done\"}},\"wave\":\"WAVE\",\"cluster\":\"CLUSTER\"},\"labels\":{\"readyForAgent\":\"ready-for-agent\"}}\n```\n",
+      "docs/agents/skills/audit-skills.md": "# Legacy audit checks\nRun the repository skill guards.\n",
+      "docs/agents/skills/git-worktree-recover.md": "# Legacy recovery recipe\nUse the repository worktree helper.\n",
+      "docs/agents/skills/orchestrate-wave.md": "# Legacy orchestration recipe\nRun the repository integration suite.\n"
+    },
+    "skills": {
+      "audit-skills": { "verdict": "ready", "inactiveBlocks": [] },
+      "git-worktree-recover": { "verdict": "ready", "inactiveBlocks": [] },
+      "orchestrate-wave": { "verdict": "ready", "inactiveBlocks": [] }
+    },
+    "expectedDecisions": {}
+  }
+}

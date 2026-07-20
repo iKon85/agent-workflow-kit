@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.31.0",
+  "kitVersion": "0.32.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -27,7 +27,7 @@
       "ownerSkill": "audit-skills",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "f99bfc88bf23ad8279583653bdd7b63dcdcff010227258e4adf9e8df69384f7f",
+      "sha256": "662c4dec0c03716c468f202f73f52140ceba84e092873e6619692dde6d7ed0f2",
       "mode": 420,
       "origin": "kit"
     },
@@ -197,7 +197,7 @@
       "ownerSkill": "git-worktree-recover",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "71e043456586a59ddb83fb3fb1f98c8c269cd7575ade8616238bdb7e07fba4ba",
+      "sha256": "1628f47a5b5f71b7596ec070c8f038a3ce98abe007fce1b7f5c21ea40858124d",
       "mode": 420,
       "origin": "kit"
     },
@@ -417,7 +417,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "39c0dd4d6f7663ab9a3602aab2869a881497604ca12f53f6ba0ca7debb0a4157",
+      "sha256": "7a94293b7db49f42497d34e6ae0fe9992ab1c770ae0766557618818d6d671c50",
       "mode": 420,
       "origin": "kit"
     },
@@ -1189,7 +1189,7 @@
       "ownerSkill": "audit-skills",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "80ab0f1910914f4bcb375bf63aa66a1297a0b873082d7cc4f386d0d931e6015f",
+      "sha256": "dce7c13e9b9c2eb6fe9028f69fe2fe2d48ad50546327c9d9c1232191425f1b7c",
       "mode": 420,
       "origin": "kit"
     },
@@ -1419,7 +1419,7 @@
       "ownerSkill": "git-worktree-recover",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "435c3a32a0c31dbefc774d8f6caa30cae9f23026930292ea0c364d2115ed3e52",
+      "sha256": "3251c8db671286330e48748719e05ee3fdc0555d93d61d7fee3fc0e0d2868e92",
       "mode": 420,
       "origin": "kit"
     },
@@ -1699,7 +1699,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "20a972d7c13f059b1fda4daaeb77da777c898620bf9ec6bf6dd19c31b7e41d90",
+      "sha256": "9690ec772a99131c225037dd4bca884e899c133a8e460c36b26a25d6c6c797e1",
       "mode": 420,
       "origin": "kit"
     },
