@@ -72,6 +72,9 @@ export const HELPER_FILES = [
   { path: 'src/lib/release-preview.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/release-apply.mjs', kind: 'script', mode: 0o644 },
   { path: 'scripts/project-release.mjs', kind: 'script', mode: 0o755 },
+  // Canonical schema and semantic validator shared across orchestration paths.
+  // Library → 0o644; later helper-owning slices append their paths once present.
+  { path: 'src/lib/reportValidator.mjs', kind: 'script', mode: 0o644 },
   // GitHub-consumer automation: invokes the existing update command, then owns
   // only the stable tested branch/pull-request upsert.
   { path: 'scripts/kit-update-pr.mjs', kind: 'script', mode: 0o755 },
