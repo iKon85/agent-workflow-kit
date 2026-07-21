@@ -95,6 +95,24 @@ node scripts/readiness.mjs check --skill orchestrate-wave --json
   first red test). The same axis sets how hard you re-verify. Borderline → default
   tier + re-verify beats blanket top tier.
 
+## Orchestration mechanics
+
+Pass only host-supplied inventory through `capabilityAdapter.claude` or `.codex`,
+then call the selector. It returns exactly one target; missing or `unknown` evidence
+degrades A → B → C. A model claim is not evidence; do not emulate a missing primitive.
+
+- **Path A:** requires the literal `Workflow` tool, callable and permitted, plus
+  individually proven named phases, run identity, runtime output validation,
+  journal, and resume. Then read [its recipe](references/dispatch-workflow.md).
+- **Path B:** requires proven native spawn, wait, and aggregate plus effective
+  concurrency and thread capacity ≥2. Then read [its recipe](references/dispatch-subagents.md).
+- **Path C:** keep recon and building direct and serial in the main thread. Produce
+  the same FILE → SLICES evidence, create each worktree from the integrated base,
+  apply the builder contract, validate the result, then continue. Load no reference.
+
+Phases 0 and 3–6 always remain in the main thread. Visible fan-out progress may
+replace the ~30-second heartbeat; otherwise the standing heartbeat remains required.
+
 ## Phase 0 — Setup
 
 1. **Read everything**: the anchor body, every sub-issue body (each has a Handoff
@@ -132,17 +150,10 @@ preflight clean + this run's local claim planted · wave branch ff'd to
 
 ## Phase 1 — Disjointness recon (the load-bearing step)
 
-Zero merge conflicts later depends entirely on getting this right.
-
-- Delegate to a read-only investigator agent: for EACH slice the exact file path of
-  every named component + resolve ambiguous targets, then a **FILE → SLICES** table
-  listing every file that appears in ≥2 slices.
-- Build the **overlap graph**. Identify the **conflict hub** (the slice whose new
-  artifacts other slices reuse). **Build the hub first**, merge it, THEN the
-  dependents stop conflicting.
-- Cut into **waves of fully file-disjoint slices**. Edited-by-≥2 = serialize across
-  waves; only-shared-via-import = safe. A new primitive edited by one slice but
-  *consumed* by others is NOT a conflict.
+Phase 1 uses the selected orchestration mechanics. Resolve every named component,
+produce the **FILE → SLICES** table and overlap graph, then build the conflict hub
+before its dependents. Cut fully file-disjoint waves; shared imports are safe, but
+files edited by multiple slices serialize across waves.
 - **Native blocking edges are the frontier authority.** Read the anchor's
   buildable frontier from the tracker's native issue dependencies:
   `python3 scripts/board-sync.py frontier <anchor#>` → `FREI` / `BLOCKED by #…` /
@@ -151,15 +162,11 @@ Zero merge conflicts later depends entirely on getting this right.
   body text or table order alone. The frontier must AGREE with your Phase-1
   dependency order; a contradiction is a plan finding to reconcile before dispatch,
   not a detail.
-- **Reconcile contradictory sub-issue ACs against the plan BEFORE dispatch — the
-  plan is authority.** `to-issues` cuts slices independently, so a shared
-  append-only file (a query-key registry, a barrel, a shared types module) is often
-  claimed by *every* slice, with duplicate/clashing adds. **The hub slice OWNS the
-  shared-mutable file: it pre-adds ALL the wave's keys/types/helpers; dependents
-  CONSUME only and never touch it.** Embed verbatim in each dependent's contract:
-  "X already exists in `<file>` — do NOT add it, consume only." (Real case: all 14
-  sub-issues claimed the same registry adds + 4 contradictions — hub expanded to
-  own all 20 keys, batch merged conflict-free.)
+- **Reconcile contradictory sub-issue ACs against the plan BEFORE dispatch.** Safe
+  declaration-only registries may be predeclared by one hub; eager/validated
+  registries that read targets must serialize helper-owning slices through
+  dependency edges, each appending only its own existing artifact after creation.
+  Both preserve one owner per shared edit and the no-conflict invariant.
 - **Retirement slices require a valid topological deletion order.** Before
   dispatching slices that delete a legacy cluster, map every to-delete module's
   production importers and build the cluster's internal import graph. Order the
@@ -168,25 +175,19 @@ Zero merge conflicts later depends entirely on getting this right.
   deletions form a cycle, separate each-slice-green steps are impossible: combine
   the whole cycle into ONE atomic slice instead of landing dangling imports.
 
-**Done when:** FILE→SLICES table exists · every ≥2-slice file has exactly ONE
-owning slice · disjoint waves cut in dependency order · every dependent contract
-carries its verbatim consume-only lines.
+**Done when:** FILE→SLICES table exists · each shared file has either one
+declaration-only owner with verbatim consume-only dependents, or an explicit serialized
+owner sequence for eager/validated additions where each owner appends only its own existing artifact · disjoint waves cut in dependency order.
 
 ## Phase 2 — Dispatch one wave in parallel (isolated worktree per implementer)
 
-Phase 2+3 repeat **per disjoint wave** from Phase 1 — the conflict-hub wave first.
-Within ONE wave, all slices dispatch at once. **Dispatch only `FREI` slices** —
-re-read the native frontier (`frontier <anchor#>`) before each wave; a
-gate-before-build edge clears only when its blocker actually lands (never
-"unblock" by editing body text — remove the edge via `dep-remove` if the plan
-genuinely changed). Two per-slice calls first: **(a)
-inline vs delegate** — a tiny mechanical bit (a rename, a 1-2-line tweak) you do
-yourself — and **(b) tier + effort** (Standing rules → Routing). For each
-delegated slice:
-
-- **One worktree per agent** off the wave-branch HEAD, own index so parallel agents
-  never share a git index. Use your project's worktree-setup command (`§Setup`),
-  else plain `git worktree add <path> -b feat/<anchor>-<slug>`.
+Phase 2 uses the selected orchestration mechanics, repeating with Phase 3 per
+disjoint wave, conflict hub first. Dispatch only `FREI` slices: re-read
+`frontier <anchor#>` before each wave and clear changed edges only via `dep-remove`.
+Before each slice, bind **(a) inline vs delegate** and **(b) tier + effort** under
+Standing rules. Tiny mechanical work may stay inline.
+For Path A/B, create one worktree per agent from wave HEAD, using `§Setup` or
+`git worktree add <path> -b feat/<anchor>-<slug>`.
 - **Build the prompt from [`references/builder-contract.md`](references/builder-contract.md)**
   — fill the slots with the slice's VERBATIM What+AC, plan decision, recon
   file:line map and consume-only lines; never paraphrase (paraphrase drift has
@@ -201,8 +202,7 @@ package tests + green fast gate (`§Builder Commands`) — or a STOP item you re
 
 ## Phase 3 — Serial integration
 
-In the wave worktree: `git merge --no-ff <slice-branch>` per slice (disjoint →
-conflict-free). After EACH wave, on the integrated branch:
+In the wave worktree, `git merge --no-ff <slice-branch>` per slice. After EACH wave:
 
 - Typecheck both packages + the **FULL suite** — catches sibling/consumer test
   breaks the agent ownership didn't cover (hardcoded count/tab asserts). Exact

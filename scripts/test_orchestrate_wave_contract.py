@@ -101,6 +101,49 @@ class OrchestrateWaveContract(unittest.TestCase):
         ):
             self.assertIn(fragment, self.skill)
 
+    def test_capability_selector_routes_exactly_one_orchestration_mechanic(self):
+        for fragment in (
+            "## Orchestration mechanics",
+            "literal `Workflow`",
+            "do not emulate",
+            "returns exactly one",
+            "references/dispatch-workflow.md",
+            "references/dispatch-subagents.md",
+            "Path C",
+            "Phase 1 uses the selected orchestration mechanics",
+            "Phase 2 uses the selected orchestration mechanics",
+        ):
+            self.assertIn(fragment, self.skill)
+
+        self.assertLessEqual(len(self.skill.splitlines()), 345)
+
+    def test_registry_ownership_distinguishes_safe_from_eager_registries(self):
+        prose = " ".join(self.skill.split())
+        for fragment in (
+            "declaration-only registries",
+            "may be predeclared by one hub",
+            "eager/validated registries",
+            "each appending only its own existing artifact after creation",
+            "dependency edges",
+        ):
+            self.assertIn(fragment, prose)
+
+        phase_one = prose.split("## Phase 1", 1)[1].split("## Phase 2", 1)[0]
+        done = phase_one.split("**Done when:**", 1)[1]
+        for fragment in (
+            "either one declaration-only owner",
+            "verbatim consume-only dependents",
+            "or an explicit serialized owner sequence",
+            "each owner appends only its own existing artifact",
+        ):
+            self.assertIn(fragment, done)
+
+    def test_phase_two_keeps_per_slice_routing_decisions(self):
+        prose = " ".join(self.skill.split())
+        self.assertIn("(a) inline vs delegate", prose)
+        self.assertIn("(b) tier + effort", prose)
+        self.assertIn("Standing rules", prose)
+
     def test_claude_and_codex_surfaces_match(self):
         self.assertEqual(
             markdown_body(self.skill),
