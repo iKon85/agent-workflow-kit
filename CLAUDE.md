@@ -65,9 +65,13 @@ the backstop, not a replacement. Never bypass with `--no-verify`.
 `init` records a sha256 manifest of every installed file; `update` is a
 three-way reconcile against it: untouched files fast-forward, consumer-edited
 files are backed up and diffed, **never silently overwritten**; the consumer's
-project layer (`docs/agents/*`, board profile, `CLAUDE.md`) is written once and
-never touched by `update`. Every change to shipped files must preserve this
-contract and the manifest mechanism.
+project layer (`docs/agents/*`, board profile, `CLAUDE.md`, `AGENTS.md`) is
+written once and never overwritten by ordinary reconciliation. The only
+allowed update-time project-layer writes are explicit, schema-driven,
+idempotent migrations that preserve existing evidence, are previewed and
+destination-race checked, and activate or roll back with the verified update
+candidate. Every change to shipped files must preserve this contract and the
+manifest mechanism.
 
 **Release:** version bump in the kit metadata + release-notes section in
 `README.md` land in the release PR; the matching GitHub tag/release is

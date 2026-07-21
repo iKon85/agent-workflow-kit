@@ -169,6 +169,20 @@ test('census-update coordinates the stable foundation API without a second engin
   assert.match(skill, /\.census\/profile\.json/);
   assert.match(skill, /\.census\/active\.json/);
   assert.match(skill, /schemaVersion/);
+  assert.match(skill, /every `localScanners\[\]\.test`/);
+  assert.match(skill, /shared project-local census check entry point/i);
+  assert.match(
+    skill,
+    /It must execute every declared focused test,\s+and both local CI and pre-push must transitively reach that same entry point\./i,
+  );
+  assert.match(skill, /executable wiring test/i);
+  assert.match(skill, /missing or partial[\s\S]*failed/i);
+  assert.match(skill, /previous active\s+census bytes are unchanged/i);
+  assert.match(skill, /idempotent/i);
+
+  const setupCensus = await text('.claude/skills/setup-workflow/census.md');
+  assert.match(setupCensus, /activation[\s\S]*durable[\s\S]*local CI[\s\S]*pre-push/i);
+  assert.match(setupCensus, /remove only[\s\S]*kit-owned census wiring/i);
 });
 
 test('brownfield bootstrap activates real surface coverage with a separate behavior overview', async () => {

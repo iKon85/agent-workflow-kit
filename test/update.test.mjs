@@ -137,6 +137,116 @@ test('dry-run previews readiness adoption without creating the candidate stub', 
   }
 });
 
+test('update mirrors one existing Prod section across Claude and Codex surfaces idempotently', async () => {
+  const readiness = {
+    readiness: { contractVersion: 1, capabilities: {
+      prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
+    } },
+    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+  };
+  for (const [source, destination, destinationExists] of [
+    ['CLAUDE.md', 'AGENTS.md', false],
+    ['AGENTS.md', 'CLAUDE.md', true],
+  ]) {
+    const kit = await makeKit({ [P]: 'v1\n' });
+    const consumer = await makeEmptyDir();
+    const prod = 'Deploy through the release workflow.\nLive: https://example.test.';
+    try {
+      await setKitReadiness(kit, readiness);
+      await init({ kitRoot: kit, consumerRoot: consumer });
+      await writeFile(join(consumer, source), `# ${source}\n\n## Prod\n\n${prod}\n`);
+      if (destinationExists) await writeFile(join(consumer, destination), `# ${destination}\n`);
+
+      const preview = await update({ kitRoot: kit, consumerRoot: consumer, dryRun: true });
+      assert.deepEqual(preview.migrated, [destination]);
+      if (destinationExists) {
+        assert.doesNotMatch(await readFile(join(consumer, destination), 'utf8'), /## Prod/);
+      } else {
+        assert.equal(await exists(join(consumer, destination)), false);
+      }
+
+      const result = await update({
+        kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+      });
+      assert.equal(result.state, 'applied');
+      assert.deepEqual(result.migrated, [destination]);
+      assert.match(await readFile(join(consumer, destination), 'utf8'),
+        new RegExp(`## Prod\\n\\n${prod.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}`));
+
+      const second = await update({
+        kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+      });
+      assert.equal(second.status, 'current');
+      assert.deepEqual(second.migrated, []);
+    } finally {
+      await cleanup(kit, consumer);
+    }
+  }
+});
+
+test('update refuses divergent Prod sections without touching consumer files', async () => {
+  const readiness = {
+    readiness: { contractVersion: 1, capabilities: {
+      prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
+    } },
+    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, readiness);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, 'CLAUDE.md'), '# Claude\n\n## Prod\n\nTarget A.\n');
+    await writeFile(join(consumer, 'AGENTS.md'), '# Agents\n\n## Prod\n\nTarget B.\n');
+    const beforeClaude = await readFile(join(consumer, 'CLAUDE.md'));
+    const beforeAgents = await readFile(join(consumer, 'AGENTS.md'));
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+    });
+
+    assert.equal(result.state, 'conflicted');
+    assert.deepEqual(result.migrationConflicts, ['CLAUDE.md', 'AGENTS.md']);
+    assert.equal(result.report.conflicts, 2);
+    assert.deepEqual(result.report.paths.conflicts, ['CLAUDE.md', 'AGENTS.md']);
+    assert.match(result.report.recommendation, /Prod sections differ/);
+    assert.deepEqual(await readFile(join(consumer, 'CLAUDE.md')), beforeClaude);
+    assert.deepEqual(await readFile(join(consumer, 'AGENTS.md')), beforeAgents);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a Prod migration destination race fails without overwriting the late consumer edit', async () => {
+  const readiness = {
+    readiness: { contractVersion: 1, capabilities: {
+      prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
+    } },
+    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, readiness);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, 'CLAUDE.md'), '# Claude\n\n## Prod\n\nTarget A.\n');
+    await writeFile(join(consumer, 'AGENTS.md'), '# Agents\n');
+    const lateEdit = '# Agents\n\nConsumer changed this during verification.\n';
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(),
+      verify: async () => { await writeFile(join(consumer, 'AGENTS.md'), lateEdit); },
+    });
+
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.failure, { phase: 'activation', consumerState: 'unchanged' });
+    assert.match(result.error, /consumer changed during verification: AGENTS\.md/);
+    assert.equal(await readFile(join(consumer, 'AGENTS.md'), 'utf8'), lateEdit);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('a generated-stub destination race fails in activation and preserves consumer state', async () => {
   const oldReadiness = { readiness: { contractVersion: 1, capabilities: {} }, skills: {} };
   const nextReadiness = {

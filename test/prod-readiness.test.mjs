@@ -73,3 +73,11 @@ test('setup and wrapup publish the bounded Prod readiness contract on both surfa
     assert.match(wrapup, /landing continues/);
   }
 });
+
+test('repository instruction surfaces keep wrapup Prod readiness coherent', async () => {
+  const result = JSON.parse((await readiness(repo, 'check', '--skill', 'wrapup', '--json')).stdout);
+
+  assert.equal(result.capabilities.prodTarget.state, 'ready');
+  assert.deepEqual(result.activeBlocks, ['deployReport']);
+  assert.deepEqual(result.inactiveBlocks, []);
+});

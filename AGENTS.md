@@ -28,3 +28,10 @@ Codex-surface specifics:
 - Project-scoped Codex defaults live in `.codex/config.toml`; project agents
   live in `.codex/agents/`. Claude-only hooks and skills are not copied unless
   an explicit Codex adaptation exists.
+
+## Prod
+
+Published as the `@ikon85/agent-workflow-kit` npm package and matching GitHub
+tag/release through GitHub Actions. Live distribution:
+https://www.npmjs.com/package/@ikon85/agent-workflow-kit and
+https://github.com/iKon85/agent-workflow-kit/releases.

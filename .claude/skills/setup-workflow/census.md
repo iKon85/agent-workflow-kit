@@ -66,13 +66,20 @@ delegates this route to the shipped `census-update` contract and its focused
 `scripts/test_census_update_contract.test.mjs` proof; it does not reproduce
 activation, snapshots, or enforcement. Setup itself never calls `activateCensus`.
 
-Disable follows the ordered contract: remove the kit-owned hook, remove the
-kit-owned gate, then atomically replace only the profile's `enabled` value with
-`false`, preserving unknown keys, and verify `disabled` through
-`resolveCensusState`. Enforcement removal must finish before any profile
-mutation. Treat the choice document, local scanners, their tests, the profile,
-and the active snapshot as consumer-owned evidence. List those files and ask
-for separate deletion approval; without that approval, retain them.
+Activation owns durable enforcement: every focused test declared by the active
+profile must remain transitively reachable through one shared project-local
+census check entry point from both local CI and pre-push. `census-update`
+reconciles that narrow kit-owned census wiring idempotently and requires an
+executable wiring proof before it can report `current`; setup does not pre-wire
+the optional bootstrap state.
+
+Disable follows the ordered contract: remove only the kit-owned census wiring
+(including the kit-owned hook and gate block), then atomically replace only the
+profile's `enabled` value with `false`, preserving unknown keys, and verify
+`disabled` through `resolveCensusState`. Enforcement removal must finish before
+any profile mutation. Treat the choice document, local scanners, their tests,
+the profile, and the active snapshot as consumer-owned evidence. List those
+files and ask for separate deletion approval; without that approval, retain them.
 Setup never deletes consumer-owned files as part of disable.
 
 ## Setup report

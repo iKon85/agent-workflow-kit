@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { access, cp, mkdtemp, readFile, rm, stat, symlink } from 'node:fs/promises';
+import { access, cp, lstat, mkdtemp, readFile, rm, stat, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { promisify } from 'node:util';
@@ -12,10 +12,15 @@ import {
   CONSUMER_MANIFEST_NAME, CONSUMER_ORIGIN, READINESS_MANIFEST_PATH,
   indexByPath, readManifest, writeManifest,
 } from './manifest.mjs';
-import { checkSkill, evaluateCapability } from '../../scripts/readiness.mjs';
+import { checkSkill, evaluateCapability, inspectProdSections } from '../../scripts/readiness.mjs';
 
 const run = promisify(execFile);
 const exists = (path) => access(path).then(() => true, () => false);
+const pathEntryExists = (path) => lstat(path).then(() => true, (error) => {
+  if (error.code === 'ENOENT') return false;
+  throw error;
+});
+const MIGRATABLE_INSTRUCTION_PATHS = new Set(['CLAUDE.md', 'AGENTS.md']);
 
 /** Copy a verification candidate without duplicating git metadata or dependencies. */
 export async function stageConsumer(consumerRoot) {
@@ -40,7 +45,11 @@ export async function activateCandidate({
 }) {
   const changed = [...preview.added, ...preview.updated];
   const generated = preview.generated ?? [];
-  const touched = [...changed, ...generated, ...preview.deleted, CONSUMER_MANIFEST_NAME];
+  const migrations = preview.migrations ?? [];
+  const touched = [
+    ...changed, ...generated, ...migrations.map(({ path }) => path),
+    ...preview.deleted, CONSUMER_MANIFEST_NAME,
+  ];
   const currentManifest = await readFile(join(consumerRoot, CONSUMER_MANIFEST_NAME));
   if (!currentManifest.equals(consumerManifestBefore)) {
     throw new Error('consumer manifest changed during verification');
@@ -58,6 +67,11 @@ export async function activateCandidate({
       throw new Error(`generated candidate hash mismatch: ${path}`);
     }
   }
+  for (const migration of migrations) {
+    if (await sha256File(join(candidateRoot, migration.path)) !== migration.afterSha256) {
+      throw new Error(`migrated candidate hash mismatch: ${migration.path}`);
+    }
+  }
   await assertConsumerStillMatchesPreview(consumerRoot, preview);
   const rollback = new Map();
   for (const path of touched) rollback.set(path, await snapshot(join(consumerRoot, path)));
@@ -66,6 +80,9 @@ export async function activateCandidate({
       await writeAtomic(join(consumerRoot, path), await readFile(join(candidateRoot, path)), pkgIdx.get(path)?.mode);
     }
     for (const path of generated) {
+      await writeAtomic(join(consumerRoot, path), await readFile(join(candidateRoot, path)));
+    }
+    for (const { path } of migrations) {
       await writeAtomic(join(consumerRoot, path), await readFile(join(candidateRoot, path)));
     }
     await afterGenerated();
@@ -103,6 +120,17 @@ async function assertConsumerStillMatchesPreview(consumerRoot, preview) {
   for (const path of preview.generated ?? []) {
     if (await exists(join(consumerRoot, path))) {
       throw new Error(`consumer changed during verification: ${path}`);
+    }
+  }
+  for (const migration of preview.migrations ?? []) {
+    const present = await pathEntryExists(join(consumerRoot, migration.path));
+    if (present) await validateConsumerFile(consumerRoot, migration.path);
+    else if (!MIGRATABLE_INSTRUCTION_PATHS.has(migration.path)) {
+      throw new Error(`unsafe consumer path: ${migration.path}`);
+    }
+    const current = present ? await sha256File(join(consumerRoot, migration.path)) : null;
+    if (current !== migration.beforeSha256) {
+      throw new Error(`consumer changed during verification: ${migration.path}`);
     }
   }
   for (const path of [...preview.updated, ...preview.deleted]) {
@@ -144,6 +172,9 @@ export async function adoptReadinessCandidate({ candidateRoot, consumerRoot, pri
     }
     await writeManifest(manifestPath, { ...manifest, installed });
   }
+  const { migrations, migrationConflicts } = await migrateProdSections({
+    candidateRoot, consumerRoot, nextManifest,
+  });
   const before = await readinessSnapshot(consumerRoot, priorManifest);
   const after = await readinessSnapshot(candidateRoot, nextManifest);
   const incompatible = Object.entries(after.skills)
@@ -151,7 +182,50 @@ export async function adoptReadinessCandidate({ candidateRoot, consumerRoot, pri
       && before.skills[skill] && current.verdict === 'blocked')
     .map(([skill]) => skill)
     .sort();
-  return { generated, availability: readinessDiff(before, after), incompatible };
+  return {
+    generated,
+    migrations,
+    migrated: migrations.map(({ path }) => path),
+    migrationConflicts,
+    availability: readinessDiff(before, after),
+    incompatible,
+  };
+}
+
+async function migrateProdSections({ candidateRoot, consumerRoot, nextManifest }) {
+  const paths = [...new Set(Object.values(nextManifest?.readiness?.capabilities ?? {})
+    .flatMap(({ evidence }) => evidence?.type === 'prod-section' ? evidence.paths ?? [] : []))];
+  if (paths.length < 2) return { migrations: [], migrationConflicts: [] };
+  if (paths.some((path) => !MIGRATABLE_INSTRUCTION_PATHS.has(path))) {
+    return { migrations: [], migrationConflicts: paths };
+  }
+  const sections = await inspectProdSections(candidateRoot, paths);
+  const invalid = sections.filter(({ state }) => state === 'invalid');
+  const validBodies = [...new Set(
+    sections.filter(({ state }) => state === 'valid').map(({ body }) => body),
+  )];
+  if (invalid.length || validBodies.length > 1) {
+    return { migrations: [], migrationConflicts: paths };
+  }
+  if (validBodies.length !== 1) return { migrations: [], migrationConflicts: [] };
+
+  const body = validBodies[0];
+  const migrations = [];
+  for (const entry of sections.filter(({ state }) => state === 'missing')) {
+    const candidatePath = join(candidateRoot, entry.path);
+    const present = await pathEntryExists(candidatePath);
+    if (present) await validateConsumerFile(candidateRoot, entry.path);
+    const before = present ? await readFile(candidatePath, 'utf8') : '';
+    const separator = before && !before.endsWith('\n') ? '\n\n' : (before ? '\n' : '');
+    await writeAtomic(candidatePath, `${before}${separator}## Prod\n\n${body}\n`);
+    migrations.push({
+      path: entry.path,
+      beforeSha256: await exists(join(consumerRoot, entry.path))
+        ? await sha256File(join(consumerRoot, entry.path)) : null,
+      afterSha256: await sha256File(candidatePath),
+    });
+  }
+  return { migrations, migrationConflicts: [] };
 }
 
 function readinessStubPaths(manifest) {

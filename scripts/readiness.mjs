@@ -99,22 +99,53 @@ function section(text, heading) {
   return body.join('\n').trim();
 }
 
-async function prodVerdict(root, paths) {
-  const bodies = [];
+export async function inspectProdSections(root, paths) {
+  const sections = [];
   for (const path of paths) {
     const text = await readText(root, path);
-    if (text === null) continue;
     const body = section(text, '## Prod');
-    bodies.push(body);
+    const problem = text === null ? 'missing-file'
+      : (body === null ? 'missing-section' : (body ? null : 'empty-section'));
+    sections.push({
+      path,
+      state: body === null ? 'missing' : (body ? 'valid' : 'invalid'),
+      body,
+      problem,
+    });
   }
-  if (!bodies.length) return 'absent';
-  if (bodies.every((body) => body === null)) return 'absent';
-  if (bodies.some((body) => !body)) return 'invalid';
-  return bodies.every((body) => body === bodies[0]) ? 'valid' : 'invalid';
+  return sections;
+}
+
+async function prodEvidence(root, paths) {
+  const sections = await inspectProdSections(root, paths);
+  const present = sections.filter(({ problem }) => problem !== 'missing-file');
+  const valid = present.filter(({ state }) => state === 'valid');
+  const empty = present.filter(({ problem }) => problem === 'empty-section');
+  if (!valid.length && !empty.length) {
+    return {
+      verdict: 'absent',
+      diagnostics: sections.map(({ path, problem }) => ({ path, problem })),
+    };
+  }
+  const malformed = present.filter(({ state }) => state !== 'valid');
+  if (malformed.length) {
+    return {
+      verdict: 'invalid',
+      diagnostics: malformed.map(({ path, problem }) => ({ path, problem })),
+    };
+  }
+  const bodies = [...new Set(present.map(({ body }) => body))];
+  if (bodies.length > 1) {
+    return {
+      verdict: 'invalid',
+      diagnostics: present.map(({ path }) => ({ path, problem: 'divergent-section' })),
+    };
+  }
+  return { verdict: 'valid', diagnostics: [] };
 }
 
 async function evidenceVerdict(root, evidence) {
-  if (evidence.type === 'prod-section') return prodVerdict(root, evidence.paths);
+  if (evidence.type === 'prod-section') return (await prodEvidence(root, evidence.paths)).verdict;
   if (evidence.type === 'runbook-reference') return runbookVerdict(root, evidence);
   const verdicts = await Promise.all((evidence.paths ?? []).map(async (path) => {
     const text = await readText(root, path);
@@ -129,14 +160,17 @@ async function evidenceVerdict(root, evidence) {
 }
 
 export async function evaluateCapability({ root, capability, decision }) {
-  const evidence = await evidenceVerdict(root, capability.evidence);
-  if (evidence === 'invalid') return { state: 'invalid', clearDecision: false };
+  const prod = capability.evidence.type === 'prod-section'
+    ? await prodEvidence(root, capability.evidence.paths) : null;
+  const evidence = prod?.verdict ?? await evidenceVerdict(root, capability.evidence);
+  const diagnostics = prod?.diagnostics?.length ? { diagnostics: prod.diagnostics } : {};
+  if (evidence === 'invalid') return { state: 'invalid', clearDecision: false, ...diagnostics };
   if (evidence === 'valid') return { state: 'ready', clearDecision: Boolean(decision) };
-  if (decision === 'pending') return { state: 'pending', clearDecision: false };
+  if (decision === 'pending') return { state: 'pending', clearDecision: false, ...diagnostics };
   if (decision === 'not-applicable' && capability.allowNotApplicable) {
-    return { state: 'not-applicable', clearDecision: false };
+    return { state: 'not-applicable', clearDecision: false, ...diagnostics };
   }
-  return { state: 'missing', clearDecision: false };
+  return { state: 'missing', clearDecision: false, ...diagnostics };
 }
 
 async function loadManifest(root) {

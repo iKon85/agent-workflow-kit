@@ -43,11 +43,25 @@ release contain the same artifact.
    data, infer an external fact, or manufacture `pending`/`not-applicable` to
    make a capability appear ready.
 
+   Readiness-schema adoption also keeps the Claude and Codex instruction
+   surfaces compatible. When exactly one applicable instruction surface has a
+   non-empty `## Prod` section and another has no such section, the staged
+   candidate mirrors the same section body into the missing surface. This
+   narrow migration is previewed as `migrated`, destination-race checked,
+   idempotent, and covered by the same verification and rollback transaction.
+   It may create a missing instruction file, but it never rewrites an existing
+   `## Prod` body. Empty, malformed, or divergent sections are named as
+   conflicts and leave every consumer file untouched. This migration belongs
+   to `kit update`; do not rerun `setup-workflow` after an ordinary update.
+   Readiness JSON diagnoses only the affected path and problem category
+   (`missing-file`, `missing-section`, `empty-section`, or
+   `divergent-section`); it never echoes consumer content.
+
 3. Read the terminal report. `aktuell` proves a second run found no upstream
-   delta. A conflict report names and counts every category and leaves every
-   consumer file untouched. Follow its recommendation and resolve each named
-   conflict manually; never auto-merge, delete a local edit, or silently choose
-   the incoming copy.
+   delta or pending readiness migration. A conflict report names and counts
+   every category and leaves every consumer file untouched. Follow its
+   recommendation and resolve each named conflict manually; never auto-merge,
+   delete a local edit, or silently choose the incoming copy.
 
    Read all four availability categories alongside the file delta: newly
    available skill core, newly degraded optional blocks, newly blocked skill
