@@ -74,6 +74,11 @@ test('HELPER_FILES ships the report validator exactly once', () => {
   assert.equal(paths.filter((path) => path === 'src/lib/reportValidator.mjs').length, 1);
 });
 
+test('HELPER_FILES ships the capability matrix exactly once', () => {
+  const paths = HELPER_FILES.map(({ path }) => path);
+  assert.equal(paths.filter((path) => path === 'src/lib/capabilityMatrix.mjs').length, 1);
+});
+
 test('STUB_TARGETS lists docs to seed but never board-sync.md', () => {
   assert.ok(STUB_TARGETS.includes('docs/agents/issue-tracker.md'));
   assert.ok(!STUB_TARGETS.some((p) => p.endsWith('board-sync.md')));
