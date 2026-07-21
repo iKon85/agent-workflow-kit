@@ -151,9 +151,28 @@ test('CLI owns narrow decisions and the late-Prod degraded to ready tracer', asy
     assert.equal(result.verdict, 'ready');
     assert.deepEqual(result.activeBlocks, ['deployReport']);
 
+    await write(root, 'AGENTS.md', '# Agents\n');
+    result = JSON.parse((await run('check', '--skill', 'wrapup', '--json')).stdout);
+    assert.equal(result.capabilities.prodTarget.state, 'invalid');
+    assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
+      { path: 'AGENTS.md', problem: 'missing-section' },
+    ]);
+
+    await write(root, 'AGENTS.md', '# Agents\n\n## Prod\n');
+    result = JSON.parse((await run('check', '--skill', 'wrapup', '--json')).stdout);
+    assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
+      { path: 'AGENTS.md', problem: 'empty-section' },
+    ]);
+
     await write(root, 'AGENTS.md', '# Agents\n\n## Prod\nDifferent target.\n');
     result = JSON.parse((await run('check', '--skill', 'wrapup', '--json')).stdout);
     assert.equal(result.capabilities.prodTarget.state, 'invalid');
+    assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
+      { path: 'CLAUDE.md', problem: 'divergent-section' },
+      { path: 'AGENTS.md', problem: 'divergent-section' },
+    ]);
+    assert.doesNotMatch(JSON.stringify(result.capabilities.prodTarget.diagnostics),
+      /Deploy with release workflow|Different target/);
 
     await run('decision', 'clear', 'prodTarget');
     const consumer = JSON.parse(await readFile(join(root, 'agent-workflow-kit.json'), 'utf8'));

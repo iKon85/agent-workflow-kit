@@ -53,6 +53,9 @@ release contain the same artifact.
    `## Prod` body. Empty, malformed, or divergent sections are named as
    conflicts and leave every consumer file untouched. This migration belongs
    to `kit update`; do not rerun `setup-workflow` after an ordinary update.
+   Readiness JSON diagnoses only the affected path and problem category
+   (`missing-file`, `missing-section`, `empty-section`, or
+   `divergent-section`); it never echoes consumer content.
 
 3. Read the terminal report. `aktuell` proves a second run found no upstream
    delta or pending readiness migration. A conflict report names and counts
