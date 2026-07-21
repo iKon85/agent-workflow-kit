@@ -21,6 +21,12 @@ CLAUDE_BUILDER = (
 CODEX_BUILDER = (
     REPO / ".agents/skills/orchestrate-wave/references/builder-contract.md"
 )
+CLAUDE_WORKFLOW = (
+    REPO / ".claude/skills/orchestrate-wave/references/dispatch-workflow.md"
+)
+CODEX_WORKFLOW = (
+    REPO / ".agents/skills/orchestrate-wave/references/dispatch-workflow.md"
+)
 
 
 # Outcome -> fragments whose conjunction proves that portable behavior.
@@ -143,6 +149,28 @@ class OrchestrateWaveContract(unittest.TestCase):
         self.assertIn("(a) inline vs delegate", prose)
         self.assertIn("(b) tier + effort", prose)
         self.assertIn("Standing rules", prose)
+
+    def test_path_a_reference_locks_the_two_run_dispatch_contract(self):
+        workflow = CLAUDE_WORKFLOW.read_text(encoding="utf-8")
+        for fragment in (
+            "meta.phases",
+            "one `agent()` call per slice",
+            "model`, `effort`, and `phase`",
+            "inline schema literal",
+            "Recon run",
+            "reconcileReconReports",
+            "Build run",
+            "resumeFromRunId",
+            "exactly once",
+            "journal.jsonl",
+            "timestamps through `args`",
+            "Date.now()",
+            "Math.random()",
+            "Every orchestration path",
+        ):
+            self.assertIn(fragment, workflow)
+
+        self.assertEqual(workflow, CODEX_WORKFLOW.read_text(encoding="utf-8"))
 
     def test_claude_and_codex_surfaces_match(self):
         self.assertEqual(

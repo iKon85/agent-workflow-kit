@@ -77,6 +77,8 @@ export const HELPER_FILES = [
   { path: 'src/lib/reportValidator.mjs', kind: 'script', mode: 0o644 },
   // Fail-closed orchestration selector and its host-inventory adapters.
   { path: 'src/lib/capabilityMatrix.mjs', kind: 'script', mode: 0o644 },
+  // Main-thread recon boundary shared by every orchestration path.
+  { path: 'src/lib/reconcileReconReports.mjs', kind: 'script', mode: 0o644 },
   // GitHub-consumer automation: invokes the existing update command, then owns
   // only the stable tested branch/pull-request upsert.
   { path: 'scripts/kit-update-pr.mjs', kind: 'script', mode: 0o755 },
