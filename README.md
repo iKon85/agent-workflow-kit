@@ -348,6 +348,13 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 
 ## Release notes
 
+### 0.32.1
+
+- changed: `.agents/skills/census-update/SKILL.md`
+- changed: `.agents/skills/setup-workflow/census.md`
+- changed: `.claude/skills/census-update/SKILL.md`
+- changed: `.claude/skills/setup-workflow/census.md`
+
 ### 0.32.0
 
 - changed: `.agents/skills/audit-skills/SKILL.md`

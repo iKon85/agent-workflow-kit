@@ -72,6 +72,35 @@ proof is still open for state resolution even when Git tracking lets the base
 scan enumerate it. Overrides are report input only and are never passed into
 scanning, fingerprinting, verification, or state resolution.
 
+## Durable enforcement
+
+An activated census is a durable consumer contract, not a one-time activation
+check. Before activating a candidate or reporting an unchanged census as
+`current`, derive the complete set of every `localScanners[].test` from the
+profile and inspect the repository's documented local CI and pre-push paths.
+
+Reuse one existing shared project-local census check entry point when the
+repository has one. Otherwise add the smallest such entry point through the
+repository's established script mechanism; do not create a second census
+engine or duplicate scanner logic. It must execute every declared focused test,
+and both local CI and pre-push must transitively reach that same entry point.
+Add or extend an executable wiring test that fails when either durable path or
+any declared scanner test becomes unreachable; matching prose or a bare grep is
+not sufficient proof.
+
+Keep enforcement reconciliation idempotent. An already complete wiring graph
+is a no-write result. Mark only the narrow gate block added for this lifecycle
+with the repository's existing managed marker, or with
+`agent-workflow-kit:census` when no marker convention exists; that block is the
+kit-owned census wiring. Preserve surrounding consumer-owned gate logic.
+
+Missing or partial durable wiring is a failed candidate verification. If the
+repository has no safe documented gate seam, ask one bounded wiring question
+and stop before activation. On a scanner-test or wiring-proof failure, report
+`failed`, discard the candidate when safe, and confirm that the previous active
+census bytes are unchanged. Never report `current` from activation-time test
+success alone.
+
 ## Workflow
 
 1. **Check.** Read the local profile and active census, if present. Report a
@@ -95,8 +124,9 @@ scanning, fingerprinting, verification, or state resolution.
    and a focused passing test for that pattern. Run that test before rescanning.
 6. **Verify a candidate.** Build the candidate from the fresh scan and recorded
    decisions. Fail verification when any surface or behavior remains `offen`,
-   when a required local scanner test fails, or when the candidate fingerprints
-   do not describe the current repository.
+   when a required local scanner test fails, when durable enforcement or its
+   executable wiring test is incomplete, or when the candidate fingerprints do
+   not describe the current repository.
 7. **Activate.** Call `activateCensus` with a real verifier so it stages, verifies,
    and atomically swaps under its local lock. On `CensusTransactionError`, report
    `updating` or `failed` and keep the previous active census authoritative.
@@ -137,4 +167,5 @@ Return only the useful audit trail:
 - surface coverage `X of Y`;
 - separate behavior overview;
 - visible `nicht relevant` justifications and active override, if any; <!-- language-census: ok -->
-- local scanner tests run and the transaction/no-write result.
+- local scanner tests run, durable local-CI/pre-push reachability, and the
+  transaction/no-write result.
