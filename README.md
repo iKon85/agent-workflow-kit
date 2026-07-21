@@ -305,7 +305,10 @@ any language works — map each role once, rename an option with one profile edi
 `init` records a sha256 of every file it installs. That's the line between the
 two: **edit any skill or script freely** — `update` detects your edits and backs
 them up rather than clobbering them. Your **project layer** (`docs/agents/*`, the
-board profile, `CLAUDE.md`) is created once and never touched by `update`.
+board profile, `CLAUDE.md`, `AGENTS.md`) remains consumer-owned. `update` may
+only apply a previewed, schema-driven, idempotent compatibility migration that
+fills missing evidence without rewriting an existing value; it verifies and
+rolls that migration back with the rest of the candidate.
 
 ## Updating & removing
 
@@ -351,9 +354,12 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 ### 0.32.1
 
 - changed: `.agents/skills/census-update/SKILL.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
 - changed: `.agents/skills/setup-workflow/census.md`
 - changed: `.claude/skills/census-update/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
 - changed: `.claude/skills/setup-workflow/census.md`
+- changed: `scripts/readiness.mjs`
 
 ### 0.32.0
 

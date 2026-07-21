@@ -57,7 +57,7 @@ try {
     } else if (r.status === 'current') {
       p.outro(`aktuell · unchanged ${r.unchanged.length} · local modifications ${r.userModified.length}`);
     } else {
-      p.outro(`updated ${r.updated.length} · added ${r.added.length} · deleted ${r.deleted.length}`);
+      p.outro(`updated ${r.updated.length} · added ${r.added.length} · migrated ${r.migrated?.length ?? 0} · deleted ${r.deleted.length}`);
     }
   } else if (cmd === 'uninstall') {
     const ok = yes || (await p.confirm({ message: 'Remove kit-installed files?' })) === true;
@@ -82,7 +82,7 @@ function printPlan(r) {
   const lines = [];
   for (const k of [
     'added', 'updated', 'userModified', 'consumerOwned', 'unchanged',
-    'deleted', 'keptDeleted', 'collisions',
+    'deleted', 'keptDeleted', 'collisions', 'migrated',
   ])
     if (r[k]?.length) lines.push(`${k}: ${r[k].length}`);
   if (r.conflicts?.length) lines.push(`conflicts: ${r.conflicts.length}`);

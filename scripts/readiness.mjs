@@ -99,16 +99,24 @@ function section(text, heading) {
   return body.join('\n').trim();
 }
 
-async function prodVerdict(root, paths) {
-  const bodies = [];
+export async function inspectProdSections(root, paths) {
+  const sections = [];
   for (const path of paths) {
     const text = await readText(root, path);
-    if (text === null) continue;
     const body = section(text, '## Prod');
-    bodies.push(body);
+    sections.push({
+      path,
+      state: body === null ? 'missing' : (body ? 'valid' : 'invalid'),
+      body,
+    });
   }
+  return sections;
+}
+
+async function prodVerdict(root, paths) {
+  const sections = await inspectProdSections(root, paths);
+  const bodies = sections.filter(({ state }) => state !== 'missing').map(({ body }) => body);
   if (!bodies.length) return 'absent';
-  if (bodies.every((body) => body === null)) return 'absent';
   if (bodies.some((body) => !body)) return 'invalid';
   return bodies.every((body) => body === bodies[0]) ? 'valid' : 'invalid';
 }

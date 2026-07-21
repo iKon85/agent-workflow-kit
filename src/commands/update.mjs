@@ -55,6 +55,11 @@ export async function update(options) {
     Object.assign(preview, await previewReadinessAdoption({
       kitRoot, consumerRoot, priorReadinessManifest, nextReadinessManifest,
     }));
+    preview.conflicts.push(...(preview.migrationConflicts ?? []).map((path) => ({
+      path,
+      kind: 'prod-section',
+      diff: 'Prod section differs from the other instruction surface or is malformed.',
+    })));
   } catch (error) {
     previewFailure = error;
   }
@@ -66,6 +71,9 @@ export async function update(options) {
     };
   }
   if (dryRun) return { ...preview, state: 'preview', history };
+  if (preview.migrationConflicts?.length) {
+    return terminal(preview, 'conflicted', history, transition);
+  }
   if (preview.conflicts.length) return terminal(preview, 'conflicted', history, transition);
   const resolvedPreview = await resolvePreview({
     kitRoot, consumerRoot, preview, decisions, decide, transition,
@@ -138,7 +146,13 @@ async function applyTransaction(context) {
       nextManifest: nextReadinessManifest,
     });
     preview.generated = readiness.generated;
+    preview.migrations = readiness.migrations;
+    preview.migrated = readiness.migrated;
+    preview.migrationConflicts = readiness.migrationConflicts;
     preview.availability = readiness.availability;
+    if (readiness.migrationConflicts.length) {
+      throw new Error(`Prod section migration conflict: ${readiness.migrationConflicts.join(', ')}`);
+    }
     if (readiness.incompatible.length) {
       throw new Error(`monotonic compatibility would block existing skill core: ${readiness.incompatible.join(', ')}`);
     }
@@ -180,6 +194,7 @@ function verifyRelease(identities, kitVersion) {
 
 function hasUpstreamDelta(result) {
   return result.manifestChanged ||
+    (result.migrations?.length ?? 0) > 0 ||
     result.added.length + result.updated.length + result.deleted.length > 0;
 }
 
@@ -205,9 +220,12 @@ async function terminal(result, state, history, transition) {
         conflicts: result.conflicts.map(({ path }) => path),
         keptDeleted: result.keptDeleted,
       },
-      recommendation: result.conflicts.length
-        ? 'Review each named conflict; keep the local file or apply the incoming diff manually.'
-        : null,
+      recommendation: result.migrationConflicts?.length
+        ? `Prod sections differ or are malformed in: ${result.migrationConflicts.join(', ')}. ` +
+          'Resolve them manually; no consumer file was changed.'
+        : (result.conflicts.length
+          ? 'Review each named conflict; keep the local file or apply the incoming diff manually.'
+          : null),
     },
   };
 }
