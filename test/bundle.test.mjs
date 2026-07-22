@@ -69,6 +69,27 @@ test('HELPER_FILES ships the complete memory lifecycle unit', () => {
   assert.deepEqual(memoryUnit.filter((path) => !paths.has(path)), []);
 });
 
+test('HELPER_FILES ships the report validator exactly once', () => {
+  const paths = HELPER_FILES.map(({ path }) => path);
+  assert.equal(paths.filter((path) => path === 'src/lib/reportValidator.mjs').length, 1);
+});
+
+test('HELPER_FILES ships the capability matrix exactly once', () => {
+  const paths = HELPER_FILES.map(({ path }) => path);
+  assert.equal(paths.filter((path) => path === 'src/lib/capabilityMatrix.mjs').length, 1);
+});
+
+test('HELPER_FILES ships the recon report reconciler exactly once', () => {
+  const paths = HELPER_FILES.map(({ path }) => path);
+  assert.equal(paths.filter((path) => path === 'src/lib/reconcileReconReports.mjs').length, 1);
+});
+
+test('HELPER_FILES ships the wave claim helper exactly once', () => {
+  const paths = HELPER_FILES.map(({ path }) => path);
+  assert.equal(paths.filter((path) => path === 'src/lib/waveClaim.mjs').length, 1);
+  assert.equal(HELPER_FILES.find((h) => h.path === 'src/lib/waveClaim.mjs').mode, 0o644);
+});
+
 test('STUB_TARGETS lists docs to seed but never board-sync.md', () => {
   assert.ok(STUB_TARGETS.includes('docs/agents/issue-tracker.md'));
   assert.ok(!STUB_TARGETS.some((p) => p.endsWith('board-sync.md')));
