@@ -38,10 +38,17 @@ BEHAVIORAL_PARITY = {
         "LOCAL annotated tag",
         "never push",
     ),
+    "compare-and-set claim protocol": (
+        "src/lib/waveClaim.mjs",
+        "claimWave",
+        "compare-and-set",
+        "acquired",
+    ),
     "owner-safe abort cleanup": (
         "this run planted",
         "On ANY wave STOP/abort",
         "Never delete a claim marker observed during a preflight collision",
+        "releaseWaveClaim",
     ),
     "dependency-aware retirement": (
         "topological",

@@ -84,6 +84,39 @@ def execute_step(
     raise LifecycleError(f"unsupported setup step kind: {kind!r}")
 
 
+def commit_oid(repo: Path, rev: str) -> str | None:
+    result = run(["git", "rev-parse", "--verify", f"{rev}^{{commit}}"], cwd=repo, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def ensure_reusable_base(main: Path, *, repo: Path, rev: str, base: str, label: str) -> None:
+    """Reuse is safe only AT the base or cleanly behind it; anything else is stale.
+
+    Both reuse paths skip `git worktree add`'s base argument, so without this
+    guard a slice silently builds on whatever the old branch/worktree pointed at.
+    """
+    base_oid = commit_oid(main, base)
+    if base_oid is None:
+        raise LifecycleError(f"base {base!r} is not resolvable")
+    current = commit_oid(repo, rev)
+    if current is None:
+        raise LifecycleError(f"{label}: HEAD is not resolvable")
+    if current == base_oid:
+        return
+    behind = run(
+        ["git", "merge-base", "--is-ancestor", current, base_oid],
+        cwd=main,
+        check=False,
+    )
+    if behind.returncode == 0:
+        return
+    raise LifecycleError(
+        f"{label}: HEAD {current[:7]} is stale against base {base} ({base_oid[:7]}) — "
+        "it is ahead of or diverged from the base. Land or rebase that work, or remove "
+        "the worktree/branch, before reusing it."
+    )
+
+
 def remove_failed_worktree(main: Path, target: Path, branch: str, created_branch: bool) -> None:
     run(["git", "worktree", "remove", "--force", str(target)], cwd=main, check=False)
     if created_branch:
@@ -101,10 +134,17 @@ def create(args: argparse.Namespace) -> Path:
     target = (main / profile.relative_path(args.issue, args.slug, args.branch_type)).resolve()
 
     if target in registered_worktrees(main):
+        ensure_reusable_base(
+            main, repo=target, rev="HEAD", base=args.base, label=f"worktree {target}"
+        )
         print(f"Worktree already exists: {target} ({branch})")
         return target
 
     branch_existed = local_branch_exists(main, branch)
+    if branch_existed:
+        ensure_reusable_base(
+            main, repo=main, rev=branch, base=args.base, label=f"branch {branch}"
+        )
     command = ["git", "worktree", "add", str(target)]
     command += [branch] if branch_existed else ["-b", branch, args.base]
     run(command, cwd=main)

@@ -79,6 +79,9 @@ export const HELPER_FILES = [
   { path: 'src/lib/capabilityMatrix.mjs', kind: 'script', mode: 0o644 },
   // Main-thread recon boundary shared by every orchestration path.
   { path: 'src/lib/reconcileReconReports.mjs', kind: 'script', mode: 0o644 },
+  // Atomic compare-and-set wave claim: two sessions cannot orchestrate the same
+  // wave. Library (imported by the Phase-0 claim protocol) → 0o644.
+  { path: 'src/lib/waveClaim.mjs', kind: 'script', mode: 0o644 },
   // GitHub-consumer automation: invokes the existing update command, then owns
   // only the stable tested branch/pull-request upsert.
   { path: 'scripts/kit-update-pr.mjs', kind: 'script', mode: 0o755 },
