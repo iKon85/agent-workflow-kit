@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.32.1",
+  "kitVersion": "0.33.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -407,7 +407,37 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "a3c3dc04411372f509b07e67f82217eb9656933f7ce5101beb5c123c2272d0bb",
+      "sha256": "9f8012a21441a0faff31845f38338078134c11ac60417f0db50b2ee65f0cc6af",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/orchestrate-wave/references/dispatch-subagents.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "codex",
+      "installRole": "consumer",
+      "sha256": "38247cadf15179e6f916674118fed6f0a19eb1097f123183a91bb18802113943",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/orchestrate-wave/references/dispatch-workflow.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "codex",
+      "installRole": "consumer",
+      "sha256": "2e2be2fb931147cf232b33c9c23379bcce47558a25756d54f89c6ef2e8a365c3",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/orchestrate-wave/references/report-contracts.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "codex",
+      "installRole": "consumer",
+      "sha256": "4ecd45229e6558d7b47918616ed199682767f2fd7ff209f6ae97258cbf8aec24",
       "mode": 420,
       "origin": "kit"
     },
@@ -417,7 +447,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "7a94293b7db49f42497d34e6ae0fe9992ab1c770ae0766557618818d6d671c50",
+      "sha256": "bfb547225c6950d4566f87a0da42e85c4c5803236d5adc0787aba265d5c91a53",
       "mode": 420,
       "origin": "kit"
     },
@@ -1689,7 +1719,37 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "a3c3dc04411372f509b07e67f82217eb9656933f7ce5101beb5c123c2272d0bb",
+      "sha256": "9f8012a21441a0faff31845f38338078134c11ac60417f0db50b2ee65f0cc6af",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/orchestrate-wave/references/dispatch-subagents.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "claude",
+      "installRole": "consumer",
+      "sha256": "38247cadf15179e6f916674118fed6f0a19eb1097f123183a91bb18802113943",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/orchestrate-wave/references/dispatch-workflow.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "claude",
+      "installRole": "consumer",
+      "sha256": "2e2be2fb931147cf232b33c9c23379bcce47558a25756d54f89c6ef2e8a365c3",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".claude/skills/orchestrate-wave/references/report-contracts.md",
+      "kind": "skill",
+      "ownerSkill": "orchestrate-wave",
+      "surface": "claude",
+      "installRole": "consumer",
+      "sha256": "4ecd45229e6558d7b47918616ed199682767f2fd7ff209f6ae97258cbf8aec24",
       "mode": 420,
       "origin": "kit"
     },
@@ -1699,7 +1759,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "9690ec772a99131c225037dd4bca884e899c133a8e460c36b26a25d6c6c797e1",
+      "sha256": "c9b4308875d59415b074de8b98130d0c2378fda6a4d1e6ac9c332c74b9a9ea97",
       "mode": 420,
       "origin": "kit"
     },
@@ -2731,7 +2791,7 @@
       "path": "scripts/worktree-lifecycle/setup.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "c720cbff9123f136a53658671d880b9a73f9da4faa0611e37a2a981fa89cda92",
+      "sha256": "0021c50809373335e9dafe97196f42ad039152418baa49e2004b25ba33d137e2",
       "mode": 493,
       "origin": "kit"
     },
@@ -2752,10 +2812,26 @@
       "origin": "kit"
     },
     {
+      "path": "src/lib/capabilityMatrix.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "9ea051edad14972281e8d19664eeec7dbd91d57b21e5d97e4eeea7323c5241e1",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "src/lib/manifest.mjs",
       "kind": "script",
       "installRole": "consumer",
       "sha256": "171eba2662054379c40c1c629110fa8e34353de72e136004b861b2ac6a4edc13",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/reconcileReconReports.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "d433504b66c62f02e3c909fc8b664a1a2c0373a04138a0da919d3ce7d45ba56a",
       "mode": 420,
       "origin": "kit"
     },
@@ -2776,6 +2852,14 @@
       "origin": "kit"
     },
     {
+      "path": "src/lib/reportValidator.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "f5b06eecd244ee177f94c9afc9f0f04107493ed1e0d661cadc85cbe251591052",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "src/lib/semver.mjs",
       "kind": "script",
       "installRole": "consumer",
@@ -2788,6 +2872,14 @@
       "kind": "script",
       "installRole": "consumer",
       "sha256": "f99d28d2053d55222650d2ca426509d3f56eec5ef70709bbf8c4a278bf80024e",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/waveClaim.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "dba4a321283e4f3ac3ab87eb726ce193c7e874c4b5ebd5cd5bbea7d28bb67c97",
       "mode": 420,
       "origin": "kit"
     }
