@@ -73,11 +73,31 @@ destination-race checked, and activate or roll back with the verified update
 candidate. Every change to shipped files must preserve this contract and the
 manifest mechanism.
 
-**Release:** version bump in the kit metadata + release-notes section in
-`README.md` land in the release PR; the matching GitHub tag/release is
-published **after merge as a separate step**. The npm Trusted-Publishing
-pipeline and `$kit-release` arrive with Welle 1 (#41, locked in #40) — until
-then, no ad-hoc npm publishes.
+**Release — merging IS publishing.** Version bump in the kit metadata +
+release-notes section in `README.md` land in the release PR. Merging that PR to
+`main` **publishes immediately**: `.github/workflows/release.yml` triggers on
+`push` to `main`, its gate fires whenever `package.json` changed in the pushed
+range, and the publish job runs `scripts/release-state.mjs` → `npm publish
+--access public --provenance` → GitHub release. There is no separate manual
+post-merge publish step, and an npm version number is burned permanently. Treat
+merging a version bump as an irreversible public action and confirm it
+explicitly.
+
+Prepare a release with `npm run release:prepare -- --version <x.y.z>` (bump +
+regenerated manifest + release-note delta, then guard + suite + `npm pack
+--dry-run`); never hand-run `npm publish` — the workflow owns publishing.
+`reconcileRelease` is idempotent, so a re-run repairs a partial release instead
+of duplicating one.
+
+**A red release run does not mean nothing was published** — the post-publish
+readback can lose a race with npm propagation and fail *after* a successful
+publish, leaving npm ahead of the GitHub release (#205). Always check
+`npm view @ikon85/agent-workflow-kit version` and `gh release view v<x.y.z>`
+before reacting; recover with a `workflow_dispatch` re-run, not a version bump.
+
+Whether merge-equals-publish should stay the contract, or the workflow should be
+gated on a tag / `workflow_dispatch`, is an open decision (#204) — not settled
+by this description of the current behaviour.
 
 ## Hard rules
 
@@ -223,9 +243,18 @@ Two-axis review (Standards × Spec). Project layer: `docs/agents/code-review.md`
 ## Prod
 
 Published as the `@ikon85/agent-workflow-kit` npm package and matching GitHub
-tag/release through GitHub Actions. Live distribution:
+release through GitHub Actions. Live distribution:
 https://www.npmjs.com/package/@ikon85/agent-workflow-kit and
 https://github.com/iKon85/agent-workflow-kit/releases.
+
+**Deploy trigger:** a `push` to `main` whose range changed `package.json` — in
+practice, merging a version-bump PR. That run publishes to npm
+(`--access public --provenance`) and creates the GitHub release; nothing else
+deploys prod, and unrelated pushes to `main` are gated out. Merging a version
+bump is therefore an irreversible public action, not routine housekeeping. A
+red release run does not prove nothing was published (#205) — check `npm view`
+and `gh release view` before reacting. Full flow: `CLAUDE.md` §Consumer
+contract → Release.
 
 ## Token hygiene
 
