@@ -38,6 +38,16 @@ inherit it). pre-commit runs the fast skill/manifest lints (~3s); pre-push runs
 the full `npm test`. The explicit pre-PR gate stays `/local-ci` — the hooks are
 the backstop, not a replacement. Never bypass with `--no-verify`.
 
+`main` is protected by the `main protection` repository ruleset: a pull request
+is required (0 required approvals — a solo maintainer cannot self-approve), the
+CI job `test` must be green with the branch up to date (strict policy), and
+force-push, deletion and bypass actors are all off. There is therefore no direct
+push to `main`, and `gh pr merge --admin` no longer bypasses the check. The
+required context is the job name `test`, not the workflow name `CI`. This is
+free because the repo is public — protected branches on a private repo would
+need GitHub Pro. `/local-ci` stays the explicit pre-PR gate; the ruleset is the
+server-side backstop, not a replacement.
+
 ## Skill authoring
 
 - **English-first.** Every published skill's prose is English; the only
