@@ -81,10 +81,10 @@ node scripts/readiness.mjs check --skill orchestrate-wave --json
   - **Plan-level error** (integration/verify reveals a wrong LOCKED decision, not a
     slice bug): STOP the wave. No improvised redesign AFK — keep worktrees intact,
     report findings + options.
-  - **On ANY wave STOP/abort:** if this run planted the active-wave claim, remove
-    exactly that claim as part of shutdown. Never delete a claim marker observed
-    during a preflight collision, nor any sibling/foreign wave marker — those are
-    owned by another run. A stale marker owned by this run would block a safe retry.
+  - **On ANY wave STOP/abort:** if this run planted the active-wave claim, release
+    it via `releaseWaveClaim` with this run's owner as part of shutdown — it
+    refuses a foreign payload. Never delete a claim marker observed during a
+    preflight collision. A stale own marker would block a safe retry.
 - **Routing = one axis: how expensive is a wrong result to catch?** Mechanically
   caught (test/screenshot/lint) → default tier at medium/low effort; plausible-but-
   wrong / subtle logic / architecture → top tier at high effort + main-thread
@@ -124,15 +124,15 @@ replace the ~30-second heartbeat; otherwise the standing heartbeat remains requi
    preflight's single degraded summary is the only warning. Never guess a project
    command, tunnel, login, or verify recipe.
 3. **Preflight — refuse a wave already in flight, otherwise claim it.** Before
-   dispatch, inspect all three same-machine collision signals: **(a)** an existing
-   `wave-active/<anchor>` tag; **(b)** any slice branch ahead of the wave's current
-   base (`git rev-list --count <base>..<slice-branch>` > 0); **(c)** uncommitted
-   changes in any slice worktree (`git -C <worktree> status --porcelain` non-empty).
-   A hit not created by this run means another session may be building the wave:
-   **STOP**, report the exact tag/branch/worktree, and do not touch it. If clean,
-   record that this run owns the claim and plant a LOCAL annotated tag:
-   `git tag -a wave-active/<anchor> -m "orchestrating since <UTC timestamp>;
-   slices: <slice-branches>"`. It is local coordination state — never push it.
+   dispatch, inspect the two same-machine work signals: **(a)** any slice branch
+   ahead of the wave's current base (`git rev-list --count <base>..<slice-branch>`
+   > 0); **(b)** uncommitted changes in any slice worktree (`git -C <worktree>
+   status --porcelain` non-empty). Acquire the claim itself through `claimWave`
+   from `src/lib/waveClaim.mjs`: a compare-and-set on the `wave-active/<anchor>`
+   LOCAL annotated tag, so two sessions racing one wave cannot both win. Either
+   `acquired: false` or a work signal you did not create means another session
+   owns the wave — **STOP**, report the returned `claim.owner` plus the exact
+   branch/worktree, touch nothing. Local coordination state — never push the tag.
 4. **Wave worktree**: reuse the planning worktree (never re-create; the handoff
    points there). Bring its branch to current `main`:
    `git -C <wave> merge --ff-only origin/main` (if your repo guards destructive
@@ -307,9 +307,9 @@ written · merge order documented.
   your own processes, targeted by the worktree's assigned ports, never blind).
   Remove temp verify scripts (a login helper, DB-check scripts).
 - **Remove only this run's claim marker.** If this run planted
-  `wave-active/<anchor>`, delete that exact local tag after success or abort. Never
-  delete a claim marker observed during a preflight collision or any other
-  `wave-active/*` marker; ownership, not a broad pattern, authorizes cleanup.
+  `wave-active/<anchor>`, call `releaseWaveClaim` with this run's owner after
+  success or abort; its owner check, not a broad `wave-active/*` pattern,
+  authorizes cleanup, and a foreign marker is left untouched.
 - **Before removing any slice worktree, read its `ANNAHMEN.md`** (an assumptions
   log, gitignored at worktree-root) and propagate each build-time assumption marker
   to the sibling issue it carries. A hand-driven multi-PR / migration landing does
