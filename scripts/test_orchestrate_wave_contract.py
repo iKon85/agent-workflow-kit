@@ -27,6 +27,13 @@ CLAUDE_WORKFLOW = (
 CODEX_WORKFLOW = (
     REPO / ".agents/skills/orchestrate-wave/references/dispatch-workflow.md"
 )
+CLAUDE_SUBAGENTS = (
+    REPO / ".claude/skills/orchestrate-wave/references/dispatch-subagents.md"
+)
+CODEX_SUBAGENTS = (
+    REPO / ".agents/skills/orchestrate-wave/references/dispatch-subagents.md"
+)
+CODEX_SURFACE = REPO / ".agents/skills/orchestrate-wave"
 
 
 # Outcome -> fragments whose conjunction proves that portable behavior.
@@ -178,6 +185,45 @@ class OrchestrateWaveContract(unittest.TestCase):
             self.assertIn(fragment, workflow)
 
         self.assertEqual(workflow, CODEX_WORKFLOW.read_text(encoding="utf-8"))
+
+    def test_path_b_reference_locks_the_native_subagent_contract(self):
+        subagents = CLAUDE_SUBAGENTS.read_text(encoding="utf-8")
+        prose = " ".join(subagents.split())
+        for fragment in (
+            "one read-only explorer per slice",
+            "one builder per slice",
+            "explicit wait",
+            "exactly ONE JSON object",
+            "reportValidator.mjs",
+            "reconcileReconReports",
+            "main thread",
+            "is not a PASS",
+            "waveClaim",
+            "spawn_agents_on_csv",
+            "output_schema",
+            "dormant",
+        ):
+            self.assertIn(" ".join(fragment.split()), prose)
+
+        self.assertEqual(subagents, CODEX_SUBAGENTS.read_text(encoding="utf-8"))
+
+    def test_codex_surface_carries_no_path_a_primitive_outside_its_pointer_target(self):
+        """B-surface prose must not require Workflow-only primitives."""
+        offenders = {}
+        for path in sorted(CODEX_SURFACE.rglob("*.md")):
+            if path.name == "dispatch-workflow.md":
+                continue
+            body = path.read_text(encoding="utf-8")
+            hits = [term for term in ("journal.jsonl", "resumeFromRunId") if term in body]
+            # The literal tool name is admissible ONLY inside the capability gate.
+            if "`Workflow`" in body:
+                gate = body.split("## Orchestration mechanics", 1)
+                remainder = gate[0] + (gate[1].split("\n## ", 1)[1] if len(gate) > 1 and "\n## " in gate[1] else "")
+                if "`Workflow`" in remainder:
+                    hits.append("`Workflow`")
+            if hits:
+                offenders[str(path.relative_to(REPO))] = hits
+        self.assertEqual(offenders, {})
 
     def test_claude_and_codex_surfaces_match(self):
         self.assertEqual(

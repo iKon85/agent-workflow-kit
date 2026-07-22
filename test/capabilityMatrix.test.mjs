@@ -110,6 +110,43 @@ test('adapters normalize missing evidence to unknown without ambient discovery',
   }
 });
 
+test('the codex host inventory proven by spike #171 fails closed to Path C', () => {
+  // codex-cli 0.144.6: ALL_TOOLS exposed name and description only -- no tool
+  // schema, no callable/permitted flags, no threadCapacity. Native spawn/wait
+  // exist and concurrency is >= 2, but that alone must never prove Path B.
+  const adapted = capabilityAdapter.codex({
+    contractVersion: 1,
+    tools: [
+      { name: 'spawn_agent', description: 'start a subagent' },
+      { name: 'wait_agent', description: 'wait for running subagents' },
+      { name: 'list_agents', description: 'list subagent status' },
+    ],
+    effectiveConcurrency: 4,
+  });
+
+  for (const tool of adapted.tools) {
+    assert.equal(tool.schema, 'unknown');
+    assert.equal(tool.callable, 'unknown');
+    assert.equal(tool.permitted, 'unknown');
+    assert.equal(tool.capabilities, 'unknown');
+  }
+  assert.equal(adapted.threadCapacity, 'unknown');
+  assert.equal(classifyCapabilities(adapted), 'C');
+  assert.deepEqual(selectOrchestrationReference(adapted), {
+    path: 'C', kind: 'inline', value: 'path-c',
+  });
+});
+
+test('a codex host with complete native evidence routes to Path B, never Path A', () => {
+  // Dormant until a future host supplies the complete normalized inventory.
+  const adapted = capabilityAdapter.codex(inventory());
+
+  assert.equal(classifyCapabilities(adapted), 'B');
+  const target = selectOrchestrationReference(adapted);
+  assert.equal(target.value, 'references/dispatch-subagents.md');
+  assert.notEqual(target.value, 'references/dispatch-workflow.md');
+});
+
 test('an unsupported inventory contract version cannot prove capabilities', () => {
   const adapted = capabilityAdapter.claude(inventory({ contractVersion: 2 }));
   assert.equal(classifyCapabilities(adapted), 'C');
