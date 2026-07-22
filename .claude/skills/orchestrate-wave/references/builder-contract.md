@@ -56,12 +56,25 @@ invocation for each in this prompt so the builder cannot guess a wrong one.
    completed command result. Never end your turn while a command is still running.
 
 ## Report back (concise)
-Files touched · decisions taken · test results (exact completed command results
-and exit status) · commit SHA · STOP items · what the orchestrator should visually
-verify.
+Return exactly ONE JSON object against the builder report contract — no prose
+around it, no second object. Cover: files touched · decisions taken · test
+results (exact completed command results and exit status) · commit SHA · STOP
+items · what the orchestrator should visually verify.
 ```
 
 Orchestrator notes:
+
+- **The report contract is identical on every orchestration path.** Whether the
+  builder was dispatched by a scripted workflow, by native subagents, or run
+  directly and serially, it reports the same shape. `src/lib/reportValidator.mjs`
+  is the source of truth; [`references/report-contracts.md`](report-contracts.md)
+  is its machine-checked mirror for hosts that must inline a schema. Fill the
+  report section above with the builder schema from whichever of the two the
+  host can reach — never a hand-written variant.
+- **Validation is always the main thread's.** Schema-validate the returned
+  object, then call `semanticVerify` with independently collected Git facts. A
+  builder's own claim of success is a hypothesis; a payload that does not parse
+  or fails either check is a missing report, not a PASS.
 
 - `{{CONSUME_ONLY_LINES}}` come from the Phase-1 reconciliation, e.g.
   "X already exists in `<file>` — do NOT add it, consume only."

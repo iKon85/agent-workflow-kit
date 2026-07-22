@@ -111,6 +111,18 @@ class OrchestrateWaveContract(unittest.TestCase):
         ):
             self.assertIn(" ".join(fragment.split()), prose)
 
+    def test_builder_report_contract_is_identical_on_every_path(self):
+        """One report contract, whichever mechanic dispatched the builder."""
+        prose = " ".join(self.builder.split())
+        for fragment in (
+            "identical on every orchestration path",
+            "references/report-contracts.md",
+            "exactly ONE JSON object",
+            "src/lib/reportValidator.mjs",
+            "semanticVerify",
+        ):
+            self.assertIn(" ".join(fragment.split()), prose)
+
     def test_current_portable_contracts_survive_the_port(self):
         for fragment in (
             "project layer",

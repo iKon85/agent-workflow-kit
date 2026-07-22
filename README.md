@@ -349,7 +349,54 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 `--force` (overwrite pre-existing untracked files on `init`), `--yes` / `-y`
 (accept non-interactive update decisions).
 
+## Upgrade notes
+
+### 0.33.0 — capability-gated orchestration
+
+`kit-update` reconciles this release for you. These notes matter only if you
+maintain a **local fork of `orchestrate-wave`**: the blocks below changed
+behaviour, so a forked copy must re-apply them by hand or it keeps orchestrating
+the old way. Decision record:
+[`docs/adr/0002-capability-gated-orchestration.md`](docs/adr/0002-capability-gated-orchestration.md).
+
+- **Capability matrix, fail-closed.** The dispatch mechanic is selected from
+  host-supplied capability evidence, degrading A → B → C. Missing or `unknown`
+  evidence never proves a capability, and Path C (direct, serial) is always
+  available.
+- **No emulation of a missing primitive.** A host without a scripted workflow
+  runtime gets the simpler recipe, never a hand-rolled imitation of one.
+- **Codex Path B is native subagents.** Explicit per-slice spawns joined by an
+  explicit wait — dormant until a host supplies the complete normalized
+  inventory.
+- **JSON-schema reports plus independent verification.** Every path returns
+  schema-valid recon and builder reports and crosses the same main-thread
+  boundary; a builder's own PASS is a hypothesis until `semanticVerify` confirms
+  it against independently collected Git facts.
+- **Per-batch, post-hub worktree provisioning.** Worktrees are created serially
+  in the main thread from the integrated base after the hub lands, under an
+  atomic compare-and-set wave claim; reuse on a stale base now STOPs.
+- **Heartbeat during long gates.** Long-running gates report status rather than
+  waiting silently.
+
 ## Release notes
+
+### 0.33.0
+
+- added: `.agents/skills/orchestrate-wave/references/dispatch-subagents.md`
+- added: `.agents/skills/orchestrate-wave/references/dispatch-workflow.md`
+- added: `.agents/skills/orchestrate-wave/references/report-contracts.md`
+- added: `.claude/skills/orchestrate-wave/references/dispatch-subagents.md`
+- added: `.claude/skills/orchestrate-wave/references/dispatch-workflow.md`
+- added: `.claude/skills/orchestrate-wave/references/report-contracts.md`
+- added: `src/lib/capabilityMatrix.mjs`
+- added: `src/lib/reconcileReconReports.mjs`
+- added: `src/lib/reportValidator.mjs`
+- added: `src/lib/waveClaim.mjs`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/references/builder-contract.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/references/builder-contract.md`
+- changed: `scripts/worktree-lifecycle/setup.py`
 
 ### 0.32.1
 
