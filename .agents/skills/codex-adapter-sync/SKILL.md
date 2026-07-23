@@ -22,23 +22,27 @@ correct issue or slice worktree before the first edit. Never apply adapter
 changes on `main`; move any accidental main-checkout diff into the worktree and
 leave the main checkout clean.
 
-## Model routing
+## Routing intent
 
-Default to inherited parent model configuration. Do not pin a model merely
-because the source workflow delegates, and do not invent model or role fields
-on a spawn call. The supported built-in agent names are `default`, `worker`, and
-`explorer`; custom agents declare overrides in their TOML files.
+Durable issues and handoffs describe task shape with provider-neutral
+`routing-intent` and `reasoning-intent` values. Never persist a provider model
+identifier or copy a resolved route back into shared work. The supported
+built-in agent names remain `default`, `worker`, and `explorer`.
 
-When an explicit custom-agent model is genuinely justified, route by task
-shape:
+At dispatch time, resolve the intent by comparing the Kit-owned Evidence
+catalog with the user-local Access graph and Routing policy. Keep those
+contracts separate: catalog facts include inaccessible models, the Access graph
+attests available paths and enforcement, and personal policy filters facts
+without changing them. Report the best overall route separately from the best
+currently executable route. Unknown transports and stale capability evidence
+block; missing routing infrastructure may fall back only through explicit
+`inherit`.
 
-- `gpt-5.6-sol` for complex, open-ended judgment work.
-- `gpt-5.6-terra` for everyday tool-using development.
-- `gpt-5.6-luna` for clear, repeatable, high-volume work.
-
-Use `model_reasoning_effort` for a supported reasoning override. The family
-name `gpt-5.6` describes the family and is not a fourth concrete variant in
-this routing table. Keep user gates, security judgment, and approval decisions
+Apply any selected provider route only through the active surface's verified
+adapter. An AFK dispatch must prove its requested and applied route plus model
+and effort enforcement in a one-execution Dispatch receipt. Credentials,
+personal access state, and personal policy stay outside repositories and
+package-owned files. Keep user gates, security judgment, and approval decisions
 in the main thread.
 
 ## Scope
@@ -148,8 +152,8 @@ Run validation from the repository root and keep the evidence in the report:
    - Leave clearly Claude-only setup, hook, or personal/meta skills out unless
      the user explicitly wants them ported.
    - Translate Claude-specific delegation rather than copying it literally.
-     Apply the Model routing section above only when an explicit custom-agent
-     override is justified; otherwise preserve inherited parent configuration.
+     Apply the Routing intent section above only when an explicit user-local
+     route is justified; otherwise preserve explicit inheritance.
    - Keep dual-surface generic/vendored skill bodies content-synced. When a
      Codex mirror must intentionally differ from the Claude source, bracket the
      source region and the Codex replacement with a matching transform marker

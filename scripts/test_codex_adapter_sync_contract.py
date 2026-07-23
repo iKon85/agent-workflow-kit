@@ -39,27 +39,24 @@ class AdapterModesContract(unittest.TestCase):
         self.assertNotIn("before inventory or edits", self.body)
 
 
-class AdapterModelContract(unittest.TestCase):
+class AdapterRoutingContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.body = ADAPTER.read_text(encoding="utf-8")
 
-    def test_current_models_inherit_by_default_and_route_by_task_shape(self):
-        routing = " ".join(section(self.body, "Model routing").split())
+    def test_durable_routing_is_provider_neutral_and_resolved_at_dispatch(self):
+        routing = " ".join(section(self.body, "Routing intent").split())
 
-        self.assertIn("inherited parent model configuration", routing)
-        self.assertIn("`gpt-5.6-sol`", routing)
-        self.assertIn("complex, open-ended judgment work", routing)
-        self.assertIn("`gpt-5.6-terra`", routing)
-        self.assertIn("everyday tool-using development", routing)
-        self.assertIn("`gpt-5.6-luna`", routing)
-        self.assertIn("clear, repeatable, high-volume work", routing)
-        self.assertIn("`model_reasoning_effort`", routing)
+        self.assertIn("`routing-intent`", routing)
+        self.assertIn("`reasoning-intent`", routing)
+        self.assertIn("Evidence catalog", routing)
+        self.assertIn("Access graph", routing)
+        self.assertIn("Routing policy", routing)
+        self.assertIn("dispatch time", routing)
+        self.assertIn("explicit `inherit`", routing)
+        self.assertIn("Dispatch receipt", routing)
         self.assertIn("`default`, `worker`, and `explorer`", routing)
-        self.assertIn("not a fourth concrete variant", routing)
 
-        for stale in ("gpt-5.4-mini", "gpt-5.5"):
-            self.assertNotIn(stale, self.body)
         self.assertNotRegex(self.body, r"(?<!model_)\breasoning_effort\b")
         self.assertNotRegex(self.body, r"\bagent_type\b")
 
