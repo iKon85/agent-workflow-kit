@@ -49,7 +49,7 @@
 
   <!-- top branch: planned top-down -->
   <rect x="350" y="350" width="260" height="40" rx="7" fill="#2E3850" stroke="B2" stroke-width="1.2"/>
-  <text x="480" y="375" font-size="12.5" fill="#8FA9C4" text-anchor="middle">scale-check → grill → to-waves</text>
+  <text x="480" y="375" font-size="12.5" fill="#8FA9C4" text-anchor="middle">scale-check → grill → to-issues</text>
   <line x1="480" y1="390" x2="553" y2="430" stroke="#8A95A6" stroke-width="1.4" marker-end="url(#arrow)"/>
 
   <!-- main spine -->

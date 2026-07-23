@@ -49,7 +49,8 @@ Prefer the smallest depth that produces a clear next action.
   undertaking, several independently-shippable stages. Run `/scale-check`
   first (it owns the altitude criteria catalog — this router only names it);
   two or more criteria tripped routes to a program grill → `/to-prd` →
-  `/to-waves`.
+  `/to-issues`. The explicit Program identity makes the Planning facade select
+  its internal graph engine; the user never chooses that engine.
 - **Deep:** `/grill-with-docs` followed by `/to-prd` and `/to-issues` when
   terminology, contracts, rollout order, or ownership are still uncertain.
 - **Medium:** `/to-issues` for a ready artefact that needs slicing.
@@ -73,9 +74,9 @@ A starting situation that generates work, then merges onto the main flow.
 
 - **Bugs and requests piling up** → **`/triage`**. Moves issues through triage and produces agent-ready issues that `/implement` later picks up. Only for issues **you didn't create** — `/to-issues` output is already agent-ready, don't triage it.
 - **Something's broken** → **`/diagnose`**. For the hard ones: the bug that resists a first glance, the intermittent flake, the regression between two known-good states. Refuses to theorise until it has a **tight feedback loop** — one command that already goes red on *this* bug — then fixes with a regression test. Its post-mortem hands off to **`/improve-codebase-architecture`** when the finding is that there's no good seam.
-- **A huge, foggy effort too big for one agent session** — a greenfield build or a sprawling feature where the way from here to the destination isn't yet visible, and it's still **pre-spec** (before any grill or PRD) → **`/wayfinder`** (user-invoked). It charts a **shared map** of investigation slices on the tracker and resolves them one at a time — producing **decisions, not deliverables** — until the fog lifts and the route is clear, then merges onto the main flow at **`/to-prd`** (or, if the effort turned out small enough, straight to **`/implement`**). Where `/grill-with-docs` sharpens an idea you can hold in one session, wayfinder is for the one you can't. Once an undertaking has already resolved into several independently-shippable waves, `/scale-check` → `/to-waves` stays the primary route.
+- **A huge, foggy effort too big for one agent session** — a greenfield build or a sprawling feature where the way from here to the destination isn't yet visible, and it's still **pre-spec** (before any grill or PRD) → **`/wayfinder`** (user-invoked). It charts a **shared map** of investigation slices on the tracker and resolves them one at a time — producing **decisions, not deliverables** — until the fog lifts and the route is clear, then merges onto the main flow at **`/to-prd`** (or, if the effort turned out small enough, straight to **`/implement`**). Where `/grill-with-docs` sharpens an idea you can hold in one session, wayfinder is for the one you can't. Once an undertaking has already resolved into several independently-shippable waves, `/scale-check` → `/to-issues` stays the primary route.
 - **A backlog to cluster** → **`/board-to-waves`**. Groups an existing board into themed waves when you need to *find* the next wave rather than start fresh.
-- **A whole wave to LAND** → **`/orchestrate-wave`**. When a wave anchor (file-disjoint slices, specs already locked) is ready to build, verify and land end-to-end — often AFK: it dispatches an implementer per slice in its own worktree, integrates serially, verifies centrally, and lands the wave. The execute-and-land node of the wave ladder (`scale-check` → `to-waves`/`board-to-waves` → `orchestrate-wave`). A single slice just goes to `/implement`.
+- **A whole wave to LAND** → **`/orchestrate-wave`**. When a wave anchor (file-disjoint slices, specs already locked) is ready to build, verify and land end-to-end — often AFK: it dispatches an implementer per slice in its own worktree, integrates serially, verifies centrally, and lands the wave. The execute-and-land node of the wave ladder (`scale-check` → `to-issues`/`board-to-waves` → `orchestrate-wave`). A single slice just goes to `/implement`.
 
 ## Cross-model review (Codex)
 

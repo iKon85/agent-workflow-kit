@@ -36,7 +36,11 @@ to-issues        slices + promotes (sets type:cluster + Wave at ≥2 slices)
 
 **Stops at stubs.** No slice plan, no PRD, no sub-issue link, no promotion. Whether/when a stub becomes a real wave = separate step (`to-prd → to-issues`), <maintainer>'s call.
 
-**S4 exit — no stub at all.** A candidate that trips the `scale-check` altitude criteria (Splitter S4 below) skips the stub step entirely — it is reported as an escalation, pointing at `scale-check` (→ a program grill → `to-prd` program mode → `to-waves`), never at `to-prd`/`to-issues` directly. Still <maintainer>'s call, still no board write here.
+**S4 exit — no stub at all.** A candidate that trips the `scale-check` altitude
+criteria (Splitter S4 below) skips the stub step entirely — it is reported as
+an escalation, pointing at `scale-check` (→ a program grill → `to-prd` Program
+mode → `to-issues`), never straight into ordinary Feature decomposition. Still
+<maintainer>'s call, still no board write here.
 
 Model: **strongest available reasoning model for board-wide judgment calls** (survey/plan/brainstorm — cross-board judgment, <maintainer>'s table).
 
@@ -64,7 +68,7 @@ Model: **strongest available reasoning model for board-wide judgment calls** (su
 - **S1 Too big** — > ~7 slices / not shippable in a manageable sequence → split into two waves.
 - **S2 Foreign parent** — issue already hangs under another wave (GitHub 1-parent; `to-issues` link check is the final word).
 - **S3 "Same type alone" ≠ wave** — type is a booster, never a gate. Otherwise "all refactors" becomes a junk drawer.
-- **S4 Programm-Verdacht** — the candidate trips the `scale-check` altitude criteria (`.claude/skills/scale-check/SKILL.md` § "Altitude criteria (the single source of truth)" — referenced here, **never** re-forked; e.g. staged delivery + several subsystems that each stand on their own) → **escalate to the Program route instead of creating a candidate stub**: report it in the candidate list (§3/§5) pointing at `scale-check` (grill once into a Program-PRD with a Wellenplan, then `to-waves` unfolds it), not `to-prd`/`to-issues`. The bottom-up Wave-stamping rule above is unaffected — an escalated candidate is still just a proposal, not yet a committed wave, exactly like any other candidate.
+- **S4 Programm-Verdacht** — the candidate trips the `scale-check` altitude criteria (`.claude/skills/scale-check/SKILL.md` § "Altitude criteria (the single source of truth)" — referenced here, **never** re-forked; e.g. staged delivery + several subsystems that each stand on their own) → **escalate to the Program route instead of creating a candidate stub**: report it in the candidate list (§3/§5) pointing at `scale-check` (grill once into a Program-PRD with a Wellenplan, then `to-issues` selects the Program graph path from that explicit identity), not directly to a hidden engine. The bottom-up Wave-stamping rule above is unaffected — an escalated candidate is still just a proposal, not yet a committed wave, exactly like any other candidate.
 
 **Rule:** issue → candidate X if **Gate(X) satisfied AND ≥1 booster fires** and no splitter applies. Otherwise: own candidate or leftover bucket "unclustered / standalone issue".
 

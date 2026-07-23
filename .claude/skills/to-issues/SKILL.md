@@ -1,6 +1,6 @@
 ---
 name: to-issues
-description: Break a plan, spec, or PRD into independently-grabbable issues on the project issue tracker using tracer-bullet vertical slices. Use when user wants to convert a plan into issues, create implementation tickets, or break down work into issues.
+description: Break a Feature or Program plan, spec, or PRD into independently-grabbable issues on the project issue tracker. This is the single public Planning facade: explicit Feature identity uses tracer-bullet decomposition; explicit Program identity delegates to the internal graph engine.
 ---
 
 # To Issues
@@ -22,6 +22,39 @@ node scripts/readiness.mjs check --skill to-issues --json
 - `verdict=blocked`: `STOP` before any mutation. Report every required capability as `<capability>=<state>` so `issueTracker`, `managedBoard`, and `specCompleteness` failures — including distinct `missing`, `pending`, and `invalid` states — stay visible, then give exactly one recovery path: **Run `/setup-workflow`, then rerun `/to-issues`.** Do not fall back to bare tracker or board commands.
 - `managedBoard=not-applicable`: `STOP` and report that `/to-issues` is **inapplicable** for a project that deliberately has no managed board. This is a terminal project decision, not invalid evidence and not a partially active mode.
 <!-- readiness:required-preflight:end -->
+
+## Planning facade — select by explicit identity only
+
+`to-issues` is the **single public Planning facade**. After the readiness
+preflight and before any remote write, classify the source from its explicit PRD
+identity:
+
+- **Feature identity → `planning-mode=feature`.** The body carries
+  `<!-- prd: awaiting-decomposition -->` and its one `type:*` label is not the
+  configured Program type. Run the existing Feature decomposition path below:
+  one slice stays ATOMIC; two or more slices PROMOTE to a wave anchor.
+- **Program identity → `planning-mode=program`.** The body carries
+  `<!-- prd: program -->` and its one `type:*` label is the board profile's
+  `labels.programType` value. Preserve the source and delegate to the internal
+  `to-waves` graph engine. That engine still validates the graph, shows the
+  complete Program preview, waits for the single explicit approval, and performs
+  zero remote writes before approval.
+
+**Missing or contradictory identity is a hard stop before a remote write.**
+Missing means neither marker is present, including a raw issue, file bundle, or
+external PRD without an explicit identity. Contradictory means both markers are
+present, the marker disagrees with the `type:*` label, or the source carries
+multiple type labels. Report the observed markers and type labels, then ask the
+user to establish exactly one identity. A cold-entry source may receive a
+Feature or Program identity only after that explicit choice; rerun this
+classification before any normalization or publication.
+
+**Size, prose, and model judgment never select the mode.** A `## Wellenplan`
+heading, estimated file count, wording such as “large program”, or an agent's
+inference may validate or contradict an already explicit identity, but none may
+create or switch it. A Program identity without the graph grammar is a blocking
+contract error, not a fallback to Feature. A Feature identity with Program-only
+graph grammar is likewise contradictory and stops.
 
 ## Process
 
@@ -110,7 +143,8 @@ Ask the user:
 
 Iterate until the user approves the breakdown.
 
-**Program batch handoff.** When `to-waves` invokes this skill for a Stufe-1p stub,
+**Program batch handoff.** When the internal Program graph engine invokes this
+skill for a Stufe-1p stub,
 the complete Program preview has already shown and approved every wave's slice
 contract. Reuse that approval when this pass preserves the approved cut: do not
 pause again merely because the internal pipeline crossed a skill boundary. Run
@@ -122,9 +156,21 @@ newly discovered gate invalidates the inherited approval and returns to §4.
 
 **Cluster/Wave discriminator (identical wording — `to-prd` §2 / `to-issues` §5):** `type:cluster` (label) always stops. A Wave number also stops, **unless** the target carries the `wave-stub` label — a Wave-stamped `wave-stub` issue is a **Stufe-1p Program-stub** (`to-waves`-published, native parent = a Program-PRD) and remains a **valid target**. A Wave-stamped issue **without** `wave-stub` (an already-assigned leaf, or a drifted item) is still a hard stop.
 
-The canonical source is a **Draft-PRD** issue from `to-prd` (carries `plan_revision`, `<!-- prd: awaiting-decomposition -->`, exactly one `type:*` + one `priority:*`, **no** `type:cluster`, and no Wave **unless** the discriminator's `wave-stub` exception applies — a Program-stub's per-wave-start content pass writes this same shape into an already Wave-stamped stub, `to-prd` §2). But `to-issues` is **provenance-independent**: it re-derives readiness from the **artefact** (§3b), never from which tool produced it.
+The canonical Feature source is a **Draft-PRD** issue from `to-prd` (carries
+`plan_revision`, `<!-- prd: awaiting-decomposition -->`, exactly one `type:*` +
+one `priority:*`, **no** `type:cluster`, and no Wave **unless** the
+discriminator's `wave-stub` exception applies — a Program-stub's per-wave-start
+content pass writes this same shape into an already Wave-stamped stub, `to-prd`
+§2). The facade is provenance-independent but not identity-optional: it
+re-derives readiness from the **artefact** (§3b), never from which tool produced
+it, only after the explicit identity classification above selected the mode.
 
-**Cold entry on an already-existing issue.** The source can also be a **raw issue**, an **external PRD embedded in an issue**, or a **mechanical file bundle** — without the `to-prd` markers. Then a **cold-entry preflight applies before anything is mutated:**
+**Cold entry on an already-existing issue.** The source can also be a **raw
+issue**, an **external PRD embedded in an issue**, or a **mechanical file
+bundle** — without the `to-prd` markers. That absence first triggers the
+facade's identity hard stop above. Only after the user explicitly establishes
+Feature identity may this **cold-entry preflight apply before anything is
+mutated:**
 - **Hard-stop per the discriminator above** — `type:cluster` always; Wave only when the issue is **not** a `wave-stub` (the exception is already an intended promote target — `promote` reuses its pre-stamped Wave number, §5a below).
 - **Normalize labels** (mirroring `to-prd`'s normalization): exactly **one `type:*` + one `priority:*`**; `needs-info`/`ready-for-agent` **stripped** until the final bucket assignment (§5c).
 - **Synthesize missing `to-prd` markers in place** (never assume them): `plan_revision r1` at the body head, render the Tier-2 anchor body from the template. Surface `source`/`synthesized` in the §7 audit.
@@ -430,12 +476,17 @@ It asserts, for the rooted local graph:
 
 If the source was a `wave-stub` stub, briefly confirm the label is gone (the publish mechanic strips it automatically — see §5): `gh issue view <anchor-or-leaf#> --json labels -q '.labels[].name'` shows **no** `wave-stub`. (Not part of `execute-ready-check.py` — its own quick check.)
 
-`--mode audit` is **non-blocking** — a mismatch is a **loud warning** here; the **hard block** is `.claude/hooks/drift-guard.py` at handoff-creation. Emit a visible audit two-liner:
+`--mode audit` is **non-blocking** — a mismatch is a **loud warning** here; the
+**hard block** is `.claude/hooks/drift-guard.py` at handoff-creation. Emit a
+visible audit that names the selected facade mode:
 
 ```
-to-issues: anchor=#<X> mode=<promote|atomic> slices=<n> rev <old>→<new>
+to-issues: planning-mode=feature anchor=#<X> mode=<promote|atomic> slices=<n> rev <old>→<new>
   source=<draft-prd|raw-issue|external-prd|bundle>  synthesized=<marker-list | none>
   AFK=[#a #b] HITL=[#c] · drift=<none | …>  shape=<ok | warn:…>
 ```
+
+The Program graph engine emits `planning-mode=program` in its own counted audit
+after the complete preview gate; the facade relays that audit unchanged.
 
 Do NOT close or modify any parent issue beyond the promote stamp.
