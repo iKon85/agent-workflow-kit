@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "exportId": "openhands-index-swebench-multimodal-2026-07",
+  "benchmark": {
+    "id": "swe-bench-multimodal",
+    "version": "openhands-index-2026-07",
+    "owner": "OpenHands",
+    "url": "https://www.openhands.dev/blog/openhands-index"
+  },
+  "harness": {
+    "id": "openhands-sdk",
+    "version": "1.2.0"
+  },
+  "rows": [
+    {
+      "providerId": "provider-r",
+      "modelId": "model-r",
+      "effort": "unknown",
+      "score": 0.61,
+      "confidenceInterval": 0.04,
+      "status": "established",
+      "sampleSize": 100,
+      "cost": {
+        "amount": 1.85,
+        "currency": "USD",
+        "unit": "task"
+      }
+    }
+  ]
+}
