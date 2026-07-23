@@ -143,6 +143,62 @@ test('invalid timeout and mode inputs fail before launch', () => {
   assert.equal(exists(fx.launchLog), false);
 });
 
+test('approved route passes explicit model and effort controls to Codex', () => {
+  const fx = fixture();
+  const result = invoke(fx, [
+    ...launchArgs(),
+    '--model', 'coding-model',
+    '--effort', 'high',
+  ]);
+  assert.equal(result.output.status, 'OK');
+  const command = JSON.parse(readFileSync(fx.launchLog, 'utf8').trim());
+  assert.ok(command.includes('model=coding-model'));
+  assert.ok(command.includes('model_reasoning_effort=high'));
+
+  const resumed = invoke(fx, [
+    'resume', result.output.runId, '--codex-bin', fake,
+    '--prompt', 'Again', '--timeout', '2',
+  ]);
+  assert.equal(resumed.output.status, 'OK');
+  const resumeCommand = JSON.parse(readFileSync(fx.launchLog, 'utf8').trim().split('\n').at(-1));
+  assert.ok(resumeCommand.includes('model=coding-model'));
+  assert.ok(resumeCommand.includes('model_reasoning_effort=high'));
+
+  const mismatch = invoke(fx, [
+    'resume', result.output.runId, '--codex-bin', fake,
+    '--model', 'other-model', '--effort', 'high', '--prompt', 'No',
+  ]);
+  assert.equal(mismatch.output.error, 'ROUTE_CONTROL_MISMATCH');
+});
+
+test('route controls fail closed when incomplete or unsafe', () => {
+  for (const args of [
+    [...launchArgs(), '--model', 'coding-model'],
+    [...launchArgs(), '--effort', 'high'],
+    [...launchArgs(), '--model', 'unsafe value', '--effort', 'high'],
+    [...launchArgs(), '--model', 'coding-model', '--effort', 'unknown'],
+  ]) {
+    const fx = fixture();
+    const result = invoke(fx, args);
+    assert.equal(result.output.error, 'INVALID_ROUTE_CONTROL');
+    assert.equal(exists(fx.launchLog), false);
+  }
+});
+
+test('current extended reasoning efforts are passed through explicitly', () => {
+  for (const effort of ['max', 'ultra']) {
+    const fx = fixture();
+    const result = invoke(fx, [
+      ...launchArgs(),
+      '--model', 'coding-model',
+      '--effort', effort,
+    ]);
+    assert.equal(result.output.status, 'OK', effort);
+    const command = JSON.parse(readFileSync(fx.launchLog, 'utf8').trim());
+    assert.ok(command.includes(`model_reasoning_effort=${effort}`));
+  }
+});
+
 test('finalize deletes state, debug-retain preserves diagnostics, and finalized resume fails', () => {
   const fx = fixture();
   const run = invoke(fx, launchArgs()).output;

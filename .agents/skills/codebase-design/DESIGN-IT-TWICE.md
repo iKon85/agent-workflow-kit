@@ -18,7 +18,17 @@ Show this to the user, then immediately proceed to Step 2. The user reads and th
 
 ### 2. Spawn sub-agents
 
-Spawn 3+ sub-agents in parallel using the Agent tool. Each must produce a **radically different** interface for the deepened module.
+Before dispatch, resolve a provider-neutral Routing intent through
+`src/lib/routeDispatcher.mjs` and require a Dispatch receipt from the shared
+spawn guard. A detected transport is not authorization; AFK dispatch stops
+unless requested/applied route, model/effort enforcement, environment
+precedence, and catalog/access/policy revisions are proved.
+
+<!-- mirror-xform:start codex-parallel-subagent-dispatch -->
+When the user has authorized subagent delegation, make 3+ parallel
+`spawn_agent` calls using only `task_name`, `message`, and `fork_turns`. Each
+must produce a **radically different** interface for the deepened module.
+<!-- mirror-xform:end -->
 
 Prompt each sub-agent with a separate technical brief (file paths, coupling details, dependency category from [DEEPENING.md](DEEPENING.md), what sits behind the seam). The brief is independent of the user-facing problem-space explanation in Step 1. Give each agent a different design constraint:
 

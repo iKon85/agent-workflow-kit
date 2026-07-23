@@ -28,6 +28,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `docs/agents/census.md` | optional-census choice, paths, state, and safe disable contract seeded from [census.md](./census.md) (Section A3) |
 | `docs/agents/workflow-capabilities.json` + capability assets | consumer-owned Worktree Lifecycle, Memory Lifecycle, Workflow Advisories, and Safety Guardrails choices (Sections A4–A7) |
 | `.claude/settings.json` | additive activation of the advisory kit-origin Edit/Write hint (Section A8) |
+| user-local routing profile | familiar agent surfaces + switching autonomy (Section A9; never package- or repository-owned) |
 
 ## Idempotency contract — read before writing anything
 
@@ -60,6 +61,9 @@ Read the current state; don't assume. For every target file, read its first line
 - `docs/agents/census.md`, `.census/profile.json`, `.census/active.json` — an existing census choice or consumer-owned census to adopt.
 - `docs/agents/workflow-capabilities.json`, `.claude/settings.json`, `git config --get core.hooksPath` — existing capability choices/profile plus Worktree Lifecycle, Workflow Advisories, Safety Guardrails, and kit-origin hint wiring to adopt.
 - `.memory/active/`, `.memory/archive/`, and `.memory/receipts/` — consumer-owned Memory Lifecycle policies or recovery evidence to adopt without normalization.
+- The Kit routing-profile preflight — adopt a valid user-local choice without
+  printing or copying it into the repository. Never infer personal routing
+  policy from instruction files, credentials, or package-owned metadata.
 - `gh auth status` (if GitHub) — is `gh` authenticated, and with which scopes?
 
 ### 2. Section A — Issue tracker
@@ -280,6 +284,41 @@ This is an additive, idempotent settings edit, not a settings rewrite:
    `PreToolUse`, are consumer-owned conflicts: leave the file untouched and
    report the skipped activation. Never replace or normalize them.
 
+### 2h. Section A9 — Agent surfaces and switching autonomy
+
+> Routing setup asks which familiar agent apps you use and whether the Kit may
+> switch between them. Surface adapters establish providers, transports,
+> selectors, and enforcement capabilities; the default interview never asks
+> the user to describe those technical facts.
+
+Read the versioned agent-surface registry and detection result. Show its
+multi-select labels with detected entries preselected; never embed a separate
+list in prompt prose. Then ask only one plain-language autonomy question:
+
+- **Switch automatically** — record `automatic`.
+- **Ask before switching** — record `ask`.
+- **Stay in the current app** — record `current-surface-only`.
+
+When exactly one surface is selected, skip the autonomy question and use
+`current-surface-only`. Show an activation summary with explicit **Back**,
+**Advanced**, **Approve**, and **Safe current surface** actions. Back revisits
+the simple choices. Advanced is the only flow that may collect model
+preferences or optimization overrides, but those values remain a draft and
+return to the activation summary; Advanced alone never writes. Only a later
+Approve or Safe current surface action activates the draft. Safe current
+surface activates the selection with `current-surface-only`.
+
+Store the answer through `src/lib/routingProfile.mjs` in its user-local state
+location, outside the consumer repository and package manifest. Never print
+credentials or derive personal choices from detected transports. A valid
+existing profile is terminal and reports `still valid`; do not prompt again.
+Missing or invalid profiles receive one migration interview. Reconcile a
+materially stale profile, a removed route, or a newly detected meaningful
+surface with a typed delta that names only the changed choice and preserves
+unaffected surfaces, autonomy, and advanced values. Re-read the profile before
+activation and use its fingerprint plus the exclusive profile lock; a
+concurrent user-local change blocks activation and remains byte-preserved.
+
 ### 3. Section B — Triage labels
 
 > When `triage` processes an incoming issue it applies labels (or your tracker's equivalent). It needs strings you've actually configured, or it creates duplicates.
@@ -309,7 +348,14 @@ Seed `docs/agents/domain.md` from [domain.md](./domain.md).
 
 **Fallback (the single catch-all — no board / >1 / ambiguous / scope error / read failure):** do **not** auto-create a board (`gh project create` alone cannot provision the Status options + workflow fields a board needs). Write `board-sync.md` with `state=stub`, `mode=github-projects-v2`, and inline **instructions**: which fields the workflow profile needs (a Status single-select with your stage options; optionally a Wave number, a Cluster text, a Spec-Path / Plan-Path text), how to create the board in the GitHub UI / `gh`, and "then run `/setup-workflow` again — it will discover and fill the IDs." Retryable.
 
-**Optional — Phase field + saved Views (Program route only):** never auto-discovered or auto-created, unlike the fields above — a Phase field's option set is plan-specific. If this project plans to use the Program route (`scale-check` → `to-waves` → `validate-graph`), point the user at the seeded [board-sync.md](./board-sync.md)'s "Optional: the Program route" section for the `gh project field-create` command, the optional `fields.phase` / `labels.programType` profile keys, and the two saved Views to create by hand.
+**Optional — Phase field + saved Views (Program route only):** never
+auto-discovered or auto-created, unlike the fields above — a Phase field's
+option set is plan-specific. If this project plans to use the Program route
+(`scale-check` → `to-issues` with explicit Program identity → internal graph
+validation), point the user at the seeded [board-sync.md](./board-sync.md)'s
+"Optional: the Program route" section for the `gh project field-create`
+command, the optional `fields.phase` / `labels.programType` profile keys, and
+the two saved Views to create by hand.
 
 ### 6. Section E — Spec-layer seeds (non-interactive)
 

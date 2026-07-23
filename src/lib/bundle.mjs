@@ -77,6 +77,30 @@ export const HELPER_FILES = [
   { path: 'src/lib/reportValidator.mjs', kind: 'script', mode: 0o644 },
   // Fail-closed orchestration selector and its host-inventory adapters.
   { path: 'src/lib/capabilityMatrix.mjs', kind: 'script', mode: 0o644 },
+  // Provider-neutral routing runtime: one Evidence catalog, Access graph,
+  // Routing policy, resolver, spawn guard, receipt v2, and surface attestations.
+  // These modules form one consumer unit; omitting one leaves shipped dispatch
+  // prose pointing at a resolver or adapter that cannot execute.
+  { path: 'src/commands/routing-policy-update.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/agentSurfaceRegistry.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/dispatchReceipt.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/frontendWorkloads.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routeDispatcher.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingAccessGraph.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingAdapters/claude.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingAdapters/codex.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingCatalog.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingEvidenceCache.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingIntent.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingPolicy.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingProfile.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingResolver.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingSources/artificialAnalysis.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingSources/benchlm.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingSources/codeArena.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingSources/deepswe.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingSources/openhands.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingSources/openhandsFrontend.mjs', kind: 'script', mode: 0o644 },
   // Main-thread recon boundary shared by every orchestration path.
   { path: 'src/lib/reconcileReconReports.mjs', kind: 'script', mode: 0o644 },
   // Atomic compare-and-set wave claim: two sessions cannot orchestrate the same

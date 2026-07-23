@@ -5,13 +5,14 @@ requires proven native spawn, wait, and aggregate primitives plus effective
 concurrency and thread capacity ≥2. Route from proven capabilities only, never
 from a surface name, and do not emulate a missing primitive.
 
-This recipe is **dormant on the current Codex host.** A verify spike against
-codex-cli 0.144.6 (2026-07-21) proved native start plus bounded wait, and an
-effective concurrency of 4, but the host exposes tool entries carrying only a
-name and a description: no tool schema, no callable or permitted flags, no
-thread capacity. The adapter therefore emits `unknown` for those fields and the
-selector fails closed to Path C. Only a future host that supplies the complete
-normalized inventory selects this path.
+This recipe is **dormant unless the current host's complete orchestration
+inventory proves Path B.** The dated Codex routing attestation is a separate
+gate: the observed explicit-spawn schema exposes only `task_name`, `message`,
+and `fork_turns`, with no model or effort selector. Therefore
+`routingAdapters/codex.mjs` blocks differentiated AFK before spawn even when
+native start/wait/aggregate evidence is otherwise sufficient for Path B. A
+future host may enable the route only by attesting both orchestration primitives
+and applied model/effort controls; neither is inferred from the surface name.
 
 ## Main-thread preparation
 
@@ -55,10 +56,21 @@ Reconciliation is never delegated to a subagent.
 
 For the current reconciled batch, spawn **one builder per slice**, again as one
 concurrent batch joined by an explicit wait. Give each builder the verbatim
-builder contract, its reconciled allowlist, and its required commands. The host
-exposes no per-agent role, model, or reasoning selector, so routing falls back
-to the parent session configuration — record the tier you intended in the
-prompt itself rather than assuming the host honoured it.
+builder contract, its reconciled allowlist, and its required commands. Resolve
+the provider-neutral Routing intent immediately before each spawn. Pass the
+decision through `routeDispatcher.mjs` and the active surface adapter. Claude
+uses its native or explicitly policy-approved transport attestation; Codex uses
+only its dated `routingAdapters/codex.mjs` host attestation. Both must prove
+their requested and applied model and effort controls before invocation.
+Detection alone never authorizes a transport.
+
+The spawn guard compares the requested route with the adapter's applied route
+and environment precedence. It emits the shared Dispatch receipt with
+catalog/access/policy revisions. An unverified control, unauthorized transport,
+override mismatch, or unenforced effort blocks AFK before spawn. A genuinely
+unreachable route follows the policy's handoff, inherit, or block result; never
+silently inherit. A host without a proved per-agent selector remains on its
+existing parent-session fallback only when explicit non-AFK policy permits it.
 
 Each builder returns exactly one builder report. Validate it against the builder
 schema and then run `semanticVerify` on it in the main thread. A subagent's own

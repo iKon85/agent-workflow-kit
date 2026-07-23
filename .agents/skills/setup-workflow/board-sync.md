@@ -16,7 +16,7 @@ How the board-managed workflow skills (`to-prd`, `to-issues`, `board-to-waves`, 
 | Cluster | text | optional | thematic cluster tag |
 | Spec-Path | text | optional | link from an issue to its spec doc |
 | Plan-Path | text | optional | link from an issue to its plan doc |
-| Phase | single-select | optional | groups waves into phases for the Program route (`to-waves`/`validate-graph`) — only needed if this project uses it |
+| Phase | single-select | optional | groups waves into phases for the Program route (`to-issues` Program mode / internal graph validation) — only needed if this project uses it |
 
 ## Machine profile (SSOT) — `scripts/board_config.py` reads this
 
@@ -112,7 +112,12 @@ their titles unchanged; set it once to match your board's language.
 
 ## Optional: the Program route (Phase field + saved Views)
 
-Skip this section entirely unless this project actually plans to use the Program route (`scale-check` → `to-waves` → `validate-graph`) — `fields.phase` / `labels.programType` are never auto-discovered or auto-created (a Phase field's option set is plan-specific, not something `/setup-workflow` can guess), and a profile without them keeps loading unchanged.
+Skip this section entirely unless this project actually plans to use the Program
+route (`scale-check` → `to-issues` with explicit Program identity → internal
+graph validation) — `fields.phase` / `labels.programType` are never
+auto-discovered or auto-created (a Phase field's option set is plan-specific,
+not something `/setup-workflow` can guess), and a profile without them keeps
+loading unchanged.
 
 1. **Create the Phase field:** `gh project field-create <number> --owner <owner> --name Phase --data-type SINGLE_SELECT --single-select-options "P1,P2,P3"` (name the options after this project's actual phases).
 2. **Fill `fields.phase`** in the `<!-- board-sync:profile -->` block above with the same `{id, options}` shape as `fields.status` — read both back via `gh project field-list <number> --owner <owner> --format json`.

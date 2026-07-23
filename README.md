@@ -85,9 +85,11 @@ into the *same shaped artefact*: a Draft-PRD that, once sliced, becomes either o
 atomic issue or a wave anchor with child slices. What counts downstream is the
 **shape of the artefact, never where it came from** — so each step can be entered
 cold and *extracts or synthesizes* what's missing instead of assuming an earlier
-step ran. The routing key is just *"is there an issue yet?"*: a loose artefact
+step ran. The entry key is just *"is there an issue yet?"*: a loose artefact
 (no issue) enters at `to-prd`; an existing issue or file-bundle enters at
-`to-issues` directly.
+`to-issues` directly. Inside that facade, the explicit PRD identity — Feature or
+Program — is the only mode selector; a cold source must establish one before a
+remote write.
 
 - **Grill as deep as the work deserves — it's optional.** `grill-me` /
   `grill-with-docs` interrogate the intent (and your domain docs) until the real
@@ -98,13 +100,15 @@ step ran. The routing key is just *"is there an issue yet?"*: a loose artefact
   Draft-PRD issue, *extracting* the template sections from what already exists. A
   required section it genuinely can't derive becomes an honest **Open points**
   block, never a silent "looks complete" placeholder.
-- **`to-issues`** slices the PRD into tracer-bullet verticals and picks the shape:
-  **1 slice → one atomic issue** the PR closes; **≥2 slices → a wave anchor** with
-  linked child slices. It re-derives readiness from the artefact itself, so it works
-  just as well started straight on a raw issue or file-bundle — any unresolved
-  *Open points* travel through as a build-blocking gate (the profile's
-  configurable `vorBau` heading, see [Configuration](#configuration)) that never
-  vanishes silently.
+- **`to-issues`** is the single public Planning facade. Explicit Feature
+  identity selects tracer-bullet decomposition and picks the shape: **1 slice →
+  one atomic issue** the PR closes; **≥2 slices → a wave anchor** with linked
+  child slices. Explicit Program identity selects the existing internal graph
+  engine and preserves its complete chat preview before any board write.
+  Missing or contradictory identity stops before a write; size, prose, and model
+  judgment never select the mode. Any unresolved *Open points* travel through as
+  a build-blocking gate (the profile's configurable `vorBau` heading, see
+  [Configuration](#configuration)) that never vanishes silently.
 - **`board-to-waves`** clusters an existing backlog into themed campaigns when you
   need to *find* the next wave rather than start fresh.
 - **`triage`** keeps the inbox sane with a consistent label vocabulary.
@@ -211,7 +215,8 @@ hands a well-defined object to the level below:
 
 Two roads lead to the same wave. **Top-down:** `scale-check` names the size in
 a few plain questions; a big undertaking gets grilled once into a Program PRD
-with a wave plan, and `to-waves` unfolds it into named waves after you approve
+with a wave plan, and `to-issues` selects its internal Program graph path from
+that explicit identity. It unfolds the plan into named waves after you approve
 a full preview in chat — zero board writes until you say yes. **Bottom-up:**
 `board-to-waves` clusters loose issues into a wave candidate, which earns a
 real number only when you promote it. Either road lands in the *identical*
@@ -222,7 +227,7 @@ When the slices are file-disjoint and their specs are locked, **`orchestrate-wav
 lands the whole anchor end-to-end — often AFK: it dispatches an implementer per
 slice into its own worktree, integrates serially, verifies centrally, and lands
 the wave. It's the execute-and-land node of the wave ladder (`scale-check` →
-`to-waves` / `board-to-waves` → `orchestrate-wave`); a single slice still just
+`to-issues` / `board-to-waves` → `orchestrate-wave`); a single slice still just
 goes to `implement`.
 
 ![The Program-to-Phase-to-Wave-to-Slice altitude ladder, and the two routes — a planned top-down Program route and a grown bottom-up board route — that both fund the same Wave-and-Slices build spine.](docs/methodology.svg)
@@ -379,6 +384,69 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 0.34.0
+
+- added: `src/commands/routing-policy-update.mjs`
+- added: `src/lib/agentSurfaceRegistry.mjs`
+- added: `src/lib/dispatchReceipt.mjs`
+- added: `src/lib/frontendWorkloads.mjs`
+- added: `src/lib/routeDispatcher.mjs`
+- added: `src/lib/routingAccessGraph.mjs`
+- added: `src/lib/routingAdapters/claude.mjs`
+- added: `src/lib/routingAdapters/codex.mjs`
+- added: `src/lib/routingCatalog.mjs`
+- added: `src/lib/routingEvidenceCache.mjs`
+- added: `src/lib/routingIntent.mjs`
+- added: `src/lib/routingPolicy.mjs`
+- added: `src/lib/routingProfile.mjs`
+- added: `src/lib/routingResolver.mjs`
+- added: `src/lib/routingSources/artificialAnalysis.mjs`
+- added: `src/lib/routingSources/benchlm.mjs`
+- added: `src/lib/routingSources/codeArena.mjs`
+- added: `src/lib/routingSources/deepswe.mjs`
+- added: `src/lib/routingSources/openhands.mjs`
+- added: `src/lib/routingSources/openhandsFrontend.mjs`
+- changed: `.agents/skills/ask-matt/SKILL.md`
+- changed: `.agents/skills/audit-skills/SKILL.md`
+- changed: `.agents/skills/board-to-waves/SKILL.md`
+- changed: `.agents/skills/code-review/SKILL.md`
+- changed: `.agents/skills/codebase-design/DESIGN-IT-TWICE.md`
+- changed: `.agents/skills/codex-adapter-sync/SKILL.md`
+- changed: `.agents/skills/improve-codebase-architecture/INTERFACE-DESIGN.md`
+- changed: `.agents/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/references/dispatch-subagents.md`
+- changed: `.agents/skills/orchestrate-wave/references/dispatch-workflow.md`
+- changed: `.agents/skills/research/SKILL.md`
+- changed: `.agents/skills/scale-check/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/board-sync.md`
+- changed: `.agents/skills/setup-workflow/workflow-overview.md`
+- changed: `.agents/skills/to-issues/SKILL.md`
+- changed: `.agents/skills/to-waves/SKILL.md`
+- changed: `.claude/skills/ask-matt/SKILL.md`
+- changed: `.claude/skills/audit-skills/SKILL.md`
+- changed: `.claude/skills/board-to-waves/SKILL.md`
+- changed: `.claude/skills/code-review/SKILL.md`
+- changed: `.claude/skills/codebase-design/DESIGN-IT-TWICE.md`
+- changed: `.claude/skills/improve-codebase-architecture/INTERFACE-DESIGN.md`
+- changed: `.claude/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/references/dispatch-subagents.md`
+- changed: `.claude/skills/orchestrate-wave/references/dispatch-workflow.md`
+- changed: `.claude/skills/research/SKILL.md`
+- changed: `.claude/skills/scale-check/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/board-sync.md`
+- changed: `.claude/skills/setup-workflow/workflow-overview.md`
+- changed: `.claude/skills/to-issues/SKILL.md`
+- changed: `.claude/skills/to-waves/SKILL.md`
+- changed: `docs/agents/wave-anchor-template.md`
+- changed: `scripts/codex-exec.sh`
+- changed: `src/lib/capabilityMatrix.mjs`
 
 ### 0.33.0
 

@@ -3,6 +3,12 @@ name: research
 description: "Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated to a background agent."
 ---
 
+Before dispatch, resolve a provider-neutral Routing intent through
+`src/lib/routeDispatcher.mjs` and require a Dispatch receipt from the shared
+spawn guard. A detected transport is not authorization; AFK dispatch stops
+unless requested/applied route, model/effort enforcement, environment
+precedence, and catalog/access/policy revisions are proved.
+
 Spin up a **background agent** to do the research, so you keep working while it reads.
 
 Its job:

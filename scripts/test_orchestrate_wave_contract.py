@@ -34,6 +34,25 @@ CODEX_SUBAGENTS = (
     REPO / ".agents/skills/orchestrate-wave/references/dispatch-subagents.md"
 )
 CODEX_SURFACE = REPO / ".agents/skills/orchestrate-wave"
+EXPECTED_DIRECT_SPAWN_CONTRACTS = (
+    "audit-skills/SKILL.md",
+    "code-review/SKILL.md",
+    "codebase-design/DESIGN-IT-TWICE.md",
+    "improve-codebase-architecture/INTERFACE-DESIGN.md",
+    "improve-codebase-architecture/SKILL.md",
+    "research/SKILL.md",
+)
+DIRECT_SPAWN_PATTERN = re.compile(
+    r"Run \*\*one read-only research subagent|"
+    r"Run both axes as \*\*parallel sub-agents|"
+    r"Spawn 3\+ sub-agents|"
+    r"spawn 3\+ sub-agents|"
+    r"make 3\+ parallel\s+`spawn_agent` calls|"
+    r"Then use the Agent tool|"
+    r"use `spawn_agent` with `agent_type: explorer`|"
+    r"use `spawn_agent` with only|"
+    r"Spin up a \*\*background agent",
+)
 
 
 # Outcome -> fragments whose conjunction proves that portable behavior.
@@ -84,6 +103,15 @@ def markdown_body(text: str) -> str:
     if not text.startswith("---\n"):
         return text
     return text.split("\n---\n", 1)[1]
+
+
+def direct_spawn_contracts(surface: str) -> tuple[str, ...]:
+    root = REPO / surface
+    return tuple(sorted(
+        str(path.relative_to(root))
+        for path in root.rglob("*.md")
+        if DIRECT_SPAWN_PATTERN.search(path.read_text(encoding="utf-8"))
+    ))
 
 
 class OrchestrateWaveContract(unittest.TestCase):
@@ -176,6 +204,47 @@ class OrchestrateWaveContract(unittest.TestCase):
         self.assertIn("(b) tier + effort", prose)
         self.assertIn("Standing rules", prose)
 
+    def test_every_surface_dispatch_crosses_resolver_and_spawn_guard(self):
+        prose = " ".join(self.skill.split())
+        for fragment in (
+            "provider-neutral Routing intent",
+            "shared resolver",
+            "spawn guard",
+            "Claude or Codex adapter",
+            "routingAdapters/codex.mjs",
+            "Dispatch receipt",
+            "requested and applied route",
+            "environment precedence",
+            "detected transport is not authorization",
+            "AFK",
+        ):
+            self.assertIn(fragment, prose)
+
+    def test_every_direct_spawn_contract_routes_through_the_shared_guard(self):
+        required = (
+            "provider-neutral Routing intent",
+            "routeDispatcher.mjs",
+            "shared spawn guard",
+            "Dispatch receipt",
+        )
+        claude_actual = direct_spawn_contracts(".claude/skills")
+        codex_actual = direct_spawn_contracts(".agents/skills")
+        self.assertEqual(claude_actual, EXPECTED_DIRECT_SPAWN_CONTRACTS)
+        self.assertEqual(codex_actual, EXPECTED_DIRECT_SPAWN_CONTRACTS)
+        for relative in claude_actual:
+            claude = " ".join(
+                (REPO / ".claude/skills" / relative).read_text(encoding="utf-8").split()
+            )
+            codex = " ".join(
+                (REPO / ".agents/skills" / relative).read_text(encoding="utf-8").split()
+            )
+            with self.subTest(contract=relative):
+                for fragment in required:
+                    self.assertIn(fragment, claude)
+                    self.assertIn(fragment, codex)
+                for unsupported in ("Agent tool", "subagent_type", "agent_type"):
+                    self.assertNotIn(unsupported, codex)
+
     def test_path_a_reference_locks_the_two_run_dispatch_contract(self):
         workflow = CLAUDE_WORKFLOW.read_text(encoding="utf-8")
         for fragment in (
@@ -214,6 +283,10 @@ class OrchestrateWaveContract(unittest.TestCase):
             "spawn_agents_on_csv",
             "output_schema",
             "dormant",
+            "task_name`, `message`, and `fork_turns",
+            "no model or effort selector",
+            "blocks differentiated AFK",
+            "routingAdapters/codex.mjs",
         ):
             self.assertIn(" ".join(fragment.split()), prose)
 

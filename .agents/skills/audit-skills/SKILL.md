@@ -114,6 +114,12 @@ otherwise stay invisible.
 
 ### 2. Audit in parallel — one subagent per skill
 
+Before dispatch, resolve a provider-neutral Routing intent through
+`src/lib/routeDispatcher.mjs` and require a Dispatch receipt from the shared
+spawn guard. A detected transport is not authorization; AFK dispatch stops
+unless requested/applied route, model/effort enforcement, environment
+precedence, and catalog/access/policy revisions are proved.
+
 Run **one read-only research subagent per skill** — several in parallel in a
 SINGLE message (they are independent and read-only, so they don't contend for the
 git index). Per subagent prompt:

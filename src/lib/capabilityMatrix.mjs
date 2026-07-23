@@ -62,6 +62,91 @@ export const capabilityAdapter = Object.freeze({
   codex: adaptInventory,
 });
 
+const ROUTE_IDENTITY_FIELDS = [
+  'id',
+  'surfaceId',
+  'providerId',
+  'modelId',
+  'transportId',
+];
+
+const ROUTE_ENFORCEMENT_METHODS = [
+  'per-spawn',
+  'named-agent',
+  'session-default',
+  'none',
+];
+
+const ROUTE_PRECEDENCE = [
+  'explicit-argument',
+  'agent-definition-over-environment',
+  'environment-over-agent-definition',
+  'session-default',
+];
+
+function routingControl(control) {
+  const source = control && typeof control === 'object' && !Array.isArray(control)
+    ? control
+    : {};
+  return {
+    method: ROUTE_ENFORCEMENT_METHODS.includes(source.method) ? source.method : UNKNOWN,
+    enforced: triState(source.enforced),
+    precedence: ROUTE_PRECEDENCE.includes(source.precedence)
+      ? source.precedence
+      : UNKNOWN,
+    applied: typeof source.applied === 'string' && source.applied !== ''
+      ? source.applied
+      : UNKNOWN,
+  };
+}
+
+function routingPath(path) {
+  const source = path && typeof path === 'object' && !Array.isArray(path) ? path : {};
+  const normalized = Object.fromEntries(ROUTE_IDENTITY_FIELDS.map((field) => [
+    field,
+    typeof source[field] === 'string' && source[field] !== '' ? source[field] : UNKNOWN,
+  ]));
+  normalized.detected = triState(source.detected);
+  normalized.callable = triState(source.callable);
+  normalized.permitted = triState(source.permitted);
+  normalized.model = routingControl(source.model);
+  normalized.effort = routingControl(source.effort);
+  const failures = [];
+  if (ROUTE_IDENTITY_FIELDS.some((field) => normalized[field] === UNKNOWN)) {
+    failures.push('route identity is incomplete');
+  }
+  if (normalized.detected !== true) failures.push('transport is not detected');
+  if (normalized.callable !== true) failures.push('transport is not callable');
+  if (normalized.permitted !== true) failures.push('transport is not permitted');
+  for (const field of ['model', 'effort']) {
+    if (normalized[field].enforced !== true || normalized[field].method === 'none'
+        || normalized[field].method === UNKNOWN) {
+      failures.push(`${field} control is not enforced`);
+    }
+    if (normalized[field].precedence === UNKNOWN) {
+      failures.push(`${field} environment precedence is unverified`);
+    }
+    if (normalized[field].applied === UNKNOWN) {
+      failures.push(`${field} applied value is unverified`);
+    }
+  }
+  normalized.verified = failures.length === 0;
+  normalized.verificationFailures = failures;
+  return Object.freeze(normalized);
+}
+
+export function adaptClaudeRoutingInventory(inventory) {
+  const source = inventory && typeof inventory === 'object' && !Array.isArray(inventory)
+    ? inventory
+    : {};
+  return Object.freeze({
+    contractVersion: 1,
+    paths: source.contractVersion === 1 && Array.isArray(source.paths)
+      ? Object.freeze(source.paths.map(routingPath))
+      : Object.freeze([]),
+  });
+}
+
 function proves(tool, capability) {
   return tool?.callable === true
     && tool.permitted === true

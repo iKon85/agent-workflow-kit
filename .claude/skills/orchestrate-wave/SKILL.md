@@ -100,7 +100,7 @@ node scripts/readiness.mjs check --skill orchestrate-wave --json
 Pass only host-supplied inventory through `capabilityAdapter.claude` or `.codex`,
 then call the selector. It returns exactly one target; missing or `unknown` evidence
 degrades A → B → C. A model claim is not evidence; do not emulate a missing primitive.
-
+Before any spawn, resolve the provider-neutral Routing intent through the shared resolver and spawn guard, then use the active Claude or Codex adapter. Codex contributes only its dated host attestation through `routingAdapters/codex.mjs`; it does not create a second catalog, Access graph, or Routing policy. A detected transport is not authorization. The Dispatch receipt must show requested and applied route, model/effort enforcement, environment precedence on mismatch, and catalog/access/policy revisions. AFK blocks unverified, unauthorized, overridden, unenforced, or silently degraded routes; a Codex host without model and effort selectors blocks differentiated AFK before spawn, and unreachable routes follow policy handoff/inherit/block exactly.
 - **Path A:** requires the literal `Workflow` tool, callable and permitted, plus
   individually proven named phases, run identity, runtime output validation,
   journal, and resume. Then read [its recipe](references/dispatch-workflow.md).
