@@ -57,6 +57,19 @@ release contain the same artifact.
    (`missing-file`, `missing-section`, `empty-section`, or
    `divergent-section`); it never echoes consumer content.
 
+   Independently, run the routing-profile read-only preflight before applying
+   the package candidate. A valid unchanged user-local profile reports
+   `still valid` and causes zero prompts. Ask after successful Kit activation
+   only when the profile is missing, invalid, materially stale, references a
+   removed route, or a newly detected surface creates a meaningful choice.
+   Re-inspect after package activation, present a typed delta containing only
+   that changed choice, and preserve unaffected personal fields. Fingerprint
+   and exclusively lock the destination before writing; a concurrent personal
+   edit blocks reconciliation and remains untouched. Unattended update records
+   `needs-reconcile`; it never invents a personal answer. Declining the
+   routing reconcile leaves the successful Kit update applied because package
+   installation and personal policy are separate transactions.
+
 3. Read the terminal report. `aktuell` proves a second run found no upstream
    delta or pending readiness migration. A conflict report names and counts
    every category and leaves every consumer file untouched. Follow its

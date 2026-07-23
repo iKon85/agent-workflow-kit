@@ -8,6 +8,9 @@ import { reconcile } from '../lib/updateReconcile.mjs';
 import {
   CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, readManifest,
 } from '../lib/manifest.mjs';
+import {
+  inspectRoutingProfile, reconcileRoutingProfile,
+} from '../lib/routingProfile.mjs';
 
 const RELEASE_NAME = '@ikon85/agent-workflow-kit';
 
@@ -22,6 +25,25 @@ export function renderUpdateFailure(result) {
  * checking -> preview/awaiting_decision -> staging -> verifying -> terminal state.
  */
 export async function update(options) {
+  const preflight = options.routingProfile
+    ? await inspectRoutingProfile({ consumerRoot: options.consumerRoot, ...options.routingProfile })
+    : null;
+  const result = await updatePackage(options);
+  if (!preflight || options.dryRun || result.state !== 'applied') return result;
+  const inspection = await inspectRoutingProfile({
+    consumerRoot: options.consumerRoot,
+    ...options.routingProfile,
+  });
+  return {
+    ...result,
+    routingProfile: await reconcileRoutingProfile(
+      { consumerRoot: options.consumerRoot, ...options.routingProfile },
+      inspection,
+    ),
+  };
+}
+
+async function updatePackage(options) {
   const {
     kitRoot, consumerRoot, decide = () => false, dryRun = false,
     releaseIdentities, verify = verifyCandidate, activate = activateCandidate,
