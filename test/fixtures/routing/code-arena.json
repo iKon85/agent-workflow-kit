@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "exportId": "code-arena-webdev-2026-07-22",
+  "benchmark": {
+    "id": "code-arena-webdev",
+    "version": "2026-07-22",
+    "owner": "Arena",
+    "url": "https://arena.ai/leaderboard/code/webdev"
+  },
+  "harness": {
+    "id": "code-arena-webdev",
+    "version": "2026-07"
+  },
+  "rows": [
+    {
+      "providerId": "provider-k",
+      "modelId": "model-k",
+      "effort": "unknown",
+      "domain": "marketing",
+      "score": 1678,
+      "confidenceInterval": 17,
+      "status": "preliminary",
+      "sampleSize": 506528,
+      "cost": {
+        "amount": 0,
+        "currency": "USD",
+        "unit": "vote"
+      }
+    },
+    {
+      "providerId": "provider-c",
+      "modelId": "model-c",
+      "effort": "unknown",
+      "domain": "marketing",
+      "score": 1634,
+      "confidenceInterval": 12,
+      "status": "established",
+      "sampleSize": 506528,
+      "cost": {
+        "amount": 0,
+        "currency": "USD",
+        "unit": "vote"
+      }
+    },
+    {
+      "providerId": "provider-o",
+      "modelId": "model-o",
+      "effort": "xhigh",
+      "domain": "marketing",
+      "score": 1630,
+      "confidenceInterval": 11,
+      "status": "established",
+      "sampleSize": 506528,
+      "cost": {
+        "amount": 0,
+        "currency": "USD",
+        "unit": "vote"
+      }
+    }
+  ]
+}

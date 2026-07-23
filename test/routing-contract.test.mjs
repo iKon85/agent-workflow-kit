@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import {
   ROUTING_INTENT_VERSION,
@@ -32,6 +33,9 @@ import {
   DISPATCH_RECEIPT_VERSION,
   createDispatchReceipt,
 } from '../src/lib/dispatchReceipt.mjs';
+import { classifyFrontendWorkload } from '../src/lib/frontendWorkloads.mjs';
+import { codeArenaSource } from '../src/lib/routingSources/codeArena.mjs';
+import { openHandsFrontendSource } from '../src/lib/routingSources/openhandsFrontend.mjs';
 
 test('durable routing intent describes work without persisting a provider route', () => {
   const result = validateRoutingIntent({
@@ -279,6 +283,129 @@ test('route decision reports best overall separately from best currently executa
   assert.equal(decision.bestExecutable.modelId, 'model-a');
   assert.equal(decision.bestExecutable.transportId, 'native');
   assert.deepEqual(fixture.catalog, before, 'personal policy must not mutate catalog evidence');
+});
+
+test('frontend evidence selection intersects the requested workload and axis without changing task shape', async () => {
+  const loadFixture = async (name) => JSON.parse(await readFile(
+    new URL(`./fixtures/routing/${name}.json`, import.meta.url),
+    'utf8',
+  ));
+  const sourceContext = {
+    snapshotHash: 'sha256:frontend-routing',
+    observedAt: '2026-07-22T00:00:00.000Z',
+    expiresAt: '2026-08-22T00:00:00.000Z',
+  };
+  const arena = codeArenaSource.ingest({
+    payload: await loadFixture('code-arena'),
+    ...sourceContext,
+  });
+  const openHands = openHandsFrontendSource.ingest({
+    payload: await loadFixture('openhands-frontend'),
+    ...sourceContext,
+  });
+  const wrongAxis = {
+    ...arena.observations[0],
+    id: 'wrong-axis:accessibility',
+    score: 9999,
+    workload: 'frontend-greenfield:marketing:accessibility',
+  };
+  const models = [...arena.models, ...openHands.models];
+  const catalog = {
+    schemaVersion: EVIDENCE_CATALOG_VERSION,
+    revision: 'frontend-catalog-r1',
+    models,
+    observations: [...arena.observations, ...openHands.observations, wrongAxis],
+  };
+  const paths = models.map(({ providerId, modelId }, index) => accessPath({
+    id: `codex:native:${providerId}:${modelId}`,
+    providerId,
+    modelId,
+    capabilityEvidence: {
+      revision: `frontend-capability-${index}`,
+      observedAt: '2026-07-22T00:00:00.000Z',
+      expiresAt: '2026-07-24T00:00:00.000Z',
+    },
+  }));
+
+  const greenfieldSelection = classifyFrontendWorkload({
+    lifecycle: 'greenfield',
+    repositoryContext: 'isolated',
+    qualityAxes: ['visual-preference', 'accessibility'],
+    frontendDomain: 'marketing',
+  }).evidenceSelection;
+  const greenfield = resolveRoute(resolverFixture({
+    intent: {
+      version: ROUTING_INTENT_VERSION,
+      workload: 'development',
+      reasoning: 'balanced',
+      evidenceSelection: greenfieldSelection,
+    },
+    catalog,
+    accessGraph: {
+      schemaVersion: ACCESS_GRAPH_VERSION,
+      revision: 'frontend-access-r1',
+      paths,
+    },
+  }));
+  assert.equal(greenfield.intent.workload, 'development');
+  assert.equal(greenfield.status, 'ready');
+  assert.ok(greenfield.bestOverall);
+  assert.match(greenfield.bestOverall.workload, /visual-preference$/);
+  assert.match(greenfield.bestOverall.reason, /frontend-greenfield:marketing:visual-preference/);
+  assert.notEqual(greenfield.bestOverall.observationId, wrongAxis.id);
+
+  const repairSelection = classifyFrontendWorkload({
+    lifecycle: 'repair',
+    repositoryContext: 'existing-repository',
+    qualityAxes: ['functional', 'visual-preference'],
+  }).evidenceSelection;
+  const repair = resolveRoute(resolverFixture({
+    intent: {
+      version: ROUTING_INTENT_VERSION,
+      workload: 'development',
+      reasoning: 'balanced',
+      evidenceSelection: repairSelection,
+    },
+    catalog,
+    accessGraph: {
+      schemaVersion: ACCESS_GRAPH_VERSION,
+      revision: 'frontend-access-r1',
+      paths,
+    },
+  }));
+  assert.equal(repair.status, 'ready');
+  assert.ok(repair.bestOverall);
+  assert.match(repair.bestOverall.workload, /frontend-repository-repair:general:functional/);
+  assert.match(repair.bestOverall.reason, /frontend-repository-repair:general:functional/);
+  assert.equal(repair.bestOverall.source.id, openHandsFrontendSource.sourceId);
+});
+
+test('routing intent keeps evidence selection provider-neutral and rejects unknown nested fields', () => {
+  const evidenceSelection = classifyFrontendWorkload({
+    lifecycle: 'greenfield',
+    repositoryContext: 'isolated',
+    qualityAxes: ['visual-preference'],
+  }).evidenceSelection;
+  assert.deepEqual(validateRoutingIntent({
+    version: ROUTING_INTENT_VERSION,
+    workload: 'judgment',
+    reasoning: 'deep',
+    evidenceSelection,
+  }), {
+    version: ROUTING_INTENT_VERSION,
+    workload: 'judgment',
+    reasoning: 'deep',
+    evidenceSelection,
+  });
+  assert.throws(
+    () => validateRoutingIntent({
+      version: ROUTING_INTENT_VERSION,
+      workload: 'judgment',
+      reasoning: 'deep',
+      evidenceSelection: { ...evidenceSelection, modelId: 'volatile-model' },
+    }),
+    /unknown evidence selection field: modelId/,
+  );
 });
 
 test('unknown transports and stale capability evidence fail closed', () => {

@@ -1,4 +1,7 @@
-import { validateRoutingIntent } from './routingIntent.mjs';
+import {
+  evidenceSelectionMatchesObservation,
+  validateRoutingIntent,
+} from './routingIntent.mjs';
 import { validateEvidenceCatalog } from './routingCatalog.mjs';
 import { validateAccessGraph } from './routingAccessGraph.mjs';
 import { validateRoutingPolicy } from './routingPolicy.mjs';
@@ -47,6 +50,7 @@ function observationRoute(observation) {
     uncertainty: observation.uncertainty,
     freshness: observation.freshness,
     cost: observation.cost,
+    reason: `${observation.workload} supported by ${observation.source.id}`,
   });
 }
 
@@ -124,7 +128,10 @@ export function resolveRoute(input) {
 
   const blockers = new Set();
   const currentEvidence = catalog.observations.filter((entry) => {
-    if (entry.workload !== intent.workload) return false;
+    const matchesIntent = intent.evidenceSelection
+      ? evidenceSelectionMatchesObservation(intent.evidenceSelection, entry.workload)
+      : entry.workload === intent.workload;
+    if (!matchesIntent) return false;
     if (Date.parse(entry.freshness.expiresAt) <= now) {
       blockers.add(`stale-catalog-evidence:${entry.id}`);
       return false;
