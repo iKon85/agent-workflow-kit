@@ -435,7 +435,8 @@ Reference the blocking ticket(s), or "None - can start immediately".
 <!-- mirror-xform:start codex-escalation -->
 ```
 Welle <N> · Slice <X> (<closes #x | refs #<prd#>, Parent #<prd#>>). Read #<prd#> for decisions.
-Start skill: 🧭 Design Grill → /grill-with-docs · 🔬 Verify Spike → /verify-spike · 📐 Trade-off/Research → /decision-gate · AFK → /implement · HITL → /grill-me → /implement. Recommended model: <Model [Effort]>.
+Start skill: 🧭 Design Grill → /grill-with-docs · 🔬 Verify Spike → /verify-spike · 📐 Trade-off/Research → /decision-gate · AFK → /implement · HITL → /grill-me → /implement.
+Routing intent: `routing-intent: <judgment | development | mechanical>` · `reasoning-intent: <deep | balanced | light>`. The dispatching surface resolves the current executable route; never persist that provider route here.
 Worktree: your project's worktree helper, or `git worktree add`
 Scope (<N> files) — REQUIRED FIELD, blast-radius estimate at cut time; the build session checks it against its own recon findings, >2x deviation → STOP:
 - <concrete file + change>
