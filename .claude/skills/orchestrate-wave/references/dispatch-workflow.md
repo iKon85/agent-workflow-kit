@@ -48,6 +48,12 @@ current reconciled batch, make one `agent()` call per slice with explicit
 the reconciled allowlist and required commands in each verbatim builder prompt;
 the main thread still performs `semanticVerify` on every returned report.
 
+Before each `agent()` call, resolve its provider-neutral Routing intent and pass
+the decision through the shared spawn guard. The Claude adapter must attest the
+Workflow model/effort precedence in the current environment. Create the Dispatch
+receipt before invocation; any requested/applied mismatch, unverified control,
+or unauthorized transport blocks AFK rather than silently degrading.
+
 ## Resume exactly once
 
 Resume an interrupted Recon or Build run with its recorded `resumeFromRunId`

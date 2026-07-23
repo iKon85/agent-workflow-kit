@@ -543,6 +543,7 @@ const dispatchedRoute = (overrides = {}) => ({
 });
 
 test('dispatch receipt proves requested and applied AFK enforcement for one execution', () => {
+  assert.equal(DISPATCH_RECEIPT_VERSION, 2);
   const receipt = createDispatchReceipt({
     executionId: 'run-123',
     status: 'dispatched',
@@ -550,6 +551,7 @@ test('dispatch receipt proves requested and applied AFK enforcement for one exec
     requestedRoute: dispatchedRoute(),
     appliedRoute: dispatchedRoute(),
     enforcement: { model: 'per-spawn', effort: 'per-spawn' },
+    precedence: { model: 'explicit-argument', effort: 'explicit-argument' },
     revisions: {
       catalog: 'catalog-r7',
       accessGraph: 'access-r4',
@@ -561,6 +563,10 @@ test('dispatch receipt proves requested and applied AFK enforcement for one exec
   assert.equal(receipt.schemaVersion, DISPATCH_RECEIPT_VERSION);
   assert.equal(receipt.executionId, 'run-123');
   assert.ok(Object.isFrozen(receipt.appliedRoute));
+  assert.deepEqual(receipt.precedence, {
+    model: 'explicit-argument',
+    effort: 'explicit-argument',
+  });
 });
 
 test('dispatch receipt rejects silent degradation and unenforced AFK routes', () => {
@@ -571,6 +577,7 @@ test('dispatch receipt rejects silent degradation and unenforced AFK routes', ()
     requestedRoute: dispatchedRoute(),
     appliedRoute: dispatchedRoute(),
     enforcement: { model: 'per-spawn', effort: 'per-spawn' },
+    precedence: { model: 'explicit-argument', effort: 'explicit-argument' },
     revisions: {
       catalog: 'catalog-r7',
       accessGraph: 'access-r4',
@@ -592,4 +599,61 @@ test('dispatch receipt rejects silent degradation and unenforced AFK routes', ()
     }),
     /AFK dispatch requires enforced model and effort selection/,
   );
+  assert.throws(
+    () => createDispatchReceipt({
+      ...base,
+      precedence: { model: 'arbitrary-precedence', effort: 'explicit-argument' },
+    }),
+    /model precedence/,
+  );
+  const { precedence: _precedence, ...withoutPrecedence } = base;
+  assert.throws(
+    () => createDispatchReceipt(withoutPrecedence),
+    /AFK dispatch requires verified environment precedence/,
+  );
+});
+
+test('blocked mismatch receipt preserves applied route and structured precedence', () => {
+  const receipt = createDispatchReceipt({
+    executionId: 'run-mismatch',
+    status: 'blocked',
+    afk: true,
+    requestedRoute: dispatchedRoute(),
+    appliedRoute: dispatchedRoute({ modelId: 'environment-model' }),
+    enforcement: { model: 'named-agent', effort: 'named-agent' },
+    precedence: {
+      model: 'environment-over-agent-definition',
+      effort: 'agent-definition-over-environment',
+    },
+    revisions: {
+      catalog: 'catalog-r7',
+      accessGraph: 'access-r4',
+      policy: 'policy-r5',
+    },
+    dispatchedAt: '2026-07-23T00:01:00.000Z',
+    reason: 'environment precedence mismatch: model',
+  });
+
+  assert.equal(receipt.status, 'blocked');
+  assert.equal(receipt.appliedRoute.modelId, 'environment-model');
+  assert.equal(receipt.precedence.model, 'environment-over-agent-definition');
+});
+
+test('receipt v2 keeps non-AFK callers compatible with explicit unreported precedence', () => {
+  const receipt = createDispatchReceipt({
+    executionId: 'run-interactive-legacy',
+    status: 'dispatched',
+    afk: false,
+    requestedRoute: dispatchedRoute(),
+    appliedRoute: dispatchedRoute(),
+    enforcement: { model: 'session-default', effort: 'session-default' },
+    revisions: {
+      catalog: 'catalog-r7',
+      accessGraph: 'access-r4',
+      policy: 'policy-r5',
+    },
+    dispatchedAt: '2026-07-23T00:01:00.000Z',
+  });
+
+  assert.deepEqual(receipt.precedence, { model: 'unreported', effort: 'unreported' });
 });

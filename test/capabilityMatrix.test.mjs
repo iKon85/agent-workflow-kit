@@ -2,10 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  adaptClaudeRoutingInventory,
   capabilityAdapter,
   classifyCapabilities,
   selectOrchestrationReference,
 } from '../src/lib/capabilityMatrix.mjs';
+import { dispatchResolvedRoute } from '../src/lib/routeDispatcher.mjs';
+import { createClaudeRoutingAdapter } from '../src/lib/routingAdapters/claude.mjs';
 
 const workflowSchema = {
   type: 'object',
@@ -184,4 +187,404 @@ test('selector returns exactly one discriminated target for every path', () => {
     { path: 'B', kind: 'reference', value: 'references/dispatch-subagents.md' },
     { path: 'C', kind: 'inline', value: 'path-c' },
   ]);
+});
+
+function routingFixture({
+  transportId = 'claude-native',
+  allowedTransports = [transportId],
+  unreachable = 'block',
+} = {}) {
+  const route = {
+    providerId: transportId === 'codex-exec' ? 'openai' : 'anthropic',
+    modelId: transportId === 'codex-exec' ? 'coding-model' : 'reasoning-model',
+    effort: 'high',
+    surfaceId: 'claude',
+    transportId,
+  };
+  const enforcementMethod = transportId === 'codex-exec' ? 'per-spawn' : 'named-agent';
+  return {
+    route,
+    resolverInput: {
+      intent: { version: 1, workload: 'development', reasoning: 'deep' },
+      catalog: {
+        schemaVersion: 1,
+        revision: 'catalog-7',
+        models: [{ providerId: route.providerId, modelId: route.modelId }],
+        observations: [{
+          id: 'observation-1',
+          providerId: route.providerId,
+          modelId: route.modelId,
+          effort: route.effort,
+          workload: 'development',
+          harness: { id: 'fixture', version: '1' },
+          score: 0.9,
+          source: {
+            owner: 'fixture', id: 'fixture', url: 'https://example.invalid/evidence',
+            benchmark: 'fixture', version: '1', snapshotHash: 'hash-1',
+          },
+          uncertainty: { kind: 'interval', value: 0.1 },
+          freshness: {
+            observedAt: '2026-07-01T00:00:00.000Z',
+            expiresAt: '2026-08-01T00:00:00.000Z',
+          },
+          cost: { amount: 1, currency: 'USD', unit: 'task' },
+        }],
+      },
+      accessGraph: {
+        schemaVersion: 1,
+        revision: 'access-4',
+        paths: [{
+          id: `path-${transportId}`,
+          providerId: route.providerId,
+          modelId: route.modelId,
+          surfaceId: route.surfaceId,
+          transportId: route.transportId,
+          availability: 'available',
+          enforcement: { model: enforcementMethod, effort: enforcementMethod },
+          capabilityEvidence: {
+            revision: 'capability-3',
+            observedAt: '2026-07-01T00:00:00.000Z',
+            expiresAt: '2026-08-01T00:00:00.000Z',
+          },
+        }],
+      },
+      policy: {
+        schemaVersion: 1,
+        revision: 'policy-9',
+        allowedSurfaces: ['claude'],
+        allowedTransports,
+        switching: 'automatic',
+        optimization: 'quality',
+        unreachable,
+        missingInfrastructure: 'block',
+      },
+      activeSurface: 'claude',
+      knownTransports: ['claude-native', 'codex-exec'],
+      now: '2026-07-23T12:00:00.000Z',
+    },
+  };
+}
+
+test('Claude routing inventory attests only proved controls and preserves environment precedence', () => {
+  const adapted = adaptClaudeRoutingInventory({
+    contractVersion: 1,
+    paths: [{
+      id: 'native',
+      surfaceId: 'claude',
+      providerId: 'anthropic',
+      modelId: 'reasoning-model',
+      transportId: 'claude-native',
+      detected: true,
+      callable: true,
+      permitted: true,
+      model: {
+        method: 'named-agent',
+        enforced: true,
+        precedence: 'agent-definition-over-environment',
+        applied: 'reasoning-model',
+      },
+      effort: {
+        method: 'named-agent',
+        enforced: true,
+        precedence: 'agent-definition-over-environment',
+        applied: 'high',
+      },
+    }, {
+      id: 'detected-only',
+      surfaceId: 'claude',
+      providerId: 'openai',
+      modelId: 'coding-model',
+      transportId: 'codex-exec',
+      detected: true,
+    }],
+  });
+
+  assert.equal(adapted.paths[0].verified, true);
+  assert.equal(adapted.paths[0].model.precedence, 'agent-definition-over-environment');
+  assert.equal(adapted.paths[1].verified, false);
+});
+
+test('Claude routing precedence is closed and environment overrides require observed applied values', () => {
+  const adapted = adaptClaudeRoutingInventory({
+    contractVersion: 1,
+    paths: [{
+      id: 'arbitrary',
+      surfaceId: 'claude',
+      providerId: 'anthropic',
+      modelId: 'reasoning-model',
+      transportId: 'claude-native',
+      detected: true,
+      callable: true,
+      permitted: true,
+      model: { method: 'named-agent', enforced: true, precedence: 'whatever' },
+      effort: { method: 'named-agent', enforced: true, precedence: 'whatever' },
+    }, {
+      id: 'override-without-applied',
+      surfaceId: 'claude',
+      providerId: 'anthropic',
+      modelId: 'reasoning-model',
+      transportId: 'claude-native',
+      detected: true,
+      callable: true,
+      permitted: true,
+      model: {
+        method: 'named-agent',
+        enforced: true,
+        precedence: 'environment-over-agent-definition',
+      },
+      effort: {
+        method: 'named-agent',
+        enforced: true,
+        precedence: 'agent-definition-over-environment',
+        applied: 'high',
+      },
+    }],
+  });
+
+  assert.equal(adapted.paths[0].verified, false);
+  assert.ok(adapted.paths[0].verificationFailures.includes('model environment precedence is unverified'));
+  assert.equal(adapted.paths[1].verified, false);
+  assert.ok(adapted.paths[1].verificationFailures.includes('model applied value is unverified'));
+});
+
+test('Claude-native AFK dispatch proves model and effort and emits revisions', async () => {
+  const { route, resolverInput } = routingFixture();
+  let invoked = 0;
+  const adapter = createClaudeRoutingAdapter({
+    inventory: {
+      contractVersion: 1,
+      paths: [{
+        id: 'native',
+        ...route,
+        detected: true,
+        callable: true,
+        permitted: true,
+        model: { method: 'named-agent', enforced: true, precedence: 'agent-definition-over-environment', applied: route.modelId },
+        effort: { method: 'named-agent', enforced: true, precedence: 'agent-definition-over-environment', applied: route.effort },
+      }],
+    },
+    dispatchers: { 'claude-native': async () => { invoked += 1; return { taskId: 'native-1' }; } },
+  });
+
+  const result = await dispatchResolvedRoute({
+    executionId: 'execution-native',
+    afk: true,
+    resolverInput,
+    adapter,
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+
+  assert.equal(invoked, 1);
+  assert.equal(result.receipt.status, 'dispatched');
+  assert.deepEqual(result.receipt.enforcement, { model: 'named-agent', effort: 'named-agent' });
+  assert.deepEqual(result.receipt.precedence, {
+    model: 'agent-definition-over-environment',
+    effort: 'agent-definition-over-environment',
+  });
+  assert.deepEqual(result.receipt.revisions, {
+    catalog: 'catalog-7', accessGraph: 'access-4', policy: 'policy-9',
+  });
+});
+
+test('approved Claude-to-Codex transport dispatches but detected unapproved transport blocks', async () => {
+  const approved = routingFixture({ transportId: 'codex-exec' });
+  let invoked = 0;
+  const adapter = createClaudeRoutingAdapter({
+    inventory: {
+      contractVersion: 1,
+      paths: [{
+        id: 'codex',
+        ...approved.route,
+        detected: true,
+        callable: true,
+        permitted: true,
+        model: { method: 'per-spawn', enforced: true, precedence: 'explicit-argument', applied: approved.route.modelId },
+        effort: { method: 'per-spawn', enforced: true, precedence: 'explicit-argument', applied: approved.route.effort },
+      }],
+    },
+    dispatchers: { 'codex-exec': async () => { invoked += 1; return { taskId: 'codex-1' }; } },
+  });
+  const dispatched = await dispatchResolvedRoute({
+    executionId: 'execution-codex',
+    afk: true,
+    resolverInput: approved.resolverInput,
+    adapter,
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+  assert.equal(dispatched.receipt.status, 'dispatched');
+
+  const denied = routingFixture({ transportId: 'codex-exec', allowedTransports: [] });
+  const blocked = await dispatchResolvedRoute({
+    executionId: 'execution-denied',
+    afk: true,
+    resolverInput: denied.resolverInput,
+    adapter,
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+  assert.equal(blocked.receipt.status, 'blocked');
+  assert.match(blocked.receipt.reason, /transport-not-allowed/);
+  assert.equal(invoked, 1);
+});
+
+test('environment override, applied route mismatch, and unenforced effort block before spawn', async () => {
+  const { route, resolverInput } = routingFixture();
+  for (const [label, path] of Object.entries({
+    override: {
+      ...route,
+      model: { method: 'named-agent', enforced: true, precedence: 'environment-over-agent-definition', applied: 'other-model' },
+      effort: { method: 'named-agent', enforced: true, precedence: 'agent-definition-over-environment', applied: route.effort },
+    },
+    effort: {
+      ...route,
+      model: { method: 'named-agent', enforced: true, precedence: 'agent-definition-over-environment', applied: route.modelId },
+      effort: { method: 'none', enforced: false, precedence: 'uncontrolled', applied: route.effort },
+    },
+  })) {
+    let invoked = 0;
+    const adapter = createClaudeRoutingAdapter({
+      inventory: {
+        contractVersion: 1,
+        paths: [{
+          id: label, detected: true, callable: true, permitted: true, ...path,
+        }],
+      },
+      dispatchers: { 'claude-native': async () => { invoked += 1; } },
+    });
+    const result = await dispatchResolvedRoute({
+      executionId: `execution-${label}`,
+      afk: true,
+      resolverInput,
+      adapter,
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+    assert.equal(result.receipt.status, 'blocked', label);
+    assert.match(result.receipt.reason, label === 'override' ? /environment.*model/i : /effort/i);
+    if (label === 'override') {
+      assert.equal(result.receipt.appliedRoute.modelId, 'other-model');
+      assert.equal(result.receipt.precedence.model, 'environment-over-agent-definition');
+    }
+    assert.equal(invoked, 0);
+  }
+});
+
+test('concurrent routing profile mutation blocks before spawn', async () => {
+  const { resolverInput } = routingFixture();
+  let invoked = 0;
+  const adapter = {
+    async prepare(requestedRoute) {
+      resolverInput.policy.revision = 'policy-mutated';
+      return {
+        appliedRoute: requestedRoute,
+        enforcement: { model: 'named-agent', effort: 'named-agent' },
+        dispatch: async () => { invoked += 1; },
+      };
+    },
+  };
+  const result = await dispatchResolvedRoute({
+    executionId: 'execution-concurrent',
+    afk: true,
+    resolverInput,
+    adapter,
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+  assert.equal(result.receipt.status, 'blocked');
+  assert.match(result.receipt.reason, /concurrent routing profile mutation/);
+  assert.equal(invoked, 0);
+});
+
+test('secret-bearing concurrent revisions map to a constant receipt reason', async () => {
+  const { resolverInput } = routingFixture();
+  const secret = 'secret-revision-value';
+  const adapter = {
+    async prepare(requestedRoute) {
+      resolverInput.policy.revision = secret;
+      return {
+        appliedRoute: requestedRoute,
+        enforcement: { model: 'named-agent', effort: 'named-agent' },
+        precedence: {
+          model: 'agent-definition-over-environment',
+          effort: 'agent-definition-over-environment',
+        },
+        dispatch: async () => ({ taskId: 'must-not-run' }),
+      };
+    },
+  };
+  const result = await dispatchResolvedRoute({
+    executionId: 'execution-secret-revision',
+    afk: true,
+    resolverInput,
+    adapter,
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+  assert.equal(result.receipt.reason, 'concurrent routing profile mutation');
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
+});
+
+test('adapter mismatch diagnostics cannot inject secrets into a blocked receipt', async () => {
+  const { resolverInput } = routingFixture();
+  const secret = 'secret-adapter-diagnostic';
+  const result = await dispatchResolvedRoute({
+    executionId: 'execution-secret-mismatch',
+    afk: true,
+    resolverInput,
+    adapter: {
+      async prepare(requestedRoute) {
+        return {
+          appliedRoute: requestedRoute,
+          enforcement: { model: 'named-agent', effort: 'named-agent' },
+          precedence: {
+            model: 'agent-definition-over-environment',
+            effort: 'agent-definition-over-environment',
+          },
+          mismatchReason: secret,
+          dispatch: async () => ({ taskId: 'must-not-run' }),
+        };
+      },
+    },
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+  assert.equal(result.receipt.reason, 'dispatch adapter rejected route');
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
+});
+
+test('unreachable handoff, inherit, and block policy outcomes do not spawn', async () => {
+  for (const unreachable of ['handoff', 'inherit', 'block']) {
+    const fixture = routingFixture({ allowedTransports: [], unreachable });
+    const result = await dispatchResolvedRoute({
+      executionId: `execution-${unreachable}`,
+      afk: false,
+      resolverInput: fixture.resolverInput,
+      adapter: { prepare: async () => { throw new Error('must not prepare'); } },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+    const expectedStatus = unreachable === 'block' ? 'blocked' : unreachable;
+    assert.equal(result.decision.status, expectedStatus);
+    assert.equal(result.receipt.status, 'blocked');
+    assert.match(result.receipt.reason, new RegExp(`^${expectedStatus}:`));
+  }
+});
+
+test('receipt and output never expose injected secret fixture values', async () => {
+  const { route, resolverInput } = routingFixture();
+  const secret = 'token-secret-fixture';
+  const adapter = createClaudeRoutingAdapter({
+    inventory: {
+      contractVersion: 1,
+      ignoredSecret: secret,
+      paths: [{
+        id: 'native', ...route, detected: true, callable: true, permitted: true,
+        model: { method: 'named-agent', enforced: true, precedence: 'agent-definition-over-environment', applied: route.modelId },
+        effort: { method: 'named-agent', enforced: true, precedence: 'agent-definition-over-environment', applied: route.effort },
+      }],
+    },
+    dispatchers: { 'claude-native': async () => ({ taskId: 'safe', diagnostic: secret }) },
+  });
+  const result = await dispatchResolvedRoute({
+    executionId: 'execution-safe',
+    afk: true,
+    resolverInput,
+    adapter,
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
 });
