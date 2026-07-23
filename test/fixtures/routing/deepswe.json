@@ -1,0 +1,30 @@
+{
+  "artifact": {
+    "owner": "DataCurve",
+    "url": "https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json",
+    "benchmark": "DeepSWE",
+    "version": "1.1",
+    "harness": {
+      "id": "mini-swe-agent",
+      "version": "2026-07"
+    }
+  },
+  "rows": [
+    {
+      "provider": "openai",
+      "model": "coding-model-a",
+      "effort": "high",
+      "score": 0.694,
+      "confidence95HalfWidth": 0.014,
+      "averageCostUsd": 3.47
+    },
+    {
+      "provider": "anthropic",
+      "model": "coding-model-b",
+      "effort": "max",
+      "score": 0.697,
+      "confidence95HalfWidth": 0.04,
+      "averageCostUsd": 21.63
+    }
+  ]
+}

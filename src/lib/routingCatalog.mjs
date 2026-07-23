@@ -66,9 +66,11 @@ function validateObservation(entry, index, knownModels) {
   string(observation.harness.id, `${field}.harness.id`);
   string(observation.harness.version, `${field}.harness.version`);
   string(observation.source.owner, `${field}.source.owner`);
+  string(observation.source.id, `${field}.source.id`);
   string(observation.source.url, `${field}.source.url`);
   string(observation.source.benchmark, `${field}.source.benchmark`);
   string(observation.source.version, `${field}.source.version`);
+  string(observation.source.snapshotHash, `${field}.source.snapshotHash`);
   string(observation.uncertainty.kind, `${field}.uncertainty.kind`);
   number(observation.uncertainty.value, `${field}.uncertainty.value`);
   const observedAt = timestamp(observation.freshness.observedAt, `${field}.freshness.observedAt`);
