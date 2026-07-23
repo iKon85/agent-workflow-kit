@@ -87,8 +87,9 @@ skills — this skill only picks the entry point.
 
 ### Program (≥2 criteria)
 
-A multi-wave undertaking: grill it once into a Program-PRD with a wave plan, then
-unfold that plan onto the board after a chat preview gate.
+A multi-wave undertaking: grill it once into a Program-PRD with a wave plan,
+then hand that explicit Program identity to the public Planning facade. The
+facade unfolds the plan onto the board after a chat preview gate.
 
 ```
 New program: <one-sentence outcome from Q2>.
@@ -97,10 +98,11 @@ Tripped altitude criteria: <e.g. C1 staged delivery, C2 multiple subsystems, C4 
    structure-bearing decisions (escalate a single bounded choice to `decision-gate`).
 2. `to-prd` — it auto-detects the program mode from the Wellenplan chapter and writes
    a Program-PRD (native anchor over the waves).
-3. `to-waves` — after one complete chat preview, materialize the whole Program with
-   **all waves execute-ready by default**: complete slice contracts, buckets,
-   dependencies and handoffs. Decision Gates, Verify Spikes and Design-Grill waves
-   are explicit planned exceptions; generic late-binding cleanup is not.
+3. `to-issues` — its explicit Program identity selects the internal graph path.
+   After one complete chat preview, materialize the whole Program with **all
+   waves execute-ready by default**: complete slice contracts, buckets,
+   dependencies and handoffs. Decision Gates, Verify Spikes and Design-Grill
+   waves are explicit planned exceptions; generic late-binding cleanup is not.
 ```
 
 ### Feature (0–1 criteria, or any doubt)
@@ -134,7 +136,7 @@ Bug: <what's broken — expected vs. actual>.
 ```
 scale-check: verdict=<Program | Feature | Direct-Slice | Bug>
   criteria tripped=<C1,C2,… | none | n/a (bug/direct)>
-  route=<program grill → to-prd → to-waves (all waves execute-ready by default) | grill-with-docs → to-prd → to-issues | implement | diagnose>
+  route=<program grill → to-prd → to-issues (Program mode; all waves execute-ready by default) | grill-with-docs → to-prd → to-issues (Feature mode) | implement | diagnose>
   start-prompt: <the paste-ready block above, filled in>
 ```
 

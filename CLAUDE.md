@@ -178,8 +178,7 @@ with a terse report back; no spawn for single-value lookups or pre-edit recon.
 - **A new build whose size is unclear** (a new app, a big cross-cutting feature, an unclear where-to-start): run `scale-check` — a short plain-language dialog that routes it to a program, a feature, a single slice, or a bug, and hands back a paste-ready start prompt.
 - **New capability or unclear change:** start with `grill-with-docs` when the domain language or decisions need sharpening, then publish the agreed shape with `to-prd`.
 - **A slice hinges on an unresolved fact or trade-off before it can be built:** clear it first — a binary yes/no question against real code/runtime/platform with `verify-spike`, a bounded "which option" choice with `decision-gate`.
-- **Existing plan, PRD, or ready issue:** use `to-issues` to split it into independently buildable tracer-bullet slices.
-- **A Program-PRD with a wave plan:** use `to-waves` to unfold it into named wave stubs + slice leaves on the board, after a chat preview gate that shows the whole plan before any write.
+- **Existing plan, PRD, or ready issue:** use `to-issues`, the single Planning facade. Explicit Feature identity selects tracer-bullet decomposition; explicit Program identity selects the internal graph path and its complete preview before any write.
 - **A backlog of open issues needs clustering into themed waves:** use `board-to-waves`.
 - **A whole wave anchor (file-disjoint slices, specs already locked) to build, verify and land end-to-end — often AFK:** use `orchestrate-wave` — it dispatches implementers per slice, integrates serially, verifies centrally, and lands. (A single slice just goes to `implement`.)
 - **Bugs or requests piling up that you didn't create:** use `triage` to move them into agent-ready issues.
