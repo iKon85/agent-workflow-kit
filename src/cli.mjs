@@ -8,6 +8,7 @@ import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
 import { setOwnership } from './commands/own.mjs';
 import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
+import { currentAgentSurface } from './lib/agentSurfaceRegistry.mjs';
 import { createCommandAdapter } from '../scripts/release-state.mjs';
 import { installedIdentityFromDir } from '../scripts/release-parity.mjs';
 
@@ -29,12 +30,18 @@ p.intro('agent-workflow-kit');
 
 try {
   if (cmd === 'init') {
-    const r = await init({ kitRoot: KIT_ROOT, consumerRoot, force });
+    const r = await init({
+      kitRoot: KIT_ROOT,
+      consumerRoot,
+      force,
+      routingProfile: routingProfileOptions(),
+    });
     p.note(
       `copied ${r.copied.length} · seeded ${r.seeded.length} stub(s)` +
         (r.skipped.length ? `\nskipped (pre-existing, use --force): ${r.skipped.join(', ')}` : ''),
       'init'
     );
+    printRoutingProfile(r.routingProfile);
     p.outro('Next: run /setup-workflow to fill the project layer + board profile. ' +
       'To enable the drift-guard hook, add .claude/hooks/drift-guard.py to your settings.json hooks.');
   } else if (cmd === 'diff') {
@@ -45,9 +52,15 @@ try {
     const decide = (action, path) => decideUpdate(action, path, yes);
     const releaseIdentities = await readUpdateRelease();
     const r = await update({
-      kitRoot: KIT_ROOT, consumerRoot, now: stamp(), decide, releaseIdentities,
+      kitRoot: KIT_ROOT,
+      consumerRoot,
+      now: stamp(),
+      decide,
+      releaseIdentities,
+      routingProfile: routingProfileOptions(),
     });
     printPlan(r);
+    printRoutingProfile(r.routingProfile);
     for (const c of r.conflicts) p.note(c.diff || '(binary/!text)', `conflict (not applied): ${c.path}`);
     if (r.state === 'failed') throw new Error(renderUpdateFailure(r));
     if (r.state === 'conflicted') {
@@ -124,6 +137,100 @@ async function decideUpdate(action, path, yes) {
     return choice;
   }
   throw new Error(`unknown update decision action: ${action}`);
+}
+
+function routingProfileOptions() {
+  return {
+    currentSurface: currentAgentSurface(),
+    prompt: yes ? undefined : promptRoutingProfile,
+  };
+}
+
+function printRoutingProfile(result) {
+  if (!result) return;
+  const suffix = result.reasons?.length ? ` · ${result.reasons.join(', ')}` : '';
+  p.note(`${result.status}${suffix}`, 'routing profile');
+}
+
+async function promptRoutingProfile(question) {
+  if (question.kind === 'surfaces') {
+    return ensurePrompt(await p.multiselect({
+      message: question.message,
+      options: question.options.map(({ id, label }) => ({ value: id, label })),
+      initialValues: question.preselected,
+      required: true,
+    }), 'surface selection');
+  }
+  if (question.kind === 'autonomy') {
+    return ensurePrompt(await p.select({
+      message: question.message,
+      options: question.options,
+    }), 'switching choice');
+  }
+  if (question.kind === 'activation') {
+    const draft = question.advancedDraft ? ' · advanced draft ready' : '';
+    return ensurePrompt(await p.select({
+      message: `${question.message}${draft}`,
+      options: [
+        { value: 'approve', label: 'Approve' },
+        { value: 'safe-current-surface', label: 'Safe current surface' },
+        { value: 'back', label: 'Back' },
+        { value: 'advanced', label: 'Advanced' },
+        { value: 'decline', label: 'Decline' },
+      ],
+    }), 'activation choice');
+  }
+  if (question.kind === 'advanced') {
+    const optimization = ensurePrompt(await p.select({
+      message: question.message,
+      options: [
+        { value: 'balanced', label: 'Balanced' },
+        { value: 'quality', label: 'Quality' },
+        { value: 'cost', label: 'Cost' },
+      ],
+      initialValue: question.draft?.optimization ?? 'balanced',
+    }), 'advanced choice');
+    return { ...question.draft, optimization };
+  }
+  if (question.kind === 'reconcile') {
+    if (question.delta.type === 'missing-profile' || question.delta.type === 'invalid-profile') {
+      return ensurePrompt(await p.select({
+        message: question.message,
+        options: [
+          { value: 'review', label: 'Review routing choices now' },
+          { value: 'decline', label: 'Not now' },
+        ],
+      }), 'routing migration choice');
+    }
+    const additions = question.delta.newSurfaces;
+    if (additions.length) {
+      const removed = question.delta.removedSurfaces.map(({ label }) => label);
+      const change = [
+        `new: ${additions.map(({ label }) => label).join(', ')}`,
+        ...(removed.length ? [`unavailable: ${removed.join(', ')}`] : []),
+      ].join(' · ');
+      const addSurfaceIds = ensurePrompt(await p.multiselect({
+        message: `Routing choices changed — ${change}`,
+        options: additions.map(({ id, label }) => ({ value: id, label })),
+        initialValues: [],
+        required: false,
+      }), 'routing reconcile choice');
+      return { action: 'apply', addSurfaceIds };
+    }
+    const removed = question.delta.removedSurfaces.map(({ label }) => label).join(', ');
+    const message = removed
+      ? `Remove unavailable agent app from routing: ${removed}?`
+      : 'Refresh the routing profile registry revision?';
+    return ensurePrompt(await p.confirm({ message }), 'routing reconcile choice')
+      ? { action: 'apply', addSurfaceIds: [] }
+      : { action: 'decline' };
+  }
+  throw new Error(`unknown routing profile question: ${question.kind}`);
+}
+
+function ensurePrompt(value, label) {
+  if (p.isCancel(value)) throw new Error(`${label} cancelled`);
+  return value;
 }
 
 async function readUpdateRelease() {
