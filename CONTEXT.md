@@ -39,6 +39,58 @@ Evidence that a generalized kit behavior produces the same observable workflow
 outcome as the consumer-native behavior it will replace. The consumer-native
 behavior remains authoritative until parity is proven.
 
+## Planning facade
+
+The single user-facing transition from an approved PRD to executable issues.
+It selects Feature or Program mechanics from the PRD's explicit identity while
+keeping that internal routing out of the user's workflow.
+_Avoid_: Skill chooser, Altitude command
+
+## Routing intent
+
+A provider-neutral description of the work a delegated agent must perform: its
+workload, task shape, risk, autonomy requirement, context need, and optimization
+goal. It is durable planning data and remains valid when providers or model
+names change.
+_Avoid_: Recommended model, Provider hint
+
+## Evidence catalog
+
+The complete, versioned, provider-independent body of observations used to
+compare candidate routes. An observation retains model, effort, harness,
+workload, source, benchmark version, uncertainty, freshness, and cost. The
+catalog is not filtered to models reachable from the active agent surface.
+_Avoid_: Leaderboard, Model allowlist
+
+## Access graph
+
+The user-local map of native and cross-provider paths by which an agent surface
+can reach a model runtime, together with dated capability attestations for
+model selection, effort control, and dispatch. Detection does not imply user
+authorization.
+_Avoid_: Installed-model list, Provider preference
+
+## Routing policy
+
+The user-owned rules that constrain dispatch across the Access graph, including
+allowed surfaces and transports, switching autonomy, optimization goals, and
+optional advanced overrides. It never changes Evidence catalog facts.
+_Avoid_: Model table, Benchmark score
+
+## Route decision
+
+The dispatch-time resolution of a Routing intent against the current Evidence
+catalog, Access graph, and Routing policy. It names a model, effort, surface,
+transport, and enforcement method for one execution only.
+_Avoid_: Planning metadata, Permanent recommendation
+
+## Dispatch receipt
+
+The runtime record proving which requested Route decision was actually applied,
+by which enforcement mechanism, under which policy and evidence revisions. An
+AFK dispatch without proof of model and effort does not have a valid receipt.
+_Avoid_: Recommendation, Agent log
+
 ## Worktree lifecycle
 
 The complete workflow for creating, identifying, enforcing, and cleaning up an
