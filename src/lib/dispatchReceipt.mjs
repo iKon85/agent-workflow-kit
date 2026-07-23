@@ -1,4 +1,4 @@
-export const DISPATCH_RECEIPT_VERSION = 1;
+export const DISPATCH_RECEIPT_VERSION = 2;
 
 const ROUTE_FIELDS = [
   'providerId',
@@ -14,6 +14,15 @@ const ENFORCEMENT_METHODS = [
   'session-default',
   'none',
 ];
+
+export const DISPATCH_PRECEDENCE = Object.freeze([
+  'explicit-argument',
+  'agent-definition-over-environment',
+  'environment-over-agent-definition',
+  'session-default',
+  'uncontrolled',
+  'unreported',
+]);
 
 function object(value, field) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -57,6 +66,23 @@ function enforcement(input) {
   return Object.freeze(result);
 }
 
+function precedence(input) {
+  if (input == null) {
+    return Object.freeze({ model: 'unreported', effort: 'unreported' });
+  }
+  object(input, 'precedence');
+  const result = {};
+  for (const field of ['model', 'effort']) {
+    if (!DISPATCH_PRECEDENCE.includes(input[field])) {
+      throw new TypeError(
+        `${field} precedence must be one of: ${DISPATCH_PRECEDENCE.join(', ')}`,
+      );
+    }
+    result[field] = input[field];
+  }
+  return Object.freeze(result);
+}
+
 function revisions(input) {
   object(input, 'revisions');
   return Object.freeze({
@@ -67,17 +93,29 @@ function revisions(input) {
 }
 
 function blockedReceipt(input) {
-  if (input.appliedRoute != null) {
-    throw new TypeError('blocked dispatch receipt must not contain an applied route');
+  const requestedRoute = input.requestedRoute == null
+    ? null
+    : route(input.requestedRoute, 'requestedRoute');
+  const appliedRoute = input.appliedRoute == null
+    ? null
+    : route(input.appliedRoute, 'appliedRoute');
+  if (appliedRoute !== null && requestedRoute === null) {
+    throw new TypeError('blocked applied route requires a requested route');
+  }
+  const appliedEnforcement = input.enforcement == null ? null : enforcement(input.enforcement);
+  const appliedPrecedence = input.precedence == null ? null : precedence(input.precedence);
+  if (appliedRoute !== null && (appliedEnforcement === null || appliedPrecedence === null)) {
+    throw new TypeError('blocked applied route requires enforcement and precedence');
   }
   return Object.freeze({
     schemaVersion: DISPATCH_RECEIPT_VERSION,
     executionId: string(input.executionId, 'executionId'),
     status: 'blocked',
     afk: input.afk === true,
-    requestedRoute: input.requestedRoute == null ? null : route(input.requestedRoute, 'requestedRoute'),
-    appliedRoute: null,
-    enforcement: null,
+    requestedRoute,
+    appliedRoute,
+    enforcement: appliedEnforcement,
+    precedence: appliedPrecedence,
     revisions: revisions(input.revisions),
     dispatchedAt: timestamp(input.dispatchedAt, 'dispatchedAt'),
     reason: string(input.reason, 'reason'),
@@ -98,9 +136,15 @@ export function createDispatchReceipt(input) {
     }
   }
   const appliedEnforcement = enforcement(input.enforcement);
+  const appliedPrecedence = precedence(input.precedence);
   if (input.afk === true
       && (appliedEnforcement.model === 'none' || appliedEnforcement.effort === 'none')) {
     throw new Error('AFK dispatch requires enforced model and effort selection');
+  }
+  if (input.afk === true
+      && Object.values(appliedPrecedence).some((value) =>
+        value === 'uncontrolled' || value === 'unreported')) {
+    throw new Error('AFK dispatch requires verified environment precedence');
   }
   return Object.freeze({
     schemaVersion: DISPATCH_RECEIPT_VERSION,
@@ -110,6 +154,7 @@ export function createDispatchReceipt(input) {
     requestedRoute,
     appliedRoute,
     enforcement: appliedEnforcement,
+    precedence: appliedPrecedence,
     revisions: revisions(input.revisions),
     dispatchedAt: timestamp(input.dispatchedAt, 'dispatchedAt'),
     reason: null,

@@ -34,6 +34,21 @@ CODEX_SUBAGENTS = (
     REPO / ".agents/skills/orchestrate-wave/references/dispatch-subagents.md"
 )
 CODEX_SURFACE = REPO / ".agents/skills/orchestrate-wave"
+EXPECTED_CLAUDE_DIRECT_SPAWN_CONTRACTS = (
+    "audit-skills/SKILL.md",
+    "code-review/SKILL.md",
+    "codebase-design/DESIGN-IT-TWICE.md",
+    "improve-codebase-architecture/INTERFACE-DESIGN.md",
+    "improve-codebase-architecture/SKILL.md",
+    "research/SKILL.md",
+)
+DIRECT_SPAWN_PATTERN = re.compile(
+    r"Run \*\*one read-only research subagent|"
+    r"Run both axes as \*\*parallel sub-agents|"
+    r"Spawn 3\+ sub-agents|"
+    r"Then use the Agent tool|"
+    r"Spin up a \*\*background agent",
+)
 
 
 # Outcome -> fragments whose conjunction proves that portable behavior.
@@ -175,6 +190,45 @@ class OrchestrateWaveContract(unittest.TestCase):
         self.assertIn("(a) inline vs delegate", prose)
         self.assertIn("(b) tier + effort", prose)
         self.assertIn("Standing rules", prose)
+
+    def test_every_claude_dispatch_crosses_resolver_and_spawn_guard(self):
+        prose = " ".join(self.skill.split())
+        for fragment in (
+            "provider-neutral Routing intent",
+            "shared resolver",
+            "spawn guard",
+            "Dispatch receipt",
+            "requested and applied route",
+            "environment precedence",
+            "detected transport is not authorization",
+            "AFK",
+        ):
+            self.assertIn(fragment, prose)
+
+    def test_every_direct_spawn_contract_routes_through_the_shared_guard(self):
+        required = (
+            "provider-neutral Routing intent",
+            "routeDispatcher.mjs",
+            "shared spawn guard",
+            "Dispatch receipt",
+        )
+        actual = tuple(sorted(
+            str(path.relative_to(REPO / ".claude/skills"))
+            for path in (REPO / ".claude/skills").rglob("*.md")
+            if DIRECT_SPAWN_PATTERN.search(path.read_text(encoding="utf-8"))
+        ))
+        self.assertEqual(actual, EXPECTED_CLAUDE_DIRECT_SPAWN_CONTRACTS)
+        for relative in actual:
+            claude = " ".join(
+                (REPO / ".claude/skills" / relative).read_text(encoding="utf-8").split()
+            )
+            codex = " ".join(
+                (REPO / ".agents/skills" / relative).read_text(encoding="utf-8").split()
+            )
+            with self.subTest(contract=relative):
+                for fragment in required:
+                    self.assertIn(fragment, claude)
+                    self.assertIn(fragment, codex)
 
     def test_path_a_reference_locks_the_two_run_dispatch_contract(self):
         workflow = CLAUDE_WORKFLOW.read_text(encoding="utf-8")

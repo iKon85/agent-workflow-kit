@@ -55,10 +55,20 @@ Reconciliation is never delegated to a subagent.
 
 For the current reconciled batch, spawn **one builder per slice**, again as one
 concurrent batch joined by an explicit wait. Give each builder the verbatim
-builder contract, its reconciled allowlist, and its required commands. The host
-exposes no per-agent role, model, or reasoning selector, so routing falls back
-to the parent session configuration — record the tier you intended in the
-prompt itself rather than assuming the host honoured it.
+builder contract, its reconciled allowlist, and its required commands. Resolve
+the provider-neutral Routing intent immediately before each spawn. On Claude,
+pass the decision through `routeDispatcher.mjs` and the Claude adapter: native
+named-agent controls or an explicitly policy-approved `codex-exec` transport
+must prove their model and effort controls before invocation. Detection alone
+never authorizes a transport.
+
+The spawn guard compares the requested route with the adapter's applied route
+and environment precedence. It emits the shared Dispatch receipt with
+catalog/access/policy revisions. An unverified control, unauthorized transport,
+override mismatch, or unenforced effort blocks AFK before spawn. A genuinely
+unreachable route follows the policy's handoff, inherit, or block result; never
+silently inherit. A host without a proved per-agent selector remains on its
+existing parent-session fallback only when explicit non-AFK policy permits it.
 
 Each builder returns exactly one builder report. Validate it against the builder
 schema and then run `semanticVerify` on it in the main thread. A subagent's own
