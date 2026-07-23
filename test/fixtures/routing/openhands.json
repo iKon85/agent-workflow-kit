@@ -1,0 +1,24 @@
+{
+  "provenance": {
+    "organization": "All Hands AI",
+    "artifactUrl": "https://github.com/All-Hands-AI/OpenHands/tree/main/evaluation",
+    "benchmarkName": "OpenHands SWE-Bench",
+    "benchmarkVersion": "2026-07",
+    "harnessId": "openhands",
+    "harnessVersion": "0.50"
+  },
+  "results": [
+    {
+      "provider": "anthropic",
+      "model": "coding-model-b",
+      "effort": "high",
+      "resolvedRate": 0.61,
+      "standardError": 0.02,
+      "meanCost": {
+        "amount": 5.2,
+        "currency": "USD",
+        "unit": "task"
+      }
+    }
+  ]
+}

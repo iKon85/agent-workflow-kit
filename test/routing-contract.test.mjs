@@ -65,10 +65,12 @@ const observation = (overrides = {}) => ({
   harness: { id: 'agent-harness', version: '2.1' },
   score: 0.87,
   source: {
+    id: 'owner-benchmark',
     owner: 'benchmark-owner',
     url: 'https://example.invalid/benchmark',
     benchmark: 'coding-benchmark',
     version: '2026-07',
+    snapshotHash: 'sha256:owner-benchmark-r7',
   },
   uncertainty: { kind: 'confidence-interval', value: 0.03 },
   freshness: {
@@ -123,6 +125,18 @@ test('evidence catalog rejects duplicate observations and incomplete identities'
       observations: [observation(), observation()],
     }),
     /duplicate evidence observation/,
+  );
+  const missingSourceId = observation();
+  delete missingSourceId.source.id;
+  assert.throws(
+    () => validateEvidenceCatalog({ ...base, observations: [missingSourceId] }),
+    /source.id/,
+  );
+  const missingSnapshotHash = observation();
+  delete missingSnapshotHash.source.snapshotHash;
+  assert.throws(
+    () => validateEvidenceCatalog({ ...base, observations: [missingSnapshotHash] }),
+    /source.snapshotHash/,
   );
   const incomplete = observation();
   delete incomplete.harness;

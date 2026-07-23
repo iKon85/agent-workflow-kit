@@ -1,0 +1,23 @@
+{
+  "identity": {
+    "publisher": "Artificial Analysis",
+    "canonicalUrl": "https://artificialanalysis.ai/agents/coding-agents",
+    "index": "Coding Agent Index",
+    "release": "1.3",
+    "harnessName": "native-coding-agents",
+    "harnessRelease": "1.3"
+  },
+  "configurations": [
+    {
+      "providerId": "openai",
+      "modelId": "coding-model-a",
+      "reasoningEffort": "max",
+      "indexScore": 66.57,
+      "uncertainty": {
+        "kind": "not-reported",
+        "value": 0
+      },
+      "costPerTaskUsd": 7.08
+    }
+  ]
+}
