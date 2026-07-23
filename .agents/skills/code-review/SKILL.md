@@ -73,6 +73,12 @@ When `projectEnrichment` is active, read `docs/agents/code-review.md` first. App
 
 ## Execution
 
+Before dispatch, resolve a provider-neutral Routing intent through
+`src/lib/routeDispatcher.mjs` and require a Dispatch receipt from the shared
+spawn guard. A detected transport is not authorization; AFK dispatch stops
+unless requested/applied route, model/effort enforcement, environment
+precedence, and catalog/access/policy revisions are proved.
+
 - Run both axes as **parallel sub-agents** — separate context each, so neither poisons the other's read. Give the Standards sub-agent the Standards sources **plus** the full Fowler baseline in its prompt; it has no other way to see the baseline.
 - Report **side by side**, under `## Standards` and `## Spec` headers, verbatim or lightly cleaned — never merge or re-rank the two into one combined verdict.
 - Cap each sub-agent's report under 400 words — findings, not padding.

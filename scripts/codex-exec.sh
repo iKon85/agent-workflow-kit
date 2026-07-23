@@ -4,6 +4,7 @@ set -u
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROC_HELPER="$SCRIPT_DIR/codex_proc.py"
 TESTED_VERSIONS=("0.137.0" "0.144.6")
+SUPPORTED_EFFORTS=("low" "medium" "high" "xhigh" "max" "ultra")
 STATE_ROOT=${CODEX_EXEC_STATE_ROOT:-${TMPDIR:-/tmp}/codex-exec-state}
 
 emit_json() {
@@ -118,10 +119,10 @@ preflight() {
 }
 
 parse_options() {
-  CODEX_BIN=codex PROFILE= MODE= SANDBOX= PROMPT= PROMPT_FILE= RUN_ID= TIMEOUT= PROBE_TIMEOUT= DEBUG_RETAIN=false
+  CODEX_BIN=codex PROFILE= MODE= SANDBOX= PROMPT= PROMPT_FILE= RUN_ID= TIMEOUT= PROBE_TIMEOUT= MODEL= EFFORT= DEBUG_RETAIN=false
   while (($#)); do
     case $1 in
-      --codex-bin|--profile|--mode|--prompt|--prompt-file|--run-id|--timeout|--probe-timeout)
+      --codex-bin|--profile|--mode|--prompt|--prompt-file|--run-id|--timeout|--probe-timeout|--model|--effort)
         (($# >= 2)) || { fail INVALID_ARGUMENT "Missing value for $1"; return 1; }
         case $1 in
           --codex-bin) CODEX_BIN=$2 ;;
@@ -132,12 +133,30 @@ parse_options() {
           --run-id) RUN_ID=$2 ;;
           --timeout) TIMEOUT=$2 ;;
           --probe-timeout) PROBE_TIMEOUT=$2 ;;
+          --model) MODEL=$2 ;;
+          --effort) EFFORT=$2 ;;
         esac
         shift 2 ;;
       --debug-retain) DEBUG_RETAIN=true; shift ;;
       *) fail INVALID_ARGUMENT "Unknown option: $1"; return 1 ;;
     esac
   done
+}
+
+validate_route_controls() {
+  if [[ -z $MODEL && -z $EFFORT ]]; then
+    return 0
+  fi
+  local effort_supported=false supported
+  for supported in "${SUPPORTED_EFFORTS[@]}"; do
+    [[ $EFFORT == "$supported" ]] && effort_supported=true
+  done
+  if [[ -z $MODEL || -z $EFFORT \
+    || ! $MODEL =~ ^[A-Za-z0-9._:-]+$ \
+    || $effort_supported != true ]]; then
+    fail INVALID_ROUTE_CONTROL "Model and effort must be supplied together from the exact safe vocabulary"
+    return 1
+  fi
 }
 
 prepare_prompt() {
@@ -160,10 +179,14 @@ launch_round() {
   prepare_prompt "$state_dir" || return 1
   local command
   if [[ -z $thread_id ]]; then
-    command=("$CODEX_BIN" exec --json --sandbox "$SANDBOX" -)
+    command=("$CODEX_BIN" exec --json --sandbox "$SANDBOX")
   else
-    command=("$CODEX_BIN" exec resume "$thread_id" -c "sandbox_mode=$SANDBOX" --json -)
+    command=("$CODEX_BIN" exec resume "$thread_id" -c "sandbox_mode=$SANDBOX")
   fi
+  if [[ -n $MODEL ]]; then
+    command+=(-c "model=$MODEL" -c "model_reasoning_effort=$EFFORT")
+  fi
+  command+=(--json -)
   python3 "$PROC_HELPER" run --state-dir "$state_dir" --round "$round" \
     --profile "$PROFILE" --sandbox "$SANDBOX" --timeout "$TIMEOUT" \
     --probe-timeout "$PROBE_TIMEOUT" --prompt-file "$TEMP_PROMPT" \
@@ -252,6 +275,7 @@ PY
 
 new_run() {
   parse_options "$@" || return 1
+  validate_route_controls || return 1
   PROFILE=${PROFILE:-review}
   MODE=${MODE:-read-only}
   [[ $PROFILE == review || $PROFILE == build ]] || { fail INVALID_PROFILE "Profile must be review or build"; return 1; }
@@ -285,15 +309,18 @@ new_run() {
   state_dir=$(mktemp -d "$STATE_ROOT/codex-exec.XXXXXXXX") || return 1
   chmod 700 "$state_dir"
   run_id=${state_dir##*.}
-  printf '%s\n' "$run_id" >"$state_dir/run-id"
   printf '%s\n' "$PROFILE" >"$state_dir/profile"
   printf '%s\n' "$SANDBOX" >"$state_dir/sandbox"
+  printf '%s\n' "$MODEL" >"$state_dir/model"
+  printf '%s\n' "$EFFORT" >"$state_dir/effort"
   printf '1\n' >"$state_dir/next-round"
   chmod 600 "$state_dir"/*
   lease_token=$(acquire_lease "$state_dir") || {
     fail ACTIVE_RUN "Run state is already owned by another lifecycle action"
     return 1
   }
+  printf '%s\n' "$run_id" >"$state_dir/run-id"
+  chmod 600 "$state_dir/run-id"
   output=$(launch_round "$state_dir" 1 "$lease_token")
   rc=$?
   release_or_fail "$state_dir" "$lease_token" "$run_id" "$output" || return 1
@@ -307,16 +334,20 @@ new_run() {
 }
 
 resume_run_locked() {
-  local state_dir=$1 lease_token=$2 stored_profile stored_sandbox thread_id round
+  local state_dir=$1 lease_token=$2 stored_profile stored_sandbox stored_model stored_effort thread_id round
   [[ ! -f $state_dir/debug-retain ]] || {
     fail RUN_FINALIZED "Run was finalized with debug retention"; return 1;
   }
   [[ -f $state_dir/profile && ! -L $state_dir/profile \
-    && -f $state_dir/sandbox && ! -L $state_dir/sandbox ]] || {
-    fail INVALID_STATE "Persisted profile or sandbox state is missing or unsafe"; return 1;
+    && -f $state_dir/sandbox && ! -L $state_dir/sandbox \
+    && -f $state_dir/model && ! -L $state_dir/model \
+    && -f $state_dir/effort && ! -L $state_dir/effort ]] || {
+    fail INVALID_STATE "Persisted profile, sandbox, or route controls are missing or unsafe"; return 1;
   }
   stored_profile=$(<"$state_dir/profile")
   stored_sandbox=$(<"$state_dir/sandbox")
+  stored_model=$(<"$state_dir/model")
+  stored_effort=$(<"$state_dir/effort")
   [[ $stored_profile == review || $stored_profile == build ]] || {
     fail INVALID_STATE "Persisted profile is not in the exact allowlist"; return 1;
   }
@@ -328,6 +359,13 @@ resume_run_locked() {
     fail MODE_MISMATCH "Resume mode differs from persisted mode"
     return 1
   fi
+  if [[ -n $MODEL && $MODEL != "$stored_model" ]] || [[ -n $EFFORT && $EFFORT != "$stored_effort" ]]; then
+    fail ROUTE_CONTROL_MISMATCH "Resume model or effort differs from the persisted applied route"
+    return 1
+  fi
+  MODEL=$stored_model
+  EFFORT=$stored_effort
+  validate_route_controls || return 1
   SANDBOX=$stored_sandbox
   [[ -f $state_dir/thread-id ]] || { fail NO_THREAD "Run has no resumable thread" NO-THREAD; return 1; }
   thread_id=$(<"$state_dir/thread-id")
@@ -346,6 +384,7 @@ resume_run_locked() {
 
 resume_run() {
   parse_options "$@" || return 1
+  validate_route_controls || return 1
   [[ -n $RUN_ID ]] || { fail RUN_ID_REQUIRED "Resume requires --run-id"; return 1; }
   local state_dir lease_token rc output
   state_dir=$(find_state "$RUN_ID") || { fail RUN_NOT_FOUND "Run state does not exist"; return 1; }

@@ -18,6 +18,12 @@ Show this to the user, then immediately proceed to Step 2. The user reads and th
 
 ### 2. Spawn sub-agents
 
+Before dispatch, resolve a provider-neutral Routing intent through
+`src/lib/routeDispatcher.mjs` and require a Dispatch receipt from the shared
+spawn guard. A detected transport is not authorization; AFK dispatch stops
+unless requested/applied route, model/effort enforcement, environment
+precedence, and catalog/access/policy revisions are proved.
+
 <!-- mirror-xform:start codex-parallel-subagent-dispatch -->
 When the user has authorized subagent delegation, spawn 3+ sub-agents in parallel with `spawn_agent`. Each must produce a **radically different** interface for the deepened module.
 <!-- mirror-xform:end -->
