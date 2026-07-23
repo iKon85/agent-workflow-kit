@@ -42,7 +42,10 @@ unless requested/applied route, model/effort enforcement, environment
 precedence, and catalog/access/policy revisions are proved.
 
 <!-- mirror-xform:start codex-explorer-dispatch -->
-When the user has authorized subagent delegation, use `spawn_agent` with `agent_type: explorer` to walk the codebase; otherwise explore locally. Don't follow rigid heuristics — explore organically and note where you experience friction:
+When the user has authorized subagent delegation, use `spawn_agent` with only
+`task_name`, `message`, and `fork_turns` to walk the codebase; otherwise explore
+locally. Don't follow rigid heuristics — explore organically and note where you
+experience friction:
 <!-- mirror-xform:end -->
 
 - Where does understanding one concept require bouncing between many small modules?

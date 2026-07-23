@@ -9,6 +9,10 @@ import {
 } from '../src/lib/capabilityMatrix.mjs';
 import { dispatchResolvedRoute } from '../src/lib/routeDispatcher.mjs';
 import { createClaudeRoutingAdapter } from '../src/lib/routingAdapters/claude.mjs';
+import {
+  adaptCodexRoutingInventory,
+  createCodexRoutingAdapter,
+} from '../src/lib/routingAdapters/codex.mjs';
 
 const workflowSchema = {
   type: 'object',
@@ -193,15 +197,17 @@ function routingFixture({
   transportId = 'claude-native',
   allowedTransports = [transportId],
   unreachable = 'block',
+  surfaceId = 'claude',
+  providerId = transportId === 'codex-exec' ? 'openai' : 'anthropic',
+  enforcementMethod = transportId === 'codex-exec' ? 'per-spawn' : 'named-agent',
 } = {}) {
   const route = {
-    providerId: transportId === 'codex-exec' ? 'openai' : 'anthropic',
+    providerId,
     modelId: transportId === 'codex-exec' ? 'coding-model' : 'reasoning-model',
     effort: 'high',
-    surfaceId: 'claude',
+    surfaceId,
     transportId,
   };
-  const enforcementMethod = transportId === 'codex-exec' ? 'per-spawn' : 'named-agent';
   return {
     route,
     resolverInput: {
@@ -251,19 +257,208 @@ function routingFixture({
       policy: {
         schemaVersion: 1,
         revision: 'policy-9',
-        allowedSurfaces: ['claude'],
+        allowedSurfaces: [surfaceId],
         allowedTransports,
         switching: 'automatic',
         optimization: 'quality',
         unreachable,
         missingInfrastructure: 'block',
       },
-      activeSurface: 'claude',
-      knownTransports: ['claude-native', 'codex-exec'],
+      activeSurface: surfaceId,
+      knownTransports: [...new Set(['claude-native', 'codex-exec', transportId])],
       now: '2026-07-23T12:00:00.000Z',
     },
   };
 }
+
+function codexInventory(route, {
+  method = 'per-spawn',
+  precedence = 'explicit-argument',
+  spawnProperties = {
+    task_name: {},
+    message: {},
+    fork_turns: {},
+    model: {},
+    reasoning_effort: {},
+  },
+  detected = true,
+  callable = true,
+  permitted = true,
+} = {}) {
+  return {
+    contractVersion: 1,
+    observedAt: '2026-07-23T12:00:00.000Z',
+    host: { id: 'codex-cli', version: '0.144.6' },
+    spawnSchema: { type: 'object', properties: spawnProperties },
+    paths: [{
+      id: 'codex-native',
+      ...route,
+      detected,
+      callable,
+      permitted,
+      model: { method, enforced: true, precedence, applied: route.modelId },
+      effort: { method, enforced: true, precedence, applied: route.effort },
+    }],
+  };
+}
+
+test('Codex explicit-spawn AFK dispatch proves model and effort through receipt v2', async () => {
+  const { route, resolverInput } = routingFixture({
+    surfaceId: 'codex',
+    providerId: 'openai',
+    transportId: 'codex-native',
+    enforcementMethod: 'per-spawn',
+  });
+  let invoked = 0;
+  const adapter = createCodexRoutingAdapter({
+    inventory: codexInventory(route),
+    dispatchers: {
+      'codex-native': async () => {
+        invoked += 1;
+        return { taskId: 'codex-native-1' };
+      },
+    },
+  });
+
+  const result = await dispatchResolvedRoute({
+    executionId: 'execution-codex-native',
+    afk: true,
+    resolverInput,
+    adapter,
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+
+  assert.equal(invoked, 1);
+  assert.equal(result.receipt.schemaVersion, 2);
+  assert.equal(result.receipt.status, 'dispatched');
+  assert.deepEqual(result.receipt.enforcement, { model: 'per-spawn', effort: 'per-spawn' });
+  assert.deepEqual(result.receipt.precedence, {
+    model: 'explicit-argument',
+    effort: 'explicit-argument',
+  });
+  assert.deepEqual(result.receipt.revisions, {
+    catalog: 'catalog-7', accessGraph: 'access-4', policy: 'policy-9',
+  });
+});
+
+test('Codex named custom-agent and session-default routes preserve their precedence', async () => {
+  for (const [method, precedence] of [
+    ['named-agent', 'agent-definition-over-environment'],
+    ['session-default', 'session-default'],
+  ]) {
+    const { route, resolverInput } = routingFixture({
+      surfaceId: 'codex',
+      providerId: 'openai',
+      transportId: `codex-${method}`,
+      enforcementMethod: method,
+    });
+    const result = await dispatchResolvedRoute({
+      executionId: `execution-${method}`,
+      afk: true,
+      resolverInput,
+      adapter: createCodexRoutingAdapter({
+        inventory: codexInventory(route, {
+          method,
+          precedence,
+          spawnProperties: { task_name: {}, message: {}, fork_turns: {} },
+        }),
+        dispatchers: {
+          [route.transportId]: async () => ({ taskId: `task-${method}` }),
+        },
+      }),
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+
+    assert.equal(result.receipt.status, 'dispatched', method);
+    assert.deepEqual(result.receipt.enforcement, { model: method, effort: method });
+    assert.deepEqual(result.receipt.precedence, { model: precedence, effort: precedence });
+  }
+});
+
+test('Codex unavailable routes block before native spawn', async () => {
+  const { route, resolverInput } = routingFixture({
+    surfaceId: 'codex',
+    providerId: 'openai',
+    transportId: 'codex-native',
+    enforcementMethod: 'per-spawn',
+  });
+  let invoked = 0;
+  const result = await dispatchResolvedRoute({
+    executionId: 'execution-codex-unavailable',
+    afk: true,
+    resolverInput,
+    adapter: createCodexRoutingAdapter({
+      inventory: codexInventory(route, { detected: false }),
+      dispatchers: {
+        'codex-native': async () => {
+          invoked += 1;
+          return { taskId: 'must-not-run' };
+        },
+      },
+    }),
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+
+  assert.equal(result.receipt.status, 'blocked');
+  assert.equal(result.receipt.reason, 'transport is not detected');
+  assert.equal(invoked, 0);
+});
+
+test('the selector-less current Codex host cannot claim differentiated AFK enforcement', async () => {
+  const { route, resolverInput } = routingFixture({
+    surfaceId: 'codex',
+    providerId: 'openai',
+    transportId: 'codex-native',
+    enforcementMethod: 'per-spawn',
+  });
+  const currentHost = codexInventory(route, {
+    spawnProperties: { task_name: {}, message: {}, fork_turns: {} },
+  });
+  const attested = adaptCodexRoutingInventory(currentHost);
+  assert.equal(attested.paths[0].verified, false);
+  assert.ok(attested.paths[0].verificationFailures.includes('model control is not enforced'));
+  assert.ok(attested.paths[0].verificationFailures.includes('effort control is not enforced'));
+
+  let invoked = 0;
+  const result = await dispatchResolvedRoute({
+    executionId: 'execution-current-codex-host',
+    afk: true,
+    resolverInput,
+    adapter: createCodexRoutingAdapter({
+      inventory: currentHost,
+      dispatchers: {
+        'codex-native': async () => {
+          invoked += 1;
+          return { taskId: 'must-not-run' };
+        },
+      },
+    }),
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+  });
+
+  assert.equal(result.receipt.status, 'blocked');
+  assert.equal(result.receipt.reason, 'model control is not enforced');
+  assert.equal(result.receipt.appliedRoute, null);
+  assert.equal(invoked, 0);
+});
+
+test('Codex capabilities require a dated host attestation and ignore foreign surfaces', () => {
+  const { route } = routingFixture({
+    surfaceId: 'codex',
+    providerId: 'openai',
+    transportId: 'codex-native',
+    enforcementMethod: 'per-spawn',
+  });
+  assert.throws(
+    () => adaptCodexRoutingInventory({ ...codexInventory(route), observedAt: undefined }),
+    /observedAt/,
+  );
+  const adapted = adaptCodexRoutingInventory({
+    ...codexInventory(route),
+    paths: [{ ...codexInventory(route).paths[0], surfaceId: 'claude' }],
+  });
+  assert.deepEqual(adapted.paths, []);
+});
 
 test('Claude routing inventory attests only proved controls and preserves environment precedence', () => {
   const adapted = adaptClaudeRoutingInventory({
