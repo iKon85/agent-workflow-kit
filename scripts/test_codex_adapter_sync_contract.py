@@ -8,6 +8,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ADAPTER = REPO_ROOT / ".agents/skills/codex-adapter-sync/SKILL.md"
+AGENTS_README = REPO_ROOT / ".codex/agents/README.md"
 _FRONTMATTER_SPEC = importlib.util.spec_from_file_location(
     "skill_frontmatter_lint", REPO_ROOT / "scripts/test_skill_frontmatter_lint.py")
 frontmatter = importlib.util.module_from_spec(_FRONTMATTER_SPEC)
@@ -100,6 +101,23 @@ class AdapterAgentContract(unittest.TestCase):
         self.assertIn("optional `model` and `model_reasoning_effort`", agents)
         self.assertIn("Parse every `.codex/agents/*.toml`", agents)
         self.assertIn("Reject a file", agents)
+
+    def test_codex_host_inventory_is_dated_and_does_not_invent_spawn_selectors(self):
+        inventory = " ".join(
+            AGENTS_README.read_text(encoding="utf-8").split()
+        )
+        for fragment in (
+            "2026-07-23",
+            "`task_name`",
+            "`message`",
+            "`fork_turns`",
+            "no per-spawn `model`",
+            "no per-spawn effort selector",
+            "`src/lib/routingAdapters/codex.mjs`",
+            "blocks differentiated AFK",
+            "Dispatch receipt v2",
+        ):
+            self.assertIn(fragment, inventory)
 
 
 class AdapterValidationContract(unittest.TestCase):

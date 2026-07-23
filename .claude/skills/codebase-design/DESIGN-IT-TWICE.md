@@ -24,7 +24,9 @@ spawn guard. A detected transport is not authorization; AFK dispatch stops
 unless requested/applied route, model/effort enforcement, environment
 precedence, and catalog/access/policy revisions are proved.
 
+<!-- mirror-xform:start codex-parallel-subagent-dispatch -->
 Spawn 3+ sub-agents in parallel using the Agent tool. Each must produce a **radically different** interface for the deepened module.
+<!-- mirror-xform:end -->
 
 Prompt each sub-agent with a separate technical brief (file paths, coupling details, dependency category from [DEEPENING.md](DEEPENING.md), what sits behind the seam). The brief is independent of the user-facing problem-space explanation in Step 1. Give each agent a different design constraint:
 

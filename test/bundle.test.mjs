@@ -79,6 +79,37 @@ test('HELPER_FILES ships the capability matrix exactly once', () => {
   assert.equal(paths.filter((path) => path === 'src/lib/capabilityMatrix.mjs').length, 1);
 });
 
+test('HELPER_FILES ships every Wave 13 routing runtime module exactly once', () => {
+  const paths = HELPER_FILES.map(({ path }) => path);
+  const routingRuntime = [
+    'src/commands/routing-policy-update.mjs',
+    'src/lib/agentSurfaceRegistry.mjs',
+    'src/lib/capabilityMatrix.mjs',
+    'src/lib/dispatchReceipt.mjs',
+    'src/lib/frontendWorkloads.mjs',
+    'src/lib/routeDispatcher.mjs',
+    'src/lib/routingAccessGraph.mjs',
+    'src/lib/routingAdapters/claude.mjs',
+    'src/lib/routingAdapters/codex.mjs',
+    'src/lib/routingCatalog.mjs',
+    'src/lib/routingEvidenceCache.mjs',
+    'src/lib/routingIntent.mjs',
+    'src/lib/routingPolicy.mjs',
+    'src/lib/routingProfile.mjs',
+    'src/lib/routingResolver.mjs',
+    'src/lib/routingSources/artificialAnalysis.mjs',
+    'src/lib/routingSources/benchlm.mjs',
+    'src/lib/routingSources/codeArena.mjs',
+    'src/lib/routingSources/deepswe.mjs',
+    'src/lib/routingSources/openhands.mjs',
+    'src/lib/routingSources/openhandsFrontend.mjs',
+  ];
+  assert.deepEqual(
+    routingRuntime.filter((path) => paths.filter((candidate) => candidate === path).length !== 1),
+    [],
+  );
+});
+
 test('HELPER_FILES ships the recon report reconciler exactly once', () => {
   const paths = HELPER_FILES.map(({ path }) => path);
   assert.equal(paths.filter((path) => path === 'src/lib/reconcileReconReports.mjs').length, 1);

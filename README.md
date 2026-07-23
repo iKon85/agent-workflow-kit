@@ -385,6 +385,69 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.34.0
+
+- added: `src/commands/routing-policy-update.mjs`
+- added: `src/lib/agentSurfaceRegistry.mjs`
+- added: `src/lib/dispatchReceipt.mjs`
+- added: `src/lib/frontendWorkloads.mjs`
+- added: `src/lib/routeDispatcher.mjs`
+- added: `src/lib/routingAccessGraph.mjs`
+- added: `src/lib/routingAdapters/claude.mjs`
+- added: `src/lib/routingAdapters/codex.mjs`
+- added: `src/lib/routingCatalog.mjs`
+- added: `src/lib/routingEvidenceCache.mjs`
+- added: `src/lib/routingIntent.mjs`
+- added: `src/lib/routingPolicy.mjs`
+- added: `src/lib/routingProfile.mjs`
+- added: `src/lib/routingResolver.mjs`
+- added: `src/lib/routingSources/artificialAnalysis.mjs`
+- added: `src/lib/routingSources/benchlm.mjs`
+- added: `src/lib/routingSources/codeArena.mjs`
+- added: `src/lib/routingSources/deepswe.mjs`
+- added: `src/lib/routingSources/openhands.mjs`
+- added: `src/lib/routingSources/openhandsFrontend.mjs`
+- changed: `.agents/skills/ask-matt/SKILL.md`
+- changed: `.agents/skills/audit-skills/SKILL.md`
+- changed: `.agents/skills/board-to-waves/SKILL.md`
+- changed: `.agents/skills/code-review/SKILL.md`
+- changed: `.agents/skills/codebase-design/DESIGN-IT-TWICE.md`
+- changed: `.agents/skills/codex-adapter-sync/SKILL.md`
+- changed: `.agents/skills/improve-codebase-architecture/INTERFACE-DESIGN.md`
+- changed: `.agents/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/references/dispatch-subagents.md`
+- changed: `.agents/skills/orchestrate-wave/references/dispatch-workflow.md`
+- changed: `.agents/skills/research/SKILL.md`
+- changed: `.agents/skills/scale-check/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/board-sync.md`
+- changed: `.agents/skills/setup-workflow/workflow-overview.md`
+- changed: `.agents/skills/to-issues/SKILL.md`
+- changed: `.agents/skills/to-waves/SKILL.md`
+- changed: `.claude/skills/ask-matt/SKILL.md`
+- changed: `.claude/skills/audit-skills/SKILL.md`
+- changed: `.claude/skills/board-to-waves/SKILL.md`
+- changed: `.claude/skills/code-review/SKILL.md`
+- changed: `.claude/skills/codebase-design/DESIGN-IT-TWICE.md`
+- changed: `.claude/skills/improve-codebase-architecture/INTERFACE-DESIGN.md`
+- changed: `.claude/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/references/dispatch-subagents.md`
+- changed: `.claude/skills/orchestrate-wave/references/dispatch-workflow.md`
+- changed: `.claude/skills/research/SKILL.md`
+- changed: `.claude/skills/scale-check/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/board-sync.md`
+- changed: `.claude/skills/setup-workflow/workflow-overview.md`
+- changed: `.claude/skills/to-issues/SKILL.md`
+- changed: `.claude/skills/to-waves/SKILL.md`
+- changed: `docs/agents/wave-anchor-template.md`
+- changed: `scripts/codex-exec.sh`
+- changed: `src/lib/capabilityMatrix.mjs`
+
 ### 0.33.0
 
 - added: `.agents/skills/orchestrate-wave/references/dispatch-subagents.md`

@@ -49,10 +49,12 @@ the reconciled allowlist and required commands in each verbatim builder prompt;
 the main thread still performs `semanticVerify` on every returned report.
 
 Before each `agent()` call, resolve its provider-neutral Routing intent and pass
-the decision through the shared spawn guard. The Claude adapter must attest the
-Workflow model/effort precedence in the current environment. Create the Dispatch
-receipt before invocation; any requested/applied mismatch, unverified control,
-or unauthorized transport blocks AFK rather than silently degrading.
+the decision through the shared spawn guard and active surface adapter. The
+Claude adapter must attest Workflow model/effort precedence in the current
+environment; a future Codex host may use this path only when its dated
+`routingAdapters/codex.mjs` attestation proves the same controls. Create the
+Dispatch receipt before invocation; any requested/applied mismatch, unverified
+control, or unauthorized transport blocks AFK rather than silently degrading.
 
 ## Resume exactly once
 

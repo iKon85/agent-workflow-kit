@@ -444,6 +444,12 @@ Live-verify: <user outcome, DB/UI value with comparison>
 PR: <closes #x | Part of #<prd#> — NEVER closes on the anchor>.
 ```
 <!-- mirror-xform:end -->
+
+At execution time, consume that provider-neutral intent only through
+`src/lib/routeDispatcher.mjs` and its shared spawn guard. The active Claude or
+Codex adapter must produce Dispatch receipt v2 with requested/applied route,
+model/effort enforcement, precedence, and catalog/access/policy revisions
+before an AFK subagent starts; the durable issue never claims that proof.
 </issue-template>
 
 **Blast-radius reconciliation (build session):** the stamped `**Blast-Radius:**` is the estimate *at the cut* — the build session compares it against its own recon finding. A real finding **> 2× the estimate → STOP + report** (re-cut at the anchor), do NOT keep building silently.

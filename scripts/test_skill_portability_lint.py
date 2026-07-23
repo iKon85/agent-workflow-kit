@@ -55,6 +55,17 @@ ENFORCED_CLASSES = {"generic", "vendored"}
 EXEMPT = "portability-lint: ok"
 MIRROR_XFORM_START = re.compile(r"^\s*<!--\s*mirror-xform:start(?:\s+([^>]*?))?\s*-->\s*$")
 MIRROR_XFORM_END = re.compile(r"^\s*<!--\s*mirror-xform:end\s*-->\s*$")
+DIRECT_SPAWN_PATTERN = re.compile(
+    r"Run \*\*one read-only research subagent|"
+    r"Run both axes as \*\*parallel sub-agents|"
+    r"Spawn 3\+ sub-agents|"
+    r"spawn 3\+ sub-agents|"
+    r"make 3\+ parallel\s+`spawn_agent` calls|"
+    r"Then use the Agent tool|"
+    r"use `spawn_agent` with `agent_type: explorer`|"
+    r"use `spawn_agent` with only|"
+    r"Spin up a \*\*background agent",
+)
 
 # Opaque, project-coupled board constants — meaningless in a foreign repo.
 CONSTANT_PATTERNS = [
@@ -238,6 +249,15 @@ def skill_file_set(tree: str, name: str) -> set[str]:
 def skill_md_set(tree: str, name: str) -> set[str]:
     """Markdown subset used by the body and structure parity checks."""
     return {p for p in skill_file_set(tree, name) if p.endswith(".md")}
+
+
+def direct_spawn_contracts(tree: str) -> dict[str, str]:
+    root = REPO_ROOT / tree
+    return {
+        path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
+        for path in root.rglob("*.md")
+        if DIRECT_SPAWN_PATTERN.search(path.read_text(encoding="utf-8"))
+    }
 
 
 def mirror_presence_drift(name: str, claude: set[str], codex: set[str]) -> list[str]:
@@ -554,6 +574,40 @@ class MirrorContentParity(unittest.TestCase):
             "mirror, or bracket an intentional source/mirror rewrite with paired "
             "`<!-- mirror-xform:start <reason> -->` / `<!-- mirror-xform:end -->` "
             "regions:\n" + "\n".join(problems))
+
+    def test_every_codex_direct_spawn_contract_uses_the_shared_guard(self):
+        claude = direct_spawn_contracts(".claude/skills")
+        codex = direct_spawn_contracts(".agents/skills")
+        self.assertTrue(claude, "direct-spawn census unexpectedly empty")
+        self.assertEqual(set(codex), set(claude))
+
+        problems = []
+        required = (
+            "provider-neutral Routing intent",
+            "routeDispatcher.mjs",
+            "shared spawn guard",
+            "Dispatch receipt",
+        )
+        for relative, body in codex.items():
+            prose = " ".join(body.split())
+            missing = [fragment for fragment in required if fragment not in prose]
+            if missing:
+                problems.append(f"{relative}: missing {', '.join(missing)}")
+            unsupported = [
+                token for token in ("Agent tool", "subagent_type", "agent_type")
+                if token in prose
+            ]
+            if unsupported:
+                problems.append(
+                    f"{relative}: unsupported Codex spawn syntax "
+                    f"{', '.join(unsupported)}"
+                )
+        self.assertEqual(
+            problems,
+            [],
+            f"Codex direct-spawn guard coverage drift ({len(codex)} of "
+            f"{len(claude)}):\n" + "\n".join(problems),
+        )
 
 
 class MirrorParityFixture(unittest.TestCase):
