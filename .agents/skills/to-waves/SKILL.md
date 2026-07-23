@@ -1,17 +1,25 @@
 ---
 name: to-waves
 disable-model-invocation: true
-description: "Turn a Program-PRD's wave plan into fully planned, execute-ready wave anchors and slice leaves after one complete chat preview. Validates the graph, publishes every wave, runs the to-prd/spec-self-critique/to-issues maturity contract for each wave, models unresolved work as explicit gates, and audits counted readiness. Idempotent and crash-recoverable. Use on a Program-PRD over several waves. NOT for a single-wave feature (to-issues) or backlog clustering (board-to-waves)."
+description: "Internal Program graph engine behind the public to-issues Planning facade. Turns an explicitly identified Program-PRD into execute-ready wave anchors and slice leaves after one complete chat preview. Kept as a disabled compatibility entrypoint for existing explicit invocations; normal routing always selects to-issues."
 ---
 
-# to-waves — Unfold a Program-PRD's wave plan onto the board
+# to-waves — Internal Program graph engine
+
+This skill is an **Internal Program graph engine**, selected by `to-issues` only
+when the source carries explicit, coherent Program identity. It is not a second
+public Planning route. The disabled `/to-waves` invocation remains only as a
+compatibility entrypoint for existing callers and tests; it applies this same
+contract and should direct future normal use to `/to-issues`.
 
 Takes a **Program-PRD** — the native Sub-Issue anchor over a multi-wave program
 (Programm → Phase → Welle → Slice) — and turns its `## Wellenplan` chapter into
 **fully planned wave anchors + slice leaves** on the board. Pipeline position:
-`scale-check → grill → to-prd (program mode) → to-waves`, with the per-wave
-`to-prd → spec-self-critique → to-issues` maturity pass owned inside this run.
-The **grill and to-prd sit upstream**; to-waves runs once the Program-PRD exists.
+`scale-check → grill → to-prd (program mode) → to-issues`, with this internal
+engine owning the per-wave `to-prd → spec-self-critique → to-issues` maturity
+pass inside this run.
+The **grill and to-prd sit upstream**; the facade dispatches here once the
+Program-PRD exists and its identity is coherent.
 It **never invents structure** — it only unfolds what the plan already decided.
 
 <!-- readiness:required-preflight:start -->
@@ -24,8 +32,8 @@ node scripts/readiness.mjs check --skill to-waves --json
 ```
 
 - `verdict=ready`: continue with the existing workflow without announcing the check. **Ready is silent.**
-- `verdict=blocked`: `STOP` before any mutation. Report every required capability as `<capability>=<state>` so `issueTracker`, `managedBoard`, and `specCompleteness` failures — including distinct `missing`, `pending`, and `invalid` states — stay visible, then give exactly one recovery path: **Run `/setup-workflow`, then rerun `/to-waves`.** Do not fall back to bare tracker or board commands.
-- `managedBoard=not-applicable`: `STOP` and report that `/to-waves` is **inapplicable** for a project that deliberately has no managed board. This is a terminal project decision, not invalid evidence and not a partially active mode.
+- `verdict=blocked`: `STOP` before any mutation. Report every required capability as `<capability>=<state>` so `issueTracker`, `managedBoard`, and `specCompleteness` failures — including distinct `missing`, `pending`, and `invalid` states — stay visible, then give exactly one recovery path: **Run `/setup-workflow`, then rerun `/to-issues`.** Do not fall back to bare tracker or board commands.
+- `managedBoard=not-applicable`: `STOP` and report that Program planning through `/to-issues` is **inapplicable** for a project that deliberately has no managed board. This is a terminal project decision, not invalid evidence and not a partially active mode.
 <!-- readiness:required-preflight:end -->
 
 Board constants (project node, field/status IDs) + helpers live **consumer-side**:
@@ -43,10 +51,14 @@ is the parser.
 
 ## 1. Input — a Program-PRD
 
-The target is a Program-PRD issue: it carries the `<!-- prd: program -->` marker (or
-the program-type label) and a `## Wellenplan` table. Passed in / from context. If the
-issue is a plain feature-PRD or a Welle-Anchor, stop — a feature-PRD is `to-issues`'
-target, an anchor is already a single wave.
+The target is a Program-PRD issue: it carries both the
+`<!-- prd: program -->` marker and the configured Program-type label, plus a
+`## Wellenplan` table. Passed in from the facade or explicit compatibility
+invocation. If either identity half is missing, they disagree, or Feature
+identity is also present, stop before preview or write and return to
+`to-issues`; never infer Program mode from the table, prose, size, or model
+judgment. A plain Feature-PRD remains on the facade's Feature path; a
+Wave-Anchor is already a single wave.
 
 ## 2. Parse + validate — the graph preflight
 
@@ -316,7 +328,7 @@ python3 scripts/board-sync.py program-sync <prd#>
 ## Audit block (visible output)
 
 ```
-to-waves: prd=#<n> preview=<approved|rejected>
+to-issues: planning-mode=program engine=to-waves prd=#<n> preview=<approved|rejected>
   created=<stubs X von Y, leaves X von Y>  adopted=<#a #b … | none>
   stamped=<N von M Wave/Phase>  phase=<stamped | skipped (profile lacks fields.phase)>
   matured=<X von Y>  execute-ready=<X von Y Wellen ausführungsreif>

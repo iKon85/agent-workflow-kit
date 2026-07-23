@@ -309,7 +309,14 @@ Seed `docs/agents/domain.md` from [domain.md](./domain.md).
 
 **Fallback (the single catch-all — no board / >1 / ambiguous / scope error / read failure):** do **not** auto-create a board (`gh project create` alone cannot provision the Status options + workflow fields a board needs). Write `board-sync.md` with `state=stub`, `mode=github-projects-v2`, and inline **instructions**: which fields the workflow profile needs (a Status single-select with your stage options; optionally a Wave number, a Cluster text, a Spec-Path / Plan-Path text), how to create the board in the GitHub UI / `gh`, and "then run `/setup-workflow` again — it will discover and fill the IDs." Retryable.
 
-**Optional — Phase field + saved Views (Program route only):** never auto-discovered or auto-created, unlike the fields above — a Phase field's option set is plan-specific. If this project plans to use the Program route (`scale-check` → `to-waves` → `validate-graph`), point the user at the seeded [board-sync.md](./board-sync.md)'s "Optional: the Program route" section for the `gh project field-create` command, the optional `fields.phase` / `labels.programType` profile keys, and the two saved Views to create by hand.
+**Optional — Phase field + saved Views (Program route only):** never
+auto-discovered or auto-created, unlike the fields above — a Phase field's
+option set is plan-specific. If this project plans to use the Program route
+(`scale-check` → `to-issues` with explicit Program identity → internal graph
+validation), point the user at the seeded [board-sync.md](./board-sync.md)'s
+"Optional: the Program route" section for the `gh project field-create`
+command, the optional `fields.phase` / `labels.programType` profile keys, and
+the two saved Views to create by hand.
 
 ### 6. Section E — Spec-layer seeds (non-interactive)
 
