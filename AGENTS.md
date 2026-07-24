@@ -36,11 +36,12 @@ release through GitHub Actions. Live distribution:
 https://www.npmjs.com/package/@ikon85/agent-workflow-kit and
 https://github.com/iKon85/agent-workflow-kit/releases.
 
-**Deploy trigger:** a `push` to `main` whose range changed `package.json` — in
-practice, merging a version-bump PR. That run publishes to npm
-(`--access public --provenance`) and creates the GitHub release; nothing else
-deploys prod, and unrelated pushes to `main` are gated out. Merging a version
-bump is therefore an irreversible public action, not routine housekeeping. A
-red release run does not prove nothing was published (#205) — check `npm view`
-and `gh release view` before reacting. Full flow: `CLAUDE.md` §Consumer
-contract → Release.
+**Deploy trigger:** pushing a matching annotated `v<version>` tag on the
+canonical `main` commit. Merging a prepared version integrates it only and
+leaves it `awaiting-tag`; it cannot publish. The tag-triggered workflow validates
+tag identity, package version, main ancestry, artifact integrity, and tests,
+then publishes to npm (`--access public --provenance`) and creates or reconciles
+the matching GitHub release. Manual dispatch requires an explicit existing tag
+and is recovery only. A red run does not prove nothing was published (#205) —
+check `npm view` and `gh release view` before reacting. Full flow:
+`CLAUDE.md` §Consumer contract → Release.

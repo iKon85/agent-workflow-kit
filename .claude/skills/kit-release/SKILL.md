@@ -1,13 +1,14 @@
 ---
 name: kit-release
-description: "Prepare a verified release PR for agent-workflow-kit, delegate landing to wrapup, then monitor the trusted post-merge publishing flow through npm/GitHub parity."
+description: "Prepare and integrate a verified agent-workflow-kit release, then record separately confirmed publication intent with an annotated version tag and monitor npm/GitHub parity."
 ---
 
 # Kit Release
 
 Prepare a release deterministically. This skill owns the shipped-delta decision,
-metadata preparation, and verification. It does not implement commit, push, PR,
-merge, registry publishing, tags, or release creation.
+metadata preparation, verification, and the separate post-merge publication
+gate. It delegates commit, branch push, PR, merge, and cleanup to wrapup. It
+never publishes to a registry or creates a GitHub release directly.
 
 ## Workflow
 
@@ -42,7 +43,20 @@ merge, registry publishing, tags, or release creation.
    `scripts/wrapup-land.py` exclusively own commit, push, PR creation, merge,
    and cleanup. Do not reproduce those operations here.
 
-5. After merge, monitor the `release.yml` workflow and inspect its externally
+5. After merge, report the exact integrated version and commit as
+   `awaiting-tag`. Merging integrates the prepared release; it cannot start
+   publication. Ask the user for a second, explicit confirmation to publish
+   that exact `v<version>`. The earlier Semver confirmation authorized metadata
+   preparation, not publication.
+
+6. After that confirmation, verify that the package version on current
+   `origin/main` is exactly `<version>`. Create a matching annotated
+   `v<version>` tag on that commit and push only that tag. A lightweight tag,
+   mismatching version, or commit outside canonical `main` is invalid release
+   intent. Never infer a tag target, move an existing tag, or tag an unmerged
+   commit.
+
+7. Monitor the tag-triggered `release.yml` workflow and inspect its externally
    reconstructable state:
 
    ```sh
@@ -55,6 +69,17 @@ merge, registry publishing, tags, or release creation.
    publish and resume at GitHub; `released` means local, npm, and the GitHub
    release asset have identical version, manifest hash, and tarball integrity.
    The release is complete only at `released`.
+
+   Manual dispatch is recovery only. It requires the explicit existing
+   annotated tag and runs the same idempotent reconciler:
+
+   ```sh
+   gh workflow run release.yml -f tag=v<version>
+   ```
+
+   Use it only after reconstructing the release state for that tag. Never use
+   dispatch as the normal publication route or substitute a new version for a
+   partial release.
 
    The registry identity is **`@ikon85/agent-workflow-kit`**. The unscoped
    `agent-workflow-kit` package is owned by another publisher and must never be
