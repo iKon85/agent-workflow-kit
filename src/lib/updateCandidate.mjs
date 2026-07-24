@@ -1,4 +1,3 @@
-import { execFile } from 'node:child_process';
 import { constants } from 'node:fs';
 import {
   access, lstat, mkdtemp, open, readFile, realpath, rm, stat,
@@ -7,7 +6,6 @@ import { tmpdir } from 'node:os';
 import {
   isAbsolute, join, normalize, posix, relative, sep,
 } from 'node:path';
-import { promisify } from 'node:util';
 import { writeAtomic } from './atomicWrite.mjs';
 import { validateConsumerFile } from './consumerPath.mjs';
 import { sha256File } from './hash.mjs';
@@ -19,7 +17,6 @@ import {
 } from './manifest.mjs';
 import { checkSkill, evaluateCapability, inspectProdSections } from '../../scripts/readiness.mjs';
 
-const run = promisify(execFile);
 const exists = (path) => access(path).then(() => true, () => false);
 const pathEntryExists = (path) => lstat(path).then(() => true, (error) => {
   if (error.code === 'ENOENT') return false;
@@ -56,7 +53,7 @@ export async function materializeUpdateCandidate({
   }
 }
 
-function candidateInputPaths({ pkg, manifests }) {
+export function candidateInputPaths({ pkg, manifests }) {
   const candidates = [
     CONSUMER_MANIFEST_NAME,
     ...INTEGRATION_INPUTS,
@@ -74,6 +71,13 @@ function candidateInputPaths({ pkg, manifests }) {
 async function copyDeclaredRunbooks({
   consumerRoot, candidateRoot, manifests, afterInputValidation,
 }) {
+  const runbooks = await declaredCandidateRunbookPaths({ candidateRoot, manifests });
+  for (const path of runbooks) {
+    await copyCandidateInput(consumerRoot, candidateRoot, path, afterInputValidation);
+  }
+}
+
+export async function declaredCandidateRunbookPaths({ candidateRoot, manifests }) {
   const runbooks = new Set();
   for (const manifest of manifests) {
     for (const capability of Object.values(manifest?.readiness?.capabilities ?? {})) {
@@ -85,9 +89,7 @@ async function copyDeclaredRunbooks({
       }
     }
   }
-  for (const path of [...runbooks].sort()) {
-    await copyCandidateInput(consumerRoot, candidateRoot, path, afterInputValidation);
-  }
+  return [...runbooks].sort();
 }
 
 async function readCandidateText(candidateRoot, path) {
@@ -526,17 +528,4 @@ function sameActivationSnapshot(expected, current) {
 async function restore(path, saved) {
   if (!saved) return rm(path, { force: true });
   await writeAtomic(path, saved.bytes, saved.mode);
-}
-
-/** Default candidate gate: run the consumer's existing npm test command. */
-export async function verifyCandidate(candidateRoot) {
-  let pkg;
-  try {
-    pkg = JSON.parse(await readFile(join(candidateRoot, 'package.json'), 'utf8'));
-  } catch (error) {
-    if (error.code === 'ENOENT') throw new Error('candidate has no package.json test command');
-    throw error;
-  }
-  if (!pkg.scripts?.test) throw new Error('candidate has no package.json test command');
-  await run('npm', ['test'], { cwd: candidateRoot });
 }

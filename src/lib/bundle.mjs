@@ -107,7 +107,7 @@ export const HELPER_FILES = [
   // wave. Library (imported by the Phase-0 claim protocol) → 0o644.
   { path: 'src/lib/waveClaim.mjs', kind: 'script', mode: 0o644 },
   // GitHub-consumer automation: invokes the existing update command, then owns
-  // only the stable tested branch/pull-request upsert.
+  // only the stable Kit-verified branch/pull-request upsert.
   { path: 'scripts/kit-update-pr.mjs', kind: 'script', mode: 0o755 },
   // Stdlib-only project census foundation. index.mjs is the stable consumer
   // entrypoint; its five local modules must ship with it as one helper unit.
