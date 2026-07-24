@@ -2,11 +2,17 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated version tag to reconcile
+        required: true
+        type: string
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -14,48 +20,7 @@ permissions:
   id-token: write
 
 jobs:
-  # Gate the release on a git diff of the pushed range instead of the
-  # on.push `paths:` filter. GitHub omits a merge commit's changed files
-  # from the push event's file list, so a version-bump PR merged to main
-  # never matches a `paths: [package.json]` filter and the release
-  # silently no-ops (forcing a manual workflow_dispatch). Comparing
-  # github.event.before..github.sha with git sees the merge commit's real
-  # diff and fires reliably on a normal PR merge, while still skipping
-  # publish on unrelated main pushes.
-  gate:
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.check.outputs.run }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Decide whether package.json changed in this push
-        id: check
-        run: |
-          run=false
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            run=true
-          else
-            before="${{ github.event.before }}"
-            # Skip the git-diff branch when `before` is empty or the
-            # all-zeros sha (first push / branch create) — that commit
-            # does not exist locally and cannot be diffed.
-            if printf '%s' "$before" | grep -Eq '^[0-9a-f]{40}$' \
-              && [ "$before" != "0000000000000000000000000000000000000000" ]; then
-              if git diff --name-only "$before" "${{ github.sha }}" | grep -Fxq 'package.json'; then
-                run=true
-              fi
-            fi
-          fi
-          if [ "$run" != "true" ]; then
-            echo "package.json unchanged — no release."
-          fi
-          echo "run=$run" >> "$GITHUB_OUTPUT"
-
   publish:
-    needs: gate
-    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,6 +30,48 @@ jobs:
         with:
           node-version: 22.14
           registry-url: 'https://registry.npmjs.org'
+      - name: Validate release intent
+        id: intent
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          release_tag="$RELEASE_TAG"
+          if [[ ! "$release_tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "release intent must be an explicit v<SemVer> tag" >&2
+            exit 1
+          fi
+
+          git fetch --force --tags origin
+          git fetch --force --no-tags origin main:refs/remotes/origin/main
+
+          if ! git show-ref --verify --quiet "refs/tags/$release_tag"; then
+            echo "release tag $release_tag does not exist" >&2
+            exit 1
+          fi
+          if [ "$(git cat-file -t "refs/tags/$release_tag")" != "tag" ]; then
+            echo "release tag $release_tag must be annotated" >&2
+            exit 1
+          fi
+
+          tag_commit="$(git rev-list -n 1 "refs/tags/$release_tag")"
+          if ! git merge-base --is-ancestor "$tag_commit" origin/main; then
+            echo "release tag $release_tag is not an ancestor of origin/main" >&2
+            exit 1
+          fi
+          if [ "$tag_commit" != "$(git rev-parse origin/main)" ]; then
+            echo "release tag $release_tag does not identify the current origin/main commit" >&2
+            exit 1
+          fi
+
+          git checkout --detach "$tag_commit"
+          package_version="$(node -p "require('./package.json').version")"
+          if [ "$release_tag" != "v$package_version" ]; then
+            echo "release tag $release_tag does not match package version v$package_version" >&2
+            exit 1
+          fi
+
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "commit=$tag_commit" >> "$GITHUB_OUTPUT"
       - name: Use Trusted-Publishing-capable npm
         run: npm install --global npm@11.5.1
       - run: npm install --ignore-scripts
@@ -73,4 +80,5 @@ jobs:
       - name: Publish npm, verify readback, then create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_SHA: ${{ steps.intent.outputs.commit }}
         run: node scripts/release-state.mjs

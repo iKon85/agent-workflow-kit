@@ -24,8 +24,10 @@ changes.
 Maintainers prepare releases with `/kit-release`. It derives the shipped delta
 from a fresh manifest, recommends Semver, applies only the confirmed target,
 regenerates the checked-in manifest, and runs the full test and pack gates.
-Landing remains owned by `/wrapup`; publishing the matching npm package and
-GitHub release happens only through the configured post-merge release flow.
+Landing remains owned by `/wrapup` and only integrates the prepared version.
+After a separate publication confirmation, a matching annotated `v<version>`
+tag on canonical `main` starts the trusted publish flow. Manual dispatch
+requires an explicit existing tag and only reconciles an incomplete release.
 
 These are the skills, helper scripts, and conventions one team actually uses to
 take work from a vague idea to a merged, verified PR with [Claude Code] and
@@ -384,6 +386,12 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 0.34.1
+
+- changed: `.agents/skills/kit-release/SKILL.md`
+- changed: `.claude/skills/kit-release/SKILL.md`
+- changed: `scripts/release-state.mjs`
 
 ### 0.34.0
 
