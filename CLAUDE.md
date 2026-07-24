@@ -83,15 +83,14 @@ destination-race checked, and activate or roll back with the verified update
 candidate. Every change to shipped files must preserve this contract and the
 manifest mechanism.
 
-**Release — merging IS publishing.** Version bump in the kit metadata +
-release-notes section in `README.md` land in the release PR. Merging that PR to
-`main` **publishes immediately**: `.github/workflows/release.yml` triggers on
-`push` to `main`, its gate fires whenever `package.json` changed in the pushed
-range, and the publish job runs `scripts/release-state.mjs` → `npm publish
---access public --provenance` → GitHub release. There is no separate manual
-post-merge publish step, and an npm version number is burned permanently. Treat
-merging a version bump as an irreversible public action and confirm it
-explicitly.
+**Release — merge integrates; an annotated version tag publishes.** Version
+bump in the kit metadata + release-notes section in `README.md` land in the
+release PR. Merging that PR to `main` integrates the prepared release but cannot
+start publication. A matching annotated `v<version>` tag on the canonical
+`main` commit is the sole normal publication intent and triggers
+`.github/workflows/release.yml`. The workflow rejects a missing, lightweight,
+mismatching, or non-main tag before it runs artifact/test gates or the
+`scripts/release-state.mjs` idempotent reconciler.
 
 Prepare a release with `npm run release:prepare -- --version <x.y.z>` (bump +
 regenerated manifest + release-note delta, then guard + suite + `npm pack
@@ -99,15 +98,17 @@ regenerated manifest + release-note delta, then guard + suite + `npm pack
 `reconcileRelease` is idempotent, so a re-run repairs a partial release instead
 of duplicating one.
 
+The Semver confirmation used to prepare metadata does not authorize
+publication. After merge, report the exact integrated commit as `awaiting-tag`
+and obtain a separate explicit confirmation before creating and pushing its
+annotated version tag. Treat that tag push as the irreversible public action.
+
 **A red release run does not mean nothing was published** — the post-publish
 readback can lose a race with npm propagation and fail *after* a successful
 publish, leaving npm ahead of the GitHub release (#205). Always check
 `npm view @ikon85/agent-workflow-kit version` and `gh release view v<x.y.z>`
-before reacting; recover with a `workflow_dispatch` re-run, not a version bump.
-
-Whether merge-equals-publish should stay the contract, or the workflow should be
-gated on a tag / `workflow_dispatch`, is an open decision (#204) — not settled
-by this description of the current behaviour.
+before reacting. Manual dispatch is recovery only: it requires one explicit
+existing tag and runs the same reconciler. Never recover by bumping the version.
 
 ## Hard rules
 
@@ -256,14 +257,15 @@ release through GitHub Actions. Live distribution:
 https://www.npmjs.com/package/@ikon85/agent-workflow-kit and
 https://github.com/iKon85/agent-workflow-kit/releases.
 
-**Deploy trigger:** a `push` to `main` whose range changed `package.json` — in
-practice, merging a version-bump PR. That run publishes to npm
-(`--access public --provenance`) and creates the GitHub release; nothing else
-deploys prod, and unrelated pushes to `main` are gated out. Merging a version
-bump is therefore an irreversible public action, not routine housekeeping. A
-red release run does not prove nothing was published (#205) — check `npm view`
-and `gh release view` before reacting. Full flow: `CLAUDE.md` §Consumer
-contract → Release.
+**Deploy trigger:** pushing a matching annotated `v<version>` tag on the
+canonical `main` commit. Merging a prepared version integrates it only and
+leaves it `awaiting-tag`; it cannot publish. The tag-triggered workflow validates
+tag identity, package version, main ancestry, artifact integrity, and tests,
+then publishes to npm (`--access public --provenance`) and creates or reconciles
+the matching GitHub release. Manual dispatch requires an explicit existing tag
+and is recovery only. A red run does not prove nothing was published (#205) —
+check `npm view` and `gh release view` before reacting. Full flow:
+`CLAUDE.md` §Consumer contract → Release.
 
 ## Token hygiene
 

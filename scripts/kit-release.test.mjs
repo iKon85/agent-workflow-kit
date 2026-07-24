@@ -1,12 +1,170 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { nextVersion, prepareRelease } from './kit-release.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
+const exec = promisify(execFile);
+
+async function releaseWorkflow() {
+  return readFile(join(REPO, '.github/workflows/release.yml'), 'utf8');
+}
+
+function workflowRunScript(workflow, stepName) {
+  const lines = workflow.split('\n');
+  const nameIndex = lines.findIndex((line) => line.trim() === `- name: ${stepName}`);
+  assert.notEqual(nameIndex, -1, `workflow step not found: ${stepName}`);
+  const runIndex = lines.findIndex(
+    (line, index) => index > nameIndex && line.trim() === 'run: |',
+  );
+  assert.notEqual(runIndex, -1, `run block not found for workflow step: ${stepName}`);
+  const indent = lines[runIndex].match(/^\s*/)[0].length + 2;
+  const body = [];
+  for (const line of lines.slice(runIndex + 1)) {
+    if (line.trim() && line.match(/^\s*/)[0].length < indent) break;
+    body.push(line.slice(indent));
+  }
+  return body.join('\n');
+}
+
+async function git(runCwd, args, options = {}) {
+  return exec('git', args, { cwd: runCwd, ...options });
+}
+
+async function releaseIntentFixture({
+  packageVersion = '1.2.3',
+  annotated = true,
+  onMain = true,
+  mainAhead = false,
+} = {}) {
+  const root = await mkdtemp(join(tmpdir(), 'kit-release-intent-'));
+  const origin = join(root, 'origin.git');
+  const repo = join(root, 'repo');
+  await git(root, ['init', '--bare', origin]);
+  await git(root, ['init', '--initial-branch=main', repo]);
+  await git(repo, ['config', 'user.name', 'Release Test']);
+  await git(repo, ['config', 'user.email', 'release-test@example.invalid']);
+  await writeFile(join(repo, 'package.json'), `${JSON.stringify({
+    name: '@ikon85/agent-workflow-kit',
+    version: packageVersion,
+  }, null, 2)}\n`);
+  await git(repo, ['add', 'package.json']);
+  await git(repo, ['commit', '-m', 'release fixture']);
+  await git(repo, ['remote', 'add', 'origin', origin]);
+  await git(repo, ['push', '-u', 'origin', 'main']);
+  if (!onMain) {
+    await git(repo, ['checkout', '-b', 'not-main']);
+    await writeFile(join(repo, 'outside-main.txt'), 'not canonical\n');
+    await git(repo, ['add', 'outside-main.txt']);
+    await git(repo, ['commit', '-m', 'outside main']);
+  }
+  const tag = 'v1.2.3';
+  await git(repo, annotated
+    ? ['tag', '-a', tag, '-m', `Release ${tag}`]
+    : ['tag', tag]);
+  if (mainAhead) {
+    await writeFile(join(repo, 'after-release.txt'), 'main moved\n');
+    await git(repo, ['add', 'after-release.txt']);
+    await git(repo, ['commit', '-m', 'move canonical main']);
+    await git(repo, ['push', 'origin', 'main']);
+  }
+  return { root, repo, tag };
+}
+
+async function validateReleaseIntent(fixture, releaseTag = fixture.tag) {
+  const workflow = await releaseWorkflow();
+  const script = workflowRunScript(workflow, 'Validate release intent');
+  const output = join(fixture.root, 'github-output');
+  try {
+    const result = await exec('bash', ['-euo', 'pipefail', '-c', script], {
+      cwd: fixture.repo,
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: output,
+        RELEASE_TAG: releaseTag,
+      },
+    });
+    return { ...result, output: await readFile(output, 'utf8') };
+  } catch (error) {
+    return { error, stderr: error.stderr ?? '', stdout: error.stdout ?? '' };
+  }
+}
+
+test('release workflow treats an annotated version tag as normal intent and merge as integration only', async () => {
+  const workflow = await releaseWorkflow();
+  assert.match(workflow, /push:\s*\n\s+tags:\s*\n\s+- ['"]v\*\.\*\.\*['"]/);
+  assert.doesNotMatch(workflow, /push:\s*\n\s+branches:\s*\[main\]/);
+  assert.match(workflow, /workflow_dispatch:\s*\n\s+inputs:\s*\n\s+tag:/);
+  assert.match(workflow, /tag:[\s\S]*?required:\s*true/);
+  assert.match(
+    workflow,
+    /group:\s*release-\$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.tag \|\| github\.ref_name \}\}/,
+  );
+  assert.doesNotMatch(workflow, /git diff --name-only[\s\S]*package\.json/);
+  assert.ok(
+    workflow.indexOf('- name: Validate release intent')
+      < workflow.indexOf('node scripts/release-state.mjs'),
+    'release intent must be validated before the reconciler can publish',
+  );
+  assert.equal(workflow.match(/node scripts\/release-state\.mjs/g)?.length, 1);
+});
+
+test('the same pre-publish validator accepts a matching annotated tag', async () => {
+  const fixture = await releaseIntentFixture();
+  try {
+    const result = await validateReleaseIntent(fixture);
+    assert.equal(result.error, undefined, result.stderr);
+    assert.match(result.output, /^tag=v1\.2\.3$/m);
+    assert.match(result.output, /^commit=[0-9a-f]{40}$/m);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+for (const scenario of [
+  {
+    name: 'missing manual recovery tag',
+    options: {},
+    tag: 'v9.9.9',
+    error: /does not exist/,
+  },
+  {
+    name: 'tag/package version mismatch',
+    options: { packageVersion: '1.2.4' },
+    error: /does not match package version/,
+  },
+  {
+    name: 'lightweight tag',
+    options: { annotated: false },
+    error: /must be annotated/,
+  },
+  {
+    name: 'tag outside canonical main ancestry',
+    options: { onMain: false },
+    error: /not an ancestor of origin\/main/,
+  },
+  {
+    name: 'stale canonical main commit with the same package version',
+    options: { mainAhead: true },
+    error: /does not identify the current origin\/main commit/,
+  },
+]) {
+  test(`the pre-publish validator rejects a ${scenario.name}`, async () => {
+    const fixture = await releaseIntentFixture(scenario.options);
+    try {
+      const result = await validateReleaseIntent(fixture, scenario.tag);
+      assert.ok(result.error, 'validation unexpectedly succeeded');
+      assert.match(`${result.stderr}\n${result.stdout}`, scenario.error);
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+}
 
 test('the install manifest ships both release primitives named by the skill', async () => {
   const manifest = JSON.parse(await readFile(join(REPO, 'agent-workflow-kit.package.json')));
@@ -20,9 +178,29 @@ test('the install manifest ships both release primitives named by the skill', as
 test('both release skill surfaces name only the owned scoped npm package', async () => {
   const claude = await readFile(join(REPO, '.claude/skills/kit-release/SKILL.md'), 'utf8');
   const codex = await readFile(join(REPO, '.agents/skills/kit-release/SKILL.md'), 'utf8');
+  assert.equal(codex, claude);
   for (const body of [claude, codex]) {
     assert.match(body, /`@ikon85\/agent-workflow-kit`/);
   }
+});
+
+test('maintainer docs and the accepted ADR agree that merge integrates and an annotated tag publishes', async () => {
+  const paths = [
+    'CLAUDE.md',
+    'AGENTS.md',
+    'README.md',
+    '.claude/skills/kit-release/SKILL.md',
+    '.agents/skills/kit-release/SKILL.md',
+    'docs/adr/0004-release-intent-is-a-version-tag.md',
+  ];
+  const bodies = await Promise.all(
+    paths.map((path) => readFile(join(REPO, path), 'utf8')),
+  );
+  for (const [index, body] of bodies.entries()) {
+    assert.match(body, /annotated\s+[`*]?v<version>[`*]?\s+tag/i, paths[index]);
+    assert.match(body, /integrat/i, paths[index]);
+  }
+  assert.match(bodies.at(-1), /Status: accepted \(2026-07-22, issue #204\)/);
 });
 
 test('patch, minor, and major confirmations select exactly one target version', () => {

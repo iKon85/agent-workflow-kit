@@ -367,7 +367,7 @@
       "ownerSkill": "kit-release",
       "surface": "codex",
       "installRole": "maintainer",
-      "sha256": "d05a4059a19816ff302c119f797f1ea2b71554ecffac7a8f0b919cfe5517d940",
+      "sha256": "168879858199f19f124e8bc3722f430f65b44b1fb6409d9c2112e6ec02d9b561",
       "mode": 420,
       "origin": "kit"
     },
@@ -1679,7 +1679,7 @@
       "ownerSkill": "kit-release",
       "surface": "claude",
       "installRole": "maintainer",
-      "sha256": "d05a4059a19816ff302c119f797f1ea2b71554ecffac7a8f0b919cfe5517d940",
+      "sha256": "168879858199f19f124e8bc3722f430f65b44b1fb6409d9c2112e6ec02d9b561",
       "mode": 420,
       "origin": "kit"
     },
@@ -2671,7 +2671,7 @@
       "path": "scripts/release-state.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "2aae056a8e0e945dbf68298236719c78e22f13dbd8f0c3466b969355d3809058",
+      "sha256": "23b4ffc77e9b499587fa563d067b1df9ae81b87a654d636281c7d139e5842687",
       "mode": 420,
       "origin": "kit"
     },
