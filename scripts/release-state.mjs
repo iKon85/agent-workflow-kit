@@ -2,11 +2,18 @@ import { execFile } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { assertReleaseParity, releaseIdentityFromTarball } from './release-parity.mjs';
 
 const exec = promisify(execFile);
+const DEFAULT_VISIBILITY = {
+  attempts: 6,
+  initialDelayMs: 1_000,
+  backoffFactor: 2,
+  sleep,
+};
 
 const assertMatches = (local, remote, label) => assertReleaseParity({
   local,
@@ -28,7 +35,24 @@ export async function inspectRelease(adapter) {
   return { status: 'released', identity };
 }
 
-export async function reconcileRelease(adapter) {
+async function awaitVisibility(read, phase, options = {}) {
+  const policy = { ...DEFAULT_VISIBILITY, ...options };
+  let delay = policy.initialDelayMs;
+  for (let attempt = 1; attempt <= policy.attempts; attempt += 1) {
+    const visible = await read();
+    if (visible) return visible;
+    if (attempt < policy.attempts) {
+      await policy.sleep(delay);
+      delay *= policy.backoffFactor;
+    }
+  }
+  throw new Error(
+    `${phase.operation} succeeded but ${phase.subject} was not visible `
+    + `after ${policy.attempts} ${phase.service} read attempts`,
+  );
+}
+
+export async function reconcileRelease(adapter, { visibility } = {}) {
   const { identity, tarball } = await adapter.local();
   let npm = await adapter.npm(identity);
   let github = await adapter.github(identity);
@@ -36,15 +60,21 @@ export async function reconcileRelease(adapter) {
   if (!npm) {
     if (github) throw new Error('GitHub release exists before npm package');
     await adapter.publishNpm({ identity, tarball });
-    npm = await adapter.npm(identity);
-    if (!npm) throw new Error('npm package missing after publish');
+    npm = await awaitVisibility(() => adapter.npm(identity), {
+      service: 'npm',
+      operation: 'npm publish',
+      subject: 'package',
+    }, visibility);
   }
   assertMatches(identity, npm, 'npm');
 
   if (!github) {
     await adapter.createGithub({ identity, tarball });
-    github = await adapter.github(identity);
-    if (!github) throw new Error('GitHub release missing after create');
+    github = await awaitVisibility(() => adapter.github(identity), {
+      service: 'GitHub',
+      operation: 'GitHub release creation',
+      subject: 'release',
+    }, visibility);
   }
   assertReleaseParity({ local: identity, npm, github });
   return { status: 'released', identity };
