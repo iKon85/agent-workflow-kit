@@ -387,6 +387,12 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.34.1
+
+- changed: `.agents/skills/kit-release/SKILL.md`
+- changed: `.claude/skills/kit-release/SKILL.md`
+- changed: `scripts/release-state.mjs`
+
 ### 0.34.0
 
 - added: `src/commands/routing-policy-update.mjs`
