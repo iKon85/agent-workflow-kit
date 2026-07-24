@@ -2,7 +2,8 @@ import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { assertConsumerReleaseParity } from '../../scripts/release-parity.mjs';
 import {
-  activateCandidate, adoptReadinessCandidate, readReadinessManifest, stageConsumer, verifyCandidate,
+  activateCandidate, adoptReadinessCandidate, materializeUpdateCandidate, readReadinessManifest,
+  verifyCandidate,
 } from '../lib/updateCandidate.mjs';
 import { reconcile } from '../lib/updateReconcile.mjs';
 import {
@@ -75,7 +76,7 @@ async function updatePackage(options) {
   let previewFailure;
   try {
     Object.assign(preview, await previewReadinessAdoption({
-      kitRoot, consumerRoot, priorReadinessManifest, nextReadinessManifest,
+      kitRoot, consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
     }));
     preview.conflicts.push(...(preview.migrationConflicts ?? []).map((path) => ({
       path,
@@ -113,8 +114,12 @@ async function updatePackage(options) {
 }
 
 async function previewReadinessAdoption(context) {
-  const { kitRoot, consumerRoot, priorReadinessManifest, nextReadinessManifest } = context;
-  const candidateRoot = await stageConsumer(consumerRoot);
+  const {
+    kitRoot, consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
+  } = context;
+  const candidateRoot = await materializeUpdateCandidate({
+    consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
+  });
   try {
     await reconcile({
       kitRoot, consumerRoot: candidateRoot,
@@ -157,7 +162,9 @@ async function applyTransaction(context) {
       throw new Error('collision-bearing candidate cannot be resumed safely');
     }
     if (!candidateRoot) {
-      candidateRoot = await stageConsumer(consumerRoot);
+      candidateRoot = await materializeUpdateCandidate({
+        consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
+      });
       await reconcile({
         kitRoot, consumerRoot: candidateRoot,
         decide: (action, path) => decisions.get(decisionKey(action, path)),
