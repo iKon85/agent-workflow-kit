@@ -47,11 +47,37 @@ async function bumpKit(kitRoot, path, content) {
 }
 
 async function setKitReadiness(kitRoot, manifest) {
-  const content = `${JSON.stringify(manifest, null, 2)}\n`;
+  const pkg = await readManifest(join(kitRoot, PACKAGE_MANIFEST_NAME));
+  const skills = structuredClone(manifest.skills ?? {});
+  for (const entry of pkg.files) {
+    const match = /^\.claude\/skills\/([^/]+)\/SKILL\.md$/.exec(entry.path);
+    if (match) skills[match[1]] ??= {};
+  }
+  for (const [name, declaration] of Object.entries(skills)) {
+    skills[name] = {
+      class: 'generic',
+      publish: true,
+      surfaces: ['claude'],
+      provenance: 'own',
+      ...declaration,
+    };
+    for (const surface of skills[name].surfaces) {
+      const path = `.${surface === 'claude' ? 'claude' : 'agents'}/skills/${name}/SKILL.md`;
+      if (pkg.files.some((entry) => entry.path === path)) continue;
+      const body = `---\nname: ${name}\ndescription: Test fixture.\n---\n\n# ${name}\n`;
+      await mkdir(join(kitRoot, path, '..'), { recursive: true });
+      await writeFile(join(kitRoot, path), body);
+      pkg.files.push({
+        path, kind: 'skill', ownerSkill: name, surface,
+        sha256: sha256(body), mode: 0o644, origin: 'kit',
+      });
+    }
+  }
+  const normalized = { schema_version: 1, ...manifest, skills };
+  const content = `${JSON.stringify(normalized, null, 2)}\n`;
   const path = join(kitRoot, READINESS_MANIFEST);
   await mkdir(join(kitRoot, '.claude/skills'), { recursive: true });
   await writeFile(path, content);
-  const pkg = await readManifest(join(kitRoot, PACKAGE_MANIFEST_NAME));
   const entry = pkg.files.find(({ path: candidate }) => candidate === READINESS_MANIFEST);
   if (entry) entry.sha256 = sha256(content);
   else pkg.files.push({ path: READINESS_MANIFEST, kind: 'doc', sha256: sha256(content), mode: 0o644, origin: 'kit' });
@@ -875,7 +901,7 @@ test('a compatible update cannot make previously available skill core unavailabl
     });
 
     assert.equal(result.state, 'failed');
-    assert.deepEqual(result.failure, { phase: 'staging', consumerState: 'unchanged' });
+    assert.deepEqual(result.failure, { phase: 'verification', consumerState: 'unchanged' });
     assert.match(result.error, /monotonic compatibility.*to-prd/);
     assert.deepEqual(result.availability.newlyBlocked, ['to-prd']);
     assert.equal(verified, false);
@@ -1201,7 +1227,7 @@ test('a candidate whose bytes do not match the package manifest is never activat
       kitRoot: kit, consumerRoot: consumer, now: 'T', releaseIdentities: releaseIdentities(), verify,
     });
     assert.equal(r.state, 'failed');
-    assert.match(r.error, /candidate hash mismatch/);
+    assert.match(r.error, /candidate invariant artifact: hash mismatch/);
     assert.deepEqual(await readFile(join(consumer, P)), before);
   } finally {
     await cleanup(kit, consumer);
