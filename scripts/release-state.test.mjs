@@ -18,17 +18,62 @@ const identity = {
   tarballIntegrity: 'sha512-example', manifestSha256: 'abc123',
 };
 
-function adapter({ npmPublished = false, githubReleased = false, npmIdentity = identity } = {}) {
+function adapter({
+  npmPublished = false,
+  githubReleased = false,
+  npmIdentity = identity,
+  npmInvisibleReads = 0,
+  githubInvisibleReads = 0,
+  publishNpmError,
+  createGithubError,
+} = {}) {
   const events = [];
   let npmExists = npmPublished;
   let githubExists = githubReleased;
+  let npmReadsUntilVisible = npmInvisibleReads;
+  let githubReadsUntilVisible = githubInvisibleReads;
   return {
     events,
     local: async () => ({ identity, tarball: '/tmp/kit.tgz' }),
-    npm: async () => { events.push('read npm'); return npmExists ? npmIdentity : null; },
-    github: async () => { events.push('read github'); return githubExists ? identity : null; },
-    publishNpm: async () => { events.push('publish npm'); npmExists = true; },
-    createGithub: async () => { events.push('create github'); githubExists = true; },
+    npm: async () => {
+      events.push('read npm');
+      if (!npmExists) return null;
+      if (npmReadsUntilVisible > 0) {
+        npmReadsUntilVisible -= 1;
+        return null;
+      }
+      return npmIdentity;
+    },
+    github: async () => {
+      events.push('read github');
+      if (!githubExists) return null;
+      if (githubReadsUntilVisible > 0) {
+        githubReadsUntilVisible -= 1;
+        return null;
+      }
+      return identity;
+    },
+    publishNpm: async () => {
+      events.push('publish npm');
+      if (publishNpmError) throw publishNpmError;
+      npmExists = true;
+    },
+    createGithub: async () => {
+      events.push('create github');
+      if (createGithubError) throw createGithubError;
+      githubExists = true;
+    },
+  };
+}
+
+function visibilityOptions(attempts, delays = []) {
+  return {
+    visibility: {
+      attempts,
+      initialDelayMs: 10,
+      backoffFactor: 2,
+      sleep: async (delay) => delays.push(delay),
+    },
   };
 }
 
@@ -40,11 +85,83 @@ test('a fresh release publishes npm, verifies registry readback, then creates Gi
   ]);
 });
 
+test('npm visibility is retried with bounded backoff after a successful publish', async () => {
+  const fixture = adapter({ npmInvisibleReads: 2 });
+  const delays = [];
+  assert.deepEqual(
+    await reconcileRelease(fixture, visibilityOptions(4, delays)),
+    { status: 'released', identity },
+  );
+  assert.deepEqual(fixture.events, [
+    'read npm', 'read github', 'publish npm',
+    'read npm', 'read npm', 'read npm',
+    'create github', 'read github',
+  ]);
+  assert.deepEqual(delays, [10, 20]);
+});
+
+test('GitHub visibility is retried with bounded backoff after a successful create', async () => {
+  const fixture = adapter({ npmPublished: true, githubInvisibleReads: 2 });
+  const delays = [];
+  assert.deepEqual(
+    await reconcileRelease(fixture, visibilityOptions(4, delays)),
+    { status: 'released', identity },
+  );
+  assert.deepEqual(fixture.events, [
+    'read npm', 'read github', 'create github', 'read github', 'read github', 'read github',
+  ]);
+  assert.deepEqual(delays, [10, 20]);
+});
+
+test('permanent npm absence fails at the bound with post-publish phase evidence', async () => {
+  const fixture = adapter({ npmInvisibleReads: 4 });
+  const delays = [];
+  await assert.rejects(
+    reconcileRelease(fixture, visibilityOptions(3, delays)),
+    /npm publish succeeded but package was not visible after 3 npm read attempts/,
+  );
+  assert.deepEqual(delays, [10, 20]);
+  assert.equal(fixture.events.filter((event) => event === 'read npm').length, 4);
+  assert.ok(!fixture.events.includes('create github'));
+});
+
+test('permanent GitHub absence fails at the bound with post-create phase evidence', async () => {
+  const fixture = adapter({ npmPublished: true, githubInvisibleReads: 4 });
+  const delays = [];
+  await assert.rejects(
+    reconcileRelease(fixture, visibilityOptions(3, delays)),
+    /GitHub release creation succeeded but release was not visible after 3 GitHub read attempts/,
+  );
+  assert.deepEqual(delays, [10, 20]);
+  assert.equal(fixture.events.filter((event) => event === 'read github').length, 4);
+  assert.ok(!fixture.events.includes('publish npm'));
+});
+
+test('a rejected publish is not reported as a post-publish visibility timeout', async () => {
+  const rejected = new Error('registry rejected publish');
+  const fixture = adapter({ publishNpmError: rejected });
+  await assert.rejects(reconcileRelease(fixture, visibilityOptions(3)), (error) => error === rejected);
+  assert.deepEqual(fixture.events, ['read npm', 'read github', 'publish npm']);
+});
+
+test('a rejected GitHub create is not reported as a post-create visibility timeout', async () => {
+  const rejected = new Error('GitHub rejected release create');
+  const fixture = adapter({ npmPublished: true, createGithubError: rejected });
+  await assert.rejects(reconcileRelease(fixture, visibilityOptions(3)), (error) => error === rejected);
+  assert.deepEqual(fixture.events, ['read npm', 'read github', 'create github']);
+});
+
 test('an npm-published release resumes at GitHub without a second npm publish', async () => {
   const fixture = adapter({ npmPublished: true });
   await reconcileRelease(fixture);
   assert.deepEqual(fixture.events, ['read npm', 'read github', 'create github', 'read github']);
   assert.ok(!fixture.events.includes('publish npm'));
+});
+
+test('an already-published release at parity is a read-only no-op', async () => {
+  const fixture = adapter({ npmPublished: true, githubReleased: true });
+  assert.deepEqual(await reconcileRelease(fixture), { status: 'released', identity });
+  assert.deepEqual(fixture.events, ['read npm', 'read github']);
 });
 
 test('post-merge status inspection is read-only and reports the reconstructable phase', async () => {
