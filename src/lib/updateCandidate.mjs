@@ -1,7 +1,12 @@
 import { execFile } from 'node:child_process';
-import { access, cp, lstat, mkdtemp, readFile, rm, stat, symlink } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import {
+  access, lstat, mkdtemp, open, readFile, realpath, rm, stat,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
+import {
+  isAbsolute, join, normalize, posix, relative, sep,
+} from 'node:path';
 import { promisify } from 'node:util';
 import { writeAtomic } from './atomicWrite.mjs';
 import { validateConsumerFile } from './consumerPath.mjs';
@@ -10,7 +15,7 @@ import { stubSentinel } from './sentinel.mjs';
 import { STUB_TARGETS } from './bundle.mjs';
 import {
   CONSUMER_MANIFEST_NAME, CONSUMER_ORIGIN, READINESS_MANIFEST_PATH,
-  indexByPath, readManifest, writeManifest,
+  filesForInstallRole, indexByPath, readManifest, writeManifest,
 } from './manifest.mjs';
 import { checkSkill, evaluateCapability, inspectProdSections } from '../../scripts/readiness.mjs';
 
@@ -21,27 +26,180 @@ const pathEntryExists = (path) => lstat(path).then(() => true, (error) => {
   throw error;
 });
 const MIGRATABLE_INSTRUCTION_PATHS = new Set(['CLAUDE.md', 'AGENTS.md']);
+const INTEGRATION_INPUTS = [
+  'package.json', '.claude/settings.json', '.claude/settings.local.json',
+];
+const FORBIDDEN_CANDIDATE_ROOTS = new Set(['.git', '.worktrees', 'node_modules']);
+const PLATFORM_PATH_SEMANTICS = { isAbsolute, normalize, sep };
 
-/** Copy a verification candidate without duplicating git metadata or dependencies. */
-export async function stageConsumer(consumerRoot) {
+/** Materialize only manifest state and declared Consumer inputs for verification. */
+export async function materializeUpdateCandidate({
+  consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
+  afterInputValidation = async () => {},
+}) {
   const candidateRoot = await mkdtemp(join(tmpdir(), 'agent-workflow-kit-stage-'));
-  const nodeModules = join(consumerRoot, 'node_modules');
-  await cp(consumerRoot, candidateRoot, {
-    recursive: true,
-    filter: (source) => {
-      const rel = relative(consumerRoot, source);
-      return rel !== '.git' && !rel.startsWith('.git/') &&
-        rel !== 'node_modules' && !rel.startsWith('node_modules/');
-    },
-  });
-  if (await exists(nodeModules)) await symlink(nodeModules, join(candidateRoot, 'node_modules'), 'dir');
-  return candidateRoot;
+  try {
+    const paths = candidateInputPaths({
+      pkg, manifests: [priorReadinessManifest, nextReadinessManifest],
+    });
+    for (const path of paths) {
+      await copyCandidateInput(consumerRoot, candidateRoot, path, afterInputValidation);
+    }
+    await copyDeclaredRunbooks({
+      consumerRoot, candidateRoot, manifests: [priorReadinessManifest, nextReadinessManifest],
+      afterInputValidation,
+    });
+    return candidateRoot;
+  } catch (error) {
+    await rm(candidateRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function candidateInputPaths({ pkg, manifests }) {
+  const candidates = [
+    CONSUMER_MANIFEST_NAME,
+    ...INTEGRATION_INPUTS,
+    ...filesForInstallRole(pkg).map(({ path }) => path),
+  ];
+  for (const manifest of manifests) {
+    for (const capability of Object.values(manifest?.readiness?.capabilities ?? {})) {
+      candidates.push(...(capability.evidence?.paths ?? []));
+    }
+  }
+  const paths = new Set(candidates.filter((path) => !isForbiddenCandidatePath(path)));
+  return [...paths].sort();
+}
+
+async function copyDeclaredRunbooks({
+  consumerRoot, candidateRoot, manifests, afterInputValidation,
+}) {
+  const runbooks = new Set();
+  for (const manifest of manifests) {
+    for (const capability of Object.values(manifest?.readiness?.capabilities ?? {})) {
+      const evidence = capability.evidence;
+      if (evidence?.type !== 'runbook-reference') continue;
+      const declaration = await readCandidateText(candidateRoot, evidence.paths?.[0]);
+      for (const match of declaration?.matchAll(/`([^`\n]+\.md)`/g) ?? []) {
+        if (!match[1].includes('template')) runbooks.add(match[1]);
+      }
+    }
+  }
+  for (const path of [...runbooks].sort()) {
+    await copyCandidateInput(consumerRoot, candidateRoot, path, afterInputValidation);
+  }
+}
+
+async function readCandidateText(candidateRoot, path) {
+  if (!path) return null;
+  try {
+    return await readFile(join(candidateRoot, path), 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+async function copyCandidateInput(consumerRoot, candidateRoot, path, afterInputValidation) {
+  if (isForbiddenCandidatePath(path)) return;
+  const consumerPath = validateCandidateManifestPath(path);
+  let source;
+  try {
+    source = await validateConsumerFile(consumerRoot, consumerPath);
+  } catch (error) {
+    if (!error.message.startsWith('unsafe consumer path (not a regular file):')) throw error;
+    if (!await pathEntryExists(join(consumerRoot, path))) return;
+    throw error;
+  }
+  const root = await realpath(consumerRoot);
+  const resolved = await realpath(source);
+  assertResolvedConsumerPath(root, resolved, path);
+  const validated = await stat(resolved, { bigint: true });
+  const pathname = await lstat(source, { bigint: true });
+  if (!sameFile(validated, pathname)) {
+    throw new Error(`consumer input changed while staging: ${path}`);
+  }
+  await afterInputValidation(path);
+
+  let handle;
+  try {
+    handle = await open(source, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    const opened = await handle.stat({ bigint: true });
+    if (!opened.isFile() || !sameFile(validated, opened)) {
+      throw new Error(`consumer input changed while staging: ${path}`);
+    }
+    const bytes = await handle.readFile();
+    const finished = await handle.stat({ bigint: true });
+    if (!sameFileSnapshot(opened, finished)) {
+      throw new Error(`consumer input changed while staging: ${path}`);
+    }
+    const resolvedAfter = await realpath(source);
+    assertResolvedConsumerPath(root, resolvedAfter, path);
+    const current = await stat(resolvedAfter, { bigint: true });
+    if (!sameFile(opened, current)) {
+      throw new Error(`consumer input changed while staging: ${path}`);
+    }
+    await writeAtomic(join(candidateRoot, path), bytes, Number(opened.mode));
+  } catch (error) {
+    if (error.code === 'ELOOP') {
+      throw new Error(`unsafe consumer path (not a regular file): ${path}`, { cause: error });
+    }
+    throw error;
+  } finally {
+    await handle?.close();
+  }
+}
+
+/**
+ * Accept the package manifest's canonical slash-separated path and translate it
+ * only after platform-independent lexical validation.
+ */
+export function validateCandidateManifestPath(path, pathSemantics = PLATFORM_PATH_SEMANTICS) {
+  if (typeof path !== 'string' || !path || path === '.' || path.includes('\\')
+      || path.split('/').includes('..')
+      || posix.isAbsolute(path) || posix.normalize(path) !== path) {
+    throw new Error(`unsafe candidate manifest path: ${path}`);
+  }
+  const platformPath = path.split('/').join(pathSemantics.sep);
+  if (pathSemantics.isAbsolute(platformPath)
+      || pathSemantics.normalize(platformPath) !== platformPath) {
+    throw new Error(`unsafe candidate manifest path: ${path}`);
+  }
+  return platformPath;
+}
+
+function isForbiddenCandidatePath(path) {
+  if (typeof path !== 'string') return false;
+  const [root] = path.split(/[\\/]/);
+  return FORBIDDEN_CANDIDATE_ROOTS.has(root);
+}
+
+function assertResolvedConsumerPath(root, resolved, path) {
+  const fromRoot = relative(root, resolved);
+  if (!fromRoot || fromRoot === '..' || fromRoot.startsWith(`..${pathSeparator()}`)
+      || isAbsolute(fromRoot)) {
+    throw new Error(`unsafe consumer path (resolved outside root): ${path}`);
+  }
+}
+
+function pathSeparator() {
+  return process.platform === 'win32' ? '\\' : '/';
+}
+
+function sameFile(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+function sameFileSnapshot(left, right) {
+  return sameFile(left, right) && left.size === right.size &&
+    left.mtimeNs === right.mtimeNs && left.ctimeNs === right.ctimeNs;
 }
 
 /** Activate only verified kit-owned deltas, rolling every touched path back on failure. */
 export async function activateCandidate({
   candidateRoot, consumerRoot, pkg, preview, consumerManifestBefore,
-  afterGenerated = async () => {},
+  afterSnapshot = async () => {}, afterGenerated = async () => {},
+  beforeTargetRevalidation = async () => {},
 }) {
   const changed = [...preview.added, ...preview.updated];
   const generated = preview.generated ?? [];
@@ -50,10 +208,6 @@ export async function activateCandidate({
     ...changed, ...generated, ...migrations.map(({ path }) => path),
     ...preview.deleted, CONSUMER_MANIFEST_NAME,
   ];
-  const currentManifest = await readFile(join(consumerRoot, CONSUMER_MANIFEST_NAME));
-  if (!currentManifest.equals(consumerManifestBefore)) {
-    throw new Error('consumer manifest changed during verification');
-  }
   const pkgIdx = indexByPath(pkg, 'files');
   for (const path of changed) {
     if (await sha256File(join(candidateRoot, path)) !== pkgIdx.get(path)?.sha256) {
@@ -72,28 +226,77 @@ export async function activateCandidate({
       throw new Error(`migrated candidate hash mismatch: ${migration.path}`);
     }
   }
+  const manifestBeforeSnapshot = await readFile(join(consumerRoot, CONSUMER_MANIFEST_NAME));
+  if (!manifestBeforeSnapshot.equals(consumerManifestBefore)) {
+    throw new Error('consumer manifest changed during verification');
+  }
   await assertConsumerStillMatchesPreview(consumerRoot, preview);
   const rollback = new Map();
-  for (const path of touched) rollback.set(path, await snapshot(join(consumerRoot, path)));
+  for (const path of touched) {
+    rollback.set(path, await snapshot(join(consumerRoot, path), path));
+  }
+  await afterSnapshot();
+  const currentManifest = await readFile(join(consumerRoot, CONSUMER_MANIFEST_NAME));
+  if (!currentManifest.equals(consumerManifestBefore)) {
+    throw new Error('consumer manifest changed during verification');
+  }
+  await assertConsumerStillMatchesPreview(consumerRoot, preview);
+  const applied = [];
+  const applyTarget = async (path, action) => {
+    await beforeTargetRevalidation(path);
+    await assertTargetStillMatchesSnapshot(
+      join(consumerRoot, path), rollback.get(path), path,
+    );
+    // Optimistic revalidation cannot remove the filesystem check-to-rename
+    // micro-window; it does keep every later destination behind a fresh check.
+    await action();
+    const record = { path, snapshot: null, captured: false };
+    applied.push(record);
+    record.snapshot = await snapshot(join(consumerRoot, path), path);
+    record.captured = true;
+  };
   try {
     for (const path of changed) {
-      await writeAtomic(join(consumerRoot, path), await readFile(join(candidateRoot, path)), pkgIdx.get(path)?.mode);
+      const bytes = await readFile(join(candidateRoot, path));
+      await applyTarget(path, () => writeAtomic(
+        join(consumerRoot, path), bytes, pkgIdx.get(path)?.mode,
+      ));
     }
     for (const path of generated) {
-      await writeAtomic(join(consumerRoot, path), await readFile(join(candidateRoot, path)));
+      const bytes = await readFile(join(candidateRoot, path));
+      await applyTarget(path, () => writeAtomic(join(consumerRoot, path), bytes));
     }
     for (const { path } of migrations) {
-      await writeAtomic(join(consumerRoot, path), await readFile(join(candidateRoot, path)));
+      const bytes = await readFile(join(candidateRoot, path));
+      await applyTarget(path, () => writeAtomic(join(consumerRoot, path), bytes));
     }
     await afterGenerated();
-    for (const path of preview.deleted) await rm(join(consumerRoot, path), { force: true });
-    await writeAtomic(
-      join(consumerRoot, CONSUMER_MANIFEST_NAME),
-      await readFile(join(candidateRoot, CONSUMER_MANIFEST_NAME)),
-    );
+    for (const path of preview.deleted) {
+      await applyTarget(path, () => rm(join(consumerRoot, path), { force: true }));
+    }
+    const manifestBytes = await readFile(join(candidateRoot, CONSUMER_MANIFEST_NAME));
+    await applyTarget(CONSUMER_MANIFEST_NAME, () => writeAtomic(
+      join(consumerRoot, CONSUMER_MANIFEST_NAME), manifestBytes,
+    ));
   } catch (error) {
-    for (const path of touched.reverse()) await restore(join(consumerRoot, path), rollback.get(path));
-    error.consumerState = 'rolled-back';
+    const rollbackConflicts = [];
+    for (const record of applied.reverse()) {
+      const target = join(consumerRoot, record.path);
+      if (!record.captured
+          || !await targetStillMatchesSnapshot(target, record.snapshot, record.path)) {
+        rollbackConflicts.push(record.path);
+        continue;
+      }
+      await restore(target, rollback.get(record.path));
+    }
+    if (rollbackConflicts.length) {
+      rollbackConflicts.sort();
+      error.message = `${error.message}; rollback preserved concurrent edits: ` +
+        rollbackConflicts.join(', ');
+    }
+    error.consumerState = rollbackConflicts.length
+      ? 'rollback-conflicted'
+      : (applied.length ? 'rolled-back' : 'unchanged');
     throw error;
   }
 }
@@ -278,10 +481,46 @@ export async function readReadinessManifest(root) {
   return readManifest(join(root, READINESS_MANIFEST_PATH));
 }
 
-async function snapshot(path) {
-  if (!await exists(path)) return null;
-  const info = await stat(path);
-  return { bytes: await readFile(path), mode: info.mode };
+async function snapshot(path, displayPath = path) {
+  let before;
+  try {
+    before = await lstat(path, { bigint: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+  if (!before.isFile()) {
+    throw new Error(`unsafe consumer activation path: ${displayPath}`);
+  }
+  const bytes = await readFile(path);
+  const after = await lstat(path, { bigint: true });
+  if (!sameFileSnapshot(before, after)) {
+    throw new Error(`consumer changed during activation: ${displayPath}`);
+  }
+  return { bytes, mode: Number(before.mode), identity: before };
+}
+
+async function assertTargetStillMatchesSnapshot(path, expected, displayPath) {
+  if (!await targetStillMatchesSnapshot(path, expected, displayPath)) {
+    throw new Error(`consumer changed during activation: ${displayPath}`);
+  }
+}
+
+async function targetStillMatchesSnapshot(path, expected, displayPath) {
+  let current;
+  try {
+    current = await snapshot(path, displayPath);
+  } catch (error) {
+    return false;
+  }
+  return sameActivationSnapshot(expected, current);
+}
+
+function sameActivationSnapshot(expected, current) {
+  if (!expected || !current) return expected === current;
+  return expected.mode === current.mode
+    && expected.bytes.equals(current.bytes)
+    && sameFileSnapshot(expected.identity, current.identity);
 }
 
 async function restore(path, saved) {
