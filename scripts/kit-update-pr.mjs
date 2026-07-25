@@ -11,7 +11,7 @@ export const UPDATE_TITLE = 'chore: update agent workflow kit';
 const UPDATE_BODY = [
   'Automated, parity-verified update of `@ikon85/agent-workflow-kit`.',
   '',
-  'The transactional update candidate passed the consumer test suite before this branch was published.',
+  'The transactional update candidate passed the built-in Kit invariants before this branch was published.',
   '',
   'This pull request is never merged automatically.',
 ].join('\n');

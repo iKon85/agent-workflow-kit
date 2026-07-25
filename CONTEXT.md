@@ -58,12 +58,17 @@ A consumer-neutral form of a proven consumer-native behavior. It preserves the
 outcome while leaving project-specific activation and policy choices with the
 consumer.
 
-## Update verification profile
+## Kit-verified end state
 
-The consumer-selected preparation and check that decide whether a staged Kit
-update is safe to activate. Until the consumer selects a profile, verification
-uses the legacy `npm test` fallback.
-_Avoid_: Smoke test, pre-check, update verification command
+The staged update candidate proven activatable by the Kit's own invariants —
+manifest completeness, schema and protocol coherence, generated mirror parity,
+syntax validity of changed artifacts, and transaction preconditions — checked
+without executing any consumer behavior. There is no consumer-selected
+verification command and no legacy `npm test` fallback: the Kit answers for the
+end state it ships, and the consumer's test suite answers for the consumer's
+own code.
+_Avoid_: Update verification profile, smoke test, pre-check, update
+verification command
 
 ## Behavioral parity
 

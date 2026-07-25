@@ -1,16 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile, access, mkdir, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import {
+  chmod, readFile, readdir, rename, writeFile, access, lstat, mkdir, rm, symlink,
+} from 'node:fs/promises';
+import { join, win32 } from 'node:path';
 import { init } from '../src/commands/init.mjs';
 import { renderUpdateFailure, update } from '../src/commands/update.mjs';
-import { activateCandidate } from '../src/lib/updateCandidate.mjs';
+import {
+  activateCandidate, materializeUpdateCandidate, validateCandidateManifestPath,
+} from '../src/lib/updateCandidate.mjs';
 import { makeKit, makeEmptyDir, cleanup } from './helpers.mjs';
-import { PACKAGE_MANIFEST_NAME, readManifest, writeManifest } from '../src/lib/manifest.mjs';
+import {
+  PACKAGE_MANIFEST_NAME, filesForInstallRole, readManifest, writeManifest,
+} from '../src/lib/manifest.mjs';
 import { sha256 } from '../src/lib/hash.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
 const P = '.claude/skills/to-prd/SKILL.md';
+const Q = '.agents/skills/to-prd/SKILL.md';
 const H = '.claude/hooks/my-hook.py';
 const READINESS_MANIFEST = '.claude/skills/skill-manifest.json';
 
@@ -40,16 +47,358 @@ async function bumpKit(kitRoot, path, content) {
 }
 
 async function setKitReadiness(kitRoot, manifest) {
-  const content = `${JSON.stringify(manifest, null, 2)}\n`;
+  const pkg = await readManifest(join(kitRoot, PACKAGE_MANIFEST_NAME));
+  const skills = structuredClone(manifest.skills ?? {});
+  for (const entry of pkg.files) {
+    const match = /^\.claude\/skills\/([^/]+)\/SKILL\.md$/.exec(entry.path);
+    if (match) skills[match[1]] ??= {};
+  }
+  for (const [name, declaration] of Object.entries(skills)) {
+    skills[name] = {
+      class: 'generic',
+      publish: true,
+      surfaces: ['claude'],
+      provenance: 'own',
+      ...declaration,
+    };
+    for (const surface of skills[name].surfaces) {
+      const path = `.${surface === 'claude' ? 'claude' : 'agents'}/skills/${name}/SKILL.md`;
+      if (pkg.files.some((entry) => entry.path === path)) continue;
+      const body = `---\nname: ${name}\ndescription: Test fixture.\n---\n\n# ${name}\n`;
+      await mkdir(join(kitRoot, path, '..'), { recursive: true });
+      await writeFile(join(kitRoot, path), body);
+      pkg.files.push({
+        path, kind: 'skill', ownerSkill: name, surface,
+        sha256: sha256(body), mode: 0o644, origin: 'kit',
+      });
+    }
+  }
+  const normalized = { schema_version: 1, ...manifest, skills };
+  const content = `${JSON.stringify(normalized, null, 2)}\n`;
   const path = join(kitRoot, READINESS_MANIFEST);
   await mkdir(join(kitRoot, '.claude/skills'), { recursive: true });
   await writeFile(path, content);
-  const pkg = await readManifest(join(kitRoot, PACKAGE_MANIFEST_NAME));
   const entry = pkg.files.find(({ path: candidate }) => candidate === READINESS_MANIFEST);
   if (entry) entry.sha256 = sha256(content);
   else pkg.files.push({ path: READINESS_MANIFEST, kind: 'doc', sha256: sha256(content), mode: 0o644, origin: 'kit' });
   await writeManifest(join(kitRoot, PACKAGE_MANIFEST_NAME), pkg);
 }
+
+async function candidateFiles(root, relative = '') {
+  const files = [];
+  for (const entry of await readdir(join(root, relative), { withFileTypes: true })) {
+    const path = relative ? `${relative}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) files.push(...await candidateFiles(root, path));
+    else files.push(path);
+  }
+  return files.sort();
+}
+
+async function candidateSnapshot(root) {
+  return Object.fromEntries(await Promise.all((await candidateFiles(root)).map(async (path) => [
+    path, sha256(await readFile(join(root, path))),
+  ])));
+}
+
+test('canonical manifest paths remain valid materializer inputs under Windows path semantics', () => {
+  assert.equal(
+    validateCandidateManifestPath(P, win32),
+    '.claude\\skills\\to-prd\\SKILL.md',
+  );
+  assert.throws(
+    () => validateCandidateManifestPath('../outside.md', win32),
+    /unsafe candidate manifest path/,
+  );
+  assert.throws(
+    () => validateCandidateManifestPath('.claude\\skills\\escape.md', win32),
+    /unsafe candidate manifest path/,
+  );
+});
+
+test('staged candidate contains the complete manifest state and no unrelated Consumer paths', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, 'package.json'), '{"scripts":{"test":"exit 0"}}\n');
+    for (const path of [
+      'src/application.mjs', 'dist/output.js', 'node_modules/package/index.js',
+      '.worktrees/feature/src/branch.mjs', 'notes/unknown.txt',
+    ]) {
+      await mkdir(join(consumer, path, '..'), { recursive: true });
+      await writeFile(join(consumer, path), `${path}\n`);
+    }
+    await bumpKit(kit, P, 'v2\n');
+    let staged;
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(),
+      verify: async (candidateRoot) => { staged = await candidateFiles(candidateRoot); },
+    });
+
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+    assert.equal(result.state, 'applied');
+    assert.deepEqual(
+      staged,
+      [
+        ...pkg.files.map(({ path }) => path),
+        'agent-workflow-kit.json',
+        'package.json',
+      ].sort(),
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('active worktrees cannot change or be read into the staged candidate', async () => {
+  const staged = [];
+  for (const hasWorktree of [false, true]) {
+    const kit = await makeKit({ [P]: 'v1\n' });
+    const consumer = await makeEmptyDir();
+    const branchFile = join(consumer, '.worktrees/feature/src/branch.mjs');
+    try {
+      await init({ kitRoot: kit, consumerRoot: consumer });
+      await writeFile(join(consumer, 'package.json'), '{"scripts":{"test":"exit 0"}}\n');
+      if (hasWorktree) {
+        await mkdir(join(consumer, '.worktrees/feature/src'), { recursive: true });
+        await writeFile(branchFile, 'must not be read\n', { mode: 0o000 });
+      }
+      await bumpKit(kit, P, 'v2\n');
+
+      const result = await update({
+        kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(),
+        onState: async (state) => {
+          if (hasWorktree && state === 'staging') {
+            await chmod(branchFile, 0o600);
+            await writeFile(branchFile, 'concurrent worktree mutation\n');
+            await chmod(branchFile, 0o000);
+          }
+        },
+        verify: async (candidateRoot) => { staged.push(await candidateSnapshot(candidateRoot)); },
+      });
+
+      assert.equal(result.state, 'applied');
+    } finally {
+      if (hasWorktree && await exists(branchFile)) await chmod(branchFile, 0o600);
+      await cleanup(kit, consumer);
+    }
+  }
+  assert.deepEqual(staged[1], staged[0]);
+  assert.equal(Object.keys(staged[1]).some((path) => path.startsWith('.worktrees/')), false);
+});
+
+test('candidate ledger covers the fresh Consumer release-manifest denominator', async () => {
+  const kit = process.cwd();
+  const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+  const expected = filesForInstallRole(pkg).map(({ path }) => path).sort();
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifest = await readManifest(manifestPath);
+    await writeManifest(manifestPath, { ...manifest, installRole: 'legacy' });
+    let stagedInstalled;
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(pkg.kitVersion),
+      verify: async (candidateRoot) => {
+        const candidate = await readManifest(join(candidateRoot, 'agent-workflow-kit.json'));
+        stagedInstalled = candidate.installed.map(({ path }) => path).sort();
+        for (const path of expected) assert.equal(await exists(join(candidateRoot, path)), true, path);
+      },
+    });
+
+    assert.equal(result.state, 'applied');
+    assert.equal(stagedInstalled.length, expected.length);
+    assert.deepEqual(stagedInstalled, expected);
+  } finally {
+    await cleanup(consumer);
+  }
+});
+
+test('unsafe managed input fails staging without changing the Consumer', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  const external = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(external, 'outside.md'), 'v1\n');
+    await rm(join(consumer, P));
+    await symlink(join(external, 'outside.md'), join(consumer, P));
+    await bumpKit(kit, P, 'v2\n');
+    const manifestBefore = await readFile(join(consumer, 'agent-workflow-kit.json'));
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+    });
+
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.failure, { phase: 'staging', consumerState: 'unchanged' });
+    assert.match(result.error, /unsafe consumer path/);
+    assert.equal((await lstat(join(consumer, P))).isSymbolicLink(), true);
+    assert.deepEqual(await readFile(join(consumer, 'agent-workflow-kit.json')), manifestBefore);
+  } finally {
+    await cleanup(kit, consumer, external);
+  }
+});
+
+test('candidate materialization rejects an intermediate-directory symlink escape', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  const external = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await mkdir(join(external, 'skills/to-prd'), { recursive: true });
+    await writeFile(join(external, 'skills/to-prd/SKILL.md'), 'v1\n');
+    await rm(join(consumer, '.claude'), { recursive: true });
+    await symlink(external, join(consumer, '.claude'), 'dir');
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+
+    await assert.rejects(
+      materializeUpdateCandidate({
+        consumerRoot: consumer, pkg,
+        priorReadinessManifest: null, nextReadinessManifest: null,
+      }),
+      new RegExp(`unsafe consumer path.*${P.replaceAll('.', '\\.')}`),
+    );
+  } finally {
+    await cleanup(kit, consumer, external);
+  }
+});
+
+test('candidate materialization rejects a same-bytes leaf replacement after validation', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  let candidateRoot;
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+    let swapped = false;
+
+    await assert.rejects(async () => {
+      candidateRoot = await materializeUpdateCandidate({
+        consumerRoot: consumer, pkg,
+        priorReadinessManifest: null, nextReadinessManifest: null,
+        afterInputValidation: async (path) => {
+          if (path !== P || swapped) return;
+          swapped = true;
+          const replacement = join(consumer, '.replacement');
+          await writeFile(replacement, 'v1\n');
+          await rename(replacement, join(consumer, P));
+        },
+      });
+    }, new RegExp(`consumer input changed while staging: ${P.replaceAll('.', '\\.')}`));
+    assert.equal(swapped, true);
+  } finally {
+    await cleanup(kit, consumer);
+    if (candidateRoot) await cleanup(candidateRoot);
+  }
+});
+
+test('ledger metadata is preserved but only manifest-declared bytes enter the candidate', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  const external = await makeEmptyDir();
+  let candidateRoot;
+  const forbidden = '.worktrees/poison/secret.md';
+  const consumerOwned = 'docs/consumer-owned.md';
+  const legacyKit = 'docs/legacy-kit.md';
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await mkdir(join(consumer, 'docs'), { recursive: true });
+    await writeFile(join(consumer, consumerOwned), 'consumer-owned\n');
+    await writeFile(join(consumer, legacyKit), 'legacy-kit\n');
+    await mkdir(join(external, 'poison'), { recursive: true });
+    await writeFile(join(external, 'poison/secret.md'), 'must not be read\n');
+    await symlink(external, join(consumer, '.worktrees'), 'dir');
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifest = await readManifest(manifestPath);
+    manifest.installed.push(
+      {
+        path: forbidden, kind: 'doc', installedSha256: sha256('must not be read\n'),
+        origin: 'kit', installRole: 'consumer',
+      },
+      {
+        path: consumerOwned, kind: 'doc', installedSha256: sha256('consumer-owned\n'),
+        origin: 'consumer', installRole: 'consumer',
+      },
+      {
+        path: legacyKit, kind: 'doc', installedSha256: sha256('legacy-kit\n'),
+        origin: 'kit', installRole: 'consumer',
+      },
+    );
+    await writeManifest(manifestPath, manifest);
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+
+    candidateRoot = await materializeUpdateCandidate({
+      consumerRoot: consumer, pkg,
+      priorReadinessManifest: null, nextReadinessManifest: null,
+    });
+
+    assert.equal(await readFile(join(candidateRoot, P), 'utf8'), 'v1\n');
+    assert.equal(await exists(join(candidateRoot, forbidden)), false);
+    assert.equal(await exists(join(candidateRoot, consumerOwned)), false);
+    assert.equal(await exists(join(candidateRoot, legacyKit)), false);
+    const candidateManifest = await readManifest(join(candidateRoot, 'agent-workflow-kit.json'));
+    assert.equal(
+      candidateManifest.installed.find(({ path }) => path === consumerOwned)?.origin,
+      'consumer',
+    );
+    assert.equal(
+      candidateManifest.installed.find(({ path }) => path === legacyKit)?.origin,
+      'kit',
+    );
+  } finally {
+    await cleanup(kit, consumer, external);
+    if (candidateRoot) await cleanup(candidateRoot);
+  }
+});
+
+test('declared readiness runbooks are the only transitive project inputs staged', async () => {
+  const readiness = {
+    readiness: { contractVersion: 1, capabilities: {
+      securityAuditRunbook: {
+        evidence: {
+          type: 'runbook-reference', paths: ['docs/agents/skills/security-audit.md'],
+          allowLegacy: true,
+        },
+      },
+    } },
+    skills: {},
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  const runbook = 'docs/security/runbook.md';
+  try {
+    await setKitReadiness(kit, readiness);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(
+      join(consumer, 'docs/agents/skills/security-audit.md'),
+      `Use the project runbook at \`${runbook}\`.\n`,
+    );
+    await mkdir(join(consumer, 'docs/security'), { recursive: true });
+    await writeFile(join(consumer, runbook), '# Project security procedure\n');
+    await writeFile(join(consumer, 'docs/security/unrelated.md'), '# Do not stage\n');
+    await bumpKit(kit, P, 'v2\n');
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(),
+      verify: async (candidateRoot) => {
+        assert.equal(
+          await readFile(join(candidateRoot, runbook), 'utf8'),
+          '# Project security procedure\n',
+        );
+        assert.equal(await exists(join(candidateRoot, 'docs/security/unrelated.md')), false);
+      },
+    });
+
+    assert.equal(result.state, 'applied');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
 
 test('update transactionally adopts new safe stubs and reports behavior availability', async () => {
   const oldReadiness = {
@@ -283,6 +632,190 @@ test('a generated-stub destination race fails in activation and preserves consum
   }
 });
 
+test('a local edit after the rollback snapshot is revalidated before activation', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await bumpKit(kit, P, 'v2\n');
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifestBefore = await readFile(manifestPath);
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+      activate: (options) => activateCandidate({
+        ...options,
+        afterSnapshot: async () => {
+          await writeFile(join(consumer, P), 'late local edit after snapshot\n');
+        },
+      }),
+    });
+
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.failure, { phase: 'activation', consumerState: 'unchanged' });
+    assert.match(result.error, /consumer changed during verification/);
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'late local edit after snapshot\n');
+    assert.deepEqual(await readFile(manifestPath), manifestBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a later managed edit is preserved after an earlier managed path was activated', async () => {
+  const kit = await makeKit({ [P]: 'p-v1\n', [Q]: 'q-v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await bumpKit(kit, P, 'p-v2\n');
+    await bumpKit(kit, Q, 'q-v2\n');
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifestBefore = await readFile(manifestPath);
+    const managed = new Set([P, Q]);
+    let firstPath;
+    let laterPath;
+    let partialWriteObserved = false;
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+      activate: (options) => activateCandidate({
+        ...options,
+        beforeTargetRevalidation: async (path) => {
+          if (!managed.has(path)) return;
+          if (!firstPath) {
+            firstPath = path;
+            return;
+          }
+          if (laterPath) return;
+          laterPath = path;
+          partialWriteObserved = (
+            await readFile(join(consumer, firstPath), 'utf8')
+          ).endsWith('-v2\n');
+          await writeFile(join(consumer, laterPath), 'external late edit\n');
+        },
+      }),
+    });
+
+    assert.equal(partialWriteObserved, true);
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.failure, { phase: 'activation', consumerState: 'rolled-back' });
+    assert.match(result.error, new RegExp(`consumer changed during activation: ${laterPath}`));
+    assert.equal(await readFile(join(consumer, firstPath), 'utf8'), `${firstPath === P ? 'p' : 'q'}-v1\n`);
+    assert.equal(await readFile(join(consumer, laterPath), 'utf8'), 'external late edit\n');
+    assert.deepEqual(await readFile(manifestPath), manifestBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('rollback preserves an external edit to an already activated path', async () => {
+  const kit = await makeKit({ [P]: 'p-v1\n', [Q]: 'q-v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await bumpKit(kit, P, 'p-v2\n');
+    await bumpKit(kit, Q, 'q-v2\n');
+    const managed = new Set([P, Q]);
+    let firstPath;
+    let laterPath;
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+      activate: (options) => activateCandidate({
+        ...options,
+        beforeTargetRevalidation: async (path) => {
+          if (!managed.has(path)) return;
+          if (!firstPath) {
+            firstPath = path;
+            return;
+          }
+          if (laterPath) return;
+          laterPath = path;
+          await writeFile(join(consumer, firstPath), 'external edit after activation\n');
+          await writeFile(join(consumer, laterPath), 'external edit before activation\n');
+        },
+      }),
+    });
+
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.failure, {
+      phase: 'activation', consumerState: 'rollback-conflicted',
+    });
+    assert.match(result.error, /rollback preserved concurrent edits/);
+    assert.equal(
+      await readFile(join(consumer, firstPath), 'utf8'),
+      'external edit after activation\n',
+    );
+    assert.equal(
+      await readFile(join(consumer, laterPath), 'utf8'),
+      'external edit before activation\n',
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a first-target edit fails activation with unchanged consumer state', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await bumpKit(kit, P, 'v2\n');
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifestBefore = await readFile(manifestPath);
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+      activate: (options) => activateCandidate({
+        ...options,
+        beforeTargetRevalidation: async (path) => {
+          if (path === P) await writeFile(join(consumer, P), 'external first-target edit\n');
+        },
+      }),
+    });
+
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.failure, { phase: 'activation', consumerState: 'unchanged' });
+    assert.match(result.error, new RegExp(`consumer changed during activation: ${P.replaceAll('.', '\\.')}`));
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'external first-target edit\n');
+    assert.deepEqual(await readFile(manifestPath), manifestBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a late ledger edit is preserved while earlier activation writes roll back', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await bumpKit(kit, P, 'v2\n');
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const externalLedger = '{"external":"late ledger edit"}\n';
+    let partialWriteObserved = false;
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+      activate: (options) => activateCandidate({
+        ...options,
+        beforeTargetRevalidation: async (path) => {
+          if (path !== 'agent-workflow-kit.json') return;
+          partialWriteObserved = await readFile(join(consumer, P), 'utf8') === 'v2\n';
+          await writeFile(manifestPath, externalLedger);
+        },
+      }),
+    });
+
+    assert.equal(partialWriteObserved, true);
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.failure, { phase: 'activation', consumerState: 'rolled-back' });
+    assert.match(result.error, /consumer changed during activation: agent-workflow-kit\.json/);
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'v1\n');
+    assert.equal(await readFile(manifestPath, 'utf8'), externalLedger);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('mid-activation failure rolls back generated and kit-owned bytes without clobbering legacy evidence', async () => {
   const oldReadiness = { readiness: { contractVersion: 1, capabilities: {} }, skills: {} };
   const nextReadiness = {
@@ -368,7 +901,7 @@ test('a compatible update cannot make previously available skill core unavailabl
     });
 
     assert.equal(result.state, 'failed');
-    assert.deepEqual(result.failure, { phase: 'staging', consumerState: 'unchanged' });
+    assert.deepEqual(result.failure, { phase: 'verification', consumerState: 'unchanged' });
     assert.match(result.error, /monotonic compatibility.*to-prd/);
     assert.deepEqual(result.availability.newlyBlocked, ['to-prd']);
     assert.equal(verified, false);
@@ -694,7 +1227,7 @@ test('a candidate whose bytes do not match the package manifest is never activat
       kitRoot: kit, consumerRoot: consumer, now: 'T', releaseIdentities: releaseIdentities(), verify,
     });
     assert.equal(r.state, 'failed');
-    assert.match(r.error, /candidate hash mismatch/);
+    assert.match(r.error, /candidate invariant artifact: hash mismatch/);
     assert.deepEqual(await readFile(join(consumer, P)), before);
   } finally {
     await cleanup(kit, consumer);

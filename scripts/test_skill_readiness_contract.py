@@ -56,7 +56,12 @@ for (const skill of Object.keys(fixture.readinessFixture.skills)) {
 const kit = await makeKit({ '.claude/skills/to-prd/SKILL.md': 'fixture\n' });
 const consumer = await makeEmptyDir();
 async function setKitReadiness(manifest) {
-  const content = `${JSON.stringify(manifest, null, 2)}\n`;
+  const candidateManifest = structuredClone(manifest);
+  for (const [name, declaration] of Object.entries(candidateManifest.skills)) {
+    declaration.publish = name === 'to-prd';
+    if (name === 'to-prd') declaration.surfaces = ['claude'];
+  }
+  const content = `${JSON.stringify(candidateManifest, null, 2)}\n`;
   const path = join(kit, readinessPath);
   await mkdir(join(kit, '.claude/skills'), { recursive: true });
   await writeFile(path, content);

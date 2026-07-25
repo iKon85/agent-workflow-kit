@@ -46,6 +46,8 @@ test('automated update pull requests carry the behavior availability summary', a
   assert.match(created.body, /## Availability/);
   assert.match(created.body, /newly degraded: orchestrate-wave\.projectRecipe/);
   assert.match(created.body, /still unresolved: orchestrateWaveRecipe:invalid/);
+  assert.match(created.body, /built-in Kit invariants/);
+  assert.doesNotMatch(created.body, /consumer test/i);
   assert.match(created.body, /never merged automatically/);
 });
 

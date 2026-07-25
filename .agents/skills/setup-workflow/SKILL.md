@@ -81,11 +81,19 @@ Seed `docs/agents/issue-tracker.md` from the matching template in this folder: [
 
 ### 2a. Automatic Kit update pull requests (GitHub tracker only)
 
-> A short scheduled check can keep the installed Kit current by opening one normal pull request after the candidate passes the consumer's own tests. It never merges the pull request for you.
+> A short scheduled check can keep the installed Kit current by opening one
+> normal pull request after the candidate passes the built-in Kit invariant
+> validator. It runs no Consumer package script and never merges the pull
+> request for you.
 
-Only after the user has confirmed a **GitHub tracker**, ask in plain language: *"Should GitHub check weekly for a tested Agent Workflow Kit update and keep one update pull request ready?"* Offer these explicit choices:
+Only after the user has confirmed a **GitHub tracker**, ask in plain language:
+*"Should GitHub check weekly for a verified Agent Workflow Kit update and keep
+one update pull request ready?"* Offer these explicit choices:
 
-Before offering **Enable**, confirm the consumer has a committed `package-lock.json` and a usable `package.json` `npm test` command. The shipped workflow installs the locked dependencies with `npm ci --ignore-scripts`; without that lockfile/test contract it cannot prove the candidate in a clean checkout, so explain the prerequisite and do not create the workflow yet.
+Before offering **Enable**, explain that the update command uses the same
+built-in Kit invariant validator as manual and agent-driven updates. There is
+no Consumer package script, lockfile, configurable verification profile, or
+legacy test fallback prerequisite.
 
 Also read the repository Actions policy before enabling:
 

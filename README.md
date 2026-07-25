@@ -387,6 +387,16 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.34.5
+
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/assets/agent-workflow-kit-update.yml`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/assets/agent-workflow-kit-update.yml`
+- changed: `scripts/kit-update-pr.mjs`
+
 ### 0.34.4
 
 - changed: `.agents/skills/kit-release/SKILL.md`

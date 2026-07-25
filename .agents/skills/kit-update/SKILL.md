@@ -30,9 +30,12 @@ release contain the same artifact.
    ```
 
    The command checks npm/GitHub release parity before staging. It prepares a
-   complete candidate outside the consumer, runs the consumer's existing
-   `npm test` command there, and activates only a verified candidate. A staging
-   or verification failure leaves the installed tree byte-identical.
+   complete manifest-bounded candidate outside the Consumer, verifies the
+   Kit-owned manifest, artifact, protocol, schema/reference, syntax, and
+   transaction invariants, and activates only that verified candidate. It
+   never runs a Consumer package script, configurable verification command, or
+   legacy fallback. A staging or verification failure leaves the installed
+   tree byte-identical.
 
    The staged candidate also adopts the current readiness schema without
    invoking `setup-workflow`: it preserves explicit readiness decisions and

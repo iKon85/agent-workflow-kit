@@ -2,8 +2,11 @@ import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { assertConsumerReleaseParity } from '../../scripts/release-parity.mjs';
 import {
-  activateCandidate, adoptReadinessCandidate, readReadinessManifest, stageConsumer, verifyCandidate,
+  activateCandidate, adoptReadinessCandidate, materializeUpdateCandidate, readReadinessManifest,
 } from '../lib/updateCandidate.mjs';
+import {
+  verifyCandidateSchema, verifyUpdateCandidate,
+} from '../lib/verifyUpdateCandidate.mjs';
 import { reconcile } from '../lib/updateReconcile.mjs';
 import {
   CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, readManifest,
@@ -46,7 +49,7 @@ export async function update(options) {
 async function updatePackage(options) {
   const {
     kitRoot, consumerRoot, decide = () => false, dryRun = false,
-    releaseIdentities, verify = verifyCandidate, activate = activateCandidate,
+    releaseIdentities, verify = verifyUpdateCandidate, activate = activateCandidate,
     signal, onState = () => {}, resumeFrom,
   } = options;
   const history = [];
@@ -57,7 +60,8 @@ async function updatePackage(options) {
   if (!pkg) throw new Error('kit package manifest not found');
   if (!dryRun) verifyRelease(releaseIdentities, pkg.kitVersion);
   const consumerManifestPath = join(consumerRoot, CONSUMER_MANIFEST_NAME);
-  if (!await readManifest(consumerManifestPath)) {
+  const priorConsumerManifest = await readManifest(consumerManifestPath);
+  if (!priorConsumerManifest) {
     throw new Error('not initialised — run `init` first');
   }
   const consumerManifestBefore = await readFile(consumerManifestPath);
@@ -75,7 +79,7 @@ async function updatePackage(options) {
   let previewFailure;
   try {
     Object.assign(preview, await previewReadinessAdoption({
-      kitRoot, consumerRoot, priorReadinessManifest, nextReadinessManifest,
+      kitRoot, consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
     }));
     preview.conflicts.push(...(preview.migrationConflicts ?? []).map((path) => ({
       path,
@@ -108,17 +112,25 @@ async function updatePackage(options) {
   }
   return applyTransaction({
     kitRoot, consumerRoot, pkg, preview: resolvedPreview, decisions, verify, activate, signal, resumeFrom,
-    consumerManifestBefore, priorReadinessManifest, nextReadinessManifest, history, transition,
+    consumerManifestBefore, priorConsumerManifest,
+    priorReadinessManifest, nextReadinessManifest, history, transition,
   });
 }
 
 async function previewReadinessAdoption(context) {
-  const { kitRoot, consumerRoot, priorReadinessManifest, nextReadinessManifest } = context;
-  const candidateRoot = await stageConsumer(consumerRoot);
+  const {
+    kitRoot, consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
+  } = context;
+  const candidateRoot = await materializeUpdateCandidate({
+    consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
+  });
   try {
-    await reconcile({
+    const candidatePreview = await reconcile({
       kitRoot, consumerRoot: candidateRoot,
       decide: (action) => action === 'collision' ? 'keep-as-owned' : false,
+    });
+    await verifyCandidateSchema(candidateRoot, {
+      pkg, preview: candidatePreview, priorReadinessManifest, nextReadinessManifest,
     });
     return await adoptReadinessCandidate({
       candidateRoot, consumerRoot, priorManifest: priorReadinessManifest,
@@ -146,7 +158,8 @@ async function resolvePreview({ kitRoot, consumerRoot, preview, decisions, decid
 async function applyTransaction(context) {
   const {
     kitRoot, consumerRoot, pkg, preview, decisions, verify, activate, signal, resumeFrom,
-    consumerManifestBefore, priorReadinessManifest, nextReadinessManifest, history, transition,
+    consumerManifestBefore, priorConsumerManifest,
+    priorReadinessManifest, nextReadinessManifest, history, transition,
   } = context;
   let candidateRoot = resumeFrom;
   let keepCandidate = false;
@@ -157,12 +170,29 @@ async function applyTransaction(context) {
       throw new Error('collision-bearing candidate cannot be resumed safely');
     }
     if (!candidateRoot) {
-      candidateRoot = await stageConsumer(consumerRoot);
+      candidateRoot = await materializeUpdateCandidate({
+        consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
+      });
       await reconcile({
         kitRoot, consumerRoot: candidateRoot,
         decide: (action, path) => decisions.get(decisionKey(action, path)),
       });
     }
+    phase = 'verification';
+    await transition('verifying');
+    const abort = async () => {
+      keepCandidate = true;
+      return { ...await terminal(preview, 'aborted', history, transition), candidateRoot };
+    };
+    if (signal?.aborted) return abort();
+    const canonicalContext = {
+      pkg: structuredClone(pkg),
+      preview: structuredClone(preview),
+      priorConsumerManifest: structuredClone(priorConsumerManifest),
+      priorReadinessManifest: structuredClone(priorReadinessManifest),
+      nextReadinessManifest: structuredClone(nextReadinessManifest),
+    };
+    await verifyCandidateSchema(candidateRoot, canonicalContext);
     const readiness = await adoptReadinessCandidate({
       candidateRoot, consumerRoot, priorManifest: priorReadinessManifest,
       nextManifest: nextReadinessManifest,
@@ -178,18 +208,20 @@ async function applyTransaction(context) {
     if (readiness.incompatible.length) {
       throw new Error(`monotonic compatibility would block existing skill core: ${readiness.incompatible.join(', ')}`);
     }
-    phase = 'verification';
-    await transition('verifying');
-    const abort = async () => {
-      keepCandidate = true;
-      return { ...await terminal(preview, 'aborted', history, transition), candidateRoot };
-    };
-    if (signal?.aborted) return abort();
-    await verify(candidateRoot);
+    canonicalContext.preview = structuredClone(preview);
+    await verifyUpdateCandidate(candidateRoot, canonicalContext);
+    if (verify !== verifyUpdateCandidate) {
+      const extensionContext = structuredClone(canonicalContext);
+      await verify(candidateRoot, extensionContext);
+      await verifyUpdateCandidate(candidateRoot, canonicalContext);
+    }
     if (signal?.aborted) return abort();
     phase = 'activation';
     await activate({
-      candidateRoot, consumerRoot, pkg, preview, consumerManifestBefore,
+      candidateRoot, consumerRoot,
+      pkg: canonicalContext.pkg,
+      preview: canonicalContext.preview,
+      consumerManifestBefore,
     });
     return { ...await terminal(preview, 'applied', history, transition), status: 'updated' };
   } catch (error) {
@@ -252,4 +284,4 @@ async function terminal(result, state, history, transition) {
   };
 }
 
-export { verifyCandidate } from '../lib/updateCandidate.mjs';
+export { verifyUpdateCandidate, verifyUpdateCandidate as verifyCandidate } from '../lib/verifyUpdateCandidate.mjs';

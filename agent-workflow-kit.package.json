@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.34.4",
+  "kitVersion": "0.34.5",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -377,7 +377,7 @@
       "ownerSkill": "kit-update",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "c3487295864d1d8d765e1c453c80daf77d3f08a2b0017f614e44e85170913624",
+      "sha256": "9129e14b12b573546e253e14be3b7793afe2ca2b46102bb7b5f2ec1a8276a1ec",
       "mode": 420,
       "origin": "kit"
     },
@@ -577,7 +577,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "d8abf995d67184b4459b9565c9062319fc42e8a685042b288b3066a07a6fda59",
+      "sha256": "dcabda3d93b7c79f35065a9f3130807ff29737e15187a68fdbc37533015d461d",
       "mode": 420,
       "origin": "kit"
     },
@@ -677,7 +677,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "7281bb67588328aa4a788cbefe69f396c4617569335ce47cfb45bb5607d3205e",
+      "sha256": "0f098f6efeda6682726d918135f0a66ffbf9c90616293fd3833d5fe47fc5c927",
       "mode": 420,
       "origin": "kit"
     },
@@ -1689,7 +1689,7 @@
       "ownerSkill": "kit-update",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "c3487295864d1d8d765e1c453c80daf77d3f08a2b0017f614e44e85170913624",
+      "sha256": "9129e14b12b573546e253e14be3b7793afe2ca2b46102bb7b5f2ec1a8276a1ec",
       "mode": 420,
       "origin": "kit"
     },
@@ -1909,7 +1909,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "d8abf995d67184b4459b9565c9062319fc42e8a685042b288b3066a07a6fda59",
+      "sha256": "dcabda3d93b7c79f35065a9f3130807ff29737e15187a68fdbc37533015d461d",
       "mode": 420,
       "origin": "kit"
     },
@@ -2009,7 +2009,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "7281bb67588328aa4a788cbefe69f396c4617569335ce47cfb45bb5607d3205e",
+      "sha256": "0f098f6efeda6682726d918135f0a66ffbf9c90616293fd3833d5fe47fc5c927",
       "mode": 420,
       "origin": "kit"
     },
@@ -2535,7 +2535,7 @@
       "path": "scripts/kit-update-pr.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "83f30a4ca938171cfa2f4153917813fae40bf2a906940e047c7066d18284209b",
+      "sha256": "c28bbd5a45583a92eca12758c1d626e04bce820300178b54933340759d1690fd",
       "mode": 493,
       "origin": "kit"
     },

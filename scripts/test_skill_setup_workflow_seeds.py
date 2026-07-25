@@ -49,13 +49,12 @@ def classify(first_line, is_empty):
 
 
 def update_workflow_action(
-    provider, choice, destination_exists, prerequisites=True,
-    pull_requests_allowed=True,
+    provider, choice, destination_exists, pull_requests_allowed=True,
 ):
     """Reference decision table for the prompt-driven setup contract."""
     if provider != "github" or destination_exists or choice != "enable":
         return "skip"
-    return "create" if prerequisites and pull_requests_allowed else "skip"
+    return "create" if pull_requests_allowed else "skip"
 
 
 def load_census_setup_effects():
@@ -421,19 +420,18 @@ class SeedTemplatesValid(unittest.TestCase):
 
     def test_update_workflow_provider_and_choice_fixtures(self):
         fixtures = [
-            ("github", "enable", False, True, True, "create"),
-            ("github", "opt-out", False, True, True, "skip"),
-            ("github", "later", False, True, True, "skip"),
-            ("github", "enable", True, True, True, "skip"),
-            ("github", "enable", False, False, True, "skip"),
-            ("github", "enable", False, True, False, "skip"),
-            ("gitlab", "enable", False, True, True, "skip"),
-            ("local", "enable", False, True, True, "skip"),
+            ("github", "enable", False, True, "create"),
+            ("github", "opt-out", False, True, "skip"),
+            ("github", "later", False, True, "skip"),
+            ("github", "enable", True, True, "skip"),
+            ("github", "enable", False, False, "skip"),
+            ("gitlab", "enable", False, True, "skip"),
+            ("local", "enable", False, True, "skip"),
         ]
-        for provider, choice, exists, prerequisites, allowed, expected in fixtures:
+        for provider, choice, exists, allowed, expected in fixtures:
             self.assertEqual(
                 update_workflow_action(
-                    provider, choice, exists, prerequisites, allowed,
+                    provider, choice, exists, allowed,
                 ), expected,
             )
 
@@ -446,8 +444,8 @@ class SeedTemplatesValid(unittest.TestCase):
             "Ask later",
             "GitHub tracker",
             "skipped (already present)",
-            "package-lock.json",
-            "npm test",
+            "built-in Kit invariant validator",
+            "no Consumer package script",
             "can_approve_pull_request_reviews",
             "Allow GitHub Actions to create and approve pull requests",
             "explicit confirmation",
@@ -461,10 +459,13 @@ class SeedTemplatesValid(unittest.TestCase):
             "schedule:", "workflow_dispatch:", "contents: write",
             "pull-requests: write", "agent-workflow-kit-update-pr",
             "@ikon85/agent-workflow-kit@latest", "fetch-depth: 0",
-            "node-version: 22.14", "npm ci --ignore-scripts",
+            "node-version: 22.14", "Verify and upsert the Kit update pull request",
         ):
             self.assertIn(token, workflow)
-        for forbidden in ("npm_token", "NPM_TOKEN", "auto-merge", "gh pr merge"):
+        for forbidden in (
+            "npm_token", "NPM_TOKEN", "auto-merge", "gh pr merge",
+            "npm ci", "npm test", "package-lock.json",
+        ):
             self.assertNotIn(forbidden, workflow)
 
         mirror = (REPO / ".agents/skills/setup-workflow/assets/agent-workflow-kit-update.yml")
