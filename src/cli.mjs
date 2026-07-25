@@ -10,6 +10,9 @@ import { setOwnership } from './commands/own.mjs';
 import {
   beginContributionBridge, prepareContributionArtifact,
 } from './lib/contributionBridge.mjs';
+import {
+  inspectContributionRouting,
+} from './lib/contributionRouting.mjs';
 import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
 import { nonInteractiveUpdateDecision } from './lib/updateDecisions.mjs';
 import { currentAgentSurface } from './lib/agentSurfaceRegistry.mjs';
@@ -90,18 +93,44 @@ try {
   } else if (cmd === 'contribute') {
     const action = args[1];
     const path = args[2];
-    if (!['start', 'prepare'].includes(action) || !path) {
+    if (!['start', 'status', 'prepare'].includes(action) || !path) {
       throw new Error(
-        'Usage: agent-workflow-kit contribute <start|prepare> <path> ' +
+        'Usage: agent-workflow-kit contribute <start|status|prepare> <path> ' +
+        '[--surface=retro|pre-update|guard] ' +
         '[--output=.agent-workflow-kit/contributions/<name>.json]',
       );
     }
     if (action === 'start') {
       await beginContributionBridge({ kitRoot: KIT_ROOT, consumerRoot, path });
       p.outro(`${path} is now a contribution bridge; no remote was changed`);
+    } else if (action === 'status') {
+      const surface = args.find((arg) => arg.startsWith('--surface='))
+        ?.slice('--surface='.length) ?? 'guard';
+      const routing = await inspectContributionRouting({
+        consumerRoot, path, surface,
+      });
+      p.note(
+        [
+          `lifecycle: ${routing.lifecycleState}`,
+          `capability: ${routing.capabilityState}`,
+          `routes: ${routing.routes.map(({ id }) => id).join(', ')}`,
+          ...(routing.diagnostic ? [`diagnostic: ${routing.diagnostic}`] : []),
+        ].join('\n'),
+        `contribution routing (${routing.surface})`,
+      );
+      p.outro('read-only routing report; no local or remote state changed');
     } else {
       const output = args.find((arg) => arg.startsWith('--output='))?.slice('--output='.length);
       if (!output) throw new Error('contribute prepare requires --output=<path>');
+      const routing = await inspectContributionRouting({
+        consumerRoot, path, surface: 'guard',
+      });
+      if (!routing.routes.some(({ id }) => id === 'prepare-local')) {
+        throw new Error(
+          `local contribution preparation is unavailable: ${routing.capabilityState}` +
+          (routing.diagnostic ? ` (${routing.diagnostic})` : ''),
+        );
+      }
       await prepareContributionArtifact({
         kitRoot: KIT_ROOT, consumerRoot, path, output,
       });

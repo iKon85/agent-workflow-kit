@@ -103,18 +103,19 @@ release contain the same artifact.
 
    For each conflicted kit-shipped file, always ask the user whether the local
    edit is a generic improvement or project-specific; never decide or act
-   automatically. For a generic improvement, offer to file an issue in the
-   public kit repository and keep the local edit in place as a bridge until a
-   kit release containing the improvement lands. Before running
-   `gh issue create --repo <owner>/agent-workflow-kit`, show a sanitized preview
-   of the exact title and body with consumer identifiers and secrets stripped,
-   then require the user's explicit approval. The consumer user does not need
-   to be a kit maintainer. For a project-specific edit, recommend
+   automatically. For a generic improvement retained as a bridge, run
+   `contribute status <path> --surface=pre-update` and follow only its
+   repository-capability routes. Missing, disabled, invalid, or unverifiable
+   configuration is a generic Consumer and receives preserve/Explicit-fork
+   guidance, never maintainer language or an inferred upstream target. A valid
+   capability may add local preparation and may describe an upstream pull
+   request, but the latter still needs a sanitized exact preview and separate
+   explicit approval before any remote command. For a project-specific edit, recommend
    `npx @ikon85/agent-workflow-kit@latest own <path> --as=explicit-fork` so
    future updates treat that path as an independent fork. A generic experiment
    retained only until it returns upstream uses
    `npx @ikon85/agent-workflow-kit@latest contribute start <path>`. Prepare its
-   bounded local artifact with `contribute prepare <path>
+   bounded local artifact, when the route report permits it, with `contribute prepare <path>
    --output=.agent-workflow-kit/contributions/<name>.json`. Both commands are
    local-only; opening an issue/PR or pushing remains a separate explicit
    approval. A matching released Core version retires the bridge during

@@ -40,7 +40,11 @@ test('Edit and Write hint only for kit-origin manifest paths', async (t) => {
     const parsed = JSON.parse(output);
     assert.equal(parsed.hookSpecificOutput.hookEventName, 'PreToolUse');
     assert.match(parsed.hookSpecificOutput.additionalContext, /upstream/i);
-    assert.match(parsed.hookSpecificOutput.additionalContext, /consumer own/i);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /consumer-owned/i);
+    assert.match(parsed.hookSpecificOutput.additionalContext, new RegExp(
+      `contribute status ${'.claude/skills/tdd/SKILL.md'.replaceAll('.', '\\.')}` +
+      ' --surface=guard',
+    ));
   }
 });
 

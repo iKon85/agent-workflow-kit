@@ -377,7 +377,7 @@
       "ownerSkill": "kit-update",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "509409f62057da830a1ca01c05403e2a6c92791c66cc2a6769231c9f6cff369d",
+      "sha256": "e00b50698ac5f03caaf8b389ad478789ce43bfa01c01d180557e001a8c46d20c",
       "mode": 420,
       "origin": "kit"
     },
@@ -547,7 +547,7 @@
       "ownerSkill": "retro",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "7466183b55696edc5c7da36eba1de3b218da802de5ea622baa4d6d3c12eb5e42",
+      "sha256": "adaafe450e014a08318f6676a27cd950bb1d48d3dc85515f0cd79d51d50b195e",
       "mode": 420,
       "origin": "kit"
     },
@@ -608,6 +608,16 @@
       "surface": "codex",
       "installRole": "consumer",
       "sha256": "c046daf9f0832a92779f302ba322c86fba0bbc7dbde7fbb13958f66999a7a448",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": ".agents/skills/setup-workflow/contribution-routing.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "codex",
+      "installRole": "consumer",
+      "sha256": "1bc224902709868b5e6aa5efa73b48b90a13f956ffe9d8779365f030e6399f67",
       "mode": 420,
       "origin": "kit"
     },
@@ -677,7 +687,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "b74b8662f786a662460fe259379f00440c0ccdc10ddecd8af468ebbc220910b9",
+      "sha256": "697ef6f6cdb749bf0646b2add95d4d3246df39c48ca6d9ade063a775690ce462",
       "mode": 420,
       "origin": "kit"
     },
@@ -1117,7 +1127,7 @@
       "path": ".claude/hooks/kit-origin-edit-hint.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "43e9b9597213c03f7da862602f81e6d6addd3a87e7b20cd52a6a2908b3e90f03",
+      "sha256": "d6662eb75ccdd0bad7bea8e41024b8fd865c00c61ddeb81b8cc9d93f813c75e3",
       "mode": 493,
       "origin": "kit"
     },
@@ -1689,7 +1699,7 @@
       "ownerSkill": "kit-update",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "509409f62057da830a1ca01c05403e2a6c92791c66cc2a6769231c9f6cff369d",
+      "sha256": "e00b50698ac5f03caaf8b389ad478789ce43bfa01c01d180557e001a8c46d20c",
       "mode": 420,
       "origin": "kit"
     },
@@ -1859,7 +1869,7 @@
       "ownerSkill": "retro",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "290729bb2cb0542fca7aad082e6d0ecc0ab17e377c8ef2723d0597d4f2cefc62",
+      "sha256": "59b31704c9ec7cb25f65efb1c090551a70ebe14b8841be98f87e9e8dfb2dddf2",
       "mode": 420,
       "origin": "kit"
     },
@@ -1944,6 +1954,16 @@
       "origin": "kit"
     },
     {
+      "path": ".claude/skills/setup-workflow/contribution-routing.md",
+      "kind": "skill",
+      "ownerSkill": "setup-workflow",
+      "surface": "claude",
+      "installRole": "consumer",
+      "sha256": "1bc224902709868b5e6aa5efa73b48b90a13f956ffe9d8779365f030e6399f67",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": ".claude/skills/setup-workflow/domain.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
@@ -2009,7 +2029,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "b74b8662f786a662460fe259379f00440c0ccdc10ddecd8af468ebbc220910b9",
+      "sha256": "697ef6f6cdb749bf0646b2add95d4d3246df39c48ca6d9ade063a775690ce462",
       "mode": 420,
       "origin": "kit"
     },

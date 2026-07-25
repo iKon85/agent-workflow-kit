@@ -341,6 +341,12 @@ npx github:iKon85/agent-workflow-kit uninstall   # remove kit-installed files
   schema-versioned diff/provenance artifact and performs no remote action. A
   release whose Core bytes match the bridged bytes retires the bridge
   automatically on reimport;
+- `contribute status <path> --surface=retro|pre-update|guard` reads the same
+  repository-scoped route decision on every workflow surface. Without a valid
+  `contributionRouting` section in `docs/agents/workflow-capabilities.json`,
+  only preserve/Explicit-fork guidance is available. A configured upstream must
+  match its local Git remote; even then, the remote pull-request route requires
+  a separate explicit approval;
 - a file removed upstream is offered for deletion (a hook still referenced by your
   `settings.json` is kept regardless);
 - a new Kit path that already exists locally is an `ambiguous-collision` until
@@ -365,6 +371,32 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 `--force` (overwrite pre-existing untracked files on `init`), `--yes` / `-y`
 (confirm only already-classified safe update actions), and
 `--as=explicit-fork` for `own`.
+
+The optional Contribution Routing capability is consumer-owned:
+
+```json
+{
+  "contributionRouting": {
+    "schemaVersion": 1,
+    "enabled": true,
+    "upstream": {
+      "repository": "owner/repository",
+      "remote": "kit-upstream"
+    },
+    "workflows": {
+      "prepareLocal": true,
+      "upstreamPullRequest": {
+        "enabled": true,
+        "requiresExplicitApproval": true
+      }
+    }
+  }
+}
+```
+
+The resolver verifies the configured remote URL and never infers capability
+from a username, machine, checkout path, consumer repository name, credentials,
+or current GitHub login.
 
 ### Project extensions versus forks
 
