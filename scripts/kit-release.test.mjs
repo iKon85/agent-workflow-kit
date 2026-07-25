@@ -184,6 +184,18 @@ test('both release skill surfaces name only the owned scoped npm package', async
   }
 });
 
+test('an explicit AFK scope can authorize reversible preparation but never publication', async () => {
+  const claude = await readFile(join(REPO, '.claude/skills/kit-release/SKILL.md'), 'utf8');
+  const codex = await readFile(join(REPO, '.agents/skills/kit-release/SKILL.md'), 'utf8');
+  assert.equal(codex, claude);
+  for (const body of [claude, codex]) {
+    assert.match(body, /explicit AFK end-to-end mandate/i);
+    assert.match(body, /deterministic recommendation/i);
+    assert.match(body, /reversible metadata preparation/i);
+    assert.match(body, /annotated `v<version>` tag[\s\S]*separate explicit confirmation/i);
+  }
+});
+
 test('maintainer docs and the accepted ADR agree that merge integrates and an annotated tag publishes', async () => {
   const paths = [
     'CLAUDE.md',

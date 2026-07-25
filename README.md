@@ -389,18 +389,10 @@ the old way. Decision record:
 
 ### 0.34.2
 
-- changed: `.agents/skills/diagnose/SKILL.md`
-- changed: `.agents/skills/implement/SKILL.md`
+- changed: `.agents/skills/kit-release/SKILL.md`
 - changed: `.agents/skills/orchestrate-wave/SKILL.md`
-- changed: `.agents/skills/setup-workflow/issue-tracker-github.md`
-- changed: `.agents/skills/setup-workflow/issue-tracker-gitlab.md`
-- changed: `.agents/skills/setup-workflow/issue-tracker-local.md`
-- changed: `.claude/skills/diagnose/SKILL.md`
-- changed: `.claude/skills/implement/SKILL.md`
+- changed: `.claude/skills/kit-release/SKILL.md`
 - changed: `.claude/skills/orchestrate-wave/SKILL.md`
-- changed: `.claude/skills/setup-workflow/issue-tracker-github.md`
-- changed: `.claude/skills/setup-workflow/issue-tracker-gitlab.md`
-- changed: `.claude/skills/setup-workflow/issue-tracker-local.md`
 
 ### 0.34.1
 

@@ -95,6 +95,14 @@ BEHAVIORAL_PARITY = {
         "Program-PRD",
         "program sync",
     ),
+    "program authorization continuity": (
+        "explicit whole-Program mandate",
+        "all planned Waves",
+        "Do not re-ask at each Wave boundary",
+        "gated action",
+        "meaningful authorized safe work",
+        "must not be marked `blocked`",
+    ),
 }
 
 
@@ -175,11 +183,11 @@ class OrchestrateWaveContract(unittest.TestCase):
         ):
             self.assertIn(fragment, self.skill)
 
-        # Skeleton-size ratchet: detail belongs in references/, not here. Raised
-        # from 345 to 358 for the per-slice pickup claim (#231) — a phase-level
-        # responsibility the reference files cannot carry, since it gates
-        # dispatch itself.
-        self.assertLessEqual(len(self.skill.splitlines()), 358)
+        # Skeleton-size ratchet: detail belongs in references/, not here. 345 ->
+        # 360 carried the sticky Program-authorization rule; 360 -> 368 adds the
+        # per-slice pickup claim (#231). Both are phase-level responsibilities
+        # the reference files cannot carry — they gate dispatch itself.
+        self.assertLessEqual(len(self.skill.splitlines()), 368)
 
     def test_registry_ownership_distinguishes_safe_from_eager_registries(self):
         prose = " ".join(self.skill.split())

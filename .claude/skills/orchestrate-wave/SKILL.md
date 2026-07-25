@@ -70,6 +70,16 @@ node scripts/readiness.mjs check --skill orchestrate-wave --json
   change — current gate, last green milestone, next step, visible blocker/risk. A
   still-running tool session is stated as such; never wait silently for the final
   result.
+- **Authorization scope is sticky and gates are local.** A single-Wave mandate
+  authorizes only that Wave. A later explicit whole-Program mandate authorizes all
+  planned Waves in that Program and overrides a default per-Wave authorization
+  sentence in the Program-PRD; record that scope once and **Do not re-ask at each
+  Wave boundary**. A manual or irreversible gate pauses only the gated action:
+  continue every dependency-safe reversible or read-only step inside the
+  authorized scope, including preparation for later Waves. A persistent goal
+  must not be marked `blocked` while meaningful authorized safe work remains
+  anywhere in that scope. None of this carries authorization into the gated
+  irreversible action itself.
 - **Degrade by subtraction, never by improvisation.** The defined failure paths:
   - **Slice stays red after escalation** (2-strikes rule, see Routing): pull the
     slice — do not merge it (or revert its merge), pull every dependent that
