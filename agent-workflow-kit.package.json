@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.36.0",
+  "kitVersion": "0.36.1",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -377,7 +377,7 @@
       "ownerSkill": "kit-update",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "e00b50698ac5f03caaf8b389ad478789ce43bfa01c01d180557e001a8c46d20c",
+      "sha256": "ea34bd16072783325c263b4afc4eefc39f0aabdbb53731b84500b46db69ef2c1",
       "mode": 420,
       "origin": "kit"
     },
@@ -1699,7 +1699,7 @@
       "ownerSkill": "kit-update",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "e00b50698ac5f03caaf8b389ad478789ce43bfa01c01d180557e001a8c46d20c",
+      "sha256": "ea34bd16072783325c263b4afc4eefc39f0aabdbb53731b84500b46db69ef2c1",
       "mode": 420,
       "origin": "kit"
     },
@@ -2883,7 +2883,7 @@
       "path": "src/lib/manifest.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "a1a01efa6bca0fc5ed2fcac1d2434d6c013f5e528adecfc63a597b9d52475e15",
+      "sha256": "f2920f2b25a700be080fbba122a809bf509080673b806aaab2b0c773c8d8267f",
       "mode": 420,
       "origin": "kit"
     },

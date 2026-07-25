@@ -445,6 +445,12 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.36.1
+
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `src/lib/manifest.mjs`
+
 ### 0.36.0
 
 - added: `.agents/skills/setup-workflow/contribution-routing.md`
