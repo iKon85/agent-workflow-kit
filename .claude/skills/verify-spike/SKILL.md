@@ -3,6 +3,14 @@ name: verify-spike
 description: Answer a single yes/no factual question about reality with a minimal throwaway, read-only harness and output-proof. Use when a plan, ADR, or implementation hinges on an empirically-checkable fact — does a library API exist / behave this way on this version, does the runtime / DB / platform actually have this capability, does an external assumption hold — and you need a proven verdict before locking the decision. NOT for design exploration (prototype), bug root-cause (diagnose), or building a feature (tdd).
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill verify-spike --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Verify Spike
 
 A verify-spike is **throwaway, read-only code that proves a yes/no fact about reality.** The question is binary; the spike makes the answer empirical instead of assumed.

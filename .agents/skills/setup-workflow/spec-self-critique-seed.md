@@ -1,3 +1,4 @@
+<!-- agent-workflow-kit: project-extension/v1; skill=spec-self-critique -->
 # Project layer — spec-self-critique
 
 The generic `spec-self-critique` skill ships the 12-point checklist (the check *intents* + the structure). This file is the **project layer**: it enriches each point with project-specific incidents, grep patterns, conventions, and extra sub-checks. The skill reads it at runtime; with this file present it runs the full pass instead of warning that the layer is absent.

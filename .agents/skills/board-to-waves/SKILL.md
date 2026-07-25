@@ -4,6 +4,14 @@ disable-model-invocation: false
 "description": "Use when sweeping/grooming the GitHub backlog board to cluster open issues into thematic waves (Wellen) — \"lass uns das Board durchgehen\", \"was ist offen und passt zusammen\", \"clustern wir den Backlog\", \"welche Wellen stecken da drin\" — or to spot candidate waves before planning. Reads all open issues, groups them by the Gate+Booster+Splitter heuristic, estimates size/risk + grill-needed per candidate, and after the user confirms creates cluster/Wave-less candidate STUB issues with a To-Do checklist. STOPS at stubs: no PRD, no slicing, no sub-issue links, no promotion (downstream: to-prd matures the stub, to-issues slices + promotes). NOT for maturing/slicing ONE already-chosen candidate (to-prd/to-issues), NOT for per-issue triage labelling (triage), NOT for code comprehension — this is board-WIDE thematic affinity grouping, not per-issue and not code-reading."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill board-to-waves --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # board-to-waves
 
 **Survey the board → cluster open issues by theme → anchor stub issues.** Systematizes how Welle F came about: first look at what's open and what fits together, then form thematic waves. Result lands durably as an anchor issue on the board (GitHub = SSOT), not as a chat list.

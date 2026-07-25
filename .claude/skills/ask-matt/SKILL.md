@@ -4,6 +4,14 @@ description: Ask which skill or flow fits your situation. A router over the skil
 disable-model-invocation: true
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill ask-matt --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Ask Matt
 
 > **Homage + Router.** Adopted from Matt Pocock's `ask-matt` (MIT, github.com/mattpocock/skills @ `7a83a3a`) — the name stays as a nod to upstream, the content is adapted to *this* repo's skill set (the plan→execute→land→learn line plus our gates, cross-model review, and land/learn skills). Provenance: `docs/agents/provenance.md`. Folder↔upstream-name note: `/diagnose` = upstream `diagnosing-bugs`, `/write-a-skill` = upstream `writing-great-skills` (renamed upstream, local names kept).

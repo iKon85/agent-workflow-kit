@@ -331,13 +331,16 @@ npx github:iKon85/agent-workflow-kit uninstall   # remove kit-installed files
 - a file you **did** edit is kept — the incoming version is backed up with a
   timestamp and a diff is printed, never silently overwritten;
 - a file you intentionally fork can be detached with
-  `npx github:iKon85/agent-workflow-kit own <path>` and returned to kit ownership
+  `npx github:iKon85/agent-workflow-kit own <path> --as=explicit-fork`, retained
+  temporarily with `--as=contribution-bridge`, and returned to kit ownership
   with `npx github:iKon85/agent-workflow-kit disown <path>`; owned files are
   skipped by updates even after the package stops shipping them;
 - a file removed upstream is offered for deletion (a hook still referenced by your
   `settings.json` is kept regardless);
-- a new kit path that already exists locally is reported as a collision: choose
-  either to keep the existing file as consumer-owned or replace it with kit bytes;
+- a new Kit path that already exists locally is an `ambiguous-collision` until
+  an interactive or automated caller explicitly classifies it as a Project
+  extension, Contribution Bridge, Explicit fork, or clean Core; `--yes` never
+  chooses that interpretation and never overwrites the path;
 - new skills without a local collision are added.
 
 Ownership survives repeated `init`, including `init --force`: consumer-owned
@@ -354,7 +357,24 @@ Containment and file type are revalidated when read.
 Ownership commands are designed for a single-user CLI workflow and are not
 concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 `--force` (overwrite pre-existing untracked files on `init`), `--yes` / `-y`
-(accept non-interactive update decisions).
+(confirm only already-classified safe update actions), and
+`--as=contribution-bridge|explicit-fork` for `own`.
+
+### Project extensions versus forks
+
+Every shipped skill probes the optional consumer-owned
+`docs/agents/skills/<skill>.md` after loading its canonical Core. New
+extensions declare
+`<!-- agent-workflow-kit: project-extension/v1; skill=<skill> -->`; existing
+non-empty unmarked files remain supported as legacy v0. Claude and Codex use
+the same extension path and fail closed on an unknown schema or mismatched
+identity.
+
+Use an extension for Project-specific language, commands, policy, or
+capability data. It augments Core and survives setup and updates byte-for-byte;
+it cannot weaken Core gates or replace executable semantics. If you need to
+change parsing, migration, evaluation, or other executable behavior, create an
+Explicit fork with its own identity and update line instead.
 
 ## Upgrade notes
 
@@ -386,6 +406,100 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 0.35.0
+
+- added: `scripts/project-skill-extension.mjs`
+- added: `src/lib/ownershipClassifier.mjs`
+- added: `src/lib/projectSkillExtension.mjs`
+- added: `src/lib/skillRegistry.mjs`
+- added: `src/lib/updateDecisions.mjs`
+- changed: `.agents/skills/ask-matt/SKILL.md`
+- changed: `.agents/skills/audit-skills/SKILL.md`
+- changed: `.agents/skills/board-to-waves/SKILL.md`
+- changed: `.agents/skills/census-update/SKILL.md`
+- changed: `.agents/skills/code-review/SKILL.md`
+- changed: `.agents/skills/codebase-design/SKILL.md`
+- changed: `.agents/skills/codex-adapter-sync/SKILL.md`
+- changed: `.agents/skills/decision-gate/SKILL.md`
+- changed: `.agents/skills/diagnose/SKILL.md`
+- changed: `.agents/skills/domain-modeling/SKILL.md`
+- changed: `.agents/skills/git-worktree-recover/SKILL.md`
+- changed: `.agents/skills/grill-me/SKILL.md`
+- changed: `.agents/skills/grill-with-docs/SKILL.md`
+- changed: `.agents/skills/implement/SKILL.md`
+- changed: `.agents/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.agents/skills/kit-release/SKILL.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/local-ci/SKILL.md`
+- changed: `.agents/skills/memory-lifecycle/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/project-release/SKILL.md`
+- changed: `.agents/skills/prototype/SKILL.md`
+- changed: `.agents/skills/research/SKILL.md`
+- changed: `.agents/skills/resolving-merge-conflicts/SKILL.md`
+- changed: `.agents/skills/retro/SKILL.md`
+- changed: `.agents/skills/scale-check/SKILL.md`
+- changed: `.agents/skills/security-audit/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/orchestrate-wave-seed.md`
+- changed: `.agents/skills/setup-workflow/spec-self-critique-seed.md`
+- changed: `.agents/skills/spec-self-critique/SKILL.md`
+- changed: `.agents/skills/tdd/SKILL.md`
+- changed: `.agents/skills/to-issues/SKILL.md`
+- changed: `.agents/skills/to-prd/SKILL.md`
+- changed: `.agents/skills/to-waves/SKILL.md`
+- changed: `.agents/skills/triage/SKILL.md`
+- changed: `.agents/skills/verify-spike/SKILL.md`
+- changed: `.agents/skills/wayfinder/SKILL.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/skills/ask-matt/SKILL.md`
+- changed: `.claude/skills/audit-skills/SKILL.md`
+- changed: `.claude/skills/board-to-waves/SKILL.md`
+- changed: `.claude/skills/census-update/SKILL.md`
+- changed: `.claude/skills/code-review/SKILL.md`
+- changed: `.claude/skills/codebase-design/SKILL.md`
+- changed: `.claude/skills/codex-build/SKILL.md`
+- changed: `.claude/skills/codex-review/SKILL.md`
+- changed: `.claude/skills/decision-gate/SKILL.md`
+- changed: `.claude/skills/diagnose/SKILL.md`
+- changed: `.claude/skills/domain-modeling/SKILL.md`
+- changed: `.claude/skills/git-guardrails-claude-code/SKILL.md`
+- changed: `.claude/skills/git-worktree-recover/SKILL.md`
+- changed: `.claude/skills/grill-me-codex/SKILL.md`
+- changed: `.claude/skills/grill-me/SKILL.md`
+- changed: `.claude/skills/grill-with-docs-codex/SKILL.md`
+- changed: `.claude/skills/grill-with-docs/SKILL.md`
+- changed: `.claude/skills/implement/SKILL.md`
+- changed: `.claude/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.claude/skills/kit-release/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/local-ci/SKILL.md`
+- changed: `.claude/skills/memory-lifecycle/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/project-release/SKILL.md`
+- changed: `.claude/skills/prototype/SKILL.md`
+- changed: `.claude/skills/research/SKILL.md`
+- changed: `.claude/skills/resolving-merge-conflicts/SKILL.md`
+- changed: `.claude/skills/retro/SKILL.md`
+- changed: `.claude/skills/scale-check/SKILL.md`
+- changed: `.claude/skills/security-audit/SKILL.md`
+- changed: `.claude/skills/setup-pre-commit/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/orchestrate-wave-seed.md`
+- changed: `.claude/skills/setup-workflow/spec-self-critique-seed.md`
+- changed: `.claude/skills/spec-self-critique/SKILL.md`
+- changed: `.claude/skills/tdd/SKILL.md`
+- changed: `.claude/skills/to-issues/SKILL.md`
+- changed: `.claude/skills/to-prd/SKILL.md`
+- changed: `.claude/skills/to-waves/SKILL.md`
+- changed: `.claude/skills/triage/SKILL.md`
+- changed: `.claude/skills/verify-spike/SKILL.md`
+- changed: `.claude/skills/wayfinder/SKILL.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `.claude/skills/write-a-skill/SKILL.md`
+- changed: `scripts/readiness.mjs`
+- changed: `src/lib/manifest.mjs`
 
 ### 0.34.6
 

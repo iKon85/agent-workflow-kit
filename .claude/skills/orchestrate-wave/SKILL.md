@@ -58,8 +58,8 @@ node scripts/readiness.mjs check --skill orchestrate-wave --json
 > `§Verify Recipe`, `§Headless Login`, `§Landing`) and falls back to generic
 > instructions when the layer is absent. See **Phase 0**.
 >
-> When `projectRecipe` is active, read the filled project layer before applying
-> any phase-specific command below.
+> Before consuming `projectRecipe`, run `node scripts/project-skill-extension.mjs inspect --skill orchestrate-wave --json`: `active` reads its `path`; `inactive` uses Core; `blocked` stops with its diagnostic.
+> Project extensions may specialize Project details, but cannot weaken Core gates; a contradiction blocks and requires an Explicit fork.
 <!-- readiness:end -->
 
 ## Standing rules (all phases)

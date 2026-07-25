@@ -3,6 +3,14 @@ name: domain-modeling
 description: Build and sharpen a project's domain model. Use when the user wants to pin down domain terminology or a ubiquitous language, record an architectural decision, or when another skill needs to maintain the domain model.
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill domain-modeling --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Domain Modeling
 
 > **In this repo (if present):** `CONTEXT.md` + `docs/adr/` already exist (lazily created via `/grill-with-docs`). The **ADR conventions are SSOT in `docs/adr/README.md`** (project root; status lifecycle, template, numbering) — use that convention when creating an ADR, don't shadow it with the generic [ADR-FORMAT.md](./ADR-FORMAT.md). `/grill-with-docs`(-codex) maintains CONTEXT.md + ADRs in operation; this skill is the vocabulary underneath. Provenance: `docs/agents/provenance.md`.

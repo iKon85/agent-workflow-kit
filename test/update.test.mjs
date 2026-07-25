@@ -14,12 +14,14 @@ import {
   PACKAGE_MANIFEST_NAME, filesForInstallRole, readManifest, writeManifest,
 } from '../src/lib/manifest.mjs';
 import { sha256 } from '../src/lib/hash.mjs';
+import { inspectProjectSkillExtension } from '../src/lib/projectSkillExtension.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
 const P = '.claude/skills/to-prd/SKILL.md';
 const Q = '.agents/skills/to-prd/SKILL.md';
 const H = '.claude/hooks/my-hook.py';
 const READINESS_MANIFEST = '.claude/skills/skill-manifest.json';
+const PROJECT_SKILL_REGISTRY = 'docs/agents/skill-registry.json';
 
 function releaseIdentities(version = '0.1.0', name = '@ikon85/agent-workflow-kit') {
   const identity = {
@@ -137,7 +139,7 @@ test('staged candidate contains the complete manifest state and no unrelated Con
     });
 
     const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
-    assert.equal(result.state, 'applied');
+    assert.equal(result.state, 'applied', result.error);
     assert.deepEqual(
       staged,
       [
@@ -188,10 +190,11 @@ test('active worktrees cannot change or be read into the staged candidate', asyn
   assert.equal(Object.keys(staged[1]).some((path) => path.startsWith('.worktrees/')), false);
 });
 
-test('candidate ledger covers the fresh Consumer release-manifest denominator', async () => {
+test('candidate ledger covers the release-manifest denominator plus the Project registry', async () => {
   const kit = process.cwd();
   const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
-  const expected = filesForInstallRole(pkg).map(({ path }) => path).sort();
+  const packagePaths = filesForInstallRole(pkg).map(({ path }) => path).sort();
+  const expected = [...packagePaths, PROJECT_SKILL_REGISTRY].sort();
   const consumer = await makeEmptyDir();
   try {
     await init({ kitRoot: kit, consumerRoot: consumer });
@@ -206,11 +209,13 @@ test('candidate ledger covers the fresh Consumer release-manifest denominator', 
       verify: async (candidateRoot) => {
         const candidate = await readManifest(join(candidateRoot, 'agent-workflow-kit.json'));
         stagedInstalled = candidate.installed.map(({ path }) => path).sort();
-        for (const path of expected) assert.equal(await exists(join(candidateRoot, path)), true, path);
+        for (const path of packagePaths) {
+          assert.equal(await exists(join(candidateRoot, path)), true, path);
+        }
       },
     });
 
-    assert.equal(result.state, 'applied');
+    assert.equal(result.state, 'applied', result.error);
     assert.equal(stagedInstalled.length, expected.length);
     assert.deepEqual(stagedInstalled, expected);
   } finally {
@@ -907,6 +912,350 @@ test('a compatible update cannot make previously available skill core unavailabl
     assert.equal(verified, false);
     assert.equal(await readFile(join(consumer, 'docs/agents/issue-tracker.md'), 'utf8'), '# Legacy configured tracker\n');
     assert.deepEqual(await readFile(join(consumer, 'agent-workflow-kit.json')), manifestBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a legacy mixed skill registry migrates to current Kit Core plus a durable Project registry', async () => {
+  const oldCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {} },
+  };
+  const nextCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {}, 'kit-update': {} },
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, oldCore);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await rm(join(consumer, PROJECT_SKILL_REGISTRY), { force: true });
+
+    const mixed = JSON.parse(await readFile(join(consumer, READINESS_MANIFEST), 'utf8'));
+    mixed.skills['to-prd'].note = 'Project-specific provenance note.';
+    mixed.skills['project-local'] = {
+      class: 'project-private',
+      publish: false,
+      surfaces: ['claude', 'codex'],
+    };
+    await writeFile(
+      join(consumer, READINESS_MANIFEST),
+      `${JSON.stringify(mixed, null, 2)}\n`,
+    );
+    const ledgerPath = join(consumer, 'agent-workflow-kit.json');
+    const ledger = await readManifest(ledgerPath);
+    ledger.installed = ledger.installed.filter(
+      ({ path }) => path !== PROJECT_SKILL_REGISTRY,
+    );
+    const legacyCoreEntry = ledger.installed.find(
+      ({ path }) => path === READINESS_MANIFEST,
+    );
+    legacyCoreEntry.origin = 'consumer';
+    legacyCoreEntry.ownershipState = 'explicit-fork';
+    await writeManifest(ledgerPath, ledger);
+
+    await setKitReadiness(kit, nextCore);
+    const expectedCore = await readFile(join(kit, READINESS_MANIFEST), 'utf8');
+    const first = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+
+    assert.equal(first.state, 'applied', first.error);
+    assert.deepEqual(await readFile(join(consumer, READINESS_MANIFEST), 'utf8'), expectedCore);
+    assert.deepEqual(
+      JSON.parse(await readFile(join(consumer, PROJECT_SKILL_REGISTRY), 'utf8')),
+      {
+        schemaVersion: 1,
+        coreSchemaVersion: 1,
+        skills: {
+          'project-local': mixed.skills['project-local'],
+        },
+        annotations: {
+          'to-prd': { note: 'Project-specific provenance note.' },
+        },
+      },
+    );
+    const migratedLedger = await readManifest(ledgerPath);
+    assert.equal(
+      migratedLedger.installed.find(({ path }) => path === READINESS_MANIFEST).origin,
+      'kit',
+    );
+    assert.equal(
+      migratedLedger.installed.find(({ path }) => path === READINESS_MANIFEST).ownershipState,
+      undefined,
+    );
+    assert.equal(
+      migratedLedger.installed.find(({ path }) => path === PROJECT_SKILL_REGISTRY).origin,
+      'consumer',
+    );
+
+    const second = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+    assert.equal(second.state, 'applied');
+    assert.equal(second.status, 'current');
+    assert.deepEqual(second.migrated, []);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a clean legacy Consumer adopts an empty Project registry without changing Kit Core ownership', async () => {
+  const oldCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {} },
+  };
+  const nextCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {}, 'kit-update': {} },
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, oldCore);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await rm(join(consumer, PROJECT_SKILL_REGISTRY), { force: true });
+    const ledgerPath = join(consumer, 'agent-workflow-kit.json');
+    const ledger = await readManifest(ledgerPath);
+    ledger.installed = ledger.installed.filter(
+      ({ path }) => path !== PROJECT_SKILL_REGISTRY,
+    );
+    await writeManifest(ledgerPath, ledger);
+
+    await setKitReadiness(kit, nextCore);
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+
+    assert.equal(result.state, 'applied', result.error);
+    assert.deepEqual(
+      JSON.parse(await readFile(join(consumer, PROJECT_SKILL_REGISTRY), 'utf8')),
+      {
+        schemaVersion: 1,
+        coreSchemaVersion: 1,
+        skills: {},
+        annotations: {},
+      },
+    );
+    const after = await readManifest(ledgerPath);
+    assert.equal(
+      after.installed.find(({ path }) => path === READINESS_MANIFEST).origin,
+      'kit',
+    );
+    assert.equal(
+      after.installed.find(({ path }) => path === PROJECT_SKILL_REGISTRY).origin,
+      'consumer',
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a modified legacy Core declaration remains unchanged and blocks semantic migration', async () => {
+  const oldCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {} },
+  };
+  const nextCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {}, 'kit-update': {} },
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, oldCore);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await rm(join(consumer, PROJECT_SKILL_REGISTRY), { force: true });
+    const mixedPath = join(consumer, READINESS_MANIFEST);
+    const mixed = JSON.parse(await readFile(mixedPath, 'utf8'));
+    mixed.skills['to-prd'].class = 'adapter';
+    await writeFile(mixedPath, `${JSON.stringify(mixed, null, 2)}\n`);
+    const ledgerPath = join(consumer, 'agent-workflow-kit.json');
+    const ledger = await readManifest(ledgerPath);
+    ledger.installed = ledger.installed.filter(
+      ({ path }) => path !== PROJECT_SKILL_REGISTRY,
+    );
+    ledger.installed.find(({ path }) => path === READINESS_MANIFEST).origin = 'consumer';
+    await writeManifest(ledgerPath, ledger);
+    const bytesBefore = await readFile(mixedPath);
+    const ledgerBefore = await readFile(ledgerPath);
+
+    await setKitReadiness(kit, nextCore);
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      decide: () => true,
+      verify,
+    });
+
+    assert.equal(result.state, 'conflicted');
+    assert.match(result.migrationConflicts.join('\n'), /ambiguous Kit Core changes: to-prd/);
+    assert.deepEqual(await readFile(mixedPath), bytesBefore);
+    assert.deepEqual(await readFile(ledgerPath), ledgerBefore);
+    assert.equal(await exists(join(consumer, PROJECT_SKILL_REGISTRY)), false);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a legacy mixed Core plus an existing Project registry fails closed without overwriting either', async () => {
+  const oldCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {} },
+  };
+  const nextCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {}, 'kit-update': {} },
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, oldCore);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const corePath = join(consumer, READINESS_MANIFEST);
+    const registryPath = join(consumer, PROJECT_SKILL_REGISTRY);
+    const ledgerPath = join(consumer, 'agent-workflow-kit.json');
+    const ledger = await readManifest(ledgerPath);
+    ledger.installed.find(({ path }) => path === READINESS_MANIFEST).origin = 'consumer';
+    await writeManifest(ledgerPath, ledger);
+    const coreBefore = await readFile(corePath);
+    const registryBefore = await readFile(registryPath);
+    const ledgerBefore = await readFile(ledgerPath);
+
+    await setKitReadiness(kit, nextCore);
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+
+    assert.equal(result.state, 'conflicted');
+    assert.match(result.migrationConflicts.join('\n'), /already has a Project registry/);
+    assert.deepEqual(await readFile(corePath), coreBefore);
+    assert.deepEqual(await readFile(registryPath), registryBefore);
+    assert.deepEqual(await readFile(ledgerPath), ledgerBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('an unknown Project registry schema fails closed before a Core update', async () => {
+  const oldCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {} },
+  };
+  const nextCore = {
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: { 'to-prd': {}, 'kit-update': {} },
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, oldCore);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const registryPath = join(consumer, PROJECT_SKILL_REGISTRY);
+    const registry = JSON.parse(await readFile(registryPath, 'utf8'));
+    registry.schemaVersion = 99;
+    await writeFile(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+    const corePath = join(consumer, READINESS_MANIFEST);
+    const ledgerPath = join(consumer, 'agent-workflow-kit.json');
+    const coreBefore = await readFile(corePath);
+    const registryBefore = await readFile(registryPath);
+    const ledgerBefore = await readFile(ledgerPath);
+
+    await setKitReadiness(kit, nextCore);
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+
+    assert.equal(result.state, 'failed');
+    assert.match(result.error, /Project skill registry has an unsupported schema/);
+    assert.deepEqual(await readFile(corePath), coreBefore);
+    assert.deepEqual(await readFile(registryPath), registryBefore);
+    assert.deepEqual(await readFile(ledgerPath), ledgerBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a Project skill extension survives a Core update and composes through both agent surfaces', async () => {
+  const sourceRoot = process.cwd();
+  const claudePath = '.claude/skills/tdd/SKILL.md';
+  const codexPath = '.agents/skills/tdd/SKILL.md';
+  const shipped = {};
+  for (const path of [
+    claudePath,
+    codexPath,
+    'scripts/project-skill-extension.mjs',
+    'src/lib/projectSkillExtension.mjs',
+    'src/lib/sentinel.mjs',
+  ]) {
+    shipped[path] = await readFile(join(sourceRoot, path));
+  }
+  const kit = await makeKit(shipped);
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, {
+      readiness: { contractVersion: 1, capabilities: {} },
+      skills: {
+        tdd: {
+          class: 'generic',
+          publish: true,
+          surfaces: ['claude', 'codex'],
+        },
+      },
+    });
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const extensionPath = join(consumer, 'docs/agents/skills/tdd.md');
+    const extension = Buffer.from(
+      '<!-- agent-workflow-kit: project-extension/v1; skill=tdd -->\n' +
+      '# Project policy\n\nRun the Consumer integration tracer.\n',
+    );
+    await mkdir(join(extensionPath, '..'), { recursive: true });
+    await writeFile(extensionPath, extension);
+    await init({ kitRoot: kit, consumerRoot: consumer, force: true });
+    assert.deepEqual(await readFile(extensionPath), extension);
+
+    for (const path of [claudePath, codexPath]) {
+      const next = Buffer.concat([await readFile(join(kit, path)), Buffer.from('\nCore v2.\n')]);
+      await bumpKit(kit, path, next);
+    }
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+
+    assert.equal(result.state, 'applied', result.error);
+    assert.deepEqual(await readFile(extensionPath), extension);
+    assert.deepEqual(await inspectProjectSkillExtension({ root: consumer, skill: 'tdd' }), {
+      state: 'active',
+      schemaVersion: 1,
+      path: 'docs/agents/skills/tdd.md',
+    });
+    for (const path of [claudePath, codexPath]) {
+      assert.match(
+        await readFile(join(consumer, path), 'utf8'),
+        /project-skill-extension\.mjs inspect --skill tdd --json/,
+      );
+    }
   } finally {
     await cleanup(kit, consumer);
   }

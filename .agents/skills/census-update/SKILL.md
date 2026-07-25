@@ -3,6 +3,14 @@ name: census-update
 description: "Build, refresh, or check an optional project-local census. Use when a user invokes census-update, asks to establish a counted surface census, or needs to reconcile census drift; scan facts in the current repository, guide only ambiguous decisions, and activate a verified candidate transactionally."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill census-update --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Census Update
 
 Build and maintain the current repository's consumer-owned census through the

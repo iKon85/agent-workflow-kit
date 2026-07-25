@@ -3,6 +3,14 @@ name: kit-update
 description: "Preview and transactionally apply a parity-verified agent-workflow-kit release without overwriting local modifications or auto-resolving conflicts."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill kit-update --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Kit Update
 
 Update an installed consumer only from the public scoped package
@@ -84,8 +92,13 @@ release contain the same artifact.
    core, and still unresolved capability states. Missing readiness for genuinely
    new behavior does not block a compatible kit update; only that behavior stays
    unavailable. A compatible update must stop if it would make previously
-   available skill core unavailable. `--yes` answers only package reconciliation
-   questions and never supplies a readiness decision. Automated update pull
+   available skill core unavailable. `--yes` answers only actions whose
+   interpretation is already known and never supplies a readiness or ownership
+   decision. An untracked destination at a new Kit path remains
+   `ambiguous-collision` under `--yes`; interactive and automated runs must
+   explicitly choose Project extension, Contribution Bridge, Explicit fork, or
+   clean Core. Diagnostics name only path, ledger/package/extension evidence,
+   and safe routes—never file content. Automated update pull
    requests carry the same availability summary and remain manual-merge only.
 
    For each conflicted kit-shipped file, always ask the user whether the local
@@ -97,8 +110,9 @@ release contain the same artifact.
    of the exact title and body with consumer identifiers and secrets stripped,
    then require the user's explicit approval. The consumer user does not need
    to be a kit maintainer. For a project-specific edit, recommend
-   `npx @ikon85/agent-workflow-kit@latest own <path>` so future updates treat
-   that path as consumer-owned.
+   `npx @ikon85/agent-workflow-kit@latest own <path> --as=explicit-fork` so
+   future updates treat that path as an independent fork. A generic experiment
+   retained only until it returns upstream uses `--as=contribution-bridge`.
 
 4. If a candidate is interrupted, discard its reported stage directory or
    resume the transaction through the update API's `resumeFrom` option. Do not

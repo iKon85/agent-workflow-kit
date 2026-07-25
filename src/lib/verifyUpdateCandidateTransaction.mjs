@@ -109,15 +109,21 @@ function verifyCollisionRecords(preview, installablePaths, installed, actionSets
   for (const resolution of preview.collisionResolutions ?? []) {
     const path = resolution?.path;
     claimTransactionPath(path, 'collision resolution', resolutions);
+    const nonReplace = resolution?.outcome !== 'replace';
+    const expectedOwnershipState = resolution?.outcome === 'keep-as-owned'
+      ? 'explicit-fork' : resolution?.ownershipState;
     if (!installablePaths.has(path)
-        || !['keep-as-owned', 'replace'].includes(resolution?.outcome)
+        || ![
+          'keep-as-owned', 'project-extension', 'contribution-bridge', 'explicit-fork', 'replace',
+        ].includes(resolution?.outcome)
         || !HASH.test(resolution?.destinationSha256 ?? '')) {
       throw new Error(`candidate invariant transaction: invalid collision resolution ${path}`);
     }
-    const expectedOrigin = resolution.outcome === 'keep-as-owned' ? CONSUMER_ORIGIN : KIT_ORIGIN;
+    const expectedOrigin = nonReplace ? CONSUMER_ORIGIN : KIT_ORIGIN;
     if (installed.get(path)?.origin !== expectedOrigin
+        || (nonReplace && installed.get(path)?.ownershipState !== expectedOwnershipState)
         || (resolution.outcome === 'replace' && !actionSets.get('added').has(path))
-        || (resolution.outcome === 'keep-as-owned' && owners.has(path))) {
+        || (nonReplace && owners.has(path))) {
       throw new Error(`candidate invariant transaction: incoherent collision resolution ${path}`);
     }
   }

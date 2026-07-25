@@ -3,6 +3,14 @@ name: to-issues
 description: "Break a Feature or Program plan, spec, or PRD into independently-grabbable issues on the project issue tracker. This is the single public Planning facade: explicit Feature identity uses tracer-bullet decomposition; explicit Program identity delegates to the internal graph engine."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill to-issues --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # To Issues
 
 > **Skill identity (don't get confused):** the folder `to-issues` + invocation `/to-issues` map to Matt Pocock's upstream skill **`to-tickets`**. Upstream merged `to-issues` + the short-lived `to-plan` into `to-tickets` (v1.1.0); we deliberately keep the folder name `to-issues` (invocation stability, and issues are this workflow's vocabulary). Content remains our fork, compared against upstream `to-tickets` @ `d574778`. Provenance/rename ledger: `docs/agents/provenance.md` (§Re-Sync-Log), at the project root.

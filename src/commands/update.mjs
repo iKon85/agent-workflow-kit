@@ -9,7 +9,7 @@ import {
 } from '../lib/verifyUpdateCandidate.mjs';
 import { reconcile } from '../lib/updateReconcile.mjs';
 import {
-  CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, readManifest,
+  CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, PROJECT_SKILL_REGISTRY_PATH, readManifest,
 } from '../lib/manifest.mjs';
 import {
   inspectRoutingProfile, reconcileRoutingProfile,
@@ -81,11 +81,7 @@ async function updatePackage(options) {
     Object.assign(preview, await previewReadinessAdoption({
       kitRoot, consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
     }));
-    preview.conflicts.push(...(preview.migrationConflicts ?? []).map((path) => ({
-      path,
-      kind: 'prod-section',
-      diff: 'Prod section differs from the other instruction surface or is malformed.',
-    })));
+    preview.conflicts.push(...(preview.migrationConflicts ?? []).map(migrationConflictRecord));
   } catch (error) {
     previewFailure = error;
   }
@@ -104,6 +100,9 @@ async function updatePackage(options) {
   const resolvedPreview = await resolvePreview({
     kitRoot, consumerRoot, preview, decisions, decide, transition,
   });
+  if (resolvedPreview.collisions.length) {
+    return terminal(resolvedPreview, 'conflicted', history, transition);
+  }
   if (resolvedPreview.conflicts.length) {
     return terminal(resolvedPreview, 'conflicted', history, transition);
   }
@@ -129,13 +128,19 @@ async function previewReadinessAdoption(context) {
       kitRoot, consumerRoot: candidateRoot,
       decide: (action) => action === 'collision' ? 'keep-as-owned' : false,
     });
-    await verifyCandidateSchema(candidateRoot, {
-      pkg, preview: candidatePreview, priorReadinessManifest, nextReadinessManifest,
-    });
-    return await adoptReadinessCandidate({
-      candidateRoot, consumerRoot, priorManifest: priorReadinessManifest,
+    const readiness = await adoptReadinessCandidate({
+      candidateRoot, consumerRoot, kitRoot, priorManifest: priorReadinessManifest,
       nextManifest: nextReadinessManifest,
     });
+    candidatePreview.generated = readiness.generated;
+    candidatePreview.migrations = readiness.migrations;
+    candidatePreview.migrated = readiness.migrated;
+    if (!readiness.migrationConflicts.length) {
+      await verifyCandidateSchema(candidateRoot, {
+        pkg, preview: candidatePreview, priorReadinessManifest, nextReadinessManifest,
+      });
+    }
+    return readiness;
   } finally {
     await rm(candidateRoot, { recursive: true, force: true });
   }
@@ -146,7 +151,13 @@ async function resolvePreview({ kitRoot, consumerRoot, preview, decisions, decid
     await transition('awaiting_decision');
   }
   for (const path of preview.collisions) {
-    decisions.set(decisionKey('collision', path), await decide('collision', path));
+    const classification = preview.ownershipStates?.find(
+      (candidate) => candidate.path === path,
+    );
+    decisions.set(
+      decisionKey('collision', path),
+      await decide('collision', path, classification),
+    );
   }
   if (!preview.collisions.length) return preview;
   return reconcile({
@@ -192,9 +203,8 @@ async function applyTransaction(context) {
       priorReadinessManifest: structuredClone(priorReadinessManifest),
       nextReadinessManifest: structuredClone(nextReadinessManifest),
     };
-    await verifyCandidateSchema(candidateRoot, canonicalContext);
     const readiness = await adoptReadinessCandidate({
-      candidateRoot, consumerRoot, priorManifest: priorReadinessManifest,
+      candidateRoot, consumerRoot, kitRoot, priorManifest: priorReadinessManifest,
       nextManifest: nextReadinessManifest,
     });
     preview.generated = readiness.generated;
@@ -203,12 +213,13 @@ async function applyTransaction(context) {
     preview.migrationConflicts = readiness.migrationConflicts;
     preview.availability = readiness.availability;
     if (readiness.migrationConflicts.length) {
-      throw new Error(`Prod section migration conflict: ${readiness.migrationConflicts.join(', ')}`);
+      throw new Error(`readiness migration conflict: ${readiness.migrationConflicts.join(', ')}`);
     }
     if (readiness.incompatible.length) {
       throw new Error(`monotonic compatibility would block existing skill core: ${readiness.incompatible.join(', ')}`);
     }
     canonicalContext.preview = structuredClone(preview);
+    await verifyCandidateSchema(candidateRoot, canonicalContext);
     await verifyUpdateCandidate(candidateRoot, canonicalContext);
     if (verify !== verifyUpdateCandidate) {
       const extensionContext = structuredClone(canonicalContext);
@@ -274,14 +285,68 @@ async function terminal(result, state, history, transition) {
         conflicts: result.conflicts.map(({ path }) => path),
         keptDeleted: result.keptDeleted,
       },
-      recommendation: result.migrationConflicts?.length
-        ? `Prod sections differ or are malformed in: ${result.migrationConflicts.join(', ')}. ` +
-          'Resolve them manually; no consumer file was changed.'
-        : (result.conflicts.length
-          ? 'Review each named conflict; keep the local file or apply the incoming diff manually.'
-          : null),
+      recommendation: updateRecommendation(result),
     },
   };
+}
+
+function updateRecommendation(result) {
+  if (result.migrationConflicts?.length) {
+    return migrationRecommendation(result.migrationConflicts);
+  }
+  if (result.collisions.length
+      || result.conflicts.some(({ kind }) => kind === 'ownership-lifecycle')) {
+    return ownershipRecommendation(result);
+  }
+  return result.conflicts.length
+    ? 'Review each named conflict; keep the local file or apply the incoming diff manually.'
+    : null;
+}
+
+function migrationConflictRecord(detail) {
+  const path = detail.split(': ', 1)[0];
+  const projectRegistry = path === PROJECT_SKILL_REGISTRY_PATH
+    || path === '.claude/skills/skill-manifest.json';
+  return {
+    path,
+    kind: projectRegistry ? 'skill-registry' : 'prod-section',
+    diff: projectRegistry
+      ? `Skill registry migration is ambiguous: ${detail}`
+      : 'Prod section differs from the other instruction surface or is malformed.',
+  };
+}
+
+function migrationRecommendation(conflicts) {
+  const registryConflict = conflicts.some((detail) => (
+    detail.startsWith(`${PROJECT_SKILL_REGISTRY_PATH}:`)
+    || detail.startsWith('.claude/skills/skill-manifest.json:')
+  ));
+  return (registryConflict
+    ? `Readiness migration is ambiguous in: ${conflicts.join(', ')}. `
+    : `Prod sections differ or are malformed in: ${conflicts.join(', ')}. `) +
+    'Resolve them manually; no consumer file was changed.';
+}
+
+function ownershipRecommendation(result) {
+  const paths = new Set([
+    ...result.collisions,
+    ...result.conflicts.filter(({ kind }) => kind === 'ownership-lifecycle')
+      .map(({ path }) => path),
+  ]);
+  const unresolved = (result.ownershipStates ?? []).filter(
+    ({ path }) => paths.has(path),
+  );
+  return unresolved.map(({ path, state, evidence, routes }) => (
+    `${path}: ${state} ` +
+    `(package=${evidence.packageDeclared ? 'declared' : 'absent'}, ` +
+    `ledger=${evidence.ledgerOrigin}, destination=${evidence.destination}, ` +
+    `extension=${evidence.projectExtension}` +
+    (evidence.extensionDiagnostic
+      ? `, extensionDiagnostic=${evidence.extensionDiagnostic}` : '') +
+    '); explicit routes: ' +
+    routes.map(({ id, action }) => `${id} (${action})`).join(', ')
+  )).join('\n') +
+    '. No consumer file was changed; --yes cannot choose a route.';
 }
 
 export { verifyUpdateCandidate, verifyUpdateCandidate as verifyCandidate } from '../lib/verifyUpdateCandidate.mjs';

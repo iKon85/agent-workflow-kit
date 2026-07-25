@@ -4,6 +4,10 @@ import { sha256File } from './hash.mjs';
 import { lineDiff, writeAtomic } from './atomicWrite.mjs';
 import { hookReferenced } from './settings.mjs';
 import { validateConsumerFile } from './consumerPath.mjs';
+import { inspectProjectSkillExtension } from './projectSkillExtension.mjs';
+import {
+  OwnershipState, classifyOwnershipEvidence,
+} from './ownershipClassifier.mjs';
 import {
   CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, emptyConsumerManifest,
   CONSUMER_INSTALL_ROLE, CONSUMER_ORIGIN, KIT_ORIGIN, filesForInstallRole,
@@ -32,6 +36,22 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     const dest = join(consumerRoot, file.path);
     const prior = installedIdx.get(file.path);
     if (prior?.origin === CONSUMER_ORIGIN) {
+      const classification = classifyOwnershipEvidence({
+        path: file.path,
+        packageEntry: file,
+        installedEntry: prior,
+        destinationPresent: await exists(dest),
+        projectExtension: prior.ownershipState === OwnershipState.PROJECT_EXTENSION
+          ? await projectExtensionEvidence(consumerRoot, file.path) : null,
+      });
+      result.ownershipStates.push(classification);
+      if (classification.state === OwnershipState.AMBIGUOUS_COLLISION) {
+        result.conflicts.push({
+          path: file.path,
+          kind: 'ownership-lifecycle',
+          diff: 'Consumer lifecycle metadata does not match its declared path/schema.',
+        });
+      }
       nextInstalled.push(withInstallRole(prior));
       result.consumerOwned.push(file.path);
       continue;
@@ -39,6 +59,13 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     const present = await exists(dest);
     if (!prior && present) {
       await validateConsumerFile(consumerRoot, file.path);
+      const classification = classifyOwnershipEvidence({
+        path: file.path,
+        packageEntry: file,
+        destinationPresent: true,
+        projectExtension: await projectExtensionEvidence(consumerRoot, file.path),
+      });
+      result.ownershipStates.push(classification);
       const decision = await decide('collision', file.path);
       if (decision === false || decision === null || decision === undefined) {
         if (dryRun) {
@@ -47,15 +74,30 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
         }
         throw new Error(`collision decision required for ${file.path}`);
       }
-      if (decision !== 'keep-as-owned' && decision !== 'replace') {
-        throw new Error(`collision decision for ${file.path} must be keep-as-owned or replace`);
+      const allowed = [
+        'keep-as-owned', 'project-extension', 'contribution-bridge', 'explicit-fork', 'replace',
+      ];
+      if (!allowed.includes(decision)
+          || (decision === 'project-extension'
+            && classification.state !== OwnershipState.PROJECT_EXTENSION)) {
+        throw new Error(
+          `collision decision for ${file.path} must select a valid explicit ownership route`,
+        );
       }
       const destinationSha256 = await sha256File(dest);
-      result.collisionResolutions.push({
+      const resolvedState = decision === 'replace' ? OwnershipState.CLEAN_CORE
+        : (decision === 'keep-as-owned' ? OwnershipState.EXPLICIT_FORK : decision);
+      const resolution = {
         path: file.path, outcome: decision, destinationSha256,
-      });
-      if (decision === 'keep-as-owned') {
-        nextInstalled.push(entry(file, destinationSha256, CONSUMER_ORIGIN));
+      };
+      if (!['replace', 'keep-as-owned'].includes(decision)) {
+        resolution.ownershipState = resolvedState;
+      }
+      result.collisionResolutions.push(resolution);
+      if (decision !== 'replace') {
+        nextInstalled.push(entry(
+          file, destinationSha256, CONSUMER_ORIGIN, resolvedState,
+        ));
         result.consumerOwned.push(file.path);
       } else {
         if (!dryRun) await writeAtomic(dest, await readFile(join(kitRoot, file.path)), file.mode);
@@ -128,17 +170,31 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
 function emptyResult() {
   return {
     unchanged: [], updated: [], conflicts: [], collisions: [], collisionResolutions: [], userModified: [],
+    ownershipStates: [],
     added: [], deleted: [], keptDeleted: [], consumerOwned: [], manifestChanged: false,
   };
 }
 
-function entry(file, installedSha256, origin = KIT_ORIGIN) {
-  return {
+function entry(file, installedSha256, origin = KIT_ORIGIN, ownershipState) {
+  const result = {
     path: file.path, kind: file.kind, ownerSkill: file.ownerSkill, surface: file.surface,
     installedSha256, origin, installRole: CONSUMER_INSTALL_ROLE,
   };
+  if (ownershipState) result.ownershipState = ownershipState;
+  return result;
 }
 
 function withInstallRole(installed, installRole = CONSUMER_INSTALL_ROLE) {
   return { ...installed, installRole };
+}
+
+async function projectExtensionEvidence(consumerRoot, path) {
+  const match = /^docs\/agents\/skills\/([a-z0-9-]+)\.md$/.exec(path);
+  if (!match) return null;
+  try {
+    const result = await inspectProjectSkillExtension({ root: consumerRoot, skill: match[1] });
+    return result.state === 'active' ? result : null;
+  } catch (error) {
+    return { invalid: error.message };
+  }
 }

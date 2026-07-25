@@ -3,6 +3,14 @@ name: security-audit
 description: "Run the whole application's security audit as an independent two-model pass — two AI models audit the same code separately — then harden the remediation plan before any fix lands. Use when the user wants a security audit / security review of the entire app ('audit the app for vulnerabilities', 'is the app secure', 'security check before release'), before a release, or after the attack surface changes (new endpoint, new input source, auth change, dependency bump). NOT for reviewing a single diff/PR (that is a code review) and NOT for infrastructure hardening (firewall/ports/TLS/SSH/backups — audited separately from the application layer)."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill security-audit --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # security-audit — application-layer security audit (two-model run)
 
 Application-layer security audit of the whole repo. This skill is the **run

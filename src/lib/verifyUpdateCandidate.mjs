@@ -189,6 +189,14 @@ function validateInstalledEntry(tracked, desired, origin) {
   if (tracked.origin === KIT_ORIGIN && tracked.installedSha256 !== desired.sha256) {
     throw new Error(`candidate invariant ownership: Kit hash identity mismatch ${tracked.path}`);
   }
+  if (tracked.origin === KIT_ORIGIN && tracked.ownershipState !== undefined) {
+    throw new Error(`candidate invariant ownership: Kit path has Consumer lifecycle ${tracked.path}`);
+  }
+  if (tracked.origin === CONSUMER_ORIGIN && ![
+    undefined, 'project-extension', 'contribution-bridge', 'explicit-fork',
+  ].includes(tracked.ownershipState)) {
+    throw new Error(`candidate invariant ownership: invalid lifecycle ${tracked.path}`);
+  }
 }
 
 function verifyLedgerMetadata(ledger, context) {
@@ -207,8 +215,12 @@ function verifyLedgerMetadata(ledger, context) {
 }
 
 function expectedOrigin(path, priorInstalled, preview) {
+  const transferredToCore = (preview.migrations ?? []).some(
+    (migration) => migration.path === path && migration.ownership === 'kit-core',
+  );
+  if (transferredToCore) return KIT_ORIGIN;
   const keptOwned = (preview.collisionResolutions ?? []).some(
-    (resolution) => resolution.path === path && resolution.outcome === 'keep-as-owned',
+    (resolution) => resolution.path === path && resolution.outcome !== 'replace',
   );
   return keptOwned || (priorInstalled.get(path)?.origin ?? KIT_ORIGIN) === CONSUMER_ORIGIN
     ? CONSUMER_ORIGIN

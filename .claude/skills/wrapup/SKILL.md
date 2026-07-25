@@ -14,6 +14,14 @@ description: >-
   push, a conflicting PR, or red (FAILURE) checks.
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill wrapup --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # wrapup — land PR & tear down worktree
 
 Trigger: user types `/wrapup` (optionally with a PR number). **Manual only** — `disable-model-invocation: true`, no hook, no auto-invoke.

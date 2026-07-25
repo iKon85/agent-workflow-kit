@@ -1,3 +1,4 @@
+<!-- agent-workflow-kit: project-extension/v1; skill=orchestrate-wave -->
 # Project layer — orchestrate-wave
 
 The generic `orchestrate-wave` skill ships the full wave-landing **mechanics**

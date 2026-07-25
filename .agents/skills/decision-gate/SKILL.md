@@ -3,6 +3,14 @@ name: decision-gate
 "description": "Resolve a bounded trade-off choice or a targeted research gap with read-only investigation, a documented weigh-up, and a reasoned decision. Use when a plan or slice hinges on a concrete \"which option\" choice or a \"need to research this first\" gap that is above a binary yes/no fact (verify-spike) but below a high-stakes, hard-to-reverse, ADR-worthy decision (grill-with-docs-codex). Output is a trade-off table plus a justified pick sunk into an ADR/issue/comment. NOT for binary fact-checks (verify-spike), open-ended design feel (prototype), or bug root-cause (diagnose)."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill decision-gate --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Decision Gate
 
 A decision-gate resolves **a bounded "which option" choice — or a targeted research gap — with evidence, not a hunch.** You have two or more candidate approaches (or one approach you cannot yet commit to), the call is small enough that a full design-grill is overkill, but it is more than a single yes/no fact. The gate makes the choice **documented and defensible** instead of decided in your head.

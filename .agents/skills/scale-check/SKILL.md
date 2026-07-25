@@ -4,6 +4,14 @@ disable-model-invocation: true
 description: "Route an undertaking to the right altitude before any planning starts — a short plain-language dialog (3–6 questions) deciding between a Program, a Feature, a single Direct-Slice, or a Bug, then hand back a paste-ready start prompt for the chosen route. Use at the very start of a new build when the size is unclear (a new app, a big cross-cutting feature, or a where-do-I-start question). Owns the altitude criteria catalog; when in doubt it routes to Feature. NOT for slicing a chosen plan (to-issues) and NOT for clustering an existing backlog (board-to-waves)."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill scale-check --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # scale-check — Route an undertaking to its altitude
 
 Answers one question in plain language: **"how big is this, and where do I start?"**

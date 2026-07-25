@@ -4,6 +4,14 @@ disable-model-invocation: true
 description: "Turn a locked plan (PLAN.md in the worktree, conversation context, or an externally-authored spec) into a Draft-PRD issue on the project board, then run spec-self-critique. Use after a grill (grill-me / grill-with-docs / their -codex variants) when you want to publish the PRD. Three modes — create fresh, reuse an existing cluster/Wave-less issue, or auto-detect a Program-PRD from a plan's Wellenplan chapter. Does NOT decompose into slices (that is to-issues) and does NOT set type:cluster / Wave (that is to-issues promotion)."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill to-prd --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # to-prd — Draft PRD to the Board
 
 > **Skill identity (don't get confused):** the folder `to-prd` + invocation `/to-prd` map to Matt Pocock's upstream skill **`to-spec`**. Upstream renamed `to-prd` → `to-spec` (v1.1.0); we deliberately keep the folder name `to-prd` (invocation stability, and PRD is this workflow's vocabulary). Content remains our fork, compared against upstream `to-spec` @ `d574778`. Provenance/rename ledger: `docs/agents/provenance.md` (§Re-Sync-Log), at the project root.

@@ -8,6 +8,7 @@ import {
   CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, readManifest, writeManifest,
 } from '../src/lib/manifest.mjs';
 import { sha256 } from '../src/lib/hash.mjs';
+import { nonInteractiveUpdateDecision } from '../src/lib/updateDecisions.mjs';
 import { cleanup, makeEmptyDir, makeKit } from './helpers.mjs';
 
 const BASE = '.claude/skills/to-prd/SKILL.md';
@@ -58,6 +59,139 @@ test('dry-run reports an existing untracked destination as a collision without o
     assert.deepEqual(result.collisions, [COLLISION]);
     assert.deepEqual(result.added, []);
     assert.deepEqual(await readFile(join(fixture.consumer, COLLISION)), before);
+  } finally {
+    await cleanup(fixture.kit, fixture.consumer);
+  }
+});
+
+test('an unclassified collision blocks repeatably with evidence and routes, never mutation', async () => {
+  const fixture = await makeCollisionFixture();
+  try {
+    const manifestPath = join(fixture.consumer, CONSUMER_MANIFEST_NAME);
+    const manifestBefore = await readFile(manifestPath);
+    const bytesBefore = await readFile(join(fixture.consumer, COLLISION));
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const result = await update({
+        kitRoot: fixture.kit,
+        consumerRoot: fixture.consumer,
+        releaseIdentities: releaseIdentities(),
+        verify,
+        decide: nonInteractiveUpdateDecision,
+      });
+      assert.equal(result.state, 'conflicted');
+      assert.deepEqual(result.ownershipStates, [{
+        path: COLLISION,
+        state: 'ambiguous-collision',
+        evidence: {
+          packageDeclared: true,
+          ledgerOrigin: 'absent',
+          destination: 'present',
+          projectExtension: 'absent',
+        },
+        routes: [
+          { id: 'project-extension', action: `move Project data to docs/agents/skills/<skill>.md` },
+          { id: 'contribution-bridge', action: 'register a temporary contribution-bridge' },
+          { id: 'explicit-fork', action: 'register an explicit-fork with its own update line' },
+          { id: 'clean-core', action: 'explicitly replace the destination with Kit Core' },
+        ],
+      }]);
+      assert.match(result.report.recommendation, new RegExp(COLLISION));
+      assert.match(result.report.recommendation, /contribution-bridge.*explicit-fork/);
+      assert.deepEqual(await readFile(manifestPath), manifestBefore);
+      assert.deepEqual(await readFile(join(fixture.consumer, COLLISION)), bytesBefore);
+    }
+  } finally {
+    await cleanup(fixture.kit, fixture.consumer);
+  }
+});
+
+test('an explicit contribution-bridge decision retains bytes and records its lifecycle', async () => {
+  const fixture = await makeCollisionFixture();
+  try {
+    const bytesBefore = await readFile(join(fixture.consumer, COLLISION));
+    const result = await update({
+      kitRoot: fixture.kit,
+      consumerRoot: fixture.consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+      decide: () => 'contribution-bridge',
+    });
+
+    assert.equal(result.state, 'applied', result.error);
+    assert.deepEqual(await readFile(join(fixture.consumer, COLLISION)), bytesBefore);
+    const manifest = await readManifest(join(fixture.consumer, CONSUMER_MANIFEST_NAME));
+    assert.deepEqual(
+      manifest.installed.find(({ path }) => path === COLLISION),
+      {
+        path: COLLISION,
+        kind: 'doc',
+        installedSha256: sha256(`consumer bytes for ${COLLISION}\n`),
+        origin: 'consumer',
+        installRole: 'consumer',
+        ownershipState: 'contribution-bridge',
+      },
+    );
+  } finally {
+    await cleanup(fixture.kit, fixture.consumer);
+  }
+});
+
+test('a versioned Project extension collision is classified and may be kept explicitly', async () => {
+  const path = 'docs/agents/skills/tdd.md';
+  const fixture = await makeCollisionFixture([path]);
+  try {
+    const body =
+      '<!-- agent-workflow-kit: project-extension/v1; skill=tdd -->\n# Local TDD policy\n';
+    await writeFile(join(fixture.consumer, path), body);
+    const preview = await update({
+      kitRoot: fixture.kit,
+      consumerRoot: fixture.consumer,
+      dryRun: true,
+    });
+    assert.equal(preview.ownershipStates[0].state, 'project-extension');
+    assert.equal(preview.ownershipStates[0].evidence.projectExtension, 'schema-v1');
+
+    const result = await update({
+      kitRoot: fixture.kit,
+      consumerRoot: fixture.consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+      decide: () => 'project-extension',
+    });
+    assert.equal(result.state, 'applied', result.error);
+    assert.equal(await readFile(join(fixture.consumer, path), 'utf8'), body);
+    const manifest = await readManifest(join(fixture.consumer, CONSUMER_MANIFEST_NAME));
+    assert.equal(
+      manifest.installed.find((entry) => entry.path === path).ownershipState,
+      'project-extension',
+    );
+    const second = await update({
+      kitRoot: fixture.kit,
+      consumerRoot: fixture.consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+    assert.equal(second.state, 'applied');
+    assert.equal(second.status, 'current');
+
+    const invalid =
+      '<!-- agent-workflow-kit: project-extension/v2; skill=tdd -->\n# Future\n';
+    await writeFile(join(fixture.consumer, path), invalid);
+    const ledgerBefore = await readFile(join(fixture.consumer, CONSUMER_MANIFEST_NAME));
+    const blocked = await update({
+      kitRoot: fixture.kit,
+      consumerRoot: fixture.consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+    assert.equal(blocked.state, 'conflicted');
+    assert.match(blocked.report.recommendation, /extension=invalid/);
+    assert.match(blocked.report.recommendation, /project-extension.*explicit-fork/);
+    assert.equal(await readFile(join(fixture.consumer, path), 'utf8'), invalid);
+    assert.deepEqual(
+      await readFile(join(fixture.consumer, CONSUMER_MANIFEST_NAME)),
+      ledgerBefore,
+    );
   } finally {
     await cleanup(fixture.kit, fixture.consumer);
   }
@@ -130,8 +264,8 @@ test('resolved preview drives activation and the final report', async () => {
   }
 });
 
-test('a collision destination changed during verification aborts both outcomes', async (t) => {
-  for (const outcome of ['keep-as-owned', 'replace']) {
+test('a collision destination changed during verification aborts every ownership route', async (t) => {
+  for (const outcome of ['keep-as-owned', 'contribution-bridge', 'explicit-fork', 'replace']) {
     await t.test(outcome, async () => {
       const fixture = await makeCollisionFixture();
       try {

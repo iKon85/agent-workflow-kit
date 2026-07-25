@@ -259,7 +259,7 @@ test('a collision can explicitly replace existing bytes and rejects every other 
 
     await assert.rejects(
       reconcile({ kitRoot: invalid.kit, consumerRoot: invalid.consumer, decide: () => true }),
-      /must be keep-as-owned or replace/,
+      /must select a valid explicit ownership route/,
     );
     assert.equal(await readFile(join(invalid.consumer, collision), 'utf8'), 'existing consumer bytes\n');
   } finally {
@@ -274,11 +274,23 @@ test('CLI dispatches own and disown to the manifest mutation command', async () 
     await init({ kitRoot: kit, consumerRoot: consumer });
     await run(process.execPath, [CLI, 'own', P], { cwd: consumer });
     let manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
-    assert.equal(manifest.installed.find(({ path }) => path === P).origin, 'consumer');
+    let tracked = manifest.installed.find(({ path }) => path === P);
+    assert.equal(tracked.origin, 'consumer');
+    assert.equal(tracked.ownershipState, 'explicit-fork');
 
     await run(process.execPath, [CLI, 'disown', P], { cwd: consumer });
     manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
-    assert.equal(manifest.installed.find(({ path }) => path === P).origin, 'kit');
+    tracked = manifest.installed.find(({ path }) => path === P);
+    assert.equal(tracked.origin, 'kit');
+    assert.equal(tracked.ownershipState, undefined);
+
+    await run(process.execPath, [CLI, 'own', P, '--as=contribution-bridge'], {
+      cwd: consumer,
+    });
+    manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
+    tracked = manifest.installed.find(({ path }) => path === P);
+    assert.equal(tracked.origin, 'consumer');
+    assert.equal(tracked.ownershipState, 'contribution-bridge');
   } finally {
     await cleanup(kit, consumer);
   }
@@ -287,6 +299,7 @@ test('CLI dispatches own and disown to the manifest mutation command', async () 
 test('CLI keeps downstream collision and owned-diff seams wired', async () => {
   const source = await readFile(CLI, 'utf8');
   assert.match(source, /diff\(\{ kitRoot: KIT_ROOT, consumerRoot, owned \}\)/);
-  assert.match(source, /decideUpdate\(action, path, yes\)/);
+  assert.match(source, /decideUpdate\(action, path, yes, classification\)/);
+  assert.match(source, /nonInteractiveUpdateDecision\(action\)/);
   assert.match(source, /'consumerOwned'[\s\S]*'collisions'/);
 });

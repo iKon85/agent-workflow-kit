@@ -4,6 +4,14 @@ disable-model-invocation: true
 description: "Internal Program graph engine behind the public to-issues Planning facade. Turns an explicitly identified Program-PRD into execute-ready wave anchors and slice leaves after one complete chat preview. Kept as a disabled compatibility entrypoint for existing explicit invocations; normal routing always selects to-issues."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill to-waves --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # to-waves — Internal Program graph engine
 
 This skill is an **Internal Program graph engine**, selected by `to-issues` only

@@ -123,6 +123,50 @@ test('skill verdict reports required failures and optional active/inactive block
   }
 });
 
+test('readiness composes a consumer-owned local skill with canonical Core capabilities', async () => {
+  const root = await makeEmptyDir();
+  const core = {
+    schema_version: 1,
+    readiness: { contractVersion: 1, capabilities: { requiredThing: capability } },
+    skills: {},
+  };
+  const project = {
+    schemaVersion: 1,
+    coreSchemaVersion: 1,
+    skills: {
+      local: {
+        class: 'project-private',
+        publish: false,
+        surfaces: ['claude', 'codex'],
+        readiness: { required: ['requiredThing'] },
+      },
+    },
+    annotations: {},
+  };
+  try {
+    await write(root, '.claude/skills/skill-manifest.json', `${JSON.stringify(core)}\n`);
+    await write(root, 'docs/agents/skill-registry.json', `${JSON.stringify(project)}\n`);
+    await write(root, 'agent-workflow-kit.json', JSON.stringify({
+      kitVersion: '1.0.0',
+      readinessContractVersion: 1,
+      readinessDecisions: {},
+      installed: [],
+    }));
+
+    let result = await checkSkill({ root, skill: 'local' });
+    assert.equal(result.verdict, 'blocked');
+    await write(
+      root,
+      'docs/agents/example.md',
+      '<!-- setup-workflow: state=filled -->\nconfigured\n',
+    );
+    result = await checkSkill({ root, skill: 'local' });
+    assert.equal(result.verdict, 'ready');
+  } finally {
+    await cleanup(root);
+  }
+});
+
 test('CLI owns narrow decisions and the late-Prod degraded to ready tracer', async () => {
   const root = await makeEmptyDir();
   const manifest = {

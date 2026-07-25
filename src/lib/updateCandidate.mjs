@@ -15,6 +15,10 @@ import {
   CONSUMER_MANIFEST_NAME, CONSUMER_ORIGIN, READINESS_MANIFEST_PATH,
   filesForInstallRole, indexByPath, readManifest, writeManifest,
 } from './manifest.mjs';
+import {
+  PROJECT_SKILL_REGISTRY_PATH, emptyProjectSkillRegistry, migrateLegacySkillRegistry,
+  readComposedSkillRegistry,
+} from './skillRegistry.mjs';
 import { checkSkill, evaluateCapability, inspectProdSections } from '../../scripts/readiness.mjs';
 
 const exists = (path) => access(path).then(() => true, () => false);
@@ -56,6 +60,7 @@ export async function materializeUpdateCandidate({
 export function candidateInputPaths({ pkg, manifests }) {
   const candidates = [
     CONSUMER_MANIFEST_NAME,
+    PROJECT_SKILL_REGISTRY_PATH,
     ...INTEGRATION_INPUTS,
     ...filesForInstallRole(pkg).map(({ path }) => path),
   ];
@@ -349,12 +354,18 @@ async function assertConsumerStillMatchesPreview(consumerRoot, preview) {
 }
 
 /** Seed only newly declared, decision-free project-layer stubs in a staged candidate. */
-export async function adoptReadinessCandidate({ candidateRoot, consumerRoot, priorManifest, nextManifest }) {
+export async function adoptReadinessCandidate({
+  candidateRoot, consumerRoot, kitRoot, priorManifest, nextManifest,
+}) {
   const priorPaths = readinessStubPaths(priorManifest);
   const manifestPath = join(candidateRoot, CONSUMER_MANIFEST_NAME);
-  const manifest = await readManifest(manifestPath);
+  let manifest = await readManifest(manifestPath);
+  const registry = await adoptProjectSkillRegistry({
+    candidateRoot, consumerRoot, kitRoot, manifest, priorManifest, nextManifest,
+  });
+  manifest = await readManifest(manifestPath);
   const candidateInstalled = indexByPath(manifest, 'installed');
-  const generated = [];
+  const generated = [...registry.generated];
   for (const path of readinessStubPaths(nextManifest)) {
     if (priorPaths.has(path)) continue;
     if (await exists(join(candidateRoot, path))) {
@@ -377,9 +388,11 @@ export async function adoptReadinessCandidate({ candidateRoot, consumerRoot, pri
     }
     await writeManifest(manifestPath, { ...manifest, installed });
   }
-  const { migrations, migrationConflicts } = await migrateProdSections({
+  const prod = await migrateProdSections({
     candidateRoot, consumerRoot, nextManifest,
   });
+  const migrations = [...registry.migrations, ...prod.migrations];
+  const migrationConflicts = [...registry.migrationConflicts, ...prod.migrationConflicts];
   const before = await readinessSnapshot(consumerRoot, priorManifest);
   const after = await readinessSnapshot(candidateRoot, nextManifest);
   const incompatible = Object.entries(after.skills)
@@ -394,6 +407,94 @@ export async function adoptReadinessCandidate({ candidateRoot, consumerRoot, pri
     migrationConflicts,
     availability: readinessDiff(before, after),
     incompatible,
+  };
+}
+
+async function adoptProjectSkillRegistry({
+  candidateRoot, consumerRoot, kitRoot, manifest, priorManifest, nextManifest,
+}) {
+  if (!nextManifest) {
+    return { generated: [], migrations: [], migrationConflicts: [] };
+  }
+  const tracked = manifest.installed.find(({ path }) => path === READINESS_MANIFEST_PATH);
+  if (tracked?.origin !== CONSUMER_ORIGIN) {
+    const registryPath = join(candidateRoot, PROJECT_SKILL_REGISTRY_PATH);
+    if (!await exists(registryPath)) {
+      await writeAtomic(
+        registryPath,
+        `${JSON.stringify(emptyProjectSkillRegistry(nextManifest), null, 2)}\n`,
+      );
+      const installedSha256 = await sha256File(registryPath);
+      await writeManifest(join(candidateRoot, CONSUMER_MANIFEST_NAME), {
+        ...manifest,
+        installed: [...manifest.installed, {
+          path: PROJECT_SKILL_REGISTRY_PATH,
+          kind: 'doc',
+          installedSha256,
+          origin: CONSUMER_ORIGIN,
+          installRole: 'consumer',
+        }],
+      });
+      await readComposedSkillRegistry(candidateRoot, nextManifest);
+      return {
+        generated: [PROJECT_SKILL_REGISTRY_PATH],
+        migrations: [],
+        migrationConflicts: [],
+      };
+    }
+    await readComposedSkillRegistry(candidateRoot, nextManifest);
+    return { generated: [], migrations: [], migrationConflicts: [] };
+  }
+  const registryPath = join(candidateRoot, PROJECT_SKILL_REGISTRY_PATH);
+  if (await exists(registryPath)) {
+    return {
+      generated: [],
+      migrations: [],
+      migrationConflicts: [
+        `${PROJECT_SKILL_REGISTRY_PATH}: legacy mixed Core already has a Project registry`,
+      ],
+    };
+  }
+  let registry;
+  try {
+    registry = migrateLegacySkillRegistry({ legacyCore: priorManifest, nextCore: nextManifest });
+  } catch (error) {
+    return {
+      generated: [], migrations: [],
+      migrationConflicts: [`${READINESS_MANIFEST_PATH}: ${error.message}`],
+    };
+  }
+  const corePath = join(candidateRoot, READINESS_MANIFEST_PATH);
+  await writeAtomic(corePath, await readFile(join(kitRoot, READINESS_MANIFEST_PATH)));
+  await writeAtomic(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
+  const coreHash = await sha256File(corePath);
+  const registryHash = await sha256File(registryPath);
+  const installed = manifest.installed.map((entry) => {
+    if (entry.path !== READINESS_MANIFEST_PATH) return entry;
+    const { ownershipState: _legacyLifecycle, ...coreEntry } = entry;
+    return { ...coreEntry, installedSha256: coreHash, origin: 'kit' };
+  });
+  if (!installed.some(({ path }) => path === PROJECT_SKILL_REGISTRY_PATH)) {
+    installed.push({
+      path: PROJECT_SKILL_REGISTRY_PATH,
+      kind: 'doc',
+      installedSha256: registryHash,
+      origin: CONSUMER_ORIGIN,
+      installRole: 'consumer',
+    });
+  }
+  await writeManifest(join(candidateRoot, CONSUMER_MANIFEST_NAME), {
+    ...manifest, installed,
+  });
+  return {
+    generated: [PROJECT_SKILL_REGISTRY_PATH],
+    migrations: [{
+      path: READINESS_MANIFEST_PATH,
+      beforeSha256: await sha256File(join(consumerRoot, READINESS_MANIFEST_PATH)),
+      afterSha256: coreHash,
+      ownership: 'kit-core',
+    }],
+    migrationConflicts: [],
   };
 }
 
