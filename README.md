@@ -445,6 +445,13 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.36.5
+
+- changed: `src/lib/updateCandidate.mjs`
+- changed: `src/lib/updateReconcile.mjs`
+- changed: `src/lib/verifyUpdateCandidate.mjs`
+- changed: `src/lib/verifyUpdateCandidateTransaction.mjs`
+
 ### 0.36.4
 
 - changed: `scripts/release-delta-guard.mjs`

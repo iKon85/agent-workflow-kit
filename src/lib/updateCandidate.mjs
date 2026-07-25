@@ -351,6 +351,14 @@ async function assertConsumerStillMatchesPreview(consumerRoot, preview) {
       throw new Error(`consumer changed during verification: ${path}`);
     }
   }
+  for (const snapshot of preview.userModifiedSnapshots ?? []) {
+    const target = join(consumerRoot, snapshot.path);
+    const current = await exists(target) ? await sha256File(target) : null;
+    const mode = current === null ? null : (await lstat(target)).mode & 0o777;
+    if (current !== snapshot.sha256 || mode !== snapshot.mode) {
+      throw new Error(`consumer changed during verification: ${snapshot.path}`);
+    }
+  }
 }
 
 /** Seed only newly declared, decision-free project-layer stubs in a staged candidate. */
