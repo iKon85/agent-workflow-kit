@@ -445,6 +445,10 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.36.3
+
+- Metadata-only release.
+
 ### 0.36.2
 
 - changed: `.claude/skills/to-issues/SKILL.md`
