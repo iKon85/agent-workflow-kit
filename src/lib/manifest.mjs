@@ -109,10 +109,14 @@ export function withOrigin(manifest, path, origin, ownershipState = 'explicit-fo
     installed: manifest.installed.map((entry) => {
       if (entry.path !== path) return entry;
       if (origin === KIT_ORIGIN) {
-        const { ownershipState: _removed, ...core } = entry;
+        const {
+          ownershipState: _removed,
+          contributionBridge: _removedBridge,
+          ...core
+        } = entry;
         return { ...core, origin };
       }
-      if (!['contribution-bridge', 'explicit-fork'].includes(ownershipState)) {
+      if (ownershipState !== 'explicit-fork') {
         throw new Error(`invalid consumer ownership state: ${ownershipState}`);
       }
       return { ...entry, origin, ownershipState };

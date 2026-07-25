@@ -377,7 +377,7 @@
       "ownerSkill": "kit-update",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "ac067a33cfbc98a6eb520ab2a819d7cc68b78a39201cd719f40a03a59f499814",
+      "sha256": "509409f62057da830a1ca01c05403e2a6c92791c66cc2a6769231c9f6cff369d",
       "mode": 420,
       "origin": "kit"
     },
@@ -1689,7 +1689,7 @@
       "ownerSkill": "kit-update",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "ac067a33cfbc98a6eb520ab2a819d7cc68b78a39201cd719f40a03a59f499814",
+      "sha256": "509409f62057da830a1ca01c05403e2a6c92791c66cc2a6769231c9f6cff369d",
       "mode": 420,
       "origin": "kit"
     },
@@ -2863,7 +2863,7 @@
       "path": "src/lib/manifest.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "8696964e50e00eadc5aa3dd1527a8b4fa1b9e5bfe7c061e77fd464ae6843d9a1",
+      "sha256": "a1a01efa6bca0fc5ed2fcac1d2434d6c013f5e528adecfc63a597b9d52475e15",
       "mode": 420,
       "origin": "kit"
     },
@@ -2871,7 +2871,7 @@
       "path": "src/lib/ownershipClassifier.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "acc70a493626542a686df3b0805feae9b36648c8636d3fe8a4c23b092b851bbb",
+      "sha256": "06a8a455752308db63c4b2aa6f360c540c18dfd3d7f153e52706005c1a51f4e9",
       "mode": 420,
       "origin": "kit"
     },

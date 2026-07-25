@@ -129,6 +129,12 @@ test('an explicit contribution-bridge decision retains bytes and records its lif
         origin: 'consumer',
         installRole: 'consumer',
         ownershipState: 'contribution-bridge',
+        contributionBridge: {
+          schemaVersion: 1,
+          baseKitVersion: '0.1.0',
+          baseSha256: sha256(`kit bytes for ${COLLISION}\n`),
+          localSha256: sha256(`consumer bytes for ${COLLISION}\n`),
+        },
       },
     );
   } finally {

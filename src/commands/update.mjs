@@ -260,6 +260,7 @@ function verifyRelease(identities, kitVersion) {
 function hasUpstreamDelta(result) {
   return result.manifestChanged ||
     (result.migrations?.length ?? 0) > 0 ||
+    (result.bridgeRetired?.length ?? 0) > 0 ||
     result.added.length + result.updated.length + result.deleted.length > 0;
 }
 

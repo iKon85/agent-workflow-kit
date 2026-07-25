@@ -15,6 +15,7 @@ const ROUTES = Object.freeze([
 
 export function classifyOwnershipEvidence({
   path, packageEntry, installedEntry, destinationPresent, projectExtension,
+  contributionBridge,
 }) {
   const evidence = {
     packageDeclared: Boolean(packageEntry),
@@ -24,7 +25,13 @@ export function classifyOwnershipEvidence({
       ? (projectExtension.invalid ? 'invalid' : `schema-v${projectExtension.schemaVersion}`)
       : 'absent',
   };
+  if (contributionBridge !== undefined) {
+    evidence.contributionBridge = contributionBridge
+      ? (contributionBridge.invalid ? 'invalid' : `schema-v${contributionBridge.schemaVersion}`)
+      : 'absent';
+  }
   if (projectExtension?.invalid) evidence.extensionDiagnostic = projectExtension.invalid;
+  if (contributionBridge?.invalid) evidence.bridgeDiagnostic = contributionBridge.invalid;
   if (installedEntry?.origin === 'kit') {
     return { path, state: OwnershipState.CLEAN_CORE, evidence, routes: [] };
   }
@@ -40,6 +47,10 @@ export function classifyOwnershipEvidence({
     if (state === OwnershipState.PROJECT_EXTENSION
         && (!/^docs\/agents\/skills\/[a-z0-9-]+\.md$/.test(path)
           || !projectExtension || projectExtension.invalid)) {
+      return { path, state: OwnershipState.AMBIGUOUS_COLLISION, evidence, routes: [...ROUTES] };
+    }
+    if (state === OwnershipState.CONTRIBUTION_BRIDGE
+        && (!contributionBridge || contributionBridge.invalid)) {
       return { path, state: OwnershipState.AMBIGUOUS_COLLISION, evidence, routes: [...ROUTES] };
     }
     return { path, state, evidence, routes: [] };

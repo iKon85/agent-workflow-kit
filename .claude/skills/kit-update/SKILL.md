@@ -112,7 +112,13 @@ release contain the same artifact.
    to be a kit maintainer. For a project-specific edit, recommend
    `npx @ikon85/agent-workflow-kit@latest own <path> --as=explicit-fork` so
    future updates treat that path as an independent fork. A generic experiment
-   retained only until it returns upstream uses `--as=contribution-bridge`.
+   retained only until it returns upstream uses
+   `npx @ikon85/agent-workflow-kit@latest contribute start <path>`. Prepare its
+   bounded local artifact with `contribute prepare <path>
+   --output=.agent-workflow-kit/contributions/<name>.json`. Both commands are
+   local-only; opening an issue/PR or pushing remains a separate explicit
+   approval. A matching released Core version retires the bridge during
+   reimport.
 
 4. If a candidate is interrupted, discard its reported stage directory or
    resume the transaction through the update API's `resumeFrom` option. Do not

@@ -19,7 +19,17 @@ test('ownership evidence distinguishes every Core, extension, bridge, fork, and 
   }).state, OwnershipState.PROJECT_EXTENSION);
   assert.equal(classifyOwnershipEvidence({
     path, packageEntry,
-    installedEntry: { path, origin: 'consumer', ownershipState: 'contribution-bridge' },
+    installedEntry: {
+      path, origin: 'consumer', ownershipState: 'contribution-bridge',
+      installedSha256: 'b'.repeat(64),
+      contributionBridge: {
+        schemaVersion: 1,
+        baseKitVersion: '1.0.0',
+        baseSha256: 'a'.repeat(64),
+        localSha256: 'b'.repeat(64),
+      },
+    },
+    contributionBridge: { schemaVersion: 1 },
     destinationPresent: true,
   }).state, OwnershipState.CONTRIBUTION_BRIDGE);
   assert.equal(classifyOwnershipEvidence({

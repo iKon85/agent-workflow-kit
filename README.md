@@ -331,10 +331,16 @@ npx github:iKon85/agent-workflow-kit uninstall   # remove kit-installed files
 - a file you **did** edit is kept — the incoming version is backed up with a
   timestamp and a diff is printed, never silently overwritten;
 - a file you intentionally fork can be detached with
-  `npx github:iKon85/agent-workflow-kit own <path> --as=explicit-fork`, retained
-  temporarily with `--as=contribution-bridge`, and returned to kit ownership
-  with `npx github:iKon85/agent-workflow-kit disown <path>`; owned files are
+  `npx github:iKon85/agent-workflow-kit own <path> --as=explicit-fork` and
+  returned to kit ownership with
+  `npx github:iKon85/agent-workflow-kit disown <path>`; owned files are
   skipped by updates even after the package stops shipping them;
+- a modified declared Core path enters the temporary Contribution Bridge with
+  `contribute start <path>`. `contribute prepare <path>
+  --output=.agent-workflow-kit/contributions/<name>.json` writes one local,
+  schema-versioned diff/provenance artifact and performs no remote action. A
+  release whose Core bytes match the bridged bytes retires the bridge
+  automatically on reimport;
 - a file removed upstream is offered for deletion (a hook still referenced by your
   `settings.json` is kept regardless);
 - a new Kit path that already exists locally is an `ambiguous-collision` until
@@ -358,7 +364,7 @@ Ownership commands are designed for a single-user CLI workflow and are not
 concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 `--force` (overwrite pre-existing untracked files on `init`), `--yes` / `-y`
 (confirm only already-classified safe update actions), and
-`--as=contribution-bridge|explicit-fork` for `own`.
+`--as=explicit-fork` for `own`.
 
 ### Project extensions versus forks
 

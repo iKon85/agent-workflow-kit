@@ -2,6 +2,7 @@ import { lstat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { sha256File } from './hash.mjs';
+import { validateContributionBridge } from './contributionBridge.mjs';
 import {
   CONSUMER_INSTALL_ROLE, CONSUMER_MANIFEST_NAME, CONSUMER_ORIGIN, KIT_ORIGIN,
   emptyConsumerManifest, filesForInstallRole,
@@ -192,10 +193,23 @@ function validateInstalledEntry(tracked, desired, origin) {
   if (tracked.origin === KIT_ORIGIN && tracked.ownershipState !== undefined) {
     throw new Error(`candidate invariant ownership: Kit path has Consumer lifecycle ${tracked.path}`);
   }
+  if (tracked.origin === KIT_ORIGIN && tracked.contributionBridge !== undefined) {
+    throw new Error(`candidate invariant ownership: Kit path has contribution bridge ${tracked.path}`);
+  }
   if (tracked.origin === CONSUMER_ORIGIN && ![
     undefined, 'project-extension', 'contribution-bridge', 'explicit-fork',
   ].includes(tracked.ownershipState)) {
     throw new Error(`candidate invariant ownership: invalid lifecycle ${tracked.path}`);
+  }
+  if (tracked.origin === CONSUMER_ORIGIN
+      && tracked.ownershipState === 'contribution-bridge') {
+    try {
+      validateContributionBridge(tracked);
+    } catch {
+      throw new Error(`candidate invariant ownership: invalid contribution bridge ${tracked.path}`);
+    }
+  } else if (tracked.contributionBridge !== undefined) {
+    throw new Error(`candidate invariant ownership: unexpected contribution bridge ${tracked.path}`);
   }
 }
 
@@ -215,6 +229,7 @@ function verifyLedgerMetadata(ledger, context) {
 }
 
 function expectedOrigin(path, priorInstalled, preview) {
+  if ((preview.bridgeRetired ?? []).includes(path)) return KIT_ORIGIN;
   const transferredToCore = (preview.migrations ?? []).some(
     (migration) => migration.path === path && migration.ownership === 'kit-core',
   );

@@ -7,6 +7,9 @@ import { renderUpdateFailure, update } from './commands/update.mjs';
 import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
 import { setOwnership } from './commands/own.mjs';
+import {
+  beginContributionBridge, prepareContributionArtifact,
+} from './lib/contributionBridge.mjs';
 import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
 import { nonInteractiveUpdateDecision } from './lib/updateDecisions.mjs';
 import { currentAgentSurface } from './lib/agentSurfaceRegistry.mjs';
@@ -84,19 +87,43 @@ try {
     if (!ok) { p.cancel('Aborted.'); process.exit(0); }
     const r = await uninstall({ consumerRoot });
     p.outro(`removed ${r.removed.length} · retained (edited/referenced) ${r.retained.length}`);
+  } else if (cmd === 'contribute') {
+    const action = args[1];
+    const path = args[2];
+    if (!['start', 'prepare'].includes(action) || !path) {
+      throw new Error(
+        'Usage: agent-workflow-kit contribute <start|prepare> <path> ' +
+        '[--output=.agent-workflow-kit/contributions/<name>.json]',
+      );
+    }
+    if (action === 'start') {
+      await beginContributionBridge({ kitRoot: KIT_ROOT, consumerRoot, path });
+      p.outro(`${path} is now a contribution bridge; no remote was changed`);
+    } else {
+      const output = args.find((arg) => arg.startsWith('--output='))?.slice('--output='.length);
+      if (!output) throw new Error('contribute prepare requires --output=<path>');
+      await prepareContributionArtifact({
+        kitRoot: KIT_ROOT, consumerRoot, path, output,
+      });
+      p.outro(`prepared local contribution artifact ${output}; no remote was changed`);
+    }
   } else if (cmd === 'own' || cmd === 'disown') {
     if (!args[1]) {
       throw new Error(
         `Usage: agent-workflow-kit ${cmd} <path>` +
-        (cmd === 'own' ? ' [--as=contribution-bridge|explicit-fork]' : ''),
+        (cmd === 'own' ? ' [--as=explicit-fork]' : ''),
       );
     }
     const origin = cmd === 'own' ? CONSUMER_ORIGIN : KIT_ORIGIN;
-    await setOwnership({ consumerRoot, path: args[1], origin, ownershipState });
+    if (origin === CONSUMER_ORIGIN && ownershipState === 'contribution-bridge') {
+      await beginContributionBridge({ kitRoot: KIT_ROOT, consumerRoot, path: args[1] });
+    } else {
+      await setOwnership({ consumerRoot, path: args[1], origin, ownershipState });
+    }
     p.outro(`${args[1]} is now ${origin}-owned` +
       (origin === CONSUMER_ORIGIN ? ` (${ownershipState ?? 'explicit-fork'})` : ''));
   } else {
-    p.note('Usage: agent-workflow-kit <init|update|diff|uninstall|own|disown> ' +
+    p.note('Usage: agent-workflow-kit <init|update|diff|uninstall|own|disown|contribute> ' +
       '[<path>] [--force] [--yes] [--owned] [--as=contribution-bridge|explicit-fork]');
     p.outro('');
   }
@@ -110,6 +137,7 @@ function printPlan(r) {
   for (const k of [
     'added', 'updated', 'userModified', 'consumerOwned', 'unchanged',
     'deleted', 'keptDeleted', 'collisions', 'migrated',
+    'bridgeRetired',
   ])
     if (r[k]?.length) lines.push(`${k}: ${r[k].length}`);
   if (r.conflicts?.length) lines.push(`conflicts: ${r.conflicts.length}`);
