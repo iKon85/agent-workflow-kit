@@ -23,6 +23,17 @@ Create a GitHub issue.
 
 Run `gh issue view <number> --comments`.
 
+## Pickup claim
+
+Used by `/implement`, `/diagnose`, and `/orchestrate-wave`: the visible claim
+that keeps a second session, machine, or cloud agent off an issue already being
+built. The marker carries the WIP location, the assignee makes the claim visible
+in list views.
+
+- **Check** (before any edit): `gh issue view <n> --json assignees,comments --jq '{assignees: [.assignees[].login], claims: [.comments[].body | select(contains("<!-- agent-claim:"))]}'` — a foreign assignee or a marker this session did not plant is a foreign claim: stop and report it, never overwrite or delete it.
+- **Claim**: `gh issue edit <n> --add-assignee @me`, then post the marker as a comment — `gh issue comment <n> --body '<!-- agent-claim: branch=<branch>; worktree=<absolute-path>; date=<YYYY-MM-DD> -->'`.
+- **Release**: a PR referencing the issue supersedes the claim — no extra step when the work lands. On abandon: `gh issue edit <n> --remove-assignee @me` plus `gh issue comment <n> --body "claim released"`.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
