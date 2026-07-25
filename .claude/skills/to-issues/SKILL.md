@@ -1,6 +1,6 @@
 ---
 name: to-issues
-description: Break a Feature or Program plan, spec, or PRD into independently-grabbable issues on the project issue tracker. This is the single public Planning facade: explicit Feature identity uses tracer-bullet decomposition; explicit Program identity delegates to the internal graph engine.
+description: "Break a Feature or Program plan, spec, or PRD into independently-grabbable issues on the project issue tracker. This is the single public Planning facade: explicit Feature identity uses tracer-bullet decomposition; explicit Program identity delegates to the internal graph engine."
 ---
 
 <!-- project-extension:protocol-v1:start -->
