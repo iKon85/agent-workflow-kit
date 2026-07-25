@@ -74,6 +74,8 @@ def parse_scalar(value: str) -> str:
         if len(value) < 2 or not value.endswith("'"):
             raise FrontmatterError("unterminated single-quoted scalar")
         return value[1:-1].replace("''", "'")
+    if ": " in value:
+        raise FrontmatterError("mapping values are not allowed in a plain scalar")
     return value.split(" #", 1)[0].strip()
 
 
@@ -191,6 +193,12 @@ class ValidatorBehaves(unittest.TestCase):
     def test_ascii_quote_in_description_is_flagged(self):
         # the exact #1603 incident: an ASCII " closes the scalar early
         md = self._tmp_skill('---\nname: demo\ndescription: "Use „x" then y, z"\n---\nbody\n')
+        self.assertTrue(any("does not parse" in p for p in validate(md)))
+
+    def test_plain_scalar_colon_followed_by_space_is_flagged(self):
+        md = self._tmp_skill(
+            "---\nname: demo\ndescription: This is invalid YAML: mapping-like text.\n---\nbody\n"
+        )
         self.assertTrue(any("does not parse" in p for p in validate(md)))
 
     def test_name_dir_mismatch_is_flagged(self):

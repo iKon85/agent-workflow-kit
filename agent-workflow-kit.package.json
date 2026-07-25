@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.36.1",
+  "kitVersion": "0.36.2",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -2207,7 +2207,7 @@
       "ownerSkill": "to-issues",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "dee58a06620f21ccdd753e6d575cc5006ce67236ec43c77c4439d4552cca8e94",
+      "sha256": "7cc957d9883ac205904df9fc3ba2d29e7f13661b6511b355f56115ac992e2a09",
       "mode": 420,
       "origin": "kit"
     },

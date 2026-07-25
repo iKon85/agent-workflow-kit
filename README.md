@@ -445,6 +445,10 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.36.2
+
+- changed: `.claude/skills/to-issues/SKILL.md`
+
 ### 0.36.1
 
 - changed: `.agents/skills/kit-update/SKILL.md`
