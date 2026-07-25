@@ -11,6 +11,41 @@ A discipline for hard bugs. Skip phases only when explicitly justified.
 
 When exploring the codebase, read `CONTEXT.md` (if it exists) to get a clear mental model of the relevant modules, and check ADRs in the area you're touching.
 
+## Phase 0 — Claim the tracked issue
+
+Applies only when the bug arrives as a tracked issue. A bug reported in chat has
+nothing to claim; go straight to Phase 1.
+
+<!-- issue-claim:start -->
+**Claim the issue before you build.** A worktree, branch, or PR check only sees
+this machine, and only once someone has pushed — the claim on the issue itself
+is the only signal a second session, a second machine, or a cloud agent can
+read.
+
+1. **Check first.** Read the issue's assignee and its claim comments. An
+   `<!-- agent-claim: ... -->` marker you did not plant, or an assignee that is
+   not you, is a **foreign claim**: **STOP**, report the claimed branch and
+   worktree, and ask the user how to proceed. Take the issue over only on their
+   word, and never delete a foreign claim. A claim whose branch and worktree no
+   longer exist is stale — say that and let the user decide; do not assume it is
+   dead.
+2. **Plant your claim, before the first edit.** Assign the issue to yourself
+   where the tracker supports it, and post the claim marker as a comment:
+   `<!-- agent-claim: branch=<branch>; worktree=<absolute-path>; date=<YYYY-MM-DD> -->`
+   Branch and worktree are the payload — without them a colliding session sees
+   the collision but cannot find the work in progress.
+3. **Release.** A PR that references the issue **supersedes** the claim, so
+   landing needs no extra step. If you abandon or hand back the work, remove
+   your own claim (unassign plus a one-line `claim released` comment) before you
+   stop.
+
+The concrete commands are your tracker's — `docs/agents/issue-tracker.md`,
+§Pickup claim. If that layer documents no claim convention, fall back to the two
+generic operations above: self-assign, plus the marker comment.
+<!-- issue-claim:end -->
+
+Building the Phase-1 loop is already work: claim before it, not after.
+
 ## Phase 1 — Build a feedback loop
 
 **This is the skill.** Everything else is mechanical. If you have a **tight** pass/fail signal for the bug — one that goes red on _this_ bug — you will find the cause; bisection, hypothesis-testing, and instrumentation all just consume it. If you don't have one, no amount of staring at code will save you.

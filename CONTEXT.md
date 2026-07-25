@@ -3,10 +3,35 @@
 ## Upstream route
 
 The defined path by which a generic improvement discovered in a consumer
-reaches the kit: the consumer raises it as a kit issue, the kit builds and
-releases it, and the improvement returns to every consumer through a kit
-update. Raising the issue is always a question put to the user, never an
-automatic action.
+reaches the kit, is generalized and released there, and returns to consumers
+through a kit update. Crossing from the consumer into the kit always requires
+an explicit user decision.
+
+## Project extension
+
+A supported consumer-owned addition of project-specific language, policy, or
+capability data that leaves the corresponding Kit Core unchanged.
+_Avoid_: Local patch, Consumer fork
+
+## Kit Core
+
+The upstream-owned behavior and protocol authority that evolves as one
+coherent Kit release under the Kit's canonical identity.
+_Avoid_: Consumer customization, Local copy
+
+## Contribution bridge
+
+A temporary local change to Kit Core that is retained while the change is
+evaluated and generalized through the Upstream route. It must eventually be
+absorbed by a Kit release, moved to a Project extension, or made an Explicit
+fork.
+_Avoid_: Consumer-owned path, Permanent override
+
+## Explicit fork
+
+A deliberately separate identity and update line for behavior that is intended
+to diverge from Kit Core permanently.
+_Avoid_: Project extension, Contribution bridge
 
 ## Consumer-owned path
 
@@ -33,11 +58,45 @@ A consumer-neutral form of a proven consumer-native behavior. It preserves the
 outcome while leaving project-specific activation and policy choices with the
 consumer.
 
+## Update verification profile
+
+The consumer-selected preparation and check that decide whether a staged Kit
+update is safe to activate. Until the consumer selects a profile, verification
+uses the legacy `npm test` fallback.
+_Avoid_: Smoke test, pre-check, update verification command
+
 ## Behavioral parity
 
 Evidence that a generalized kit behavior produces the same observable workflow
 outcome as the consumer-native behavior it will replace. The consumer-native
 behavior remains authoritative until parity is proven.
+
+## Staged update candidate
+
+An isolated proposed Consumer state that must be successfully materialized,
+prepared, and verified before any Kit update is activated.
+_Avoid_: Staging copy, verification checkout
+
+## Ownership collision
+
+An installed destination whose existing identity cannot be derived safely from
+the Kit ledger. It requires an explicit classification before an update may
+change either its bytes or its ownership.
+_Avoid_: Default answer, Safe overwrite
+
+## Release intent
+
+An explicit authorization to publish one already-integrated Kit version. It is
+separate from accepting the underlying change into the canonical branch.
+_Avoid_: Version merge, Successful build
+
+## AFK wave
+
+A pre-authorized unit of delivery that proceeds from implementation through
+verification, landing, release, acceptance, and cleanup without ordinary user
+intervention. Authorization ends at the wave boundary; starting the next wave
+is a separate decision.
+_Avoid_: AFK program, Unbounded autonomy
 
 ## Planning facade
 

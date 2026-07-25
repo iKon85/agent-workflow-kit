@@ -387,15 +387,27 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.34.4
+
+- changed: `.agents/skills/kit-release/SKILL.md`
+- changed: `.claude/skills/kit-release/SKILL.md`
+- changed: `scripts/release-delta-guard.mjs`
+- changed: `scripts/release-state.mjs`
+
 ### 0.34.3
 
-- changed: `.agents/skills/kit-update/SKILL.md`
-- changed: `.agents/skills/setup-workflow/SKILL.md`
-- changed: `.agents/skills/setup-workflow/assets/agent-workflow-kit-update.yml`
-- changed: `.claude/skills/kit-update/SKILL.md`
-- changed: `.claude/skills/setup-workflow/SKILL.md`
-- changed: `.claude/skills/setup-workflow/assets/agent-workflow-kit-update.yml`
-- changed: `scripts/kit-update-pr.mjs`
+- changed: `.agents/skills/diagnose/SKILL.md`
+- changed: `.agents/skills/implement/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/setup-workflow/issue-tracker-github.md`
+- changed: `.agents/skills/setup-workflow/issue-tracker-gitlab.md`
+- changed: `.agents/skills/setup-workflow/issue-tracker-local.md`
+- changed: `.claude/skills/diagnose/SKILL.md`
+- changed: `.claude/skills/implement/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/setup-workflow/issue-tracker-github.md`
+- changed: `.claude/skills/setup-workflow/issue-tracker-gitlab.md`
+- changed: `.claude/skills/setup-workflow/issue-tracker-local.md`
 
 ### 0.34.2
 

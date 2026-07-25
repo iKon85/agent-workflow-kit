@@ -43,5 +43,6 @@ tag identity, package version, main ancestry, artifact integrity, and tests,
 then publishes to npm (`--access public --provenance`) and creates or reconciles
 the matching GitHub release. Manual dispatch requires an explicit existing tag
 and is recovery only. A red run does not prove nothing was published (#205) —
-check `npm view` and `gh release view` before reacting. Full flow:
-`CLAUDE.md` §Consumer contract → Release.
+check `npm view` and `gh release view` before reacting. `release:guard` blocks a
+bump stacked on a still-untagged previous release (#243): tag the pending
+version, never bury it. Full flow: `CLAUDE.md` §Consumer contract → Release.

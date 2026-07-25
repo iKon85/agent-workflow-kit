@@ -57,6 +57,18 @@ export function assessRelease(input) {
   if (hasDelta(payloadDrift)) {
     errors.push(`npm package payload does not match built manifest (${describe(payloadDrift)})`);
   }
+  // Merging integrates a prepared version; only its annotated tag publishes it.
+  // Nothing else notices when that tag never arrives, so the next release PR
+  // would silently stack on top and the skipped version would never exist as
+  // its own artifact. Block that here, where a human is present anyway. A
+  // repository without any matching tag is bootstrapping, not stacking.
+  const { baseTag } = input;
+  if (baseTag?.repoHasTags && !baseTag.exists && input.currentVersion !== input.baseVersion) {
+    errors.push(
+      `previous release ${input.baseVersion} is still awaiting-tag (no ${baseTag.name} tag); `
+      + `tag and publish it before preparing ${input.currentVersion}`,
+    );
+  }
   const recommendedBump = recommendBump(delta);
   const actual = bumpKind(input.baseVersion, input.currentVersion);
   const rank = { patch: 1, minor: 2, major: 3 };
@@ -71,6 +83,19 @@ export function assessRelease(input) {
 
 function gitShowJson(repoRoot, ref, path) {
   return JSON.parse(execFileSync('git', ['show', `${ref}:${path}`], { cwd: repoRoot, encoding: 'utf8' }));
+}
+
+function git(repoRoot, args) {
+  return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
+}
+
+export function resolveBaseTag({ repoRoot, baseVersion, tagPrefix = 'v' }) {
+  const name = `${tagPrefix}${baseVersion}`;
+  let exists = true;
+  try {
+    git(repoRoot, ['rev-parse', '-q', '--verify', `refs/tags/${name}`]);
+  } catch { exists = false; }
+  return { name, exists, repoHasTags: git(repoRoot, ['tag', '-l', `${tagPrefix}*`]) !== '' };
 }
 
 export async function packedPayloadManifest({ repoRoot, manifest }) {
@@ -103,8 +128,10 @@ export async function checkReleaseDelta({ repoRoot, baseRef = 'origin/main' } = 
     await buildKit({ repoRoot, distDir });
     const currentPackage = JSON.parse(await readFile(join(repoRoot, 'package.json'), 'utf8'));
     const builtManifest = JSON.parse(await readFile(join(distDir, 'agent-workflow-kit.package.json'), 'utf8'));
+    const baseVersion = gitShowJson(repoRoot, baseRef, 'package.json').version;
     return assessRelease({
-      baseVersion: gitShowJson(repoRoot, baseRef, 'package.json').version,
+      baseVersion,
+      baseTag: resolveBaseTag({ repoRoot, baseVersion }),
       currentVersion: currentPackage.version,
       baseManifest: gitShowJson(repoRoot, baseRef, 'agent-workflow-kit.package.json'),
       checkedManifest: JSON.parse(await readFile(join(repoRoot, 'agent-workflow-kit.package.json'), 'utf8')),

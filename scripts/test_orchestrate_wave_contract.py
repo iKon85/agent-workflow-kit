@@ -183,7 +183,11 @@ class OrchestrateWaveContract(unittest.TestCase):
         ):
             self.assertIn(fragment, self.skill)
 
-        self.assertLessEqual(len(self.skill.splitlines()), 360)
+        # Skeleton-size ratchet: detail belongs in references/, not here. 345 ->
+        # 360 carried the sticky Program-authorization rule; 360 -> 368 adds the
+        # per-slice pickup claim (#231). Both are phase-level responsibilities
+        # the reference files cannot carry — they gate dispatch itself.
+        self.assertLessEqual(len(self.skill.splitlines()), 368)
 
     def test_registry_ownership_distinguishes_safe_from_eager_registries(self):
         prose = " ".join(self.skill.split())

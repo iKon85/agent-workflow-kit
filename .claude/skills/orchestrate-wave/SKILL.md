@@ -198,6 +198,14 @@ Before each slice, bind **(a) inline vs delegate** and **(b) tier + effort** und
 Standing rules. Tiny mechanical work may stay inline.
 For Path A/B, create one worktree per agent from wave HEAD, using `§Setup` or
 `git worktree add <path> -b feat/<anchor>-<slug>`.
+- **Claim each slice issue at builder launch — the wave claim is not a slice
+  claim.** It guards the anchor on this machine only; the slice issue is the
+  grabbable unit a second machine or cloud agent sees. Before dispatch, skip and
+  report any slice already carrying a foreign claim (assignee or
+  `<!-- agent-claim: ... -->` comment this run did not plant) — never overwrite
+  one. Otherwise assign it to yourself and post
+  `<!-- agent-claim: branch=<slice-branch>; worktree=<builder-worktree>; date=<YYYY-MM-DD> -->`
+  so the claim names the WIP. Commands: `docs/agents/issue-tracker.md`, §Pickup claim.
 - **Build the prompt from [`references/builder-contract.md`](references/builder-contract.md)**
   — fill the slots with the slice's VERBATIM What+AC, plan decision, recon
   file:line map and consume-only lines; never paraphrase (paraphrase drift has
@@ -208,7 +216,8 @@ For Path A/B, create one worktree per agent from wave HEAD, using `§Setup` or
 
 **Done when:** every dispatched slice reported back with commit SHA + green
 package tests + green fast gate (`§Builder Commands`) — or a STOP item you resolved
-(answered / re-dispatched) before integration.
+(answered / re-dispatched) before integration · every dispatched slice issue
+carries this run's claim, every foreign-claimed slice skipped and reported.
 
 ## Phase 3 — Serial integration
 
@@ -320,6 +329,9 @@ written · merge order documented.
   `wave-active/<anchor>`, call `releaseWaveClaim` with this run's owner after
   success or abort; its owner check, not a broad `wave-active/*` pattern,
   authorizes cleanup, and a foreign marker is left untouched.
+- **Release this run's slice claims.** A landed slice's PR supersedes its claim;
+  for a pulled or abandoned slice remove the claim this run planted (unassign +
+  `claim released` comment) so it stays grabbable. Foreign ones stay untouched.
 - **Before removing any slice worktree, read its `ANNAHMEN.md`** (an assumptions
   log, gitignored at worktree-root) and propagate each build-time assumption marker
   to the sibling issue it carries. A hand-driven multi-PR / migration landing does
@@ -349,7 +361,8 @@ written · merge order documented.
 - Leave slice worktrees for the user to inspect, or note they're
   post-merge-removable.
 
-**Done when:** no orphan process · this run's claim removed · ANNAHMEN propagated ·
+**Done when:** no orphan process · this run's wave claim removed · this run's
+unlanded slice claims released · ANNAHMEN propagated ·
 anchor reconciled + leaf closes verified · anchor closure decided and documented ·
 Program-PRD propagation completed or explicitly skipped · final report lists
 landed/pulled slices as **X of Y**.

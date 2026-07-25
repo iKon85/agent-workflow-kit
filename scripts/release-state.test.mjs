@@ -170,6 +170,28 @@ test('post-merge status inspection is read-only and reports the reconstructable 
   assert.deepEqual(fixture.events, ['read npm', 'read github']);
 });
 
+test('the registry read bypasses the local packument cache, the local pack does not', async () => {
+  const calls = [];
+  const run = async (command, args) => {
+    calls.push({ command, args });
+    throw Object.assign(new Error('stubbed pack'), { stderr: 'stubbed pack' });
+  };
+  const probe = await createCommandAdapter({ repoRoot: REPO, run });
+  try {
+    await assert.rejects(() => probe.local());
+    await assert.rejects(() => probe.npm(identity));
+  } finally { await probe.dispose(); }
+
+  const [localPack, registryPack] = calls;
+  // A stale packument makes `npm pack <name>@<version>` answer ETARGET for a
+  // version that IS published — the status would then claim awaiting-npm and
+  // invite a second publish. The local pack must NOT reach for the registry.
+  assert.ok(registryPack.args.includes('--prefer-online'), 'registry read must bypass the cache');
+  assert.ok(registryPack.args.includes(`${identity.name}@${identity.version}`));
+  assert.ok(!localPack.args.includes('--prefer-online'), 'local pack must stay offline');
+  assert.ok(localPack.args.includes('.'));
+});
+
 test('local Claude overrides cannot change the packed release identity or enter the tarball', async () => {
   const fixture = await mkdtemp(join(tmpdir(), 'awkit-local-overrides-'));
   await mkdir(join(fixture, '.claude'), { recursive: true });

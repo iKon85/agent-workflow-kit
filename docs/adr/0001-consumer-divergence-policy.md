@@ -2,6 +2,10 @@
 
 Status: accepted (2026-07-18, issue #130)
 
+Partially superseded by ADR-0003: consumer ownership remains valid for genuine
+project files, but no longer applies to Kit Core or to mixed core/extension
+registries.
+
 Since the consumer-source cutover the kit is SSOT for shipped files, but
 consumers keep learning: edits made directly on a shipped file in a consumer
 silently fork it, and every subsequent `kit-update` reports a permanent
