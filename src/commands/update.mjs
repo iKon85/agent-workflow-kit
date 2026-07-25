@@ -135,7 +135,7 @@ async function previewReadinessAdoption(context) {
     candidatePreview.generated = readiness.generated;
     candidatePreview.migrations = readiness.migrations;
     candidatePreview.migrated = readiness.migrated;
-    if (!readiness.migrationConflicts.length) {
+    if (!readiness.migrationConflicts.length && !candidatePreview.conflicts.length) {
       await verifyCandidateSchema(candidateRoot, {
         pkg, preview: candidatePreview, priorReadinessManifest, nextReadinessManifest,
       });

@@ -499,6 +499,77 @@ test('an incoherent generated agent mirror blocks the protocol group before muta
   }
 });
 
+test('unresolved legacy skill conflicts are reported before candidate protocol validation', async () => {
+  const skillManifest = `${JSON.stringify({
+    schema_version: 1,
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: {
+      demo: {
+        class: 'generic',
+        publish: true,
+        surfaces: ['claude', 'codex'],
+        provenance: 'own',
+      },
+    },
+  }, null, 2)}\n`;
+  const original = '---\nname: demo\ndescription: stable\n---\n\n# Demo\n\nVersion one.\n';
+  const legacyConflict = [
+    '---',
+    'name: demo',
+    '# <!-- mirror-xform:start legacy -->',
+    'description: locally adapted',
+    '# <!-- mirror-xform:end -->',
+    '---',
+    '',
+    '# Demo',
+    '',
+    'Local legacy bytes.',
+    '',
+  ].join('\n');
+  const incoming = '---\nname: demo\ndescription: current\n---\n\n# Demo\n\nVersion two.\n';
+  const kit = await makeKit({
+    '.claude/skills/skill-manifest.json': skillManifest,
+    '.claude/skills/demo/SKILL.md': original,
+    '.agents/skills/demo/SKILL.md': original,
+  });
+  const consumer = await makeEmptyDir();
+  try {
+    const packagePath = join(kit, PACKAGE_MANIFEST_NAME);
+    const packageManifest = await readManifest(packagePath);
+    packageManifest.files.find(({ path }) => path ===
+      '.claude/skills/skill-manifest.json').kind = 'doc';
+    await writeManifest(packagePath, packageManifest);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, '.claude/skills/demo/SKILL.md'), legacyConflict);
+    await writeFile(join(consumer, '.agents/skills/demo/SKILL.md'), legacyConflict);
+    await bumpKit(kit, '.claude/skills/demo/SKILL.md', incoming);
+    await bumpKit(kit, '.agents/skills/demo/SKILL.md', incoming);
+
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+    });
+
+    assert.equal(result.state, 'conflicted');
+    assert.deepEqual(
+      result.conflicts.map(({ path }) => path).sort(),
+      ['.agents/skills/demo/SKILL.md', '.claude/skills/demo/SKILL.md'],
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(
+      await readFile(join(consumer, '.claude/skills/demo/SKILL.md'), 'utf8'),
+      legacyConflict,
+    );
+    assert.equal(
+      await readFile(join(consumer, '.agents/skills/demo/SKILL.md'), 'utf8'),
+      legacyConflict,
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('an unknown readiness reference blocks as a schema invariant before mutation', async () => {
   const initial = {
     schema_version: 1,
