@@ -40,6 +40,28 @@ test('failed update output names its transaction phase and consumer state', () =
   }), 'candidate update failed · phase: activation · consumerState: rolled-back · disk write failed');
 });
 
+test('update applies an upstream mode-only change with unchanged bytes', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await chmod(join(kit, P), 0o755);
+    const pkg = await readManifest(join(kit, PACKAGE_MANIFEST_NAME));
+    pkg.files.find(({ path }) => path === P).mode = 0o755;
+    await writeManifest(join(kit, PACKAGE_MANIFEST_NAME), pkg);
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+    });
+
+    assert.equal(result.state, 'applied', result.error);
+    assert.ok(result.updated.includes(P));
+    assert.equal((await lstat(join(consumer, P))).mode & 0o777, 0o755);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 // re-write a kit file + its package-manifest hash to simulate an upstream change
 async function bumpKit(kitRoot, path, content) {
   await writeFile(join(kitRoot, path), content);

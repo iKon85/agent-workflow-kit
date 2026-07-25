@@ -95,7 +95,9 @@ export function indexByPath(manifest, key) {
 }
 
 /** Return a manifest with one tracked entry moved to the requested ownership state. */
-export function withOrigin(manifest, path, origin, ownershipState = 'explicit-fork') {
+export function withOrigin(
+  manifest, path, origin, ownershipState = 'explicit-fork', installedSha256,
+) {
   if (![KIT_ORIGIN, CONSUMER_ORIGIN].includes(origin)) {
     throw new Error(`invalid manifest origin: ${origin}`);
   }
@@ -119,7 +121,12 @@ export function withOrigin(manifest, path, origin, ownershipState = 'explicit-fo
       if (ownershipState !== 'explicit-fork') {
         throw new Error(`invalid consumer ownership state: ${ownershipState}`);
       }
-      return { ...entry, origin, ownershipState };
+      return {
+        ...entry,
+        ...(installedSha256 ? { installedSha256 } : {}),
+        origin,
+        ownershipState,
+      };
     }),
   };
 }

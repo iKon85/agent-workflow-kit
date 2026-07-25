@@ -1,4 +1,4 @@
-import { access, readFile, rm } from 'node:fs/promises';
+import { access, lstat, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { sha256File } from './hash.mjs';
 import { lineDiff, writeAtomic } from './atomicWrite.mjs';
@@ -141,7 +141,9 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
       continue;
     }
     const userEdited = current !== prior.installedSha256;
-    const upstreamChanged = file.sha256 !== prior.installedSha256;
+    const currentMode = (await lstat(dest)).mode & 0o777;
+    const upstreamChanged = file.sha256 !== prior.installedSha256
+      || currentMode !== file.mode;
     if (!userEdited && upstreamChanged) {
       if (!dryRun) await writeAtomic(dest, await readFile(join(kitRoot, file.path)), file.mode);
       nextInstalled.push(entry(file, file.sha256));

@@ -61,6 +61,25 @@ test('diff --owned reports a text file changed upstream with its line diff', asy
   }
 });
 
+test('owning an already edited path records the Consumer fork bytes as its ledger identity', async () => {
+  const kit = await makeKit({ [OWNED]: 'kit v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, OWNED), 'consumer fork\n');
+
+    await setOwnership({ consumerRoot: consumer, path: OWNED, origin: 'consumer' });
+
+    const manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
+    const owned = manifest.installed.find(({ path }) => path === OWNED);
+    assert.equal(owned.origin, 'consumer');
+    assert.equal(owned.ownershipState, 'explicit-fork');
+    assert.equal(owned.installedSha256, sha256('consumer fork\n'));
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('diff --owned reports when an owned path was removed upstream', async () => {
   const fixture = await ownedFixture();
   try {

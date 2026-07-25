@@ -54,6 +54,10 @@ release contain the same artifact.
    data, infer an external fact, or manufacture `pending`/`not-applicable` to
    make a capability appear ready.
 
+   File identity includes the package-declared mode as well as bytes. A
+   mode-only Core delta is an update and must be applied transactionally; it
+   must not survive preview as `unchanged` only to fail candidate verification.
+
    Readiness-schema adoption also keeps the Claude and Codex instruction
    surfaces compatible. When exactly one applicable instruction surface has a
    non-empty `## Prod` section and another has no such section, the staged
@@ -112,7 +116,9 @@ release contain the same artifact.
    request, but the latter still needs a sanitized exact preview and separate
    explicit approval before any remote command. For a project-specific edit, recommend
    `npx @ikon85/agent-workflow-kit@latest own <path> --as=explicit-fork` so
-   future updates treat that path as an independent fork. A generic experiment
+   future updates treat that path as an independent fork. `own` snapshots the
+   path's current local bytes as the explicit-fork ledger identity, including
+   when it follows an already-detected local edit. A generic experiment
    retained only until it returns upstream uses
    `npx @ikon85/agent-workflow-kit@latest contribute start <path>`. Prepare its
    bounded local artifact, when the route report permits it, with `contribute prepare <path>
