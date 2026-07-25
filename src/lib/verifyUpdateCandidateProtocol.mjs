@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CONSUMER_INSTALL_ROLE, CONSUMER_ORIGIN, filesForInstallRole } from './manifest.mjs';
 import { validateCandidateManifestPath } from './updateCandidate.mjs';
+import { readComposedSkillRegistry } from './skillRegistry.mjs';
 
 const READINESS_MANIFEST_PATH = '.claude/skills/skill-manifest.json';
 const SURFACE_ROOT = {
@@ -18,6 +19,7 @@ export async function verifyCandidateProtocol(candidateRoot, pkg, installed) {
     throw new Error('candidate invariant schema: readiness manifest is invalid JSON');
   }
   validateReadinessManifest(manifest);
+  await readComposedSkillRegistry(candidateRoot, manifest);
   validateSkillArtifactReferences(manifest, pkg);
   for (const [name, declaration] of Object.entries(manifest.skills)) {
     if (!declaration.publish

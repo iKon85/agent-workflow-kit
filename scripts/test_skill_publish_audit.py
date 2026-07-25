@@ -94,7 +94,7 @@ BARE_PRIVATE = [
 ]
 PARENT_REF = re.compile(r"\.\./")
 SHIPPED_SRC_IMPORT = re.compile(
-    r"^\s*import\b.*\bfrom\s+['\"]\.\./src/lib/[a-z0-9-]+\.mjs['\"];\s*$"
+    r"^\s*import\b.*\bfrom\s+['\"]\.\./src/lib/[A-Za-z0-9-]+\.mjs['\"];\s*$"
 )
 LONG_HEX = re.compile(r"\b[0-9a-f]{40,}\b")
 GH_TOKEN = re.compile(r"\b(?:ghp|gho|ghu|ghs|github_pat)_[A-Za-z0-9_]{20,}")
@@ -314,6 +314,14 @@ class Exemptions(unittest.TestCase):
         (p / "loc_offender_core.py").write_text(
             'if p == ".." or p.startswith("../") or "/../" in p or p.endswith("/.."):\n'
             '    return None\n',
+            encoding="utf-8")
+        self.assertEqual(audit_dir(self.dir), [])
+
+    def test_top_level_script_may_import_camel_case_shipped_deep_module(self):
+        p = self.dir / "scripts"
+        p.mkdir()
+        (p / "readiness.mjs").write_text(
+            "import { load } from '../src/lib/skillRegistry.mjs';\n",
             encoding="utf-8")
         self.assertEqual(audit_dir(self.dir), [])
 

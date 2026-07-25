@@ -9,9 +9,13 @@ import {
   filesForInstallRole, CONSUMER_INSTALL_ROLE,
   indexByPath,
   readReadinessContract,
+  READINESS_MANIFEST_PATH,
   CONSUMER_ORIGIN,
   PACKAGE_MANIFEST_NAME, CONSUMER_MANIFEST_NAME,
 } from '../lib/manifest.mjs';
+import {
+  PROJECT_SKILL_REGISTRY_PATH, emptyProjectSkillRegistry,
+} from '../lib/skillRegistry.mjs';
 import {
   inspectRoutingProfile, reconcileRoutingProfile, setupRoutingProfile,
 } from '../lib/routingProfile.mjs';
@@ -69,6 +73,26 @@ export async function init({ kitRoot, consumerRoot, force = false, routingProfil
       installRole: CONSUMER_INSTALL_ROLE,
     });
     result.copied.push(f.path);
+  }
+
+  if (packageIdx.has(READINESS_MANIFEST_PATH)
+      && !installed.some(({ path }) => path === PROJECT_SKILL_REGISTRY_PATH)) {
+    const projectRegistryPath = join(consumerRoot, PROJECT_SKILL_REGISTRY_PATH);
+    if (!await exists(projectRegistryPath)) {
+      const core = await readManifest(join(kitRoot, READINESS_MANIFEST_PATH));
+      await writeAtomic(
+        projectRegistryPath,
+        `${JSON.stringify(emptyProjectSkillRegistry(core), null, 2)}\n`,
+      );
+      result.seeded.push(PROJECT_SKILL_REGISTRY_PATH);
+    }
+    installed.push({
+      path: PROJECT_SKILL_REGISTRY_PATH,
+      kind: 'doc',
+      installedSha256: await sha256File(projectRegistryPath),
+      origin: CONSUMER_ORIGIN,
+      installRole: CONSUMER_INSTALL_ROLE,
+    });
   }
 
   await writeManifest(

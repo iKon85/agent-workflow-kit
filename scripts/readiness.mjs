@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { firstLineState } from '../src/lib/sentinel.mjs';
 import { CONSUMER_MANIFEST_NAME, readManifest, writeManifest } from '../src/lib/manifest.mjs';
+import { readComposedSkillRegistry } from '../src/lib/skillRegistry.mjs';
 
 const SOURCE_MANIFEST = '.claude/skills/skill-manifest.json';
 const DECISIONS = new Set(['pending', 'not-applicable']);
@@ -176,7 +177,7 @@ export async function evaluateCapability({ root, capability, decision }) {
 async function loadManifest(root) {
   const body = await readText(root, SOURCE_MANIFEST);
   if (body === null) throw new Error(`readiness manifest not found: ${SOURCE_MANIFEST}`);
-  return JSON.parse(body);
+  return readComposedSkillRegistry(root, JSON.parse(body));
 }
 
 export async function checkSkill({ root, skill, manifest }) {

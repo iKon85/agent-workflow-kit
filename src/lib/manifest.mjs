@@ -18,6 +18,7 @@ export const KIT_ORIGIN = 'kit';
 export const CONSUMER_ORIGIN = 'consumer';
 export const READINESS_CONTRACT_VERSION = 1;
 export const READINESS_MANIFEST_PATH = '.claude/skills/skill-manifest.json';
+export { PROJECT_SKILL_REGISTRY_PATH } from './skillRegistry.mjs';
 
 /**
  * Parse a JSON manifest, or null if the file does not exist. A corrupt file

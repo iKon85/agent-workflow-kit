@@ -207,6 +207,10 @@ function verifyLedgerMetadata(ledger, context) {
 }
 
 function expectedOrigin(path, priorInstalled, preview) {
+  const transferredToCore = (preview.migrations ?? []).some(
+    (migration) => migration.path === path && migration.ownership === 'kit-core',
+  );
+  if (transferredToCore) return KIT_ORIGIN;
   const keptOwned = (preview.collisionResolutions ?? []).some(
     (resolution) => resolution.path === path && resolution.outcome === 'keep-as-owned',
   );

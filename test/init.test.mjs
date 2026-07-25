@@ -7,6 +7,7 @@ import {
   readManifest, writeManifest, CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME,
 } from '../src/lib/manifest.mjs';
 import { firstLineState } from '../src/lib/sentinel.mjs';
+import { PROJECT_SKILL_REGISTRY_PATH } from '../src/lib/skillRegistry.mjs';
 import { makeKit, makeEmptyDir, cleanup } from './helpers.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
@@ -30,6 +31,55 @@ test('init copies kit files, writes the consumer manifest, seeds doc stubs', asy
       'stub'
     );
     assert.equal(await exists(join(consumer, 'docs/agents/board-sync.md')), false);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('init establishes and preserves a consumer-owned Project skill registry beside Kit Core', async () => {
+  const core = `${JSON.stringify({
+    schema_version: 1,
+    readiness: { contractVersion: 1, capabilities: {} },
+    skills: {},
+  }, null, 2)}\n`;
+  const kit = await makeKit({ '.claude/skills/skill-manifest.json': core });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const projectRegistry = {
+      schemaVersion: 1,
+      coreSchemaVersion: 1,
+      skills: {},
+      annotations: {},
+    };
+    assert.deepEqual(
+      JSON.parse(await readFile(join(consumer, PROJECT_SKILL_REGISTRY_PATH), 'utf8')),
+      projectRegistry,
+    );
+    let manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
+    assert.equal(
+      manifest.installed.find(({ path }) => path === PROJECT_SKILL_REGISTRY_PATH).origin,
+      'consumer',
+    );
+
+    projectRegistry.skills.local = {
+      class: 'project-private',
+      publish: false,
+      surfaces: ['claude'],
+    };
+    const localBytes = `${JSON.stringify(projectRegistry, null, 2)}\n`;
+    await writeFile(join(consumer, PROJECT_SKILL_REGISTRY_PATH), localBytes);
+    await init({ kitRoot: kit, consumerRoot: consumer, force: true });
+
+    assert.equal(
+      await readFile(join(consumer, PROJECT_SKILL_REGISTRY_PATH), 'utf8'),
+      localBytes,
+    );
+    manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
+    assert.equal(
+      manifest.installed.find(({ path }) => path === PROJECT_SKILL_REGISTRY_PATH).origin,
+      'consumer',
+    );
   } finally {
     await cleanup(kit, consumer);
   }
@@ -158,6 +208,7 @@ test('init and re-init preserve manifest extensions and establish readiness cont
   const kit = await makeKit({
     '.claude/skills/to-prd/SKILL.md': '# to-prd\n',
     '.claude/skills/skill-manifest.json': JSON.stringify({
+      schema_version: 1,
       readiness: {
         contractVersion: 1,
         capabilities: { prodTarget: {}, managedBoard: { allowNotApplicable: true } },

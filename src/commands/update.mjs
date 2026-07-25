@@ -129,13 +129,19 @@ async function previewReadinessAdoption(context) {
       kitRoot, consumerRoot: candidateRoot,
       decide: (action) => action === 'collision' ? 'keep-as-owned' : false,
     });
-    await verifyCandidateSchema(candidateRoot, {
-      pkg, preview: candidatePreview, priorReadinessManifest, nextReadinessManifest,
-    });
-    return await adoptReadinessCandidate({
-      candidateRoot, consumerRoot, priorManifest: priorReadinessManifest,
+    const readiness = await adoptReadinessCandidate({
+      candidateRoot, consumerRoot, kitRoot, priorManifest: priorReadinessManifest,
       nextManifest: nextReadinessManifest,
     });
+    candidatePreview.generated = readiness.generated;
+    candidatePreview.migrations = readiness.migrations;
+    candidatePreview.migrated = readiness.migrated;
+    if (!readiness.migrationConflicts.length) {
+      await verifyCandidateSchema(candidateRoot, {
+        pkg, preview: candidatePreview, priorReadinessManifest, nextReadinessManifest,
+      });
+    }
+    return readiness;
   } finally {
     await rm(candidateRoot, { recursive: true, force: true });
   }
@@ -192,9 +198,8 @@ async function applyTransaction(context) {
       priorReadinessManifest: structuredClone(priorReadinessManifest),
       nextReadinessManifest: structuredClone(nextReadinessManifest),
     };
-    await verifyCandidateSchema(candidateRoot, canonicalContext);
     const readiness = await adoptReadinessCandidate({
-      candidateRoot, consumerRoot, priorManifest: priorReadinessManifest,
+      candidateRoot, consumerRoot, kitRoot, priorManifest: priorReadinessManifest,
       nextManifest: nextReadinessManifest,
     });
     preview.generated = readiness.generated;
@@ -209,6 +214,7 @@ async function applyTransaction(context) {
       throw new Error(`monotonic compatibility would block existing skill core: ${readiness.incompatible.join(', ')}`);
     }
     canonicalContext.preview = structuredClone(preview);
+    await verifyCandidateSchema(candidateRoot, canonicalContext);
     await verifyUpdateCandidate(candidateRoot, canonicalContext);
     if (verify !== verifyUpdateCandidate) {
       const extensionContext = structuredClone(canonicalContext);

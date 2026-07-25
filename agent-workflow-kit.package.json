@@ -2647,7 +2647,7 @@
       "path": "scripts/readiness.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "9e7a9c6882e372f38383fe92d98ff2f818bae0be61a62301b7e9a6a2842dd21b",
+      "sha256": "26514c49316aa29fdeeb74fca0655cd7aa801f37e3c81cbd2551bb158138ebe8",
       "mode": 493,
       "origin": "kit"
     },
@@ -2855,7 +2855,7 @@
       "path": "src/lib/manifest.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "171eba2662054379c40c1c629110fa8e34353de72e136004b861b2ac6a4edc13",
+      "sha256": "458eab61ef5b40a77a5ea33f10d8517d097f6b9e9f82fc63fa76caf21ebbcdbe",
       "mode": 420,
       "origin": "kit"
     },
@@ -3032,6 +3032,14 @@
       "kind": "script",
       "installRole": "consumer",
       "sha256": "f99d28d2053d55222650d2ca426509d3f56eec5ef70709bbf8c4a278bf80024e",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/skillRegistry.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "4a3a8ce53523655778278100b373d5caff50a887e1aa3e874145a27aa9c92a1b",
       "mode": 420,
       "origin": "kit"
     },
