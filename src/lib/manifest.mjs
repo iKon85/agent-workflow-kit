@@ -95,7 +95,7 @@ export function indexByPath(manifest, key) {
 }
 
 /** Return a manifest with one tracked entry moved to the requested ownership state. */
-export function withOrigin(manifest, path, origin) {
+export function withOrigin(manifest, path, origin, ownershipState = 'explicit-fork') {
   if (![KIT_ORIGIN, CONSUMER_ORIGIN].includes(origin)) {
     throw new Error(`invalid manifest origin: ${origin}`);
   }
@@ -106,6 +106,16 @@ export function withOrigin(manifest, path, origin) {
   }
   return {
     ...manifest,
-    installed: manifest.installed.map((entry) => entry.path === path ? { ...entry, origin } : entry),
+    installed: manifest.installed.map((entry) => {
+      if (entry.path !== path) return entry;
+      if (origin === KIT_ORIGIN) {
+        const { ownershipState: _removed, ...core } = entry;
+        return { ...core, origin };
+      }
+      if (!['contribution-bridge', 'explicit-fork'].includes(ownershipState)) {
+        throw new Error(`invalid consumer ownership state: ${ownershipState}`);
+      }
+      return { ...entry, origin, ownershipState };
+    }),
   };
 }

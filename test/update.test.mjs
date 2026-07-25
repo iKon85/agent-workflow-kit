@@ -949,7 +949,11 @@ test('a legacy mixed skill registry migrates to current Kit Core plus a durable 
     ledger.installed = ledger.installed.filter(
       ({ path }) => path !== PROJECT_SKILL_REGISTRY,
     );
-    ledger.installed.find(({ path }) => path === READINESS_MANIFEST).origin = 'consumer';
+    const legacyCoreEntry = ledger.installed.find(
+      ({ path }) => path === READINESS_MANIFEST,
+    );
+    legacyCoreEntry.origin = 'consumer';
+    legacyCoreEntry.ownershipState = 'explicit-fork';
     await writeManifest(ledgerPath, ledger);
 
     await setKitReadiness(kit, nextCore);
@@ -980,6 +984,10 @@ test('a legacy mixed skill registry migrates to current Kit Core plus a durable 
     assert.equal(
       migratedLedger.installed.find(({ path }) => path === READINESS_MANIFEST).origin,
       'kit',
+    );
+    assert.equal(
+      migratedLedger.installed.find(({ path }) => path === READINESS_MANIFEST).ownershipState,
+      undefined,
     );
     assert.equal(
       migratedLedger.installed.find(({ path }) => path === PROJECT_SKILL_REGISTRY).origin,

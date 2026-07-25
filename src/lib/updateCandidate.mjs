@@ -469,11 +469,11 @@ async function adoptProjectSkillRegistry({
   await writeAtomic(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
   const coreHash = await sha256File(corePath);
   const registryHash = await sha256File(registryPath);
-  const installed = manifest.installed.map((entry) => (
-    entry.path === READINESS_MANIFEST_PATH
-      ? { ...entry, installedSha256: coreHash, origin: 'kit' }
-      : entry
-  ));
+  const installed = manifest.installed.map((entry) => {
+    if (entry.path !== READINESS_MANIFEST_PATH) return entry;
+    const { ownershipState: _legacyLifecycle, ...coreEntry } = entry;
+    return { ...coreEntry, installedSha256: coreHash, origin: 'kit' };
+  });
   if (!installed.some(({ path }) => path === PROJECT_SKILL_REGISTRY_PATH)) {
     installed.push({
       path: PROJECT_SKILL_REGISTRY_PATH,

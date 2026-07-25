@@ -80,6 +80,8 @@ export const HELPER_FILES = [
   { path: 'src/lib/capabilityMatrix.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/skillRegistry.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/projectSkillExtension.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/ownershipClassifier.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/updateDecisions.mjs', kind: 'script', mode: 0o644 },
   // Provider-neutral routing runtime: one Evidence catalog, Access graph,
   // Routing policy, resolver, spawn guard, receipt v2, and surface attestations.
   // These modules form one consumer unit; omitting one leaves shipped dispatch

@@ -8,6 +8,7 @@ import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
 import { setOwnership } from './commands/own.mjs';
 import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
+import { nonInteractiveUpdateDecision } from './lib/updateDecisions.mjs';
 import { currentAgentSurface } from './lib/agentSurfaceRegistry.mjs';
 import { createCommandAdapter } from '../scripts/release-state.mjs';
 import { installedIdentityFromDir } from '../scripts/release-parity.mjs';
@@ -25,6 +26,7 @@ const cmd = args[0];
 const force = args.includes('--force');
 const yes = args.includes('--yes') || args.includes('-y');
 const owned = args.includes('--owned');
+const ownershipState = args.find((arg) => arg.startsWith('--as='))?.slice('--as='.length);
 
 p.intro('agent-workflow-kit');
 
@@ -49,7 +51,9 @@ try {
     printPlan(r);
     p.outro('Dry run — nothing written. Run `update` to apply.');
   } else if (cmd === 'update') {
-    const decide = (action, path) => decideUpdate(action, path, yes);
+    const decide = (action, path, classification) => (
+      decideUpdate(action, path, yes, classification)
+    );
     const releaseIdentities = await readUpdateRelease();
     const r = await update({
       kitRoot: KIT_ROOT,
@@ -65,7 +69,10 @@ try {
     if (r.state === 'failed') throw new Error(renderUpdateFailure(r));
     if (r.state === 'conflicted') {
       p.note(r.report.recommendation, 'recommendation');
-      p.outro(`not applied · conflicts ${r.conflicts.length}`);
+      p.outro(
+        `not applied · conflicts ${r.conflicts.length} · ` +
+        `ownership collisions ${r.collisions.length}`,
+      );
       process.exitCode = 2;
     } else if (r.status === 'current') {
       p.outro(`aktuell · unchanged ${r.unchanged.length} · local modifications ${r.userModified.length}`);
@@ -78,12 +85,19 @@ try {
     const r = await uninstall({ consumerRoot });
     p.outro(`removed ${r.removed.length} · retained (edited/referenced) ${r.retained.length}`);
   } else if (cmd === 'own' || cmd === 'disown') {
-    if (!args[1]) throw new Error(`Usage: agent-workflow-kit ${cmd} <path>`);
+    if (!args[1]) {
+      throw new Error(
+        `Usage: agent-workflow-kit ${cmd} <path>` +
+        (cmd === 'own' ? ' [--as=contribution-bridge|explicit-fork]' : ''),
+      );
+    }
     const origin = cmd === 'own' ? CONSUMER_ORIGIN : KIT_ORIGIN;
-    await setOwnership({ consumerRoot, path: args[1], origin });
-    p.outro(`${args[1]} is now ${origin}-owned`);
+    await setOwnership({ consumerRoot, path: args[1], origin, ownershipState });
+    p.outro(`${args[1]} is now ${origin}-owned` +
+      (origin === CONSUMER_ORIGIN ? ` (${ownershipState ?? 'explicit-fork'})` : ''));
   } else {
-    p.note('Usage: agent-workflow-kit <init|update|diff|uninstall|own|disown> [<path>] [--force] [--yes] [--owned]');
+    p.note('Usage: agent-workflow-kit <init|update|diff|uninstall|own|disown> ' +
+      '[<path>] [--force] [--yes] [--owned] [--as=contribution-bridge|explicit-fork]');
     p.outro('');
   }
 } catch (err) {
@@ -119,18 +133,21 @@ function printPlan(r) {
   p.note(lines.join('\n') || 'no changes', 'plan');
 }
 
-async function decideUpdate(action, path, yes) {
+async function decideUpdate(action, path, yes, classification) {
+  if (yes) return nonInteractiveUpdateDecision(action);
   if (action === 'delete') {
-    if (yes) return true;
     return (await p.confirm({ message: `Upstream removed ${path} — delete it locally?` })) === true;
   }
   if (action === 'collision') {
-    if (yes) return 'replace';
     const choice = await p.select({
-      message: `${path} already exists but is not tracked. Choose its ownership:`,
+      message: `${path} exists without ownership evidence. Choose an explicit route:`,
       options: [
-        { value: 'keep-as-owned', label: 'Keep existing file as consumer-owned' },
-        { value: 'replace', label: 'Replace with kit file' },
+        ...(classification?.state === 'project-extension'
+          ? [{ value: 'project-extension', label: 'Keep as declared Project extension' }]
+          : []),
+        { value: 'contribution-bridge', label: 'Keep as temporary contribution bridge' },
+        { value: 'explicit-fork', label: 'Keep as explicit fork' },
+        { value: 'replace', label: 'Replace explicitly with Kit Core' },
       ],
     });
     if (p.isCancel(choice)) throw new Error(`collision decision cancelled for ${path}`);
