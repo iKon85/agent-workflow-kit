@@ -98,13 +98,16 @@ regenerated manifest + release-note delta, then guard + suite + `npm pack
 `reconcileRelease` is idempotent, so a re-run repairs a partial release instead
 of duplicating one.
 
-Normally the user confirms the exact Semver used to prepare metadata. An
-explicit AFK end-to-end mandate that includes release preparation may instead
-accept the release tool's deterministic recommendation for that reversible
-metadata/PR preparation. Neither route authorizes publication. After merge,
-report the exact integrated commit as `awaiting-tag` and obtain a separate
-explicit confirmation before creating and pushing its annotated version tag.
-Treat that tag push as the irreversible public action.
+**One human gate: the Semver.** The user confirms the exact version used to
+prepare metadata; an explicit AFK end-to-end mandate covering release
+preparation may instead accept the tool's deterministic recommendation. Either
+way, **that confirmed Semver authorizes the whole release — metadata, merge,
+tag and publish.** After merge the agent verifies the version on canonical
+`main`, creates and pushes the annotated tag, and monitors to `released`,
+without asking again; a narrower build-only request never becomes this
+authority. Tagging stays the irreversible public action — the protection is the
+gates that run regardless of who is watching (guard, staleness, suite, pack,
+plus the workflow's own tag/version/ancestry validation), not a prompt (#257).
 
 **An integrated version never stacks under the next one.** `release:guard`
 blocks a PR that bumps the version while the base version still carries no
@@ -279,7 +282,15 @@ the matching GitHub release. Manual dispatch requires an explicit existing tag
 and is recovery only. A red run does not prove nothing was published (#205) —
 check `npm view` and `gh release view` before reacting. `release:guard` blocks a
 bump stacked on a still-untagged previous release (#243): tag the pending
-version, never bury it. Full flow: `CLAUDE.md` §Consumer contract → Release.
+version, never bury it.
+
+**One human gate: the Semver.** The confirmed Semver authorizes the whole
+release — metadata, merge, tag and publish. After merge the agent verifies the
+version on canonical `main`, tags, and monitors to `released` without asking
+again; a narrower build-only request never becomes this authority. Tagging
+stays irreversible, and the protection is the gates that run regardless of who
+is watching, not a prompt (#257). Full flow: `CLAUDE.md` §Consumer contract →
+Release.
 
 ## Token hygiene
 

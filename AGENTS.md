@@ -45,4 +45,12 @@ the matching GitHub release. Manual dispatch requires an explicit existing tag
 and is recovery only. A red run does not prove nothing was published (#205) —
 check `npm view` and `gh release view` before reacting. `release:guard` blocks a
 bump stacked on a still-untagged previous release (#243): tag the pending
-version, never bury it. Full flow: `CLAUDE.md` §Consumer contract → Release.
+version, never bury it.
+
+**One human gate: the Semver.** The confirmed Semver authorizes the whole
+release — metadata, merge, tag and publish. After merge the agent verifies the
+version on canonical `main`, tags, and monitors to `released` without asking
+again; a narrower build-only request never becomes this authority. Tagging
+stays irreversible, and the protection is the gates that run regardless of who
+is watching, not a prompt (#257). Full flow: `CLAUDE.md` §Consumer contract →
+Release.
