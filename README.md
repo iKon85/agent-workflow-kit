@@ -445,6 +445,21 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.36.0
+
+- added: `.agents/skills/setup-workflow/contribution-routing.md`
+- added: `.claude/skills/setup-workflow/contribution-routing.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/retro/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.claude/hooks/kit-origin-edit-hint.py`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/retro/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `scripts/find-by-marker.py`
+- changed: `src/lib/manifest.mjs`
+- changed: `src/lib/ownershipClassifier.mjs`
+
 ### 0.35.0
 
 - added: `scripts/project-skill-extension.mjs`
