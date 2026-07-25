@@ -95,6 +95,14 @@ BEHAVIORAL_PARITY = {
         "Program-PRD",
         "program sync",
     ),
+    "program authorization continuity": (
+        "explicit whole-Program mandate",
+        "all planned Waves",
+        "Do not re-ask at each Wave boundary",
+        "gated action",
+        "meaningful authorized safe work",
+        "must not be marked `blocked`",
+    ),
 }
 
 
@@ -175,7 +183,7 @@ class OrchestrateWaveContract(unittest.TestCase):
         ):
             self.assertIn(fragment, self.skill)
 
-        self.assertLessEqual(len(self.skill.splitlines()), 345)
+        self.assertLessEqual(len(self.skill.splitlines()), 360)
 
     def test_registry_ownership_distinguishes_safe_from_eager_registries(self):
         prose = " ".join(self.skill.split())
