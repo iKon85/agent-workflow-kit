@@ -3,6 +3,14 @@ name: git-worktree-recover
 description: "Recovery skill for git branch mix-ups — a commit landed on the wrong branch, the branch switched unexpectedly, or work appears lost. Uses git reflog to find the misplaced commit, moves it to the right branch (git branch -f), optionally resets the wrong branch, and sets up a clean worktree. Triggers: commit on the wrong branch, branch switched on its own, this commit doesn't belong here, my work is gone, I committed to main by accident."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill git-worktree-recover --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # git-worktree-recover
 
 Recovery skill for branch mix-ups. When two processes share one checkout's global

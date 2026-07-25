@@ -3,6 +3,14 @@ name: codex-build
 description: Hand a frozen spec (PLAN.md or any locked plan) to OpenAI Codex to IMPLEMENT inside a bounded workspace-write sandbox, while Claude stays the spec-writer and reviewer — the exact role-flip of /codex-review. Codex builds from the spec against a declared allowed-write set, Claude reads the full diff like a contributor PR, runs the proof test, and iterates fixes via the SAME Codex session up to MAX_FIX_ROUNDS before taking over. Human approves the diff before any commit. Use when the user says "/codex-build", "have codex build this", "codex implement the plan", "hand the plan to codex", "delegate the build to codex", or right after a plan survives /grill-me-codex, /grill-with-docs-codex, or /codex-review and they choose Codex for implementation (Act 3). Also for standalone delegation — refactors, mechanical migrations, bug fixes with a known repro, test/coverage writing — anything that reads as a work order. NOT for tiny edits (~<20 lines — delegation overhead loses), NOT for design work (if writing the spec forces decisions, that's /grill-me-codex first), NOT for reviewing existing code (/codex:review), and NOT for anything needing Claude-session tools (MCP, secrets, browser).
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill codex-build --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Codex-Build — Codex Types, Claude Verifies
 
 > **Local adaptation note:** adapted from Chase AI's `codex-build` (which itself adapts Peter Steinberger's `codex-first` pattern). Upstream runs Codex with `--yolo` / full access; this fork deliberately does NOT — Codex writes inside a **workspace-write sandbox** against a **declared allowed-write set**, never `danger-full-access`, and the approval policy is never weakened. See `THIRD-PARTY-NOTICES.md`.

@@ -3,6 +3,14 @@ name: setup-pre-commit
 description: Set up a native, zero-dependency git pre-commit hook (via core.hooksPath) that runs your project's type checks, linting, tests, or formatting before each commit. Use when the user wants to add pre-commit hooks, gate commits on checks, or wire commit-time typecheck/lint/test/format — no Husky or Node deps required.
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill setup-pre-commit --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Setup Pre-Commit Hooks (native git, zero-dep)
 
 ## What This Sets Up

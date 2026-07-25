@@ -356,6 +356,22 @@ concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 `--force` (overwrite pre-existing untracked files on `init`), `--yes` / `-y`
 (accept non-interactive update decisions).
 
+### Project extensions versus forks
+
+Every shipped skill probes the optional consumer-owned
+`docs/agents/skills/<skill>.md` after loading its canonical Core. New
+extensions declare
+`<!-- agent-workflow-kit: project-extension/v1; skill=<skill> -->`; existing
+non-empty unmarked files remain supported as legacy v0. Claude and Codex use
+the same extension path and fail closed on an unknown schema or mismatched
+identity.
+
+Use an extension for Project-specific language, commands, policy, or
+capability data. It augments Core and survives setup and updates byte-for-byte;
+it cannot weaken Core gates or replace executable semantics. If you need to
+change parsing, migration, evaluation, or other executable behavior, create an
+Explicit fork with its own identity and update line instead.
+
 ## Upgrade notes
 
 ### 0.33.0 — capability-gated orchestration

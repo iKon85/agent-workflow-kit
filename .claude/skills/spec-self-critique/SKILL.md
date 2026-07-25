@@ -3,6 +3,14 @@ name: spec-self-critique
 description: "Use AFTER writing or editing a spec (a `SPEC.md`/`PLAN.md` or any spec/design doc), BEFORE asking the user to review — runs a 12-point structural Self-Critique checklist, fixes issues inline, and emits a visible summary. Enriches each check from a project layer if one is present. Triggers right after a spec has been written. NOT for reviewing finished code/diffs (code-review) — this pass runs on the spec text itself."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill spec-self-critique --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Spec Self-Critique
 
 A portable, structural self-review pass over a freshly written spec/plan. The **generic 12-point skeleton** below ships as-is; a **project layer** (if present) enriches each point with project-specific incidents, grep patterns, conventions, and extra sub-checks.

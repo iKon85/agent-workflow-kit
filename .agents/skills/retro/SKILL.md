@@ -4,6 +4,14 @@ disable-model-invocation: false
 "description": "Use when the user explicitly asks for a retro after a session with PR-activity. Analyzes session friction and proposes concrete config mutations (Memory/Skill/CLAUDE.md/Hook) with per-patch approval. No file is written — findings live in the mutated config."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill retro --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Retro — In-Session Deep-Dive
 
 Trigger: user types `/retro` (optionally with a PR/Issue number, e.g. `/retro 274`).

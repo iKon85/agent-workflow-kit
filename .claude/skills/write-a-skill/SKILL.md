@@ -3,6 +3,14 @@ name: write-a-skill
 description: Create, write, edit, and improve agent skills — the vocabulary and principles that make a skill predictable (invocation, information hierarchy, progressive disclosure, leading words, pruning, failure modes). Use when the user wants to create, write, edit, refactor, or improve a skill.
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill write-a-skill --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Writing Skills
 
 > **Skill identity (don't get confused):** the folder `write-a-skill` + invocation `/write-a-skill` map to Matt Pocock's upstream skill **`writing-great-skills`**. Upstream replaced the old process-/template-based `write-a-skill` with this vocabulary/principles reference and switched it to **user-invoked** (`disable-model-invocation: true`). We keep the folder name `write-a-skill` (invocation stability) **and** deliberately keep it **model-invoked** (auto-fires on "create/write a skill" + `/write-a-skill`, as referenced in CLAUDE.md `## Workflow`). Content = upstream `writing-great-skills` @ `7a83a3a`, locally adapted. Provenance/rename ledger: `docs/agents/provenance.md` (§Re-Sync-Log), at the project root.

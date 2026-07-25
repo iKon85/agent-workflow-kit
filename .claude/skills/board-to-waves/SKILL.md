@@ -17,6 +17,14 @@ description: >-
   code-reading.
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill board-to-waves --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # board-to-waves
 
 **Survey the board → cluster open issues by theme → anchor stub issues.** Systematizes how Welle F came about: first look at what's open and what fits together, then form thematic waves. Result lands durably as an anchor issue on the board (GitHub = SSOT), not as a chat list.

@@ -3,6 +3,14 @@ name: codex-adapter-sync
 description: "Use to audit and update the Codex adapter after changes to CLAUDE.md, package CLAUDE.md files, .claude/skills, .claude/agents, or Codex setup. Checks AGENTS.md, .agents/skills, .codex/config.toml, .codex/agents, and .gitignore for drift."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill codex-adapter-sync --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Codex Adapter Sync
 
 Use this skill when the user asks for a Codex adapter sync, Codex drift check,

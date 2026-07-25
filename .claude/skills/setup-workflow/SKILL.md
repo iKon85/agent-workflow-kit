@@ -4,6 +4,14 @@ description: "Scaffolds the project layer the portable workflow skills assume �
 disable-model-invocation: true
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill setup-workflow --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Setup Workflow
 
 Scaffold the **project layer** the portable workflow skills (`to-prd`, `to-issues`, `triage`, `spec-self-critique`, `retro`, `wrapup`, …) read at runtime. The generic skills ship the *how*; this skill writes the project-specific *what* into the consumer repo, where `retro`/`wrapup` then grow it over time.
@@ -47,6 +55,28 @@ Every project-layer file this skill (or `npx init`) creates begins with **one se
   - File exists but empty/whitespace, no sentinel → treat as fillable.
 - **CLAUDE.md / AGENTS.md carry no sentinel** (they are not ours) → reconcile **per section** via the block headers `## Workflow` / `## Agent skills` / `## Prod`: add a missing block, never overwrite an existing one or surrounding user content.
 - **Never overwrite filled content.** A re-run only fills what is missing/stub. End with a report: `<file>: created · filled · skipped (already filled / legacy / not-applicable)`.
+
+## Universal Project skill extensions
+
+Every shipped skill can consume an additive Project extension at
+`docs/agents/skills/<skill>.md`. A newly created extension starts with this
+identity and schema marker (after the optional setup-workflow sentinel):
+
+```md
+<!-- agent-workflow-kit: project-extension/v1; skill=<skill> -->
+```
+
+The marker's `<skill>` must match the filename and a canonical or locally
+registered skill identity. Existing non-empty files without a marker remain
+supported as legacy v0 and are never rewritten merely to add the marker.
+Setup and update preserve every extension byte-for-byte unless a future,
+declared schema migration explicitly includes it.
+
+Use an extension for Project language, commands, policy, and capability data
+that the Core skill already knows how to apply. It is additive and cannot
+weaken Core user gates, safety, ownership, or validation. Changes to parsing,
+migration, evaluation, or other executable Core semantics require an
+Explicit fork with a separate identity and update line.
 
 ## Process
 

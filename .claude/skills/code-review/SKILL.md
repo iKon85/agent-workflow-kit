@@ -3,6 +3,14 @@ name: code-review
 description: Review a diff, branch, or PR against two separate axes — Standards (this repo's own conventions plus a Fowler-smell baseline) and Spec (does the diff faithfully implement the originating issue/PRD) — reported side by side, never merged or re-ranked. Runs a three-dot merge-base preflight before either axis starts. Use when asked to review a diff/branch/PR, or when a review needs to answer both "does this follow our standards" and "does this match the spec" without one masking the other. NOT for a pre-code plan review (that reviews a plan before any code exists), NOT for root-causing a known bug (`diagnose`), and NOT a pure reuse/simplification/efficiency pass (narrower, no bug-hunting).
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill code-review --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Code Review
 
 A code-review compares one diff against **two independent axes** — Standards and Spec — and reports them **separately**. A diff can pass one axis and fail the other: code that satisfies every convention but builds the wrong thing is a Standards-pass/Spec-fail; code that nails the issue but breaks conventions is a Spec-pass/Standards-fail. Merge or re-rank the two and one axis silently masks the other — that is the exact failure mode this method exists to prevent.

@@ -3,6 +3,14 @@ name: diagnose
 description: "Disciplined diagnosis loop for hard bugs and performance regressions. Reproduce → minimise → hypothesise → instrument → fix → regression-test. Use when user says \"diagnose this\" / \"debug this\", reports a bug, says something is broken/throwing/failing, or describes a performance regression."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill diagnose --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # Diagnose
 
 > **Skill identity (don't get confused):** the folder `diagnose` + invocation `/diagnose` map to Matt Pocock's upstream skill **`diagnosing-bugs`**. Upstream renamed `diagnose` → `diagnosing-bugs`; we deliberately keep the folder name `diagnose` (invocation stability `/diagnose`). Content = upstream `diagnosing-bugs` @ `7a83a3a`, locally adapted (description kept with full trigger coverage). Provenance/rename ledger: `docs/agents/provenance.md` (§Re-Sync-Log), at the project root.

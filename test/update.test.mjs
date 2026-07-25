@@ -14,6 +14,7 @@ import {
   PACKAGE_MANIFEST_NAME, filesForInstallRole, readManifest, writeManifest,
 } from '../src/lib/manifest.mjs';
 import { sha256 } from '../src/lib/hash.mjs';
+import { inspectProjectSkillExtension } from '../src/lib/projectSkillExtension.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
 const P = '.claude/skills/to-prd/SKILL.md';
@@ -1180,6 +1181,73 @@ test('an unknown Project registry schema fails closed before a Core update', asy
     assert.deepEqual(await readFile(corePath), coreBefore);
     assert.deepEqual(await readFile(registryPath), registryBefore);
     assert.deepEqual(await readFile(ledgerPath), ledgerBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a Project skill extension survives a Core update and composes through both agent surfaces', async () => {
+  const sourceRoot = process.cwd();
+  const claudePath = '.claude/skills/tdd/SKILL.md';
+  const codexPath = '.agents/skills/tdd/SKILL.md';
+  const shipped = {};
+  for (const path of [
+    claudePath,
+    codexPath,
+    'scripts/project-skill-extension.mjs',
+    'src/lib/projectSkillExtension.mjs',
+    'src/lib/sentinel.mjs',
+  ]) {
+    shipped[path] = await readFile(join(sourceRoot, path));
+  }
+  const kit = await makeKit(shipped);
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, {
+      readiness: { contractVersion: 1, capabilities: {} },
+      skills: {
+        tdd: {
+          class: 'generic',
+          publish: true,
+          surfaces: ['claude', 'codex'],
+        },
+      },
+    });
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const extensionPath = join(consumer, 'docs/agents/skills/tdd.md');
+    const extension = Buffer.from(
+      '<!-- agent-workflow-kit: project-extension/v1; skill=tdd -->\n' +
+      '# Project policy\n\nRun the Consumer integration tracer.\n',
+    );
+    await mkdir(join(extensionPath, '..'), { recursive: true });
+    await writeFile(extensionPath, extension);
+    await init({ kitRoot: kit, consumerRoot: consumer, force: true });
+    assert.deepEqual(await readFile(extensionPath), extension);
+
+    for (const path of [claudePath, codexPath]) {
+      const next = Buffer.concat([await readFile(join(kit, path)), Buffer.from('\nCore v2.\n')]);
+      await bumpKit(kit, path, next);
+    }
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+
+    assert.equal(result.state, 'applied', result.error);
+    assert.deepEqual(await readFile(extensionPath), extension);
+    assert.deepEqual(await inspectProjectSkillExtension({ root: consumer, skill: 'tdd' }), {
+      state: 'active',
+      schemaVersion: 1,
+      path: 'docs/agents/skills/tdd.md',
+    });
+    for (const path of [claudePath, codexPath]) {
+      assert.match(
+        await readFile(join(consumer, path), 'utf8'),
+        /project-skill-extension\.mjs inspect --skill tdd --json/,
+      );
+    }
   } finally {
     await cleanup(kit, consumer);
   }

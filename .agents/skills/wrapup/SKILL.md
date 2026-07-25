@@ -4,6 +4,14 @@ disable-model-invocation: true
 "description": "Use ONLY when the user types /wrapup. Session-end \"land & clean\" for a finished feature/fix worktree — merges the open PR, kills the worktree dev server, removes the worktree + local branch, and fast-forwards the main checkout so main is current again, then sweeps merged-branch leftovers (local + stale remote whose PR is merged). If the slice isn't landed yet, it first makes it landable (Step 0): commits a dirty tree (after an .env/secret check), pushes, and opens the PR — reusing one if it already exists. User-triggered only (never auto-invoke, never hook). Aborts hard only on: not in a feature worktree, a detected .env/secret, a rejected push, a conflicting PR, or red (FAILURE) checks."
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill wrapup --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # wrapup — land PR & tear down worktree
 
 Trigger: user types `/wrapup` (optionally with a PR number). **Manual only** — `disable-model-invocation: true`, no hook, no auto-invoke.

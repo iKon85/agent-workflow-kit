@@ -1,4 +1,5 @@
 <!-- setup-workflow: state=filled -->
+<!-- agent-workflow-kit: project-extension/v1; skill=spec-self-critique -->
 # Project layer — spec-self-critique
 
 The generic checklist owns the checks; `/retro` appends project-specific incidents below these stable anchors.
@@ -15,4 +16,3 @@ The generic checklist owns the checks; `/retro` appends project-specific inciden
 ## Point 10
 ## Point 11
 ## Point 12
-

@@ -8,6 +8,7 @@ export const HELPER_FILES = [
   // together; the manifest remains the only capability/dependency registry.
   { path: '.claude/skills/skill-manifest.json', kind: 'doc', mode: 0o644 },
   { path: 'scripts/readiness.mjs', kind: 'script', mode: 0o755 },
+  { path: 'scripts/project-skill-extension.mjs', kind: 'script', mode: 0o755 },
   { path: 'src/lib/sentinel.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/manifest.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/atomicWrite.mjs', kind: 'script', mode: 0o644 },
@@ -78,6 +79,7 @@ export const HELPER_FILES = [
   // Fail-closed orchestration selector and its host-inventory adapters.
   { path: 'src/lib/capabilityMatrix.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/skillRegistry.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/projectSkillExtension.mjs', kind: 'script', mode: 0o644 },
   // Provider-neutral routing runtime: one Evidence catalog, Access graph,
   // Routing policy, resolver, spawn guard, receipt v2, and surface attestations.
   // These modules form one consumer unit; omitting one leaves shipped dispatch

@@ -4,6 +4,14 @@ disable-model-invocation: true
 description: Audit the project's own skills for drift from code/doc reality and fix it — the anti-drift "learn" step of the plan → execute → land → learn line. Run it at retro, periodically, or when a SessionStart drift-hint warns that a skill's declared source moved since its last touch. Fans out one read-only research subagent per skill over every concrete claim in the SKILL.md, re-verifies each reported drift empirically before editing (the auditor produces false positives), then fixes by content type. Triggers — "audit the skills", "skill drift", "stale skill", "this skill points at a dead path / renamed symbol", "skill-freshness warning". NOT for rewriting a domain skill's content on demand (that is the skill itself) and NOT for auditing application code (that is a code review or a diagnosis).
 ---
 
+<!-- project-extension:protocol-v1:start -->
+## Project extension
+
+Before applying this Core skill, run `node scripts/project-skill-extension.mjs inspect --skill audit-skills --json` from the Project root. When it returns `active`, read the returned `path` and apply it as additive Project instructions. When it returns `inactive`, continue with Core only. When it returns `blocked`, stop and report its diagnostic.
+
+Project extensions may specialize Project details, but cannot weaken Core user gates, safety, ownership, or validation. A contradiction blocks and requires an Explicit fork.
+<!-- project-extension:protocol-v1:end -->
+
 # audit-skills — Skill freshness audit (anti-drift)
 
 A reusable recipe for checking the project's own skills against code/doc reality

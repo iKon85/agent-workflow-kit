@@ -1,4 +1,5 @@
 <!-- setup-workflow: state=filled -->
+<!-- agent-workflow-kit: project-extension/v1; skill=local-ci -->
 # Project layer — local-ci
 
 This repo is a Node + stdlib-Python repo with no database, no dev server and no
