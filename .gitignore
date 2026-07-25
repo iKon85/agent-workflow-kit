@@ -3,6 +3,14 @@ pnpm-lock.yaml
 dist-kit/
 __pycache__/
 
+# Planning artifacts. Skills and CLAUDE.md describe these as on-disk only; the
+# rules below make that true. Without them every planning worktree reports a
+# permanently dirty tree, which the worktree-lifecycle cleanup treats as
+# terminal (#254).
+PLAN.md
+PLAN-REVIEW-LOG.md
+ANNAHMEN.md
+
 # Local Claude/Codex state and personal overrides. Checked-in skills, project
 # config, hooks, and agent definitions remain trackable.
 .claude/settings.local.json
