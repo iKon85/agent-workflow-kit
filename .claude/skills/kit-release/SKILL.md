@@ -110,3 +110,15 @@ manifest and compares it with both the base and the checked-in manifest. It
 blocks an unbumped shipped delta, a stale manifest, a too-small Semver bump, or
 a dead manifest entry and prints the concrete paths. CI runs the same command;
 there is no separately remembered shipped-file list.
+
+It also blocks a **version bump stacked on an untagged previous release**: if
+the base version carries no matching annotated tag, that release is still
+`awaiting-tag` and never became its own artifact. Tag and publish it first —
+never bury it under the next bump. A repository with no matching tag at all is
+bootstrapping its first release and is not blocked.
+
+A red release run does not prove nothing was published. Reconstruct the real
+state from the registry and the release before reacting; a stale local
+packument cache can answer "not published" for a package that is live, and the
+recovery route is the idempotent reconciler on the existing tag, never a new
+version.

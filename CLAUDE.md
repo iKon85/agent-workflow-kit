@@ -106,12 +106,22 @@ report the exact integrated commit as `awaiting-tag` and obtain a separate
 explicit confirmation before creating and pushing its annotated version tag.
 Treat that tag push as the irreversible public action.
 
+**An integrated version never stacks under the next one.** `release:guard`
+blocks a PR that bumps the version while the base version still carries no
+matching annotated tag: that release is `awaiting-tag` and would otherwise
+disappear under the newer bump, its release-notes section claiming an artifact
+that never existed (#243). Tag and publish the pending version first. Only a
+repository with no matching tag at all is exempt — that is a first release, not
+a stack.
+
 **A red release run does not mean nothing was published** — the post-publish
 readback can lose a race with npm propagation and fail *after* a successful
 publish, leaving npm ahead of the GitHub release (#205). Always check
 `npm view @ikon85/agent-workflow-kit version` and `gh release view v<x.y.z>`
-before reacting. Manual dispatch is recovery only: it requires one explicit
-existing tag and runs the same reconciler. Never recover by bumping the version.
+before reacting; `npm run release:status` reads the registry cache-bypassing so
+a stale packument cannot report a live release as unpublished (#243). Manual
+dispatch is recovery only: it requires one explicit existing tag and runs the
+same reconciler. Never recover by bumping the version.
 
 ## Hard rules
 
@@ -267,8 +277,9 @@ tag identity, package version, main ancestry, artifact integrity, and tests,
 then publishes to npm (`--access public --provenance`) and creates or reconciles
 the matching GitHub release. Manual dispatch requires an explicit existing tag
 and is recovery only. A red run does not prove nothing was published (#205) —
-check `npm view` and `gh release view` before reacting. Full flow:
-`CLAUDE.md` §Consumer contract → Release.
+check `npm view` and `gh release view` before reacting. `release:guard` blocks a
+bump stacked on a still-untagged previous release (#243): tag the pending
+version, never bury it. Full flow: `CLAUDE.md` §Consumer contract → Release.
 
 ## Token hygiene
 

@@ -75,6 +75,51 @@ test('shipped content rejects downgrade and malformed version transitions', () =
   }
 });
 
+test('a bump on top of an untagged previous release is blocked', () => {
+  const current = { kitVersion: '1.3.0', files: [file('new.md', 'one')] };
+  const result = assessRelease({
+    baseVersion: '1.2.3', currentVersion: '1.3.0',
+    baseManifest: { kitVersion: '1.2.3', files: [] }, builtManifest: current,
+    checkedManifest: current, payloadManifest: current,
+    baseTag: { name: 'v1.2.3', exists: false, repoHasTags: true },
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join('\n'), /1\.2\.3 is still awaiting-tag/);
+  assert.match(result.errors.join('\n'), /v1\.2\.3/);
+});
+
+test('a bump passes once the previous release carries its tag', () => {
+  const current = { kitVersion: '1.3.0', files: [file('new.md', 'one')] };
+  const result = assessRelease({
+    baseVersion: '1.2.3', currentVersion: '1.3.0',
+    baseManifest: { kitVersion: '1.2.3', files: [] }, builtManifest: current,
+    checkedManifest: current, payloadManifest: current,
+    baseTag: { name: 'v1.2.3', exists: true, repoHasTags: true },
+  });
+  assert.equal(result.ok, true);
+});
+
+test('a never-tagged repository is not blocked from its first release', () => {
+  const current = { kitVersion: '0.1.0', files: [file('new.md', 'one')] };
+  const result = assessRelease({
+    baseVersion: '0.0.0', currentVersion: '0.1.0',
+    baseManifest: { kitVersion: '0.0.0', files: [] }, builtManifest: current,
+    checkedManifest: current, payloadManifest: current,
+    baseTag: { name: 'v0.0.0', exists: false, repoHasTags: false },
+  });
+  assert.equal(result.ok, true);
+});
+
+test('an untagged base blocks nothing while the version stays put', () => {
+  const same = { kitVersion: '1.2.3', files: [file('skill.md', 'one')] };
+  const result = assessRelease({
+    baseVersion: '1.2.3', currentVersion: '1.2.3',
+    baseManifest: same, builtManifest: same, checkedManifest: same, payloadManifest: same,
+    baseTag: { name: 'v1.2.3', exists: false, repoHasTags: true },
+  });
+  assert.equal(result.ok, true);
+});
+
 test('actual npm payload drift is blocked even when checked and built manifests match', () => {
   const scrubbed = { kitVersion: '1.2.3', files: [file('skill.md', 'scrubbed')] };
   const result = assessRelease({

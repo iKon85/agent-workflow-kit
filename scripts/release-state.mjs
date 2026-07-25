@@ -99,9 +99,13 @@ export function npmTarballFilename(name, version) {
   return `${name.replace(/^@/, '').replaceAll('/', '-')}-${version}.tgz`;
 }
 
-async function packedTarball(run, spec, directory, repoRoot) {
+async function packedTarball(run, spec, directory, repoRoot, { preferOnline = false } = {}) {
+  // A stale local packument answers ETARGET for a version that IS published.
+  // Read through it for registry specs: the status would otherwise report
+  // `awaiting-npm` for a released package and invite a second publish.
+  const cachePolicy = preferOnline ? ['--prefer-online'] : [];
   const { stdout } = await run(
-    'npm', ['pack', spec, '--json', '--pack-destination', directory], { cwd: repoRoot },
+    'npm', ['pack', spec, '--json', '--pack-destination', directory, ...cachePolicy], { cwd: repoRoot },
   );
   const result = JSON.parse(stdout);
   if (!Array.isArray(result) || result.length !== 1 || !result[0].filename) {
@@ -120,7 +124,7 @@ function releaseReaders(context) {
   async function npm(identity) {
     try {
       state.npmTarball = await packedTarball(
-        run, `${identity.name}@${identity.version}`, scratch, repoRoot,
+        run, `${identity.name}@${identity.version}`, scratch, repoRoot, { preferOnline: true },
       );
       return await releaseIdentityFromTarball(state.npmTarball);
     } catch (error) {

@@ -387,6 +387,13 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.34.4
+
+- changed: `.agents/skills/kit-release/SKILL.md`
+- changed: `.claude/skills/kit-release/SKILL.md`
+- changed: `scripts/release-delta-guard.mjs`
+- changed: `scripts/release-state.mjs`
+
 ### 0.34.3
 
 - changed: `.agents/skills/diagnose/SKILL.md`
