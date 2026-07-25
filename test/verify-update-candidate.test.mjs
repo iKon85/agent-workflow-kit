@@ -71,6 +71,64 @@ test('a valid Kit candidate updates a broken Consumer without running its packag
   }
 });
 
+test('a valid Kit candidate preserves a locally modified Kit path while updating another path', async () => {
+  const kit = await makeKit({
+    [TOOL]: 'export const version = 1;\n',
+    [DOC]: 'version 1\n',
+  });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, TOOL), 'export const local = true;\n');
+    await bumpKit(kit, DOC, 'version 2\n');
+
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+    });
+
+    assert.equal(result.state, 'applied', result.error);
+    assert.deepEqual(result.userModified, [TOOL]);
+    assert.equal(await readFile(join(consumer, TOOL), 'utf8'), 'export const local = true;\n');
+    assert.equal(await readFile(join(consumer, DOC), 'utf8'), 'version 2\n');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a verifier extension cannot tamper with a locally modified Kit path', async () => {
+  const kit = await makeKit({
+    [TOOL]: 'export const version = 1;\n',
+    [DOC]: 'version 1\n',
+  });
+  const consumer = await makeEmptyDir();
+  let extensionRan = false;
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, TOOL), 'export const local = true;\n');
+    await bumpKit(kit, DOC, 'version 2\n');
+
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify: async (candidateRoot) => {
+        extensionRan = true;
+        await writeFile(join(candidateRoot, TOOL), 'tampered\n');
+      },
+    });
+
+    assert.equal(extensionRan, true);
+    assert.equal(result.state, 'failed');
+    assert.match(result.error, /candidate invariant artifact: hash mismatch.*scripts\/kit-tool\.mjs/);
+    assert.equal(await readFile(join(consumer, TOOL), 'utf8'), 'export const local = true;\n');
+    assert.equal(await readFile(join(consumer, DOC), 'utf8'), 'version 1\n');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('an extension cannot mutate the trusted package or activation preview', async () => {
   const kit = await makeKit({ [TOOL]: 'export const version = 1;\n' });
   const consumer = await makeEmptyDir();

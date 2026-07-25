@@ -61,11 +61,14 @@ export async function verifyCandidateMetadata(candidateRoot, context) {
     if (!state.isFile()) {
       throw new Error(`candidate invariant artifact: not a regular file ${entry.path}`);
     }
-    if (tracked.origin === KIT_ORIGIN && (state.mode & 0o777) !== entry.mode) {
+    const localSnapshot = (context.preview.userModifiedSnapshots ?? [])
+      .find(({ path }) => path === entry.path);
+    const expectedMode = localSnapshot?.mode ?? entry.mode;
+    if (tracked.origin === KIT_ORIGIN && (state.mode & 0o777) !== expectedMode) {
       throw new Error(`candidate invariant artifact: mode mismatch ${entry.path}`);
     }
-    const expectedHash = tracked.origin === CONSUMER_ORIGIN
-      ? tracked.installedSha256 : entry.sha256;
+    const expectedHash = localSnapshot?.sha256 ?? (tracked.origin === CONSUMER_ORIGIN
+      ? tracked.installedSha256 : entry.sha256);
     if (await sha256File(join(candidateRoot, entry.path)) !== expectedHash) {
       throw new Error(`candidate invariant artifact: hash mismatch ${entry.path}`);
     }

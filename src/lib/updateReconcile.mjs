@@ -156,6 +156,11 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     } else if (userEdited) {
       nextInstalled.push(withInstallRole(prior));
       result.userModified.push(file.path);
+      result.userModifiedSnapshots.push({
+        path: file.path,
+        sha256: current,
+        mode: currentMode,
+      });
     } else {
       nextInstalled.push(withInstallRole(prior));
       result.unchanged.push(file.path);
@@ -202,6 +207,7 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
 function emptyResult() {
   return {
     unchanged: [], updated: [], conflicts: [], collisions: [], collisionResolutions: [], userModified: [],
+    userModifiedSnapshots: [],
     ownershipStates: [],
     bridgeRetired: [],
     added: [], deleted: [], keptDeleted: [], consumerOwned: [], manifestChanged: false,
