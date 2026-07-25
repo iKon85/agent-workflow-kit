@@ -445,6 +445,12 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.36.4
+
+- changed: `scripts/release-delta-guard.mjs`
+- changed: `scripts/release-delta-guard.test.mjs`
+- changed: `src/lib/updateReconcile.mjs`
+
 ### 0.36.3
 
 - Metadata-only release.

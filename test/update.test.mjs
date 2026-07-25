@@ -62,6 +62,80 @@ test('update applies an upstream mode-only change with unchanged bytes', async (
   }
 });
 
+test('update reconciles changed package metadata with unchanged bytes', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' }, '0.1.0');
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const consumerPath = join(consumer, 'agent-workflow-kit.json');
+    const prior = await readManifest(consumerPath);
+    Object.assign(prior.installed.find(({ path }) => path === P), {
+      kind: 'doc',
+      ownerSkill: 'legacy-skill',
+      surface: 'codex',
+    });
+    await writeManifest(consumerPath, prior);
+    const pkgPath = join(kit, PACKAGE_MANIFEST_NAME);
+    const pkg = await readManifest(pkgPath);
+    pkg.kitVersion = '0.2.0';
+    Object.assign(pkg.files.find(({ path }) => path === P), {
+      ownerSkill: 'to-prd',
+      surface: 'claude',
+    });
+    await writeManifest(pkgPath, pkg);
+
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities('0.2.0'),
+      verify,
+    });
+
+    assert.equal(result.state, 'applied', result.error);
+    assert.ok(result.updated.includes(P));
+    const current = await readManifest(consumerPath);
+    assert.equal(current.kitVersion, '0.2.0');
+    assert.deepEqual(
+      {
+        kind: current.installed.find(({ path }) => path === P).kind,
+        ownerSkill: current.installed.find(({ path }) => path === P).ownerSkill,
+        surface: current.installed.find(({ path }) => path === P).surface,
+      },
+      { kind: 'skill', ownerSkill: 'to-prd', surface: 'claude' },
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a release-only version change still advances the Consumer ledger', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' }, '0.1.0');
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const pkgPath = join(kit, PACKAGE_MANIFEST_NAME);
+    const pkg = await readManifest(pkgPath);
+    pkg.kitVersion = '0.1.1';
+    await writeManifest(pkgPath, pkg);
+
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities('0.1.1'),
+      verify,
+    });
+
+    assert.equal(result.state, 'applied', result.error);
+    assert.equal(result.status, 'updated');
+    assert.equal(
+      (await readManifest(join(consumer, 'agent-workflow-kit.json'))).kitVersion,
+      '0.1.1',
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 // re-write a kit file + its package-manifest hash to simulate an upstream change
 async function bumpKit(kitRoot, path, content) {
   await writeFile(join(kitRoot, path), content);

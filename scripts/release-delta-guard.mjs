@@ -1,6 +1,6 @@
 /** Block shipped changes whose version or checked manifest does not match a fresh build. */
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +24,12 @@ const describe = (delta) => ['added', 'removed', 'changed']
   .filter((kind) => delta[kind].length)
   .map((kind) => `${kind}: ${delta[kind].join(', ')}`).join('; ');
 
+function mergeDeltas(...deltas) {
+  return Object.fromEntries(['added', 'removed', 'changed'].map((kind) => [
+    kind, [...new Set(deltas.flatMap((delta) => delta[kind]))].sort(),
+  ]));
+}
+
 export function recommendBump(delta) {
   if (delta.removed.length) return 'major';
   if (delta.added.length) return 'minor';
@@ -40,7 +46,11 @@ function bumpKind(before, after) {
 }
 
 export function assessRelease(input) {
-  const delta = manifestDelta(input.baseManifest, input.builtManifest);
+  const bundleDelta = manifestDelta(input.baseManifest, input.builtManifest);
+  const packageDelta = input.basePackagePayload && input.currentPackagePayload
+    ? manifestDelta(input.basePackagePayload, input.currentPackagePayload)
+    : { added: [], removed: [], changed: [] };
+  const delta = mergeDeltas(bundleDelta, packageDelta);
   const checkedDrift = manifestDelta(input.checkedManifest, input.builtManifest);
   const payloadDrift = manifestDelta(input.builtManifest, input.payloadManifest);
   const errors = [];
@@ -99,6 +109,18 @@ export function resolveBaseTag({ repoRoot, baseVersion, tagPrefix = 'v' }) {
 }
 
 export async function packedPayloadManifest({ repoRoot, manifest }) {
+  const payload = await packedPackagePayload({ repoRoot });
+  const indexed = byPath(payload);
+  return {
+    kitVersion: manifest.kitVersion,
+    files: manifest.files.map((entry) => ({
+      ...entry,
+      sha256: indexed.get(entry.path),
+    })),
+  };
+}
+
+export async function packedPackagePayload({ repoRoot }) {
   const tempRoot = await mkdtemp(join(tmpdir(), 'awkit-package-payload-'));
   try {
     const packOutput = execFileSync(
@@ -110,14 +132,35 @@ export async function packedPayloadManifest({ repoRoot, manifest }) {
     await mkdir(unpackDir);
     execFileSync('tar', ['-xzf', join(tempRoot, filename), '-C', unpackDir]);
     return {
-      kitVersion: manifest.kitVersion,
-      files: await Promise.all(manifest.files.map(async (entry) => ({
-        ...entry,
-        sha256: sha256(await readFile(join(unpackDir, 'package', entry.path))),
-      }))),
+      files: await packageFiles(join(unpackDir, 'package')),
     };
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
+  }
+}
+
+async function packageFiles(root, relative = '') {
+  const files = [];
+  for (const entry of await readdir(join(root, relative), { withFileTypes: true })) {
+    const path = relative ? `${relative}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) files.push(...await packageFiles(root, path));
+    else if (entry.isFile()) {
+      files.push({ path, sha256: sha256(await readFile(join(root, path))) });
+    }
+  }
+  return files.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+async function packagePayloadAtRef(repoRoot, ref) {
+  const archiveRoot = await mkdtemp(join(tmpdir(), 'awkit-package-base-'));
+  try {
+    const archive = execFileSync('git', ['archive', '--format=tar', ref], {
+      cwd: repoRoot, maxBuffer: 50 * 1024 * 1024,
+    });
+    execFileSync('tar', ['-xf', '-', '-C', archiveRoot], { input: archive });
+    return await packedPackagePayload({ repoRoot: archiveRoot });
+  } finally {
+    await rm(archiveRoot, { recursive: true, force: true });
   }
 }
 
@@ -129,6 +172,7 @@ export async function checkReleaseDelta({ repoRoot, baseRef = 'origin/main' } = 
     const currentPackage = JSON.parse(await readFile(join(repoRoot, 'package.json'), 'utf8'));
     const builtManifest = JSON.parse(await readFile(join(distDir, 'agent-workflow-kit.package.json'), 'utf8'));
     const baseVersion = gitShowJson(repoRoot, baseRef, 'package.json').version;
+    const currentPackagePayload = await packedPackagePayload({ repoRoot });
     return assessRelease({
       baseVersion,
       baseTag: resolveBaseTag({ repoRoot, baseVersion }),
@@ -136,7 +180,15 @@ export async function checkReleaseDelta({ repoRoot, baseRef = 'origin/main' } = 
       baseManifest: gitShowJson(repoRoot, baseRef, 'agent-workflow-kit.package.json'),
       checkedManifest: JSON.parse(await readFile(join(repoRoot, 'agent-workflow-kit.package.json'), 'utf8')),
       builtManifest,
-      payloadManifest: await packedPayloadManifest({ repoRoot, manifest: builtManifest }),
+      payloadManifest: {
+        kitVersion: builtManifest.kitVersion,
+        files: builtManifest.files.map((entry) => ({
+          ...entry,
+          sha256: byPath(currentPackagePayload).get(entry.path),
+        })),
+      },
+      basePackagePayload: await packagePayloadAtRef(repoRoot, baseRef),
+      currentPackagePayload,
     });
   } finally { await rm(distDir, { recursive: true, force: true }); }
 }
