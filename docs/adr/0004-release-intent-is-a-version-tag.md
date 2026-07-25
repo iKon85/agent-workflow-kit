@@ -6,6 +6,17 @@ Clarified 2026-07-25 by issue #239: an explicit AFK end-to-end mandate may
 authorize deterministic reversible release preparation, but never the
 publication tag itself.
 
+Amended 2026-07-25 by issue #257: the confirmed Semver authorizes the whole
+release, through tag and publish. The separation of integration and publication
+below is unchanged — merging still cannot publish, and only an annotated tag
+records release intent — but that intent no longer waits for a second human
+confirmation. The maintainer chooses the version once; the agent then merges,
+tags, and monitors to `released`. The second gate had proven worse than no gate:
+it left prepared versions sitting in `awaiting-tag` until someone returned,
+which is how 0.34.2 was skipped and buried under 0.34.3 (#243). Safety stays in
+the gates that run regardless of who is watching — guard, staleness, suite,
+pack, and the workflow's own tag/version/ancestry validation.
+
 The release workflow currently publishes whenever a merge to `main` changes
 `package.json`. That keeps the canonical branch and npm close together, but it
 also makes an ordinary merge an irreversible public action whose consequence is
@@ -39,11 +50,13 @@ We decided that integration and publication are separate transitions:
 
 ## Consequences
 
-- A prepared version may temporarily exist on `main` in an `awaiting-tag` state.
-- An explicit AFK Wave/Program mandate may cover the deterministic reversible
-  metadata preparation and landing that it names. It never by itself authorizes
-  creating or pushing the publication tag; that irreversible action requires a
-  separate explicit confirmation.
+- A prepared version exists on `main` in an `awaiting-tag` state only for as
+  long as the agent needs to tag it — not until a human returns (amended by
+  #257).
+- The authorizing act is the confirmed Semver. An explicit AFK Wave/Program
+  mandate that names release preparation carries the same weight, and either
+  route reaches through tag and publish for that one target. A narrower
+  build-only or single-action request never becomes this authority.
 - A single-Wave mandate does not authorize the next Program Wave. A later
   explicit whole-Program mandate does authorize all planned Waves and remains in
   force across their boundaries.

@@ -1,14 +1,18 @@
 ---
 name: kit-release
-description: "Prepare and integrate a verified agent-workflow-kit release, then record separately confirmed publication intent with an annotated version tag and monitor npm/GitHub parity."
+description: "Prepare, integrate and publish a verified agent-workflow-kit release: one confirmed Semver authorizes the annotated version tag, then monitor npm/GitHub parity to released."
 ---
 
 # Kit Release
 
 Prepare a release deterministically. This skill owns the shipped-delta decision,
-metadata preparation, verification, and the separate post-merge publication
-gate. It delegates commit, branch push, PR, merge, and cleanup to wrapup. It
-never publishes to a registry or creates a GitHub release directly.
+metadata preparation, verification, and the post-merge publication intent. It
+delegates commit, branch push, PR, merge, and cleanup to wrapup. It never
+publishes to a registry or creates a GitHub release by hand — it records intent
+with the annotated tag and lets the trusted workflow publish.
+
+The release has **one** human gate: the confirmed Semver in step 2. Everything
+after it — merge, tag, publish, parity check — is the agent's to carry out.
 
 ## Workflow
 
@@ -33,8 +37,8 @@ never publishes to a registry or creates a GitHub release directly.
      Do not turn a narrower build-only or single-action request into this
      authority.
 
-   Both routes authorize one prepared target only. Neither authorizes
-   publication.
+   Either route authorizes exactly one target — and that authorization carries
+   through to its tag and publish. This is the release's single human gate.
 
 3. Prepare that authorized exact version:
 
@@ -52,21 +56,25 @@ never publishes to a registry or creates a GitHub release directly.
    `scripts/wrapup-land.py` exclusively own commit, push, PR creation, merge,
    and cleanup. Do not reproduce those operations here.
 
-5. After merge, report the exact integrated version and commit as
-   `awaiting-tag`. Merging integrates the prepared release; it cannot start
-   publication. Creating and pushing the annotated `v<version>` tag requires a
-   **separate explicit confirmation** to publish that exact version. The
-   earlier Semver confirmation or AFK preparation mandate authorized metadata
-   preparation, not publication.
+5. Publish. Merging integrates the prepared release; only the annotated tag
+   starts publication. Verify that the package version on current `origin/main`
+   is exactly `<version>`, then create and push the matching annotated
+   `v<version>` tag — **the confirmed Semver authorizes the whole release,
+   through tag and publish, so do this without asking again**. The target was
+   chosen once, at step 2; nothing between there and here produces information
+   a second gate could act on. Report the integrated commit as you tag it, not
+   as a question.
 
-6. After that confirmation, verify that the package version on current
-   `origin/main` is exactly `<version>`. Create a matching annotated
-   `v<version>` tag on that commit and push only that tag. A lightweight tag,
-   mismatching version, or commit outside canonical `main` is invalid release
-   intent. Never infer a tag target, move an existing tag, or tag an unmerged
-   commit.
+   Publication is **irreversible** — npm versions cannot be reused, and the
+   unpublish window is narrow and breaks consumers. The safety lives in gates
+   that already ran, not in a prompt: `release:guard`, `kit:staleness`, the full
+   suite and `npm pack --dry-run` before merge, then the workflow's own tag
+   identity, package version, main ancestry and artifact checks after it. A
+   lightweight tag, a mismatching version, or a commit outside canonical `main`
+   is invalid release intent. Never infer a tag target, move an existing tag, or
+   tag an unmerged commit.
 
-7. Monitor the tag-triggered `release.yml` workflow and inspect its externally
+6. Monitor the tag-triggered `release.yml` workflow and inspect its externally
    reconstructable state:
 
    ```sh

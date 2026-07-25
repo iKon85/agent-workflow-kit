@@ -184,15 +184,21 @@ test('both release skill surfaces name only the owned scoped npm package', async
   }
 });
 
-test('an explicit AFK scope can authorize reversible preparation but never publication', async () => {
+// Amended by #257: one gate, at the Semver. The previous contract required a
+// second confirmation before the tag; that gate left prepared versions stranded
+// in `awaiting-tag` and is gone. What must survive is the narrowing rule — a
+// build-only request never becomes release authority.
+test('one confirmed Semver authorizes the release through tag and publish', async () => {
   const claude = await readFile(join(REPO, '.claude/skills/kit-release/SKILL.md'), 'utf8');
   const codex = await readFile(join(REPO, '.agents/skills/kit-release/SKILL.md'), 'utf8');
-  assert.equal(codex, claude);
+  assert.equal(codex.split('\n---\n')[1], claude.split('\n---\n')[1]);
   for (const body of [claude, codex]) {
     assert.match(body, /explicit AFK end-to-end mandate/i);
     assert.match(body, /deterministic recommendation/i);
-    assert.match(body, /reversible metadata preparation/i);
-    assert.match(body, /annotated `v<version>` tag[\s\S]*separate explicit confirmation/i);
+    assert.match(body, /annotated\s+`v<version>` tag/i);
+    assert.match(body, /confirmed Semver authorizes[\s\S]*without asking again/i);
+    assert.match(body, /narrower build-only or single-action request/i);
+    assert.doesNotMatch(body, /separate explicit confirmation/i);
   }
 });
 
