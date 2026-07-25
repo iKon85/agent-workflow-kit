@@ -164,9 +164,17 @@ Before formulating a patch in step 4, place **every** friction point on the thre
 
 **A GitHub issue is NOT a weight tier.** A real follow-up = work to track → `python3 scripts/board-sync.py create` (step-4 table), **orthogonal** to the ladder; its "weight" follows the follow-up scope. The ladder classifies **config patches**, not "turn it into a ticket".
 
-**Kit-repo routing target (always ask; never automatic).** When a finding lands on a kit-shipped file (a consumer-manifest entry with kit origin), ask whether the improvement is generic or project-specific. For a generic improvement, offer to file a lightweight issue against the public kit repo: a title plus a short body that states the finding, affected file, and why it is generic. For a project-specific improvement, recommend `own` (keep it consumer-owned). The consumer user does not need to be the kit maintainer.
-
-Before any `gh issue create --repo <owner>/agent-workflow-kit` runs, show the user a **sanitized preview** of the exact title and body with consumer identifiers and secrets stripped. Create the issue only after the user explicitly approves that exact text; if the title or body changes, show the revised preview and ask again. This approval is additional to the per-patch approval in step 5.
+**Kit-repo routing target (capability-driven; never automatic).** When a finding
+lands on a kit-shipped file (a consumer-manifest entry with kit origin), ask
+whether the improvement is generic or project-specific. If it enters a
+Contribution Bridge, run `agent-workflow-kit contribute status <path>
+--surface=retro` and use only the reported repository-capability routes.
+Missing, disabled, invalid, or unverifiable configuration is a generic Consumer:
+offer preserve or Explicit fork, never infer maintainer status or an upstream
+target from identity. A valid capability may offer local preparation. Before
+any reported remote route runs, show the **sanitized exact preview** and require
+separate explicit approval; changing the preview requires approval again. For a
+project-specific improvement, recommend `own` (keep it consumer-owned).
 
 **Target missing in the project — separate two cases cleanly:**
 - **(a) Tier skill missing entirely** (e.g. a foreign project without `spec-self-critique`): no durable spec-time gate exists. **Memory is NOT a substitute** — passive recall doesn't catch a recurring spec defect before building. Report honestly: *"this project has no durable target for this tier"* + propose a `/setup-workflow` follow-up. **No fake guard via memory.**

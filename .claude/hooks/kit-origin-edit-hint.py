@@ -12,12 +12,6 @@ from pathlib import Path
 
 MANIFEST = "agent-workflow-kit.json"
 TOOLS = {"Edit", "Write"}
-HINT = (
-    "This file has kit origin. Before editing, ask: should this change go "
-    "upstream to agent-workflow-kit, or should the consumer own this file?"
-)
-
-
 def manifest_path(file_path: str, root: Path) -> str | None:
     try:
         target = Path(file_path)
@@ -28,31 +22,42 @@ def manifest_path(file_path: str, root: Path) -> str | None:
     return normalized or None
 
 
-def is_kit_origin(payload: object, root: Path) -> bool:
+def kit_origin_path(payload: object, root: Path) -> str | None:
     if not isinstance(payload, dict) or payload.get("tool_name") not in TOOLS:
-        return False
+        return None
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict) or not isinstance(tool_input.get("file_path"), str):
-        return False
+        return None
     path = manifest_path(tool_input["file_path"], root)
     if path is None:
-        return False
+        return None
     manifest = json.loads((root / MANIFEST).read_text(encoding="utf-8"))
     installed = manifest.get("installed", []) if isinstance(manifest, dict) else []
-    return any(
+    return path if any(
         isinstance(entry, dict) and entry.get("path") == path and entry.get("origin") == "kit"
         for entry in installed
+    ) else None
+
+
+def hint(path: str) -> str:
+    return (
+        "This file has kit origin. Before editing, ask whether the change should "
+        "stay Consumer-owned or return upstream. If it becomes a Contribution "
+        "Bridge, read the repository-scoped route with "
+        f"`agent-workflow-kit contribute status {path} --surface=guard`; "
+        "missing or invalid capability configuration offers preserve/fork only."
     )
 
 
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
-        if is_kit_origin(payload, Path.cwd()):
+        path = kit_origin_path(payload, Path.cwd())
+        if path:
             print(json.dumps({
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
-                    "additionalContext": HINT,
+                    "additionalContext": hint(path),
                 }
             }))
     except (OSError, ValueError, TypeError):

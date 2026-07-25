@@ -4,6 +4,7 @@ import { sha256File } from './hash.mjs';
 import { lineDiff, writeAtomic } from './atomicWrite.mjs';
 import { hookReferenced } from './settings.mjs';
 import { validateConsumerFile } from './consumerPath.mjs';
+import { validateContributionBridge } from './contributionBridge.mjs';
 import { inspectProjectSkillExtension } from './projectSkillExtension.mjs';
 import {
   OwnershipState, classifyOwnershipEvidence,
@@ -36,6 +37,8 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     const dest = join(consumerRoot, file.path);
     const prior = installedIdx.get(file.path);
     if (prior?.origin === CONSUMER_ORIGIN) {
+      const bridge = prior.ownershipState === OwnershipState.CONTRIBUTION_BRIDGE
+        ? contributionBridgeEvidence(prior) : null;
       const classification = classifyOwnershipEvidence({
         path: file.path,
         packageEntry: file,
@@ -43,6 +46,7 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
         destinationPresent: await exists(dest),
         projectExtension: prior.ownershipState === OwnershipState.PROJECT_EXTENSION
           ? await projectExtensionEvidence(consumerRoot, file.path) : null,
+        contributionBridge: bridge,
       });
       result.ownershipStates.push(classification);
       if (classification.state === OwnershipState.AMBIGUOUS_COLLISION) {
@@ -51,6 +55,21 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
           kind: 'ownership-lifecycle',
           diff: 'Consumer lifecycle metadata does not match its declared path/schema.',
         });
+      }
+      if (classification.state === OwnershipState.CONTRIBUTION_BRIDGE) {
+        const present = await exists(dest);
+        if (present) {
+          await validateConsumerFile(consumerRoot, file.path);
+          const current = await sha256File(dest);
+          if (current === file.sha256 && current === bridge.localSha256) {
+            if (!dryRun) {
+              await writeAtomic(dest, await readFile(join(kitRoot, file.path)), file.mode);
+            }
+            nextInstalled.push(entry(file, file.sha256));
+            result.bridgeRetired.push(file.path);
+            continue;
+          }
+        }
       }
       nextInstalled.push(withInstallRole(prior));
       result.consumerOwned.push(file.path);
@@ -95,8 +114,16 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
       }
       result.collisionResolutions.push(resolution);
       if (decision !== 'replace') {
+        const lifecycle = resolvedState === OwnershipState.CONTRIBUTION_BRIDGE ? {
+          contributionBridge: {
+            schemaVersion: 1,
+            baseKitVersion: pkg.kitVersion,
+            baseSha256: file.sha256,
+            localSha256: destinationSha256,
+          },
+        } : {};
         nextInstalled.push(entry(
-          file, destinationSha256, CONSUMER_ORIGIN, resolvedState,
+          file, destinationSha256, CONSUMER_ORIGIN, resolvedState, lifecycle,
         ));
         result.consumerOwned.push(file.path);
       } else {
@@ -157,6 +184,7 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
   }
 
   result.manifestChanged = consumer.installRole !== CONSUMER_INSTALL_ROLE ||
+    result.bridgeRetired.length > 0 ||
     nextInstalled.some((next) => installedIdx.get(next.path)?.installRole !== next.installRole);
 
   if (!dryRun) {
@@ -171,14 +199,23 @@ function emptyResult() {
   return {
     unchanged: [], updated: [], conflicts: [], collisions: [], collisionResolutions: [], userModified: [],
     ownershipStates: [],
+    bridgeRetired: [],
     added: [], deleted: [], keptDeleted: [], consumerOwned: [], manifestChanged: false,
   };
 }
 
-function entry(file, installedSha256, origin = KIT_ORIGIN, ownershipState) {
+function contributionBridgeEvidence(installed) {
+  try {
+    return validateContributionBridge(installed);
+  } catch (error) {
+    return { invalid: error.message };
+  }
+}
+
+function entry(file, installedSha256, origin = KIT_ORIGIN, ownershipState, lifecycle = {}) {
   const result = {
     path: file.path, kind: file.kind, ownerSkill: file.ownerSkill, surface: file.surface,
-    installedSha256, origin, installRole: CONSUMER_INSTALL_ROLE,
+    installedSha256, origin, installRole: CONSUMER_INSTALL_ROLE, ...lifecycle,
   };
   if (ownershipState) result.ownershipState = ownershipState;
   return result;

@@ -42,13 +42,15 @@ class RetroEnforcementContract(unittest.TestCase):
                 for phrase in required:
                     self.assertIn(phrase, text)
 
-    def test_upstream_or_own_and_exact_sanitized_approval_survive(self):
+    def test_capability_route_and_exact_sanitized_approval_survive(self):
         required = (
             "generic or project-specific",
             "recommend `own`",
-            "sanitized preview",
-            "explicitly approves that exact text",
-            "does not need to be the kit maintainer",
+            "contribute status <path> --surface=retro",
+            "Missing, disabled, invalid, or unverifiable configuration",
+            "never infer maintainer status",
+            "sanitized exact preview",
+            "separate explicit approval",
             "docs/agents/skills/<skill>.md",
         )
         for surface in SURFACES:

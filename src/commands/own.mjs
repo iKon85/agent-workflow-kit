@@ -6,6 +6,9 @@ import {
 
 /** Mark one tracked consumer file as kit- or consumer-owned. */
 export async function setOwnership({ consumerRoot, path, origin, ownershipState }) {
+  if (origin === 'consumer' && ownershipState === 'contribution-bridge') {
+    throw new Error('contribution bridge requires `contribute start` with Kit provenance');
+  }
   const manifestPath = join(consumerRoot, CONSUMER_MANIFEST_NAME);
   const manifest = await readManifest(manifestPath);
   if (!manifest) throw new Error('not initialised — run `init` first');

@@ -293,7 +293,8 @@ decisions without repository evidence and user confirmation.
 > manifest. It is advisory only: it never blocks, reads the manifest once, uses
 > no network, and silently fails open when the manifest cannot be read. Shell
 > redirection, formatters, and IDE edits are knowingly outside its coverage; the
-> skills remain the rule's primary carrier.
+> skills remain the rule's primary carrier. Its Contribution Bridge follow-up
+> calls the same read-only route resolver with `--surface=guard`.
 
 Activate the shipped hook by reconciling this exact entry into
 `.claude/settings.json`:
@@ -356,6 +357,26 @@ surface with a typed delta that names only the changed choice and preserves
 unaffected surfaces, autonomy, and advanced values. Re-read the profile before
 activation and use its fingerprint plus the exclusive profile lock; a
 concurrent user-local change blocks activation and remains byte-preserved.
+
+### 2i. Section A10 — Optional contribution return routing
+
+> Contribution return routing lets a repository advertise a verifiable Kit
+> upstream without guessing who the user is. It controls offered routes, never
+> remote authorization.
+
+Read [contribution-routing.md](./contribution-routing.md) in full. If
+`contributionRouting` is absent, ask whether this repository should advertise
+an upstream contribution route. **Yes** records only the user-confirmed
+owner/repository and local Git remote after verifying that the remote URL
+matches. **Later / No** leaves the section absent or records `enabled: false`
+only when the user requests a durable opt-out. Adopt an existing valid section
+without normalization and preserve every other profile section and unknown key.
+
+Missing, disabled, contradictory, or unverifiable configuration must keep the
+generic preserve/Explicit-fork routes. Never infer capability from username,
+machine, checkout path, repository name, credentials, or current GitHub login.
+Even a valid capability authorizes local preparation only; a pull request,
+push, publish, or merge remains a separate explicit approval.
 
 ### 3. Section B — Triage labels
 

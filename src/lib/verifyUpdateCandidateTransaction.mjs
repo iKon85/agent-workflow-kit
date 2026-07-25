@@ -60,6 +60,16 @@ export function verifyTransactionPreview(preview, installable, installed) {
     }
     actionSets.set(key, local);
   }
+  if (!Array.isArray(preview.bridgeRetired ?? [])) {
+    throw new Error('candidate invariant transaction: bridgeRetired must be an array');
+  }
+  const retired = new Set();
+  for (const path of preview.bridgeRetired ?? []) {
+    claimTransactionPath(path, 'bridgeRetired', retired, owners);
+    if (!installablePaths.has(path) || installed.get(path)?.origin !== KIT_ORIGIN) {
+      throw new Error(`candidate invariant transaction: invalid bridge retirement ${path}`);
+    }
+  }
   if (!Array.isArray(preview.migrations ?? [])) {
     throw new Error('candidate invariant transaction: migrations must be an array');
   }

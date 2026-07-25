@@ -331,10 +331,22 @@ npx github:iKon85/agent-workflow-kit uninstall   # remove kit-installed files
 - a file you **did** edit is kept — the incoming version is backed up with a
   timestamp and a diff is printed, never silently overwritten;
 - a file you intentionally fork can be detached with
-  `npx github:iKon85/agent-workflow-kit own <path> --as=explicit-fork`, retained
-  temporarily with `--as=contribution-bridge`, and returned to kit ownership
-  with `npx github:iKon85/agent-workflow-kit disown <path>`; owned files are
+  `npx github:iKon85/agent-workflow-kit own <path> --as=explicit-fork` and
+  returned to kit ownership with
+  `npx github:iKon85/agent-workflow-kit disown <path>`; owned files are
   skipped by updates even after the package stops shipping them;
+- a modified declared Core path enters the temporary Contribution Bridge with
+  `contribute start <path>`. `contribute prepare <path>
+  --output=.agent-workflow-kit/contributions/<name>.json` writes one local,
+  schema-versioned diff/provenance artifact and performs no remote action. A
+  release whose Core bytes match the bridged bytes retires the bridge
+  automatically on reimport;
+- `contribute status <path> --surface=retro|pre-update|guard` reads the same
+  repository-scoped route decision on every workflow surface. Without a valid
+  `contributionRouting` section in `docs/agents/workflow-capabilities.json`,
+  only preserve/Explicit-fork guidance is available. A configured upstream must
+  match its local Git remote; even then, the remote pull-request route requires
+  a separate explicit approval;
 - a file removed upstream is offered for deletion (a hook still referenced by your
   `settings.json` is kept regardless);
 - a new Kit path that already exists locally is an `ambiguous-collision` until
@@ -358,7 +370,33 @@ Ownership commands are designed for a single-user CLI workflow and are not
 concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 `--force` (overwrite pre-existing untracked files on `init`), `--yes` / `-y`
 (confirm only already-classified safe update actions), and
-`--as=contribution-bridge|explicit-fork` for `own`.
+`--as=explicit-fork` for `own`.
+
+The optional Contribution Routing capability is consumer-owned:
+
+```json
+{
+  "contributionRouting": {
+    "schemaVersion": 1,
+    "enabled": true,
+    "upstream": {
+      "repository": "owner/repository",
+      "remote": "kit-upstream"
+    },
+    "workflows": {
+      "prepareLocal": true,
+      "upstreamPullRequest": {
+        "enabled": true,
+        "requiresExplicitApproval": true
+      }
+    }
+  }
+}
+```
+
+The resolver verifies the configured remote URL and never infers capability
+from a username, machine, checkout path, consumer repository name, credentials,
+or current GitHub login.
 
 ### Project extensions versus forks
 
@@ -406,6 +444,21 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 0.36.0
+
+- added: `.agents/skills/setup-workflow/contribution-routing.md`
+- added: `.claude/skills/setup-workflow/contribution-routing.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/retro/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.claude/hooks/kit-origin-edit-hint.py`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/retro/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `scripts/find-by-marker.py`
+- changed: `src/lib/manifest.mjs`
+- changed: `src/lib/ownershipClassifier.mjs`
 
 ### 0.35.0
 

@@ -267,7 +267,7 @@ test('a collision can explicitly replace existing bytes and rejects every other 
   }
 });
 
-test('CLI dispatches own and disown to the manifest mutation command', async () => {
+test('CLI dispatches forks through ownership and bridges through provenance', async () => {
   const kit = await makeKit({ [P]: 'kit bytes\n' });
   const consumer = await makeEmptyDir();
   try {
@@ -284,13 +284,9 @@ test('CLI dispatches own and disown to the manifest mutation command', async () 
     assert.equal(tracked.origin, 'kit');
     assert.equal(tracked.ownershipState, undefined);
 
-    await run(process.execPath, [CLI, 'own', P, '--as=contribution-bridge'], {
-      cwd: consumer,
-    });
-    manifest = await readManifest(join(consumer, CONSUMER_MANIFEST_NAME));
-    tracked = manifest.installed.find(({ path }) => path === P);
-    assert.equal(tracked.origin, 'consumer');
-    assert.equal(tracked.ownershipState, 'contribution-bridge');
+    const source = await readFile(CLI, 'utf8');
+    assert.match(source, /beginContributionBridge\(\{ kitRoot: KIT_ROOT, consumerRoot, path/);
+    assert.match(source, /prepareContributionArtifact\(/);
   } finally {
     await cleanup(kit, consumer);
   }
@@ -302,4 +298,5 @@ test('CLI keeps downstream collision and owned-diff seams wired', async () => {
   assert.match(source, /decideUpdate\(action, path, yes, classification\)/);
   assert.match(source, /nonInteractiveUpdateDecision\(action\)/);
   assert.match(source, /'consumerOwned'[\s\S]*'collisions'/);
+  assert.match(source, /'bridgeRetired'/);
 });
