@@ -18,6 +18,17 @@ Create a new file under `.scratch/<feature-slug>/` (creating the directory if ne
 
 Read the file at the referenced path. The user will normally pass the path or the issue number directly.
 
+## Pickup claim
+
+Used by `/implement`, `/diagnose`, and `/orchestrate-wave`: the visible claim
+that keeps a second session, machine, or cloud agent off an issue already being
+built. There is no assignee field here, so the marker line carries the whole
+claim — commit it, otherwise no other checkout can see it.
+
+- **Check** (before any edit): read the issue file and grep it for `<!-- agent-claim:`. A marker this session did not plant is a foreign claim: stop and report it, never overwrite or delete it.
+- **Claim**: set `Status: claimed` and add one marker line directly under it — `<!-- agent-claim: branch=<branch>; worktree=<absolute-path>; date=<YYYY-MM-DD> -->` — then commit and push the issue file so other checkouts see the claim.
+- **Release**: a PR referencing the issue supersedes the claim. On abandon, delete your own marker line, reset `Status:` to its pre-pickup role, and commit.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a file with one **child** file per ticket.

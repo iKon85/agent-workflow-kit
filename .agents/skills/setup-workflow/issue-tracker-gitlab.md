@@ -22,6 +22,17 @@ Create a GitLab issue.
 
 Run `glab issue view <number> --comments`.
 
+## Pickup claim
+
+Used by `/implement`, `/diagnose`, and `/orchestrate-wave`: the visible claim
+that keeps a second session, machine, or cloud agent off an issue already being
+built. The marker carries the WIP location, the assignee makes the claim visible
+in list views.
+
+- **Check** (before any edit): `glab issue view <n> --comments` (or `-F json`) — a foreign assignee, or an `<!-- agent-claim: ... -->` note this session did not plant, is a foreign claim: stop and report it, never overwrite or delete it.
+- **Claim**: `glab issue update <n> --assignee @me`, then post the marker as a note — `glab issue note <n> --message '<!-- agent-claim: branch=<branch>; worktree=<absolute-path>; date=<YYYY-MM-DD> -->'`.
+- **Release**: a merge request referencing the issue supersedes the claim — no extra step when the work lands. On abandon, drop yourself with the `/unassign @<your-user>` quick action (`glab issue note <n> --message "/unassign @<your-user>"`) and post a `claim released` note.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
