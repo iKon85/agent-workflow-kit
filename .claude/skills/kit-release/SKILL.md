@@ -23,11 +23,20 @@ never publishes to a registry or creates a GitHub release directly.
    recommend Major, additions recommend Minor, and changed content recommends
    Patch.
 
-2. Ask the user to confirm exactly one target Semver. Do not change release
-   metadata before confirmation. A recommendation is advice; the confirmed
-   target is authority.
+2. Resolve authority for exactly one target Semver:
 
-3. Prepare that exact version:
+   - Normally, ask the user to confirm the target before changing release
+     metadata. A recommendation is advice; the confirmed target is authority.
+   - When the caller carries an **explicit AFK end-to-end mandate** whose scope
+     includes release preparation, accept the deterministic recommendation as
+     the target for **reversible metadata preparation** and record that choice.
+     Do not turn a narrower build-only or single-action request into this
+     authority.
+
+   Both routes authorize one prepared target only. Neither authorizes
+   publication.
+
+3. Prepare that authorized exact version:
 
    ```sh
    npm run release:prepare -- --version <confirmed-version>
@@ -45,8 +54,9 @@ never publishes to a registry or creates a GitHub release directly.
 
 5. After merge, report the exact integrated version and commit as
    `awaiting-tag`. Merging integrates the prepared release; it cannot start
-   publication. Ask the user for a second, explicit confirmation to publish
-   that exact `v<version>`. The earlier Semver confirmation authorized metadata
+   publication. Creating and pushing the annotated `v<version>` tag requires a
+   **separate explicit confirmation** to publish that exact version. The
+   earlier Semver confirmation or AFK preparation mandate authorized metadata
    preparation, not publication.
 
 6. After that confirmation, verify that the package version on current

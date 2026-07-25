@@ -2,6 +2,10 @@
 
 Status: accepted (2026-07-22, issue #204)
 
+Clarified 2026-07-25 by issue #239: an explicit AFK end-to-end mandate may
+authorize deterministic reversible release preparation, but never the
+publication tag itself.
+
 The release workflow currently publishes whenever a merge to `main` changes
 `package.json`. That keeps the canonical branch and npm close together, but it
 also makes an ordinary merge an irreversible public action whose consequence is
@@ -36,7 +40,12 @@ We decided that integration and publication are separate transitions:
 ## Consequences
 
 - A prepared version may temporarily exist on `main` in an `awaiting-tag` state.
-- An AFK wave may create its own tag after all pre-authorized landing gates pass;
-  the next program wave still requires separate authorization.
+- An explicit AFK Wave/Program mandate may cover the deterministic reversible
+  metadata preparation and landing that it names. It never by itself authorizes
+  creating or pushing the publication tag; that irreversible action requires a
+  separate explicit confirmation.
+- A single-Wave mandate does not authorize the next Program Wave. A later
+  explicit whole-Program mandate does authorize all planned Waves and remains in
+  force across their boundaries.
 - Reruns reconcile the same tag and never infer that a red workflow means
   nothing was published.

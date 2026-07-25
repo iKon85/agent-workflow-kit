@@ -98,10 +98,13 @@ regenerated manifest + release-note delta, then guard + suite + `npm pack
 `reconcileRelease` is idempotent, so a re-run repairs a partial release instead
 of duplicating one.
 
-The Semver confirmation used to prepare metadata does not authorize
-publication. After merge, report the exact integrated commit as `awaiting-tag`
-and obtain a separate explicit confirmation before creating and pushing its
-annotated version tag. Treat that tag push as the irreversible public action.
+Normally the user confirms the exact Semver used to prepare metadata. An
+explicit AFK end-to-end mandate that includes release preparation may instead
+accept the release tool's deterministic recommendation for that reversible
+metadata/PR preparation. Neither route authorizes publication. After merge,
+report the exact integrated commit as `awaiting-tag` and obtain a separate
+explicit confirmation before creating and pushing its annotated version tag.
+Treat that tag push as the irreversible public action.
 
 **A red release run does not mean nothing was published** — the post-publish
 readback can lose a race with npm propagation and fail *after* a successful

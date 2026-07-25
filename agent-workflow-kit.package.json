@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.34.1",
+  "kitVersion": "0.34.2",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -367,7 +367,7 @@
       "ownerSkill": "kit-release",
       "surface": "codex",
       "installRole": "maintainer",
-      "sha256": "168879858199f19f124e8bc3722f430f65b44b1fb6409d9c2112e6ec02d9b561",
+      "sha256": "7e08d5115d34f36da08491fa3bb8d5f4ca45e2908560e8f8c924cf3fd619d7f9",
       "mode": 420,
       "origin": "kit"
     },
@@ -447,7 +447,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "3a281805aee83a771675f8f80b9bd9dee3c1b2f2b2ca58001b37d8565a7d9d7d",
+      "sha256": "ceb1c227e86297f37223ee771c9082c69af608599df7efeca2193558e6d1a915",
       "mode": 420,
       "origin": "kit"
     },
@@ -1679,7 +1679,7 @@
       "ownerSkill": "kit-release",
       "surface": "claude",
       "installRole": "maintainer",
-      "sha256": "168879858199f19f124e8bc3722f430f65b44b1fb6409d9c2112e6ec02d9b561",
+      "sha256": "7e08d5115d34f36da08491fa3bb8d5f4ca45e2908560e8f8c924cf3fd619d7f9",
       "mode": 420,
       "origin": "kit"
     },
@@ -1759,7 +1759,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "fb244997866b4ad01db7c7de8a22467d4c8399f030d236a517b6b9cc958d9177",
+      "sha256": "606d1cb7c56533ac669fc27a3e6bc0b16d9e577178949e360a57255c54793a56",
       "mode": 420,
       "origin": "kit"
     },
