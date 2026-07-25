@@ -39,6 +39,25 @@ test('an unbumped shipped change is blocked with its concrete delta', () => {
   assert.match(result.errors.join('\n'), /version remains 1\.2\.3/);
 });
 
+test('an npm runtime change outside the Consumer manifest still requires a release', () => {
+  const consumer = { kitVersion: '1.2.3', files: [file('skill.md', 'same')] };
+  const result = assessRelease({
+    baseVersion: '1.2.3',
+    currentVersion: '1.2.3',
+    baseManifest: consumer,
+    builtManifest: consumer,
+    checkedManifest: consumer,
+    payloadManifest: consumer,
+    basePackagePayload: { files: [file('src/cli.mjs', 'old')] },
+    currentPackagePayload: { files: [file('src/cli.mjs', 'new')] },
+  });
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.delta.changed, ['src/cli.mjs']);
+  assert.equal(result.recommendedBump, 'patch');
+  assert.match(result.errors.join('\n'), /version remains 1\.2\.3/);
+});
+
 test('dead checked-manifest entries are rejected', () => {
   const result = assessRelease({
     baseVersion: '1.2.3', currentVersion: '1.3.0',

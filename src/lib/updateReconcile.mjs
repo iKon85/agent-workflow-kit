@@ -143,7 +143,8 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     const userEdited = current !== prior.installedSha256;
     const currentMode = (await lstat(dest)).mode & 0o777;
     const upstreamChanged = file.sha256 !== prior.installedSha256
-      || currentMode !== file.mode;
+      || currentMode !== file.mode
+      || packageMetadataChanged(file, prior);
     if (!userEdited && upstreamChanged) {
       if (!dryRun) await writeAtomic(dest, await readFile(join(kitRoot, file.path)), file.mode);
       nextInstalled.push(entry(file, file.sha256));
@@ -185,7 +186,8 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     }
   }
 
-  result.manifestChanged = consumer.installRole !== CONSUMER_INSTALL_ROLE ||
+  result.manifestChanged = consumer.kitVersion !== pkg.kitVersion ||
+    consumer.installRole !== CONSUMER_INSTALL_ROLE ||
     result.bridgeRetired.length > 0 ||
     nextInstalled.some((next) => installedIdx.get(next.path)?.installRole !== next.installRole);
 
@@ -225,6 +227,12 @@ function entry(file, installedSha256, origin = KIT_ORIGIN, ownershipState, lifec
 
 function withInstallRole(installed, installRole = CONSUMER_INSTALL_ROLE) {
   return { ...installed, installRole };
+}
+
+function packageMetadataChanged(file, installed) {
+  return ['kind', 'ownerSkill', 'surface'].some(
+    (key) => (file[key] ?? null) !== (installed[key] ?? null),
+  );
 }
 
 async function projectExtensionEvidence(consumerRoot, path) {
