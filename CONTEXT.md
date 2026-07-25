@@ -33,6 +33,13 @@ A consumer-neutral form of a proven consumer-native behavior. It preserves the
 outcome while leaving project-specific activation and policy choices with the
 consumer.
 
+## Update verification profile
+
+The consumer-selected preparation and check that decide whether a staged Kit
+update is safe to activate. Until the consumer selects a profile, verification
+uses the legacy `npm test` fallback.
+_Avoid_: Smoke test, pre-check, update verification command
+
 ## Behavioral parity
 
 Evidence that a generalized kit behavior produces the same observable workflow
