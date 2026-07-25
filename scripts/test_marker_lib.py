@@ -149,6 +149,14 @@ class MarkerLookupTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "timed out after 30s"):
                 cli._gh(["api", "--paginate", "repos/example/repo/issues"])
 
+    def test_cli_classifies_a_missing_github_binary(self):
+        with patch.object(
+            cli.subprocess, "run",
+            side_effect=FileNotFoundError(2, "No such file or directory", "gh"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "gh CLI unavailable"):
+                cli._gh(["api", "--paginate", "repos/example/repo/issues"])
+
 
 if __name__ == "__main__":
     unittest.main()

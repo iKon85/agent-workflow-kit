@@ -2531,7 +2531,7 @@
       "path": "scripts/find-by-marker.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "afaec50d8214dc3d89d28fbcb20faa9f997fc58158593618fcc80fb800b367ea",
+      "sha256": "5c6c4fae9af11cd1fb25eb5310643961fa8d24b10cb41d013574de78c07e855e",
       "mode": 493,
       "origin": "kit"
     },

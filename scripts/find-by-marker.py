@@ -29,6 +29,8 @@ def _gh(args: list[str]) -> str:
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(
             f"gh api timed out after {GH_TIMEOUT_SECONDS}s") from exc
+    except OSError as exc:
+        raise RuntimeError(f"gh CLI unavailable: {exc.strerror or exc}") from exc
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "gh api failed")
     return result.stdout
