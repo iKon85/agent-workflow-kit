@@ -82,12 +82,34 @@ The exact kit-owned commands are:
 Preserve unrelated settings, hook groups, profile sections, and unknown keys.
 Repeated reconciliation with the same choice is byte-identical.
 
+## Planning-artifact ignore rules (offered, never installed)
+
+The planning artefacts the shipped skills write live in the worktree, but
+`.gitignore` is a consumer file the kit does not own: `init` and `update` never
+touch it. Setup may therefore only **offer** the rules, from Section A11, using
+`python3 scripts/worktree-lifecycle/ignore_seed.py`. The kit-owned declaration
+of which artefacts those are is `scripts/worktree-lifecycle/plan-artifacts.json`.
+
+| State | Setup action |
+|---|---|
+| `append` | Show the exact marker block, then ask. |
+| approve | Run `ignore_seed.py apply` once: it appends that one block, append-only. |
+| decline | Write nothing; a later rerun offers it again. |
+| already ignored | Report `nothing to do`; ask nothing and write nothing. |
+| re-run after approval | Byte-identical no-op; never a second block. |
+| consumer-edited block | `blocked` — report the uncovered artefacts and leave the file untouched. |
+
+The seeder never rewrites, reorders, or removes an existing line, and a tracked
+artefact is reported rather than untracked for the consumer. Only this explicit,
+approved step may write `.gitignore`.
+
 ## Scratch classification and sweep
 
 Reconcile an explicit `scratchPatterns` array when enabling a new profile.
 Derive its glob values from the consumer's ignored planning artefacts; an empty
 array is valid. Existing values are consumer-owned and remain byte-identical on
-adoption or rerun. Core never supplies filename defaults.
+adoption or rerun. Core never supplies filename defaults — the offered ignore
+rules above are what give that derivation something real to read.
 
 Also reconcile an explicit
 `wrapup.landingGeneratedArtifactPatterns` array. Derive candidates from the

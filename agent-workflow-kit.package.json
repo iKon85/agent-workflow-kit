@@ -207,7 +207,7 @@
       "ownerSkill": "grill-me",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "e106dbb6f62415cc5eef7d923d864a30e75e108a079d12c0f1624ef7d03d6f6d",
+      "sha256": "b13087563adda186f62aa6206a9233034310ff2458535362246294a45e03079f",
       "mode": 420,
       "origin": "kit"
     },
@@ -247,7 +247,7 @@
       "ownerSkill": "grill-with-docs",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "5616f15e6660270f9f84fba245caa647c47d8af8dc9e526045bb503e7f1f5863",
+      "sha256": "93694d55fe8d164c4c0e0eef27529bd1211acdaddc18224a921c2b0f3b5a10ed",
       "mode": 420,
       "origin": "kit"
     },
@@ -447,7 +447,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "02862cd5e7e07a5f06dad89792fcebd0a6c17cf2216a27c7e0f724026fdda53a",
+      "sha256": "fab4fb2f4d6fee820c9b7a737fa955a5ea2cd398987246bd7a04c5fba2c75b26",
       "mode": 420,
       "origin": "kit"
     },
@@ -687,7 +687,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "4ef2a06e17e08f0fc0c5cc09e4414af67a186a73ca7634e8c378aab5b5638274",
+      "sha256": "29c61411aa42a3f456b3f27fdd15552654b64ef2d72b321bc9c9e11229745626",
       "mode": 420,
       "origin": "kit"
     },
@@ -757,7 +757,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "bf68e0a80b212159f6838bc2bcd3e85714a70cceeff55ed019f87246175182e7",
+      "sha256": "f9fb7ef6d4f4e1ed603a5a480d8f97508fd6c99def8194c7ba0a95c62fd3c743",
       "mode": 420,
       "origin": "kit"
     },
@@ -1489,7 +1489,7 @@
       "ownerSkill": "grill-me",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "ec8d9f299db153a0412b7ef1d01832dc6a765f1819713ca45dc64294541cf9d4",
+      "sha256": "a63331339ed4e018d770face4e7cfe483225ce758a4a1302f39a50239e8187e1",
       "mode": 420,
       "origin": "kit"
     },
@@ -1569,7 +1569,7 @@
       "ownerSkill": "grill-with-docs",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "a17521a8d72eb19316c6adb21837e790c9839834ff441abf3ff44d8e1f63809a",
+      "sha256": "0cb1b41fc6bde94d3e71f3377cbb15b9d7a9a4089df66f591fc907dc19b6c1b5",
       "mode": 420,
       "origin": "kit"
     },
@@ -1769,7 +1769,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "02862cd5e7e07a5f06dad89792fcebd0a6c17cf2216a27c7e0f724026fdda53a",
+      "sha256": "fab4fb2f4d6fee820c9b7a737fa955a5ea2cd398987246bd7a04c5fba2c75b26",
       "mode": 420,
       "origin": "kit"
     },
@@ -2029,7 +2029,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "4ef2a06e17e08f0fc0c5cc09e4414af67a186a73ca7634e8c378aab5b5638274",
+      "sha256": "29c61411aa42a3f456b3f27fdd15552654b64ef2d72b321bc9c9e11229745626",
       "mode": 420,
       "origin": "kit"
     },
@@ -2099,7 +2099,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "bf68e0a80b212159f6838bc2bcd3e85714a70cceeff55ed019f87246175182e7",
+      "sha256": "f9fb7ef6d4f4e1ed603a5a480d8f97508fd6c99def8194c7ba0a95c62fd3c743",
       "mode": 420,
       "origin": "kit"
     },
@@ -2816,6 +2816,22 @@
       "origin": "kit"
     },
     {
+      "path": "scripts/worktree-lifecycle/ignore_seed.py",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "defd667ed94301cffb0f08e0a910873c246be267cb458adf40f5e7b2109ae4d0",
+      "mode": 493,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/worktree-lifecycle/plan-artifacts.json",
+      "kind": "doc",
+      "installRole": "consumer",
+      "sha256": "fe7f805ca9c698f9d77bdda4372f6f5a516b1e60c46ae732a94de184cb0ce3b4",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "scripts/worktree-lifecycle/profile.py",
       "kind": "script",
       "installRole": "consumer",
@@ -2827,7 +2843,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "91cfa8ebb74872ccec1160c0a7b28edcfacea3217900805034dca0f0c8f39c05",
+      "sha256": "0dbba4a87d41171f3fce22a4842eecd2a989ea6a5ddf44832d7b2aed9feb4226",
       "mode": 420,
       "origin": "kit"
     },
