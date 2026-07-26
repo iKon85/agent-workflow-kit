@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import re
+from fnmatch import fnmatchcase
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from time import time
+from typing import Any, Callable
 
 from profile import (
     LifecycleError,
@@ -44,10 +46,28 @@ class CleanupAssessment:
     branch: str
     assumptions: str
     reasons: tuple[str, ...]
+    root_device: int
+    root_inode: int
+    scratch_files: tuple[str, ...] = ()
 
     @property
     def removable(self) -> bool:
         return not self.reasons
+
+
+@dataclass(frozen=True)
+class CleanupFacts:
+    worktree: Path
+    branch: str
+    registered: bool
+    is_main: bool
+    tracked_files: tuple[str, ...]
+    untracked_files: tuple[str, ...]
+    merged: bool
+    pr_state: str
+    assumptions: str
+    root_device: int
+    root_inode: int
 
 
 def collect_facts(cwd: Path) -> RepoFacts:
@@ -121,28 +141,60 @@ def cleanup_assessment(
     main: Path,
     target: Path,
     merge_target: str | None = None,
+    pr_state: str = "none",
 ) -> CleanupAssessment:
+    return classify_cleanup(
+        profile,
+        collect_cleanup_facts(
+            main,
+            target,
+            merge_target=merge_target,
+            pr_state=pr_state,
+        ),
+    )
+
+
+def collect_cleanup_facts(
+    main: Path,
+    target: Path,
+    *,
+    merge_target: str | None = None,
+    pr_state: str = "none",
+) -> CleanupFacts:
     worktree = target.resolve()
-    reasons = []
+    root_metadata = worktree.stat()
     branch = run(
         ["git", "-C", str(worktree), "branch", "--show-current"],
         cwd=main,
         check=False,
     ).stdout.strip()
-    if worktree not in registered_worktrees(main):
-        reasons.append("not a registered worktree")
-    if not branch:
-        reasons.append("detached or unreadable branch")
-    if branch in profile.protected_branches or worktree == main.resolve():
-        reasons.append(f"protected worktree branch: {branch or '<unknown>'}")
-    status = run(
-        ["git", "-C", str(worktree), "status", "--porcelain"],
+    tracked = set(run(
+        ["git", "-C", str(worktree), "diff", "--name-only"],
         cwd=main,
         check=False,
-    ).stdout
-    if status.strip():
-        reasons.append("dirty worktree")
-    if branch and branch not in profile.protected_branches:
+    ).stdout.splitlines())
+    tracked.update(run(
+        ["git", "-C", str(worktree), "diff", "--cached", "--name-only"],
+        cwd=main,
+        check=False,
+    ).stdout.splitlines())
+    untracked = set(run(
+        ["git", "-C", str(worktree), "ls-files", "--others", "--exclude-standard"],
+        cwd=main,
+        check=False,
+    ).stdout.splitlines())
+    untracked.update(run(
+        [
+            "git", "-C", str(worktree), "ls-files", "--others", "--ignored",
+            "--exclude-standard",
+        ],
+        cwd=main,
+        check=False,
+    ).stdout.splitlines())
+    # ANNAHMEN.md is governed separately: its bytes are returned before removal.
+    untracked.discard("ANNAHMEN.md")
+    merged = False
+    if branch:
         main_branch = merge_target or run(
             ["git", "-C", str(main), "branch", "--show-current"],
             cwd=main,
@@ -152,12 +204,273 @@ def cleanup_assessment(
             ["git", "merge-base", "--is-ancestor", branch, main_branch],
             cwd=main,
             check=False,
-        )
-        if merged.returncode != 0:
-            reasons.append(f"unmerged branch: {branch}")
+        ).returncode == 0
     assumptions_path = worktree / "ANNAHMEN.md"
     assumptions = assumptions_path.read_text(encoding="utf-8") if assumptions_path.is_file() else ""
-    return CleanupAssessment(worktree, branch, assumptions, tuple(reasons))
+    return CleanupFacts(
+        worktree=worktree,
+        branch=branch,
+        registered=worktree in registered_worktrees(main),
+        is_main=worktree == main.resolve(),
+        tracked_files=tuple(sorted(tracked)),
+        untracked_files=tuple(sorted(untracked)),
+        merged=merged,
+        pr_state=pr_state,
+        assumptions=assumptions,
+        root_device=root_metadata.st_dev,
+        root_inode=root_metadata.st_ino,
+    )
+
+
+def classify_cleanup(
+    profile: WorktreeProfile,
+    facts: CleanupFacts,
+) -> CleanupAssessment:
+    reasons = []
+    if not facts.registered:
+        reasons.append("not a registered worktree")
+    if not facts.branch:
+        reasons.append("detached or unreadable branch")
+    if facts.branch in profile.protected_branches or facts.is_main:
+        reasons.append(f"protected worktree branch: {facts.branch or '<unknown>'}")
+    scratch = sorted(
+        path for path in facts.untracked_files
+        if any(fnmatchcase(path, pattern) for pattern in profile.scratch_patterns)
+    )
+    non_scratch = sorted(set(facts.untracked_files).difference(scratch))
+    if facts.tracked_files:
+        reasons.append(
+            f"dirty worktree: tracked modifications: {', '.join(facts.tracked_files)}"
+        )
+    if non_scratch:
+        reasons.append(f"dirty worktree: untracked non-scratch: {', '.join(non_scratch)}")
+    if facts.pr_state == "open":
+        reasons.append("open PR")
+    if (
+        facts.branch
+        and facts.branch not in profile.protected_branches
+        and not facts.merged
+    ):
+        reasons.append(f"unmerged branch: {facts.branch}")
+    return CleanupAssessment(
+        facts.worktree,
+        facts.branch,
+        facts.assumptions,
+        tuple(reasons),
+        facts.root_device,
+        facts.root_inode,
+        tuple(scratch),
+    )
+
+
+@dataclass(frozen=True)
+class SweepRow:
+    kind: str
+    path: str | None
+    branch: str
+    issue: str | None
+    pr_state: str
+    merged_into_main: bool
+    last_commit_age_seconds: int
+    removable: bool
+    reasons: tuple[str, ...]
+    verdict_reason: str
+    scratch_files: tuple[str, ...] = ()
+    assumptions: str = ""
+
+
+@dataclass(frozen=True)
+class SweepReport:
+    main_branch: str
+    worktree_count: int
+    local_branch_count: int
+    merged_remote_branch_count: int
+    rows: tuple[SweepRow, ...]
+
+
+@dataclass(frozen=True)
+class SweepFactRow:
+    path: Path | None
+    branch: str
+    pr_state: str
+    merged_into_main: bool
+    last_commit_age_seconds: int
+    cleanup: CleanupFacts | None = None
+
+
+@dataclass(frozen=True)
+class SweepFacts:
+    main: Path
+    main_branch: str
+    worktree_count: int
+    local_branch_count: int
+    merged_remote_branch_count: int
+    rows: tuple[SweepFactRow, ...]
+
+
+def _worktree_branches(main: Path) -> tuple[dict[str, Path], tuple[Path, ...]]:
+    output = run(["git", "worktree", "list", "--porcelain"], cwd=main).stdout
+    linked: dict[str, Path] = {}
+    detached = []
+    path: Path | None = None
+    branch = ""
+    for line in [*output.splitlines(), ""]:
+        if line.startswith("worktree "):
+            path = Path(line.split(" ", 1)[1]).resolve()
+            branch = ""
+        elif line.startswith("branch refs/heads/"):
+            branch = line.removeprefix("branch refs/heads/")
+        elif not line and path is not None:
+            if branch:
+                linked[branch] = path
+            else:
+                detached.append(path)
+            path = None
+    return linked, tuple(detached)
+
+
+def collect_sweep_facts(
+    profile: WorktreeProfile,
+    main: Path,
+    pr_lookup: Callable[[str], str],
+    *,
+    now: int | None = None,
+) -> SweepFacts:
+    """Gather the complete read-only inventory without making removal decisions."""
+    main = main.resolve()
+    main_branch = run(
+        ["git", "-C", str(main), "branch", "--show-current"], cwd=main
+    ).stdout.strip()
+    linked, detached = _worktree_branches(main)
+    refs = run(
+        [
+            "git", "for-each-ref",
+            "--format=%(refname:short)\t%(committerdate:unix)",
+            "refs/heads/",
+        ],
+        cwd=main,
+    ).stdout.splitlines()
+    timestamp = int(time()) if now is None else now
+    rows: list[SweepFactRow] = []
+    for line in refs:
+        branch, commit_time = line.rsplit("\t", 1)
+        path = linked.get(branch)
+        pr_state = pr_lookup(branch)
+        merged = run(
+            ["git", "merge-base", "--is-ancestor", branch, main_branch],
+            cwd=main,
+            check=False,
+        ).returncode == 0
+        rows.append(SweepFactRow(
+            path=path,
+            branch=branch,
+            pr_state=pr_state,
+            merged_into_main=merged,
+            last_commit_age_seconds=max(0, timestamp - int(commit_time)),
+            cleanup=collect_cleanup_facts(
+                main,
+                path,
+                merge_target=main_branch,
+                pr_state=pr_state,
+            ) if path is not None else None,
+        ))
+    for path in detached:
+        commit_time = run(
+            ["git", "-C", str(path), "show", "-s", "--format=%ct", "HEAD"],
+            cwd=main,
+        ).stdout.strip()
+        rows.append(SweepFactRow(
+            path=path,
+            branch="",
+            pr_state="none",
+            merged_into_main=False,
+            last_commit_age_seconds=max(0, timestamp - int(commit_time)),
+        ))
+    remote_merged = run(
+        [
+            "git", "for-each-ref",
+            f"--merged={main_branch}",
+            "--format=%(refname:short)",
+            "refs/remotes/",
+        ],
+        cwd=main,
+        check=False,
+    ).stdout.splitlines()
+    return SweepFacts(
+        main=main,
+        main_branch=main_branch,
+        worktree_count=len(linked) + len(detached),
+        local_branch_count=len(refs),
+        merged_remote_branch_count=len([
+            branch for branch in remote_merged if branch and not branch.endswith("/HEAD")
+        ]),
+        rows=tuple(rows),
+    )
+
+
+def classify_sweep(profile: WorktreeProfile, facts: SweepFacts) -> SweepReport:
+    """Apply profile policy to already-collected inventory facts."""
+    rows = []
+    for fact in facts.rows:
+        if fact.cleanup is not None:
+            assessment = classify_cleanup(profile, fact.cleanup)
+            reasons = assessment.reasons
+            scratch = assessment.scratch_files
+            assumptions = assessment.assumptions
+        elif fact.path is not None:
+            reasons = ("detached or unreadable branch",)
+            scratch = ()
+            assumptions = ""
+        else:
+            reasons_list = []
+            if fact.branch in profile.protected_branches:
+                reasons_list.append(f"protected branch: {fact.branch}")
+            if fact.pr_state == "open":
+                reasons_list.append("open PR")
+            if not fact.merged_into_main:
+                reasons_list.append(f"unmerged branch: {fact.branch}")
+            reasons = tuple(reasons_list)
+            scratch = ()
+            assumptions = ""
+        rows.append(SweepRow(
+            kind="worktree" if fact.path is not None else "branch",
+            path=str(fact.path) if fact.path is not None else None,
+            branch=fact.branch,
+            issue=profile.issue_from_branch(fact.branch),
+            pr_state=fact.pr_state,
+            merged_into_main=fact.merged_into_main,
+            last_commit_age_seconds=fact.last_commit_age_seconds,
+            removable=not reasons,
+            reasons=reasons,
+            verdict_reason=(
+                "; ".join(reasons)
+                if reasons
+                else (
+                    f"merged into {facts.main_branch}; scratch-only: {', '.join(scratch)}"
+                    if scratch
+                    else f"merged into {facts.main_branch}; no blocking work"
+                )
+            ),
+            scratch_files=scratch,
+            assumptions=assumptions,
+        ))
+    return SweepReport(
+        main_branch=facts.main_branch,
+        worktree_count=facts.worktree_count,
+        local_branch_count=facts.local_branch_count,
+        merged_remote_branch_count=facts.merged_remote_branch_count,
+        rows=tuple(rows),
+    )
+
+
+def collect_sweep(
+    profile: WorktreeProfile,
+    main: Path,
+    pr_lookup: Callable[[str], str],
+    *,
+    now: int | None = None,
+) -> SweepReport:
+    return classify_sweep(profile, collect_sweep_facts(profile, main, pr_lookup, now=now))
 
 
 def edit_decision(

@@ -23,7 +23,21 @@ function nestedJson(keys, leaf = { configured: true }) {
 }
 
 async function writeEvidence(root, evidence, valid) {
-  const path = evidence.paths[0];
+  const path = evidence.type === 'project-extension'
+    ? `docs/agents/skills/${evidence.skill}.md`
+    : evidence.paths[0];
+  if (evidence.type === 'project-extension') {
+    const version = valid ? 'v1' : 'v2';
+    const sections = (evidence.activation?.sections ?? ['Project'])
+      .map((name) => `## ${name}\nConfigured.`)
+      .join('\n\n');
+    return write(
+      root,
+      path,
+      `<!-- agent-workflow-kit: project-extension/${version}; skill=${evidence.skill} -->\n` +
+      `# Project layer\n\n${sections}\n`,
+    );
+  }
   if (evidence.type === 'sentinel') {
     const state = valid ? 'filled' : 'stub';
     return write(root, path, `<!-- setup-workflow: state=${state} -->\n${valid ? 'configured' : ''}\n`);
@@ -66,6 +80,86 @@ test('capability evidence and decisions resolve with fixed precedence', async ()
     const ready = await evaluateCapability({ root, capability, decision: 'pending' });
     assert.equal(ready.state, 'ready');
     assert.equal(ready.clearDecision, true);
+  } finally {
+    await cleanup(root);
+  }
+});
+
+test('structured Project-extension readiness uses the runtime activation contract', async () => {
+  const root = await makeEmptyDir();
+  const path = 'docs/agents/skills/orchestrate-wave.md';
+  const marker = '<!-- agent-workflow-kit: project-extension/v1; skill=orchestrate-wave -->';
+  const manifest = {
+    readiness: {
+      contractVersion: 1,
+      capabilities: {
+        orchestrateWaveRecipe: {
+          evidence: {
+            type: 'project-extension',
+            skill: 'orchestrate-wave',
+            paths: [path],
+            activation: {
+              mode: 'all-sections-filled',
+              sections: ['§Setup', '§Landing'],
+            },
+          },
+        },
+      },
+    },
+    skills: {
+      'orchestrate-wave': {
+        readiness: {
+          optionalBlocks: { projectRecipe: 'orchestrateWaveRecipe' },
+        },
+      },
+    },
+  };
+  try {
+    await write(
+      root,
+      path,
+      `${marker}\n# Recipe\n\n## §Setup\n<!-- configure -->\n\n## §Landing\n`,
+    );
+    let result = await checkSkill({ root, skill: 'orchestrate-wave', manifest });
+    assert.equal(result.verdict, 'degraded');
+    assert.equal(result.capabilities.orchestrateWaveRecipe.state, 'missing');
+    assert.deepEqual(result.activeBlocks, []);
+    assert.deepEqual(result.inactiveBlocks, ['projectRecipe']);
+
+    await write(
+      root,
+      path,
+      `${marker}\n# Recipe\n\n## §Setup\nRun setup.\n`,
+    );
+    result = await checkSkill({ root, skill: 'orchestrate-wave', manifest });
+    assert.equal(result.verdict, 'degraded');
+    assert.equal(result.capabilities.orchestrateWaveRecipe.state, 'missing');
+
+    await write(
+      root,
+      path,
+      `${marker}\n# Recipe\n\n## §Setup\nRun setup.\n\n## §Landing\nRun landing.\n`,
+    );
+    result = await checkSkill({ root, skill: 'orchestrate-wave', manifest });
+    assert.equal(result.verdict, 'ready');
+    assert.equal(result.capabilities.orchestrateWaveRecipe.state, 'ready');
+    assert.deepEqual(result.activeBlocks, ['projectRecipe']);
+    assert.deepEqual(result.inactiveBlocks, []);
+
+    await write(
+      root,
+      path,
+      '<!-- agent-workflow-kit: project-extension/v2; skill=orchestrate-wave -->\n',
+    );
+    result = await checkSkill({ root, skill: 'orchestrate-wave', manifest });
+    assert.equal(result.verdict, 'blocked');
+    assert.equal(result.capabilities.orchestrateWaveRecipe.state, 'invalid');
+    assert.equal(result.capabilities.orchestrateWaveRecipe.blocking, true);
+    assert.match(
+      result.capabilities.orchestrateWaveRecipe.diagnostic,
+      /unsupported schema.*expected project-extension\/v1/,
+    );
+    assert.deepEqual(result.activeBlocks, []);
   } finally {
     await cleanup(root);
   }

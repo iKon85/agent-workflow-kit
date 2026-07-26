@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { firstLineState } from '../src/lib/sentinel.mjs';
 import { CONSUMER_MANIFEST_NAME, readManifest, writeManifest } from '../src/lib/manifest.mjs';
+import { inspectProjectSkillExtension } from '../src/lib/projectSkillExtension.mjs';
 import { readComposedSkillRegistry } from '../src/lib/skillRegistry.mjs';
 
 const SOURCE_MANIFEST = '.claude/skills/skill-manifest.json';
@@ -87,6 +88,19 @@ async function runbookVerdict(root, evidence) {
   return 'invalid';
 }
 
+async function projectExtensionVerdict(root, evidence) {
+  try {
+    const result = await inspectProjectSkillExtension({
+      root,
+      skill: evidence.skill,
+      activation: evidence.activation,
+    });
+    return { verdict: result.state === 'active' ? 'valid' : 'absent' };
+  } catch (error) {
+    return { verdict: 'invalid', blocking: true, diagnostic: error.message };
+  }
+}
+
 function section(text, heading) {
   if (text === null) return null;
   const lines = text.split('\n');
@@ -148,6 +162,7 @@ async function prodEvidence(root, paths) {
 async function evidenceVerdict(root, evidence) {
   if (evidence.type === 'prod-section') return (await prodEvidence(root, evidence.paths)).verdict;
   if (evidence.type === 'runbook-reference') return runbookVerdict(root, evidence);
+  if (evidence.type === 'project-extension') return projectExtensionVerdict(root, evidence);
   const verdicts = await Promise.all((evidence.paths ?? []).map(async (path) => {
     const text = await readText(root, path);
     if (evidence.type === 'sentinel') return sentinelVerdict(text, evidence.allowLegacy);
@@ -163,9 +178,19 @@ async function evidenceVerdict(root, evidence) {
 export async function evaluateCapability({ root, capability, decision }) {
   const prod = capability.evidence.type === 'prod-section'
     ? await prodEvidence(root, capability.evidence.paths) : null;
-  const evidence = prod?.verdict ?? await evidenceVerdict(root, capability.evidence);
-  const diagnostics = prod?.diagnostics?.length ? { diagnostics: prod.diagnostics } : {};
-  if (evidence === 'invalid') return { state: 'invalid', clearDecision: false, ...diagnostics };
+  const evaluated = prod ?? await evidenceVerdict(root, capability.evidence);
+  const evidence = typeof evaluated === 'string' ? evaluated : evaluated.verdict;
+  const diagnostics = evaluated?.diagnostics?.length
+    ? { diagnostics: evaluated.diagnostics }
+    : (evaluated?.diagnostic ? { diagnostic: evaluated.diagnostic } : {});
+  if (evidence === 'invalid') {
+    return {
+      state: 'invalid',
+      clearDecision: false,
+      ...(evaluated?.blocking ? { blocking: true } : {}),
+      ...diagnostics,
+    };
+  }
   if (evidence === 'valid') return { state: 'ready', clearDecision: Boolean(decision) };
   if (decision === 'pending') return { state: 'pending', clearDecision: false, ...diagnostics };
   if (decision === 'not-applicable' && capability.allowNotApplicable) {
@@ -206,7 +231,10 @@ export async function checkSkill({ root, skill, manifest }) {
     (capabilities[name].state === 'ready' ? activeBlocks : inactiveBlocks).push(block);
   }
   const invalid = Object.values(capabilities).some(({ state }) => state === 'invalid');
-  const verdict = requiredBlocked ? 'blocked' : (inactiveBlocks.length || invalid ? 'degraded' : 'ready');
+  const fatal = Object.values(capabilities).some(({ blocking }) => blocking === true);
+  const verdict = requiredBlocked || fatal
+    ? 'blocked'
+    : (inactiveBlocks.length || invalid ? 'degraded' : 'ready');
   return { contractVersion: manifest.readiness.contractVersion, verdict, capabilities, activeBlocks, inactiveBlocks };
 }
 

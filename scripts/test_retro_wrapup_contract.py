@@ -88,7 +88,7 @@ class WrapupChainingContract(unittest.TestCase):
         required = (
             "invoke the `retro` skill immediately in this run",
             "land nothing in this run",
-            "fresh explicit `/wrapup` invocation",
+            "fresh explicit `$wrapup` or `/wrapup` invocation",
         )
         for surface in SURFACES:
             with self.subTest(surface=surface):
@@ -120,9 +120,26 @@ class WrapupChainingContract(unittest.TestCase):
             with self.subTest(surface=surface):
                 text = skill(surface, "wrapup")
                 self.assertIn("disable-model-invocation: true", text)
-                self.assertIn("user's `/wrapup` input IS the explicit", text)
+                self.assertIn(
+                    "user's direct `$wrapup` or `/wrapup` input IS the explicit",
+                    text,
+                )
                 self.assertIn("program-sync", text)
                 self.assertIn("Phasen-Gates", text)
+
+    def test_wrapup_accepts_only_direct_user_dollar_or_slash_invocations(self):
+        required = (
+            "direct `$wrapup` or `/wrapup`",
+            "Natural-language requests",
+            "indirect skill chaining",
+            "autonomous invocation",
+            "fresh explicit `$wrapup` or `/wrapup` invocation",
+        )
+        for surface in SURFACES:
+            with self.subTest(surface=surface):
+                text = contract_text(surface, "wrapup")
+                for phrase in required:
+                    self.assertIn(phrase, text)
 
     def test_new_contract_is_reference_free(self):
         for surface in SURFACES:

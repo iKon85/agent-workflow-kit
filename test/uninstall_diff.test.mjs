@@ -33,6 +33,33 @@ test('diff classifies an upstream change without writing', async () => {
   }
 });
 
+test('diff and uninstall reject an invalid ledger before touching tracked bytes or manifest', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const manifestPath = join(consumer, CONSUMER_MANIFEST_NAME);
+    const manifest = await readManifest(manifestPath);
+    manifest.installed[0].installedSha256 = 'not-a-sha';
+    await writeManifest(manifestPath, manifest);
+    const manifestBefore = await readFile(manifestPath);
+    const fileBefore = await readFile(join(consumer, P));
+
+    await assert.rejects(
+      diff({ kitRoot: kit, consumerRoot: consumer }),
+      /invalid consumer manifest.*installedSha256.*restore/i,
+    );
+    await assert.rejects(
+      uninstall({ consumerRoot: consumer }),
+      /invalid consumer manifest.*installedSha256.*restore/i,
+    );
+    assert.deepEqual(await readFile(manifestPath), manifestBefore);
+    assert.deepEqual(await readFile(join(consumer, P)), fileBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('diff reports a legacy maintainer file without changing consumer bytes', async () => {
   const maintainerPath = 'scripts/kit-release.mjs';
   const kit = await makeKit({ [P]: 'v1\n', [maintainerPath]: 'release helper\n' });

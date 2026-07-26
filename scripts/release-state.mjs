@@ -8,11 +8,21 @@ import { fileURLToPath } from 'node:url';
 import { assertReleaseParity, releaseIdentityFromTarball } from './release-parity.mjs';
 
 const exec = promisify(execFile);
+export const DEFAULT_VISIBILITY_DELAYS_MS = Object.freeze([
+  1_000,
+  2_000,
+  4_000,
+  8_000,
+  16_000,
+  32_000,
+  64_000,
+  128_000,
+  256_000,
+]);
 const DEFAULT_VISIBILITY = {
-  attempts: 6,
-  initialDelayMs: 1_000,
-  backoffFactor: 2,
+  delaysMs: DEFAULT_VISIBILITY_DELAYS_MS,
   sleep,
+  log: console.log,
 };
 
 const assertMatches = (local, remote, label) => assertReleaseParity({
@@ -37,18 +47,18 @@ export async function inspectRelease(adapter) {
 
 async function awaitVisibility(read, phase, options = {}) {
   const policy = { ...DEFAULT_VISIBILITY, ...options };
-  let delay = policy.initialDelayMs;
-  for (let attempt = 1; attempt <= policy.attempts; attempt += 1) {
+  const attempts = policy.delaysMs.length + 1;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    policy.log(`${phase.service} visibility: attempt ${attempt}/${attempts}`);
     const visible = await read();
     if (visible) return visible;
-    if (attempt < policy.attempts) {
-      await policy.sleep(delay);
-      delay *= policy.backoffFactor;
+    if (attempt < attempts) {
+      await policy.sleep(policy.delaysMs[attempt - 1]);
     }
   }
   throw new Error(
     `${phase.operation} succeeded but ${phase.subject} was not visible `
-    + `after ${policy.attempts} ${phase.service} read attempts`,
+    + `after ${attempts} ${phase.service} read attempts`,
   );
 }
 

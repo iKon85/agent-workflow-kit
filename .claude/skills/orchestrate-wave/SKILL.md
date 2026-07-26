@@ -33,9 +33,8 @@ node scripts/readiness.mjs check --skill orchestrate-wave --json
 
 - `ready`: continue silently with the required tracker/board context and the
   active `projectRecipe` block.
-- `degraded`: required tracker and managed-board evidence is ready, so keep the
-  complete generic orchestration fallback active, omit only `projectRecipe`,
-  and emit exactly one concise summary: `Readiness degraded — inactive block
+- `degraded`: use generic fallback without `projectRecipe`, and emit exactly one
+  concise summary: `Readiness degraded — inactive block
   projectRecipe (orchestrateWaveRecipe: <state>); using the generic
   orchestration fallback. Run /setup-workflow, configure
   docs/agents/skills/orchestrate-wave.md, then rerun this skill.`
@@ -162,8 +161,7 @@ preflight clean + this run's local claim planted · wave branch ff'd to
 
 Phase 1 uses the selected orchestration mechanics. Resolve every named component,
 produce the **FILE → SLICES** table and overlap graph, then build the conflict hub
-before its dependents. Cut fully file-disjoint waves; shared imports are safe, but
-files edited by multiple slices serialize across waves.
+before its dependents. Cut fully file-disjoint waves; shared imports are safe, but files edited by multiple slices serialize across waves.
 - **Native blocking edges are the frontier authority.** Read the anchor's
   buildable frontier from the tracker's native issue dependencies:
   `python3 scripts/board-sync.py frontier <anchor#>` → `FREI` / `BLOCKED by #…` /
@@ -177,6 +175,7 @@ files edited by multiple slices serialize across waves.
   registries that read targets must serialize helper-owning slices through
   dependency edges, each appending only its own existing artifact after creation.
   Both preserve one owner per shared edit and the no-conflict invariant.
+- **Producer/measurer coupling is a semantic dependency even when files are disjoint.** When one slice mutates a surface and another measures/baselines that surface in the same wave, either order the measurer strictly after the producer through an explicit edge so its baseline reflects post-mutation state, or assign an explicit baseline reconciliation owner at integration to drop producer-resolved entries from the measurer baseline.
 - **Retirement slices require a valid topological deletion order.** Before
   dispatching slices that delete a legacy cluster, map every to-delete module's
   production importers and build the cluster's internal import graph. Order the
@@ -187,7 +186,7 @@ files edited by multiple slices serialize across waves.
 
 **Done when:** FILE→SLICES table exists · each shared file has either one
 declaration-only owner with verbatim consume-only dependents, or an explicit serialized
-owner sequence for eager/validated additions where each owner appends only its own existing artifact · disjoint waves cut in dependency order.
+owner sequence for eager/validated additions where each owner appends only its own existing artifact · every producer/measurer pair has an explicit edge/order or baseline reconciliation owner · disjoint waves cut in dependency order.
 
 ## Phase 2 — Dispatch one wave in parallel (isolated worktree per implementer)
 
@@ -244,6 +243,7 @@ A single browser + single dev DB ⇒ verify is serial and yours. **A subagent's
 (real case: "gate PASS" while a size gate was red; files declared missing that
 existed). Never merge on the subagent's word.
 
+- When builders authored or changed browser specs, treat each as an unverified artifact: if `§Verify Recipe` names a local e2e runner, give them ONE central green run with it before the central CI/verify gate. Never invent a command under generic fallback.
 - **Re-run your project's full CI/verify gate CENTRALLY yourself** (`§Verify
   Recipe`). On an integrated verify/coordinator branch (no per-slice issue number)
   a branch-name-derived guard can BLOCK with no matching baseline — a branch-naming

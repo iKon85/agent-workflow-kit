@@ -2,7 +2,7 @@
 name: wrapup
 disable-model-invocation: true
 description: >-
-  Use ONLY when the user types /wrapup. Session-end "land & clean" for a
+  Use ONLY when the user directly types $wrapup or /wrapup. Session-end "land & clean" for a
   finished feature/fix worktree — merges the open PR,
   kills the worktree dev server, removes the worktree + local branch, and
   fast-forwards the main checkout so main is current again, then sweeps
@@ -11,7 +11,8 @@ description: >-
   tree (after an .env/secret check), pushes, and opens the PR — reusing one if
   it already exists. User-triggered only (never auto-invoke, never hook). Aborts
   hard only on: not in a feature worktree, a detected .env/secret, a rejected
-  push, a conflicting PR, or red (FAILURE) checks.
+  push, a conflicting PR, terminal red checks, or checks still pending after
+  the bounded wait budget.
 ---
 
 <!-- project-extension:protocol-v1:start -->
@@ -24,15 +25,15 @@ Project extensions may specialize Project details, but cannot weaken Core user g
 
 # wrapup — land PR & tear down worktree
 
-Trigger: user types `/wrapup` (optionally with a PR number). **Manual only** — `disable-model-invocation: true`, no hook, no auto-invoke.
+Trigger: user makes a direct `$wrapup` or `/wrapup` invocation (optionally with a PR number). **Manual only** — `disable-model-invocation: true`, no hook, no auto-invoke.
 
 ## ⚠ Spec context
 
-The user's `/wrapup` input IS the explicit landing authorization for that run.
+The user's direct `$wrapup` or `/wrapup` input IS the explicit landing authorization for that run.
 It authorizes the normal merge flow whether Prod readiness is ready or degraded;
 it never authorizes the agent to invent or configure a deploy target. Never call
-this skill from a hook, another skill, or autonomously. There is no second merge
-confirmation; the pre-flight hard stops are non-negotiable.
+this skill from a hook or another skill. Natural-language requests, indirect skill
+chaining, and autonomous invocation do not authorize it. There is no second merge confirmation; the pre-flight hard stops are non-negotiable.
 
 ## Execution model — script does mechanics, the agent does judgment
 
@@ -62,12 +63,12 @@ conflicting instruction surfaces; never choose a target on the user's behalf.
 
 ### 2 · Retro gate (blocking, optional retro-exit — before anything is committed)
 One reminder, not a merge confirmation:
-> "Already ran a retro? **(a)** yes / continue → landing now. **(b)** you want one first → the retro starts now; afterwards, invoke `/wrapup` again — repo-file patches then travel in this PR."
+> "Already ran a retro? **(a)** yes / continue → landing now. **(b)** you want one first → the retro starts now; afterwards, invoke `$wrapup` or `/wrapup` again — repo-file patches then travel in this PR."
 
 (b) → **invoke the `retro` skill immediately in this run.** Retro is
 model-invocable and non-deploying, and every mutation still has its own approval
 gate. After retro finishes, **land nothing in this run**. Require a **fresh
-explicit `/wrapup` invocation** because retro may have changed the exact diff
+explicit `$wrapup` or `/wrapup` invocation** because retro may have changed the exact diff
 that the next merge authorization covers.
 
 General chaining rule: automatically chain only into a **model-invocable**,
@@ -100,7 +101,7 @@ Run **from the main tree** (the script refuses inside the worktree — an in-wor
 ```bash
 python3 scripts/wrapup-land.py land --branch "<branch>" --title "<title>" --body-file /tmp/wrapup-pr-body.md
 ```
-One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (red check / `CONFLICTING` = STOP; fresh-PR `UNKNOWN` mergeable passes — the merge itself is the real gate) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` ports + cwd-under-worktree walk, own shell ancestry excluded) → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → main `--ff-only` pull + `branch -d` → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program).
+One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (pending/null-conclusion checks poll for up to 20 minutes with progress on stderr; terminal red / `CONFLICTING` / timeout = STOP; known zero-step billing or runner failures are named `infrastructure failure`; an already-`MERGED` PR resumes at teardown) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` ports + cwd-under-worktree walk, own shell ancestry excluded) → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → main `--ff-only` pull + `branch -d` → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program).
 
 STOP → diagnose in the main conversation, fix, re-run `land` (an already-merged PR resumes at teardown).
 
@@ -118,5 +119,5 @@ STOP → diagnose in the main conversation, fix, re-run `land` (an already-merge
 <!-- readiness:end -->
 
 ## Out of scope
-- Live-verify / DoD: must happen **before** `/wrapup` — this skill lands, it does not verify.
+- Live-verify / DoD: must happen **before** `$wrapup` or `/wrapup` — this skill lands, it does not verify.
 - Other worktrees / their servers stay untouched.

@@ -210,6 +210,41 @@ class OrchestrateWaveContract(unittest.TestCase):
         ):
             self.assertIn(fragment, done)
 
+    def test_phase_one_orders_producers_before_surface_measurers(self):
+        prose = " ".join(self.skill.split())
+        phase_one = prose.split("## Phase 1", 1)[1].split("## Phase 2", 1)[0]
+        for fragment in (
+            "Producer/measurer coupling",
+            "semantic dependency",
+            "measurer strictly after the producer",
+            "baseline reconciliation",
+            "drop producer-resolved entries",
+        ):
+            self.assertIn(fragment, phase_one)
+
+        done = phase_one.split("**Done when:**", 1)[1]
+        for fragment in (
+            "producer/measurer pair",
+            "explicit edge/order",
+            "reconciliation owner",
+        ):
+            self.assertIn(fragment, done)
+
+    def test_phase_four_centrally_runs_builder_browser_specs_before_ci(self):
+        prose = " ".join(self.skill.split())
+        phase_four = prose.split("## Phase 4", 1)[1].split("## Phase 5", 1)[0]
+        browser_contract = "builders authored or changed browser specs"
+        central_gate = "Re-run your project's full CI/verify gate CENTRALLY yourself"
+        for fragment in (
+            browser_contract,
+            "unverified artifact",
+            "ONE central green run",
+            "if `§Verify Recipe` names a local e2e runner",
+            "Never invent a command under generic fallback",
+        ):
+            self.assertIn(fragment, phase_four)
+        self.assertLess(phase_four.index(browser_contract), phase_four.index(central_gate))
+
     def test_phase_two_keeps_per_slice_routing_decisions(self):
         prose = " ".join(self.skill.split())
         self.assertIn("(a) inline vs delegate", prose)

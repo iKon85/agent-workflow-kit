@@ -7,6 +7,7 @@
     "branchRegex": "^(?:feat|fix|chore|docs)/(?P<issue>\\d+)-",
     "mainBranches": ["main"],
     "protectedBranches": ["main"],
+    "scratchPatterns": ["PLAN.md", "PLAN-REVIEW-LOG.md"],
     "setupEntry": "python3 scripts/worktree-lifecycle/setup.py",
     "setupSteps": [],
     "riskyCommandPatterns": [

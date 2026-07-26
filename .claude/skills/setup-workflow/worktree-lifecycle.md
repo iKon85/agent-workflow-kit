@@ -79,3 +79,14 @@ The exact kit-owned commands are:
 
 Preserve unrelated settings, hook groups, profile sections, and unknown keys.
 Repeated reconciliation with the same choice is byte-identical.
+
+## Scratch classification and sweep
+
+Reconcile an explicit `scratchPatterns` array when enabling a new profile.
+Derive its glob values from the consumer's ignored planning artefacts; an empty
+array is valid. Existing values are consumer-owned and remain byte-identical on
+adoption or rerun. Core never supplies filename defaults.
+
+The shipped read-only inventory is
+`python3 scripts/worktree-lifecycle/cleanup.py sweep`. The same profile powers
+its branch issue extraction and scratch-only cleanup verdicts.

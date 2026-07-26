@@ -40,6 +40,37 @@ test('failed update output names its transaction phase and consumer state', () =
   }), 'candidate update failed · phase: activation · consumerState: rolled-back · disk write failed');
 });
 
+test('invalid consumer ledger blocks update during checking before staging or mutation', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifest = await readManifest(manifestPath);
+    manifest.installed.push({ ...manifest.installed[0] });
+    await writeManifest(manifestPath, manifest);
+    const manifestBefore = await readFile(manifestPath);
+    const fileBefore = await readFile(join(consumer, P));
+    const states = [];
+
+    await assert.rejects(
+      update({
+        kitRoot: kit,
+        consumerRoot: consumer,
+        releaseIdentities: releaseIdentities(),
+        onState: (state) => states.push(state),
+      }),
+      /invalid consumer manifest.*duplicates path.*restore/i,
+    );
+
+    assert.deepEqual(states, ['checking'], 'candidate staging never began');
+    assert.deepEqual(await readFile(manifestPath), manifestBefore);
+    assert.deepEqual(await readFile(join(consumer, P)), fileBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('update applies an upstream mode-only change with unchanged bytes', async () => {
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();
@@ -296,7 +327,8 @@ test('candidate ledger covers the release-manifest denominator plus the Project 
     await init({ kitRoot: kit, consumerRoot: consumer });
     const manifestPath = join(consumer, 'agent-workflow-kit.json');
     const manifest = await readManifest(manifestPath);
-    await writeManifest(manifestPath, { ...manifest, installRole: 'legacy' });
+    const { installRole: _legacyOmission, ...legacyManifest } = manifest;
+    await writeManifest(manifestPath, legacyManifest);
     let stagedInstalled;
 
     const result = await update({
@@ -551,6 +583,70 @@ test('update transactionally adopts new safe stubs and reports behavior availabi
     assert.deepEqual(after.readinessDecisions, { prodTarget: 'pending' });
     assert.equal(after.installed.find(({ path }) => path === stub)?.origin, 'consumer');
     assert.equal(decisionCalls, 0, 'headless package consent never answers readiness');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('readiness policy deactivates a preserved legacy empty Project recipe', async () => {
+  const path = 'docs/agents/skills/orchestrate-wave.md';
+  const oldReadiness = {
+    readiness: { contractVersion: 1, capabilities: {
+      orchestrateWaveRecipe: {
+        evidence: { type: 'sentinel', paths: [path], allowLegacy: true },
+      },
+    } },
+    skills: {
+      'orchestrate-wave': {
+        readiness: { optionalBlocks: { projectRecipe: 'orchestrateWaveRecipe' } },
+      },
+    },
+  };
+  const nextReadiness = structuredClone(oldReadiness);
+  nextReadiness.readiness.capabilities.orchestrateWaveRecipe = {
+    evidence: {
+      type: 'project-extension',
+      skill: 'orchestrate-wave',
+      paths: [path],
+      activation: {
+        mode: 'all-sections-filled',
+        sections: ['§Setup', '§Landing'],
+      },
+    },
+  };
+  const legacyRecipe = [
+    '<!-- setup-workflow: state=filled -->',
+    '<!-- agent-workflow-kit: project-extension/v1; skill=orchestrate-wave -->',
+    '# Project layer',
+    '',
+    '## §Setup',
+    '',
+    '## §Landing',
+    '',
+  ].join('\n');
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, oldReadiness);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, path), legacyRecipe);
+    await setKitReadiness(kit, nextReadiness);
+
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+
+    assert.equal(result.state, 'applied');
+    assert.equal(await readFile(join(consumer, path), 'utf8'), legacyRecipe);
+    assert.deepEqual(result.availability.newlyDegraded, [
+      'orchestrate-wave.projectRecipe',
+    ]);
+    assert.ok(result.availability.stillUnresolved.includes(
+      'orchestrateWaveRecipe:missing',
+    ));
   } finally {
     await cleanup(kit, consumer);
   }

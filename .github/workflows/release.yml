@@ -81,4 +81,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_SHA: ${{ steps.intent.outputs.commit }}
+        # Retry/backoff and attempt logging live in the tested release-state
+        # reconciler. On the next tagged release, manually verify that Actions
+        # shows its bounded `attempt N/M` readback progress.
         run: node scripts/release-state.mjs

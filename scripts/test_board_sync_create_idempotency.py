@@ -34,6 +34,7 @@ PROFILE = {
 
 
 def load_board_sync():
+    previous_profile = os.environ.get("BOARD_SYNC_PROFILE")
     with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as profile:
         profile.write("<!-- board-sync:profile -->\n```json\n")
         json.dump(PROFILE, profile)
@@ -45,11 +46,18 @@ def load_board_sync():
     )
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
-    spec.loader.exec_module(module)
-    Path(profile_path).unlink()
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        Path(profile_path).unlink()
+        if previous_profile is None:
+            os.environ.pop("BOARD_SYNC_PROFILE", None)
+        else:
+            os.environ["BOARD_SYNC_PROFILE"] = previous_profile
     return module
 
 
+PROFILE_BEFORE_LOAD = os.environ.get("BOARD_SYNC_PROFILE")
 bs = load_board_sync()
 
 
@@ -78,6 +86,11 @@ class FakeGh:
         if "project item-add" in joined:
             return '{"id":"PVTI_test"}'
         return ""
+
+
+class BoardSyncImportIsolationTest(unittest.TestCase):
+    def test_loading_board_sync_restores_the_caller_profile(self):
+        self.assertEqual(os.environ.get("BOARD_SYNC_PROFILE"), PROFILE_BEFORE_LOAD)
 
 
 class MarkerAwareCreateTest(unittest.TestCase):

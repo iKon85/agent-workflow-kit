@@ -13,7 +13,7 @@ import { stubSentinel } from './sentinel.mjs';
 import { STUB_TARGETS } from './bundle.mjs';
 import {
   CONSUMER_MANIFEST_NAME, CONSUMER_ORIGIN, READINESS_MANIFEST_PATH,
-  filesForInstallRole, indexByPath, readManifest, writeManifest,
+  filesForInstallRole, indexByPath, readManifest, validateManifest, writeManifest,
 } from './manifest.mjs';
 import {
   PROJECT_SKILL_REGISTRY_PATH, emptyProjectSkillRegistry, migrateLegacySkillRegistry,
@@ -38,6 +38,7 @@ export async function materializeUpdateCandidate({
   consumerRoot, pkg, priorReadinessManifest, nextReadinessManifest,
   afterInputValidation = async () => {},
 }) {
+  validateManifest(pkg, { kind: 'package', path: 'update package manifest' });
   const candidateRoot = await mkdtemp(join(tmpdir(), 'agent-workflow-kit-stage-'));
   try {
     const paths = candidateInputPaths({
@@ -208,6 +209,7 @@ export async function activateCandidate({
   afterSnapshot = async () => {}, afterGenerated = async () => {},
   beforeTargetRevalidation = async () => {},
 }) {
+  validateManifest(pkg, { kind: 'package', path: 'update package manifest' });
   const changed = [...preview.added, ...preview.updated];
   const generated = preview.generated ?? [];
   const migrations = preview.migrations ?? [];

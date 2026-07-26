@@ -12,7 +12,7 @@ def main() -> int:
         payload = json.load(sys.stdin)
         core = load_workflow_advisories_core()
         profile = core.load_profile(Path("docs/agents/workflow-capabilities.json"))
-        decision = core.migration_reminder_decision(profile, payload)
+        decision = core.migration_reminder_decision(profile, payload, Path.cwd())
         if decision.context:
             print(json.dumps(hook_event_output(decision.event_name, decision.context)))
     except Exception:

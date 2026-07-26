@@ -26,7 +26,9 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -41,7 +43,32 @@ ISSUE_BRANCH_RE = re.compile(r"^(feat|fix|chore|docs)/(\d+)-")
 DRIFT_LINE_RE = re.compile(r"^-\s*#(\d+)(?:\s*§([^:]+?))?\s*:\s*(.+)$")
 RETRO_LINE_RE = re.compile(r"^\*\*Retro:\*\*", re.MULTILINE)
 DRIFT_MARKER_RE = re.compile(r"<!--\s*annahme-drift:\s*(\{.*?\})\s*-->")
-RED_CHECK_CONCLUSIONS = {"FAILURE", "CANCELLED", "TIMED_OUT"}
+RED_CHECK_CONCLUSIONS = {
+    "ACTION_REQUIRED",
+    "CANCELLED",
+    "FAILURE",
+    "STALE",
+    "STARTUP_FAILURE",
+    "TIMED_OUT",
+}
+GREEN_CHECK_CONCLUSIONS = {"NEUTRAL", "SKIPPED", "SUCCESS"}
+CHECK_WAIT_SECONDS = 20 * 60
+CHECK_POLL_SECONDS = 10
+MAX_EXTERNAL_DETAIL = 500
+INFRA_FAILURE_RE = re.compile(
+    r"(?:"
+    r"account payments? (?:have )?failed|"
+    r"billing issue|"
+    r"spending limit|"
+    r"no hosted parallelism|"
+    r"no (?:hosted )?runners? (?:are )?available|"
+    r"no runner matching|"
+    r"runner (?:is )?unavailable|"
+    r"failed to (?:acquire|assign) (?:a )?job|"
+    r"job was not started"
+    r")",
+    re.IGNORECASE,
+)
 
 
 class Stop(Exception):
@@ -60,6 +87,311 @@ def run(cmd: list[str], cwd: str | None = None, check: bool = False) -> subproce
 
 def git(args: list[str], cwd: str | None = None, check: bool = False) -> subprocess.CompletedProcess:
     return run(["git", *args], cwd=cwd, check=check)
+
+
+# ---------- PR check gate ----------
+
+def check_name(check: dict) -> str:
+    return str(check.get("name") or check.get("context") or "?")
+
+
+def check_conclusion(check: dict) -> str:
+    # CheckRun entries carry `conclusion: null` while pending. Do not let a
+    # simultaneously present legacy `state` field turn that explicit null green.
+    value = check.get("conclusion") if "conclusion" in check else check.get("state")
+    return str(value or "").upper()
+
+
+def pending_checks(checks: list[dict]) -> list[dict]:
+    pending = []
+    for check in checks:
+        conclusion = check_conclusion(check)
+        status = str(check.get("status") or "").upper()
+        if conclusion in RED_CHECK_CONCLUSIONS | GREEN_CHECK_CONCLUSIONS:
+            continue
+        if conclusion in {"EXPECTED", "IN_PROGRESS", "PENDING", "QUEUED", "REQUESTED", "WAITING"}:
+            pending.append(check)
+            continue
+        if not conclusion or status not in {"", "COMPLETED"}:
+            pending.append(check)
+    return pending
+
+
+def red_checks(checks: list[dict]) -> list[dict]:
+    return [
+        check for check in checks
+        if check_conclusion(check) in RED_CHECK_CONCLUSIONS | {"ERROR"}
+    ]
+
+
+def sanitize_external_detail(text: str) -> str:
+    compact = re.sub(r"[\x00-\x1f\x7f]+", " ", text)
+    return re.sub(r"\s+", " ", compact).strip()[:MAX_EXTERNAL_DETAIL]
+
+
+def _check_text(check: dict) -> str:
+    values = []
+    for key in ("name", "context", "description", "title", "summary", "text"):
+        value = check.get(key)
+        if isinstance(value, str):
+            values.append(value)
+    return " ".join(values)
+
+
+def _matching_actions_job(check: dict, jobs: list[dict]) -> dict | None:
+    """Return the one Actions job represented by this check, never a run sibling."""
+    candidates = [job for job in jobs if isinstance(job, dict)]
+    details_url = check.get("link") or check.get("detailsUrl") or check.get("targetUrl")
+    job_match = (
+        re.search(r"/job/(\d+)(?:/|$)", details_url)
+        if isinstance(details_url, str)
+        else None
+    )
+    if job_match is not None:
+        job_id = job_match.group(1)
+        matching_ids = [
+            job for job in candidates
+            if str(job.get("databaseId") or "") == job_id
+            or re.search(
+                rf"/job/{re.escape(job_id)}(?:/|$)",
+                str(job.get("url") or ""),
+            )
+        ]
+        return matching_ids[0] if len(matching_ids) == 1 else None
+
+    name = check_name(check)
+    matching_names = [
+        job for job in candidates if str(job.get("name") or "") == name
+    ]
+    return matching_names[0] if len(matching_names) == 1 else None
+
+
+def _job_database_id(job: dict) -> str:
+    database_id = job.get("databaseId")
+    if database_id is not None:
+        return str(database_id)
+    match = re.search(r"/job/(\d+)(?:/|$)", str(job.get("url") or ""))
+    return match.group(1) if match is not None else ""
+
+
+def infrastructure_failure_diagnosis(
+    check: dict,
+    *,
+    command_runner=run,
+) -> str:
+    """Classify known Actions billing/runner failures with bounded read-only detail."""
+    if INFRA_FAILURE_RE.search(_check_text(check)):
+        return "infrastructure failure (billing or runner unavailable)"
+
+    details_url = check.get("link") or check.get("detailsUrl") or check.get("targetUrl")
+    run_match = (
+        re.search(r"/actions/runs/(\d+)(?:/|$)", details_url)
+        if isinstance(details_url, str)
+        else None
+    )
+    if run_match is None:
+        return ""
+    run_id = run_match.group(1)
+
+    jobs_result = command_runner(
+        ["gh", "run", "view", run_id, "--json", "jobs"]
+    )
+    matching_job = None
+    if jobs_result.returncode == 0:
+        try:
+            jobs = json.loads(jobs_result.stdout).get("jobs") or []
+        except (AttributeError, json.JSONDecodeError):
+            jobs = []
+        matching_job = _matching_actions_job(check, jobs)
+        zero_step_failure = (
+            matching_job is not None
+            and str(matching_job.get("conclusion") or "").lower()
+            in {"failure", "cancelled", "timed_out", "startup_failure"}
+            and not (matching_job.get("steps") or [])
+        )
+        if zero_step_failure:
+            return "infrastructure failure (failed Actions job had zero steps)"
+
+    job_id = _job_database_id(matching_job) if matching_job is not None else ""
+    if not job_id:
+        return ""
+    log_result = command_runner([
+        "gh", "run", "view", run_id, "--job", job_id, "--log-failed"
+    ])
+    external = sanitize_external_detail(
+        (log_result.stdout or "") + " " + (log_result.stderr or "")
+    )
+    if INFRA_FAILURE_RE.search(external):
+        return "infrastructure failure (billing or runner unavailable)"
+    return ""
+
+
+def _pr_gate_snapshot(pr: str, command_runner) -> dict:
+    result = command_runner([
+        "gh", "pr", "view", pr, "--json",
+        "state,mergeable,mergeStateStatus,statusCheckRollup,baseRefName",
+    ])
+    if result.returncode != 0:
+        raise Stop(
+            "0c merge-gate",
+            "cannot inspect PR checks",
+            sanitize_external_detail(result.stderr or result.stdout),
+        )
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise Stop("0c merge-gate", "invalid PR check response", str(error)) from error
+
+
+def _required_checks_snapshot(pr: str, command_runner) -> list[dict]:
+    result = command_runner([
+        "gh", "pr", "checks", pr, "--required", "--json",
+        "name,state,link,bucket,workflow",
+    ])
+    # gh uses 1 for failed checks and 8 for pending checks. Both still carry
+    # the authoritative JSON needed by this gate.
+    if result.returncode not in {0, 1, 8}:
+        raise Stop(
+            "0c merge-gate",
+            "cannot inspect required PR checks",
+            sanitize_external_detail(result.stderr or result.stdout),
+        )
+    try:
+        checks = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise Stop(
+            "0c merge-gate", "invalid required PR check response", str(error)
+        ) from error
+    if not isinstance(checks, list) or not all(
+        isinstance(check, dict) for check in checks
+    ):
+        raise Stop(
+            "0c merge-gate",
+            "invalid required PR check response",
+            "expected a JSON array of checks",
+        )
+    return checks
+
+
+def _configured_required_check_names(snapshot: dict, command_runner) -> set[str]:
+    branch = snapshot.get("baseRefName")
+    if not isinstance(branch, str) or not branch:
+        raise Stop("0c merge-gate", "PR response has no base branch")
+    repo_result = command_runner(["gh", "repo", "view", "--json", "nameWithOwner"])
+    if repo_result.returncode != 0:
+        raise Stop(
+            "0c merge-gate",
+            "cannot inspect repository identity",
+            sanitize_external_detail(repo_result.stderr or repo_result.stdout),
+        )
+    try:
+        repository = json.loads(repo_result.stdout)["nameWithOwner"]
+    except (KeyError, TypeError, json.JSONDecodeError) as error:
+        raise Stop("0c merge-gate", "invalid repository identity response", str(error)) from error
+    rules_result = command_runner([
+        "gh", "api",
+        f"repos/{quote(repository, safe='/')}/rules/branches/{quote(branch, safe='')}",
+    ])
+    if rules_result.returncode != 0:
+        raise Stop(
+            "0c merge-gate",
+            "cannot inspect required-check rules",
+            sanitize_external_detail(rules_result.stderr or rules_result.stdout),
+        )
+    try:
+        rules = json.loads(rules_result.stdout)
+    except json.JSONDecodeError as error:
+        raise Stop("0c merge-gate", "invalid required-check rules response", str(error)) from error
+    if not isinstance(rules, list):
+        raise Stop("0c merge-gate", "invalid required-check rules response", "expected a JSON array")
+    return {
+        check["context"]
+        for rule in rules
+        if isinstance(rule, dict) and rule.get("type") == "required_status_checks"
+        for check in (rule.get("parameters", {}).get("required_status_checks") or [])
+        if isinstance(check, dict) and isinstance(check.get("context"), str)
+    }
+
+
+def _failed_check_detail(failed: list[dict], command_runner) -> str:
+    details = []
+    for check in failed:
+        diagnosis = infrastructure_failure_diagnosis(
+            check, command_runner=command_runner
+        )
+        suffix = f" — {diagnosis}" if diagnosis else ""
+        details.append(f"{check_name(check)}{suffix}")
+    return ", ".join(details)
+
+
+def _waiting_checks(
+    required_checks: list[dict],
+    configured_required_names: set[str],
+) -> list[dict]:
+    waiting = pending_checks(required_checks)
+    observed = {check_name(check) for check in required_checks}
+    waiting.extend(
+        {"name": f"{name} (awaiting discovery)"}
+        for name in sorted(configured_required_names - observed)
+    )
+    return waiting
+
+
+def wait_for_merge_gate(
+    pr: str,
+    *,
+    timeout_seconds: float = CHECK_WAIT_SECONDS,
+    poll_interval: float = CHECK_POLL_SECONDS,
+    command_runner=run,
+    clock=time.monotonic,
+    sleeper=time.sleep,
+    progress_stream=sys.stderr,
+    configured_required_names: set[str] | None = None,
+) -> bool:
+    """Wait for pending checks. Return True when the PR was already merged."""
+    started = clock()
+    while True:
+        snapshot = _pr_gate_snapshot(pr, command_runner)
+        state = snapshot.get("state")
+        if state == "MERGED":
+            return True
+        if state != "OPEN":
+            raise Stop("0c merge-gate", f"PR state {state} — cannot merge")
+        if snapshot.get("mergeable") == "CONFLICTING":
+            raise Stop("0c merge-gate", "PR is CONFLICTING — rebase/resolve the branch")
+
+        if configured_required_names is None:
+            configured_required_names = _configured_required_check_names(
+                snapshot, command_runner
+            )
+        checks = _required_checks_snapshot(pr, command_runner)
+        failed = red_checks(checks)
+        if failed:
+            raise Stop(
+                "0c merge-gate",
+                "red checks on the PR",
+                _failed_check_detail(failed, command_runner),
+            )
+
+        waiting = _waiting_checks(checks, configured_required_names)
+        if not waiting:
+            return False
+
+        elapsed = clock() - started
+        names = ", ".join(check_name(check) for check in waiting)
+        if elapsed >= timeout_seconds:
+            raise Stop(
+                "0c merge-gate",
+                "check wait budget exceeded",
+                f"elapsed={elapsed:.1f}s; still pending: {names}",
+            )
+        print(
+            f"wrapup: waiting for PR #{pr} checks "
+            f"({elapsed:.1f}s elapsed): {names}",
+            file=progress_stream,
+            flush=True,
+        )
+        sleeper(min(poll_interval, timeout_seconds - elapsed))
 
 
 # ---------- context ----------
@@ -432,20 +764,9 @@ def cmd_land(args) -> dict:
         report["warnings"].append("pr-body-check exit 2 (fail-open): "
                                   + (p.stdout + p.stderr).strip()[:300])
 
-    # merge gate
-    d = json.loads(run(["gh", "pr", "view", pr, "--json",
-                        "state,mergeable,mergeStateStatus,statusCheckRollup"],
-                       check=True).stdout)
-    red = [c for c in (d.get("statusCheckRollup") or [])
-           if (c.get("conclusion") or "").upper() in RED_CHECK_CONCLUSIONS]
-    if red:
-        raise Stop("0c merge-gate", "red checks on the PR",
-                   ", ".join(c.get("name") or c.get("context", "?") for c in red))
-    if d.get("mergeable") == "CONFLICTING":
-        raise Stop("0c merge-gate", "PR is CONFLICTING — rebase/resolve the branch")
-    already_merged = d.get("state") == "MERGED"
-    if d.get("state") not in ("OPEN", "MERGED"):
-        raise Stop("0c merge-gate", f"PR state {d.get('state')} — cannot merge")
+    # merge gate — wait boundedly for fresh-PR checks; already-MERGED resumes
+    # directly at teardown. Progress stays on stderr so stdout remains one JSON.
+    already_merged = wait_for_merge_gate(pr)
 
     # Step 1 — merge (= prod deploy; authorization = the user's /wrapup invocation).
     # PR state is the authority, not gh's exit code: `--delete-branch` also tries

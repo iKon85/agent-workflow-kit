@@ -261,11 +261,47 @@ def convention_freshness_decision(profile: dict, root: Path) -> Decision:
     )
 
 
-def migration_reminder_decision(profile: dict, payload: dict) -> Decision:
+def _migration_session_marker(profile: dict, payload: dict, root: Path) -> Path | None:
+    session_id = payload.get("session_id")
+    if not isinstance(session_id, str) or not session_id:
+        return None
+    state_dir = root / profile.get("baseline", {}).get(
+        "stateDir", ".claude/logs/advisory-state",
+    )
+    safe_session = re.sub(r"[^A-Za-z0-9._-]", "-", session_id)
+    return state_dir / f"{safe_session}.migration.hinted"
+
+
+def _unquoted_shell_text(command: str) -> str:
+    visible: list[str] = []
+    quote: str | None = None
+    escaped = False
+    for character in command:
+        if escaped:
+            visible.append(" " if quote else character)
+            escaped = False
+        elif character == "\\" and quote != "'":
+            visible.append(" ")
+            escaped = True
+        elif quote:
+            visible.append(" ")
+            if character == quote:
+                quote = None
+        elif character in {"'", '"', "`"}:
+            visible.append(" ")
+            quote = character
+        else:
+            visible.append(character)
+    return "".join(visible)
+
+
+def migration_reminder_decision(
+    profile: dict, payload: dict, root: Path,
+) -> Decision:
     config = profile.get("migration", {})
     if payload.get("tool_name") != "Bash":
         return Decision(None, "PostToolUse")
-    command = payload.get("tool_input", {}).get("command", "")
+    command = _unquoted_shell_text(payload.get("tool_input", {}).get("command", ""))
     if not any(
         re.search(pattern, command)
         for pattern in config.get("commandMatchers", [])
@@ -275,6 +311,12 @@ def migration_reminder_decision(profile: dict, payload: dict) -> Decision:
     refresh = config.get("refreshCommand", [])
     if not artifact or not refresh:
         return Decision(None, "PostToolUse")
+    marker = _migration_session_marker(profile, payload, root)
+    if marker and marker.exists():
+        return Decision(None, "PostToolUse")
+    if marker:
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(f"{payload['session_id']}\n", encoding="utf-8")
     message = (
         f"Migration advisory: refresh {artifact} with `{' '.join(refresh)}` "
         "before treating the migration result as complete."

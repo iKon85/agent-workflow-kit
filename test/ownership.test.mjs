@@ -285,7 +285,7 @@ test('CLI dispatches forks through ownership and bridges through provenance', as
     assert.equal(tracked.ownershipState, undefined);
 
     const source = await readFile(CLI, 'utf8');
-    assert.match(source, /beginContributionBridge\(\{ kitRoot: KIT_ROOT, consumerRoot, path/);
+    assert.match(source, /beginContributionBridge\(\{ kitRoot, consumerRoot, path/);
     assert.match(source, /prepareContributionArtifact\(/);
   } finally {
     await cleanup(kit, consumer);
@@ -294,9 +294,9 @@ test('CLI dispatches forks through ownership and bridges through provenance', as
 
 test('CLI keeps downstream collision and owned-diff seams wired', async () => {
   const source = await readFile(CLI, 'utf8');
-  assert.match(source, /diff\(\{ kitRoot: KIT_ROOT, consumerRoot, owned \}\)/);
-  assert.match(source, /decideUpdate\(action, path, yes, classification\)/);
-  assert.match(source, /nonInteractiveUpdateDecision\(action\)/);
+  assert.match(source, /diff\(\{ kitRoot, consumerRoot, owned \}\)/);
+  assert.match(source, /decideUpdate\(action, path, yes, classification,/);
+  assert.match(source, /nonInteractiveUpdateDecision\(action, choices\)/);
   assert.match(source, /'consumerOwned'[\s\S]*'collisions'/);
   assert.match(source, /'bridgeRetired'/);
 });

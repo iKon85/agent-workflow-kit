@@ -29,7 +29,7 @@ SLICE_TABLE_START = "<!-- slice-table:start -->"
 SLICE_TABLE_END = "<!-- slice-table:end -->"
 
 _SUBISSUE_NUM_RE = re.compile(r"#(\d+)")
-_STATUS_BASE_RE = re.compile(r"^(✅\s*#\d+|🔄|⬜)")
+_STATUS_BASE_RE = re.compile(r"^(✅(?:\s*#\d+)?|🔄|⬜)")
 _STATUS_RANK = {"⬜": 0, "🔄": 1}
 
 
@@ -113,17 +113,23 @@ def first_subissue_num(cell: str) -> Optional[int]:
 
 # --- volatile-cell refresh (board → cell) ------------------------------------
 def status_token_from_board(entry: dict, roles: dict) -> str:
-    """Canonical Status token from board state: ✅ #<PR> (merged) · 🔄 (open PR or
-    an in-flight board status) · ⬜ (otherwise).
+    """Canonical Status token from board state: ✅ #<PR> (merged) · ✅ (closed
+    issue in the configured done status) · 🔄 (open PR or an in-flight board
+    status) · ⬜ (otherwise).
 
-    Which status NAMES count as in-flight comes from the profile's role map
-    (`roles["inProgress"]`/`roles["review"]`) — passed in as a plain
-    dict so this module stays pure (no board_config import). Empty roles →
-    board-status names can't be interpreted (⬜), PR signals still work."""
+    Status NAMES come from the profile's role map (`roles["done"]`,
+    `roles["inProgress"]`, `roles["review"]`) — passed in as a plain dict so
+    this module stays pure (no board_config import). Empty roles → board-status
+    names can't be interpreted (⬜), PR signals still work."""
     prs = entry.get("prs") or []
     merged = [p for p in prs if p.get("state") == "MERGED"]
     if merged:
         return f"✅ #{merged[-1]['number']}"
+    done = roles.get("done")
+    if (done is not None
+            and entry.get("state") == "closed"
+            and entry.get("status") == done):
+        return "✅"
     active = {roles.get("inProgress"), roles.get("review")} - {None}
     if [p for p in prs if p.get("state") == "OPEN"] or entry.get("status") in active:
         return "🔄"
