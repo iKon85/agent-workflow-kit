@@ -2827,7 +2827,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "77977bed7202a47700c358c66443075e198c51e6eaf6b2adaf90849729efb721",
+      "sha256": "8499d0a6379b40b3c61429efd0ed171332bbc3fbb0010baf58d2c7faef76a531",
       "mode": 493,
       "origin": "kit"
     },

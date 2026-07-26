@@ -196,6 +196,47 @@ class WrapupCheckGateContract(unittest.TestCase):
 
         self.assertFalse(self.wrapup.wait_for_merge_gate("42", command_runner=runner))
 
+    def test_fresh_pr_waits_until_required_checks_become_visible(self):
+        snapshots = [
+            pr_snapshot(mergeable="UNKNOWN", mergeStateStatus="BLOCKED"),
+            pr_snapshot(mergeable="UNKNOWN", mergeStateStatus="BLOCKED"),
+            pr_snapshot(),
+        ]
+        required = [
+            [],
+            [{"name": "test", "state": "PENDING"}],
+            [{"name": "test", "state": "SUCCESS"}],
+        ]
+        clock = FakeClock()
+        progress = io.StringIO()
+
+        self.assertFalse(self.wrapup.wait_for_merge_gate(
+            "42",
+            timeout_seconds=30,
+            poll_interval=5,
+            command_runner=gate_runner(snapshots, required),
+            clock=clock.monotonic,
+            sleeper=clock.sleep,
+            progress_stream=progress,
+        ))
+        self.assertIn("GitHub required-check discovery", progress.getvalue())
+        self.assertIn("test", progress.getvalue())
+
+    def test_visible_optional_check_does_not_trigger_required_discovery_wait(self):
+        snapshot = pr_snapshot(
+            mergeStateStatus="BLOCKED",
+            statusCheckRollup=[{
+                "name": "advisory-browser",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+            }],
+        )
+
+        self.assertFalse(self.wrapup.wait_for_merge_gate(
+            "42",
+            command_runner=gate_runner([snapshot], [[]]),
+        ))
+
     def test_zero_step_failed_job_is_named_as_infrastructure_failure(self):
         snapshot = pr_snapshot(mergeStateStatus="BLOCKED")
         check = {

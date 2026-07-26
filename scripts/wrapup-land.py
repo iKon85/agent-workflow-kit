@@ -283,6 +283,16 @@ def _failed_check_detail(failed: list[dict], command_runner) -> str:
     return ", ".join(details)
 
 
+def _waiting_checks(snapshot: dict, required_checks: list[dict]) -> list[dict]:
+    waiting = pending_checks(required_checks)
+    if waiting or required_checks:
+        return waiting
+    visible_checks = snapshot.get("statusCheckRollup") or []
+    if not visible_checks and snapshot.get("mergeStateStatus") in {"BLOCKED", "UNKNOWN"}:
+        return [{"name": "GitHub required-check discovery"}]
+    return []
+
+
 def wait_for_merge_gate(
     pr: str,
     *,
@@ -314,7 +324,7 @@ def wait_for_merge_gate(
                 _failed_check_detail(failed, command_runner),
             )
 
-        waiting = pending_checks(checks)
+        waiting = _waiting_checks(snapshot, checks)
         if not waiting:
             return False
 
