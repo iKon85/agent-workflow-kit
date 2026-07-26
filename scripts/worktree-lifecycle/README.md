@@ -102,7 +102,10 @@ pre-existing. Exact unchanged frozen evidence remains directly resumable. The
 attempt journal name is classified without following a symlink, so a symlinked
 or dangling journal entry stops instead of being read or replaced, and each
 archived receipt is filed under a contract-version-neutral stem plus its own
-recorded contract version.
+recorded contract version. A journal written under a superseded contract is
+classified as legacy rather than corrupt when it still satisfies its own
+recorded contract; that refusal names the archive route explicitly, while a
+journal that fails its own contract is still reported as incoherent evidence.
 
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal

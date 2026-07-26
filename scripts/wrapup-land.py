@@ -510,6 +510,10 @@ def landing_start_artifact_inventory(wt: str, main_tree: str) -> dict:
     try:
         profile = load_candidate_landing_profile(core, wt)
         return core.landing_start_artifact_inventory(profile, Path(wt))
+    except core.LegacyLandingAttempt as error:
+        # Legacy, not damage: report the classification and the safe route out
+        # verbatim, without the corruption framing of a guard failure.
+        raise Stop("cleanup", str(error)) from error
     except core.LifecycleError as error:
         raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
 

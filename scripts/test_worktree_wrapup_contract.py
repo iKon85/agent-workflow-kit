@@ -1286,6 +1286,132 @@ class LandingAttemptJournalContract(unittest.TestCase):
             self.assertTrue(worktree.is_dir())
 
 
+class LegacyLandingAttemptContract(unittest.TestCase):
+    """#275 — a coherent v1 journal is legacy, not corruption, and has a route out."""
+
+    def assert_legacy_stop(self, stop):
+        self.assertIn("superseded v1 journal contract", stop.reason)
+        self.assertIn("--abandon-unfinished-attempt", stop.reason)
+        self.assertNotIn("incoherent", stop.reason)
+
+    def test_coherent_v1_started_journal_is_classified_as_legacy(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            core = wrapup.load_worktree_cleanup_core()
+            downgrade_landing_attempt_to_v1(core, worktree)
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+
+            self.assert_legacy_stop(stopped.exception)
+
+    def test_coherent_v1_frozen_journal_is_classified_as_legacy(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            generated = worktree / "dist-kit/package.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("generated\n", encoding="utf-8")
+            wrapup.freeze_landing_artifact_evidence(
+                str(worktree), str(main), push_succeeded=True
+            )
+            core = wrapup.load_worktree_cleanup_core()
+            downgrade_landing_attempt_to_v1(core, worktree)
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+
+            self.assert_legacy_stop(stopped.exception)
+            self.assertEqual(generated.read_text(encoding="utf-8"), "generated\n")
+
+    def test_incoherent_v1_journal_stays_classified_as_corruption(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            core = wrapup.load_worktree_cleanup_core()
+
+            def mutate(payload):
+                payload.pop("policyDigest", None)
+                payload["contractVersion"] = 1
+                payload["branch"] = "fix/999-foreign"
+
+            rewrite_landing_attempt(core, worktree, mutate)
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+
+            self.assertIn("incoherent", stopped.exception.reason)
+
+    def test_land_names_the_safe_abandon_command_for_a_legacy_attempt(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            core = wrapup.load_worktree_cleanup_core()
+            downgrade_landing_attempt_to_v1(core, worktree)
+            consumer = worktree / "consumer/keep.txt"
+            consumer.parent.mkdir(parents=True)
+            consumer.write_text("mine", encoding="utf-8")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args())
+
+            self.assert_legacy_stop(stopped.exception)
+            self.assertTrue(worktree.is_dir())
+            self.assertEqual(consumer.read_text(encoding="utf-8"), "mine")
+
+    def test_v2_archival_stays_valid_without_baseline_or_local_main_profile(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            core = wrapup.load_worktree_cleanup_core()
+            core.artifact_baseline_path(worktree).unlink()
+            (main / "docs/agents/workflow-capabilities.json").unlink()
+            ambiguous = worktree / "dist-kit/ambiguous.tgz"
+            ambiguous.parent.mkdir(parents=True)
+            ambiguous.write_text("unknown owner", encoding="utf-8")
+
+            archive = Path(
+                wrapup.abandon_unfinished_landing_attempt(str(worktree), str(main))
+            )
+
+            self.assertTrue(archive.is_file())
+            self.assertIn(".v2.abandoned-", archive.name)
+            self.assertEqual(ambiguous.read_text(encoding="utf-8"), "unknown owner")
+
+    def test_legacy_abandon_claims_no_generated_or_consumer_file(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            generated = worktree / "dist-kit/package.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("generated\n", encoding="utf-8")
+            wrapup.freeze_landing_artifact_evidence(
+                str(worktree), str(main), push_succeeded=True
+            )
+            consumer = worktree / "consumer/keep.txt"
+            consumer.parent.mkdir(parents=True)
+            consumer.write_text("mine", encoding="utf-8")
+            core = wrapup.load_worktree_cleanup_core()
+            downgrade_landing_attempt_to_v1(core, worktree)
+
+            archive = Path(
+                wrapup.abandon_unfinished_landing_attempt(str(worktree), str(main))
+            )
+
+            self.assertTrue(archive.is_file())
+            self.assertIn(".v1.abandoned-", archive.name)
+            self.assertEqual(generated.read_text(encoding="utf-8"), "generated\n")
+            self.assertEqual(consumer.read_text(encoding="utf-8"), "mine")
+            self.assertTrue(worktree.is_dir())
+
+
 def core_archive_stem(wrapup) -> str:
     return wrapup.load_worktree_cleanup_core().LANDING_ATTEMPT_ARCHIVE_STEM
 
