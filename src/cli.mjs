@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import * as p from '@clack/prompts';
@@ -188,7 +189,8 @@ export async function runCli({
   return exitCode;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const invokedPath = process.argv[1] ? realpathSync(process.argv[1]) : '';
+if (invokedPath === fileURLToPath(import.meta.url)) {
   process.exitCode = await runCli();
 }
 
