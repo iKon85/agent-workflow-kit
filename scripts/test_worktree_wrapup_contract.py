@@ -105,25 +105,23 @@ class WorktreeCleanupContract(unittest.TestCase):
         self.assertIn("shared cleanup guard", stopped.exception.reason)
         self.assertEqual(calls[1][-1], "origin/main")
 
-    def test_already_merged_land_removes_only_artifacts_generated_during_landing(self):
+    def test_already_merged_land_removes_artifacts_created_before_land(self):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             main, worktree = create_merged_worktree(root)
+            generated = {
+                worktree / "dist-kit/package.tgz": "package",
+                worktree / "scripts/__pycache__/guard.pyc": "cache",
+                worktree / ".claude/logs/wrapup.log": "log",
+            }
+            for path, content in generated.items():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
 
             real_run = wrapup.run
 
             def landing_run(args, cwd=None, check=False):
-                if args[:4] == ["git", "push", "-u", "origin"]:
-                    generated = {
-                        worktree / "dist-kit/package.tgz": "package",
-                        worktree / "scripts/__pycache__/guard.pyc": "cache",
-                        worktree / ".claude/logs/wrapup.log": "log",
-                    }
-                    for path, content in generated.items():
-                        path.parent.mkdir(parents=True, exist_ok=True)
-                        path.write_text(content, encoding="utf-8")
-                    return real_run(args, cwd=cwd, check=check)
                 if args[:3] == ["gh", "pr", "view"]:
                     fields = args[-1]
                     payload = (
@@ -174,16 +172,15 @@ class WorktreeCleanupContract(unittest.TestCase):
             self.assertFalse(worktree.exists())
             self.assertTrue(second["merged"])
 
-    def test_preexisting_ignored_file_is_not_claimed_as_landing_generated(self):
+    def test_profile_authorizes_preexisting_generated_namespace(self):
         wrapup = load_wrapup()
 
         self.assertEqual(
             wrapup.landing_generated_files(
-                {"dist-kit/consumer.txt"},
-                {"dist-kit/consumer.txt", "dist-kit/package.tgz"},
+                {"dist-kit/old-build.txt", "dist-kit/package.tgz"},
                 ("dist-kit/**",),
             ),
-            ("dist-kit/package.tgz",),
+            ("dist-kit/old-build.txt", "dist-kit/package.tgz"),
         )
 
     def test_unmatched_new_ignored_file_is_not_landing_generated(self):
@@ -193,7 +190,7 @@ class WorktreeCleanupContract(unittest.TestCase):
             "consumer/private.cache",
         }
         self.assertEqual(
-            wrapup.landing_generated_files(set(), current, ("dist-kit/**",)),
+            wrapup.landing_generated_files(current, ("dist-kit/**",)),
             ("dist-kit/package.tgz",),
         )
 

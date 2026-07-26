@@ -464,14 +464,13 @@ def landing_generated_patterns(main_tree: str) -> tuple[str, ...]:
 
 
 def landing_generated_files(
-    before: set[str],
-    after: set[str],
+    current: set[str],
     patterns: tuple[str, ...],
 ) -> tuple[str, ...]:
-    """Return exact new ignored files covered by landing-owned profile patterns."""
+    """Return exact ignored files in repository-authorized generated namespaces."""
     return tuple(sorted(
         path
-        for path in after.difference(before)
+        for path in current
         if any(fnmatchcase(path, pattern) for pattern in patterns)
     ))
 
@@ -801,11 +800,9 @@ def cmd_land(args) -> dict:
 
     # drift markers from the build-time log — mechanical, no gate
     markers: list[dict] = []
-    ignored_before_landing: set[str] = set()
     if wt_exists:
         if git(["status", "--porcelain"], cwd=wt, check=True).stdout.strip():
             raise Stop("land", "worktree dirty — run `commit` first", wt)
-        ignored_before_landing = ignored_worktree_files(wt)
         annahmen = Path(wt) / "ANNAHMEN.md"
         if annahmen.is_file():
             markers, malformed = parse_annahmen(annahmen.read_text(), default_section)
@@ -891,7 +888,6 @@ def cmd_land(args) -> dict:
     if wt_exists:
         git(["fetch", "origin", "main"], cwd=main_tree, check=True)
         generated = landing_generated_files(
-            ignored_before_landing,
             ignored_worktree_files(wt),
             landing_generated_patterns(main_tree),
         )

@@ -50,12 +50,12 @@ files from that inventory, and uses ordinary `git worktree remove`. It never
 bypasses Git's final concurrent-change check with force removal.
 
 The landing adapter may additionally carry exact scratch evidence for ignored
-files that were absent before landing and appeared during its synchronous
-checks. Only paths matching the consumer-owned
-`wrapup.landingGeneratedArtifactPatterns` profile are eligible. Existing
-ignored files, unmatched files, symlinks, and writes after the evidence
-snapshot remain cleanup stops; deletion still uses the same descriptor-bound
-regular-file primitive and a second inventory check.
+files inside repository-authorized generated namespaces. Only paths matching
+the consumer-owned `wrapup.landingGeneratedArtifactPatterns` profile are
+eligible, including build output created earlier in the same session.
+Unmatched files, symlinks, and writes after the evidence snapshot remain
+cleanup stops; deletion still uses the same descriptor-bound regular-file
+primitive and a second inventory check.
 
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal

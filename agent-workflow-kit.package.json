@@ -2811,7 +2811,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "773e536d21862fafa1cc6310c46f99bc0569fb847729b7a07153726c2bbfb3d4",
+      "sha256": "fa2cf9d58e73ead7d816339f43485cef6b04a9fc08a9d6a15538657269a8efb9",
       "mode": 420,
       "origin": "kit"
     },
@@ -2827,7 +2827,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "e6a3e6ff2a5d74687547aff40ad62fc988df1ac2479c080c3a84e6871fc4aaf2",
+      "sha256": "b946ecc4fec3d570d136474545a5fe4ad10c9965bdbb1fa503b85ff4648c19c4",
       "mode": 493,
       "origin": "kit"
     },
