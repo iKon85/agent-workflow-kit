@@ -19,6 +19,15 @@ they do not carry a second branch regex, worktree traversal, or failure policy.
 - `riskyCommandPatterns`: commands that must target the active linked worktree.
 - `scratchPatterns`: consumer-owned glob patterns for untracked disposable
   planning artefacts. No filename is assumed by Core.
+- `wrapup.landingGeneratedArtifactPatterns`: an explicitly reviewed
+  consumer-owned allowlist for outputs created by the landing commands. It is
+  deletion authority, so setup never derives it from `.gitignore` alone and
+  update never installs a universal default.
+
+Profile globs use repository-relative POSIX semantics. `*` stays inside one
+path segment; `**` crosses `/`, and leading `**/` also matches the repository
+root. For example, `**/__pycache__/**` matches both root and nested caches,
+while `dist-kit/*` does not match `dist-kit/a/b`.
 
 Unknown or malformed events fail open without changing repository state.
 Security-sensitive, profile-matched edits and commands fail closed only when
@@ -53,9 +62,13 @@ The generic setup route atomically records its ignored and complete
 untracked-file inventories in the linked worktree's Git metadata after its
 configured setup steps. The record is bound to the worktree path, branch, root
 device/inode, and setup HEAD, and carries a canonical digest. Existing
-worktrees are never backfilled because their initial inventory is no longer
-knowable. The claim-bound session route below captures its stricter baseline
-before project setup so a failed setup has an exact recovery boundary.
+worktrees can receive a conservative baseline only when they are the exact
+registered no-follow directory on an attached branch with a clean tracked
+worktree and index. Every current ignored and untracked path is recorded as
+pre-existing and therefore protected. A corrupt baseline or an active landing
+attempt is never overwritten. The claim-bound session route below captures its
+stricter baseline before project setup so a failed setup has an exact recovery
+boundary.
 
 The landing adapter may carry exact scratch evidence only for current ignored
 files that match the consumer-owned
@@ -64,6 +77,15 @@ creation baseline. Missing, changed, or incoherent provenance stops landing
 cleanup. Initial/profile-matched files, unmatched files, symlinks, and writes
 after the landing evidence snapshot remain cleanup stops; deletion still uses
 the same descriptor-bound regular-file primitive and a second inventory check.
+Mutable session logs belong in explicit `scratchPatterns`, not in the landing
+generator allowlist: their identity is frozen at final cleanup assessment, so
+normal logging before teardown remains live while a later append or replacement
+still stops deletion.
+Landing-start blockers are classified before a journal is written, so moving a
+protected blocker permits a clean next attempt. An explicit relinquish archives
+either a started or frozen attempt, including drifted evidence, without
+deleting or claiming any file; the next preflight treats every current file as
+pre-existing. Exact unchanged frozen evidence remains directly resumable.
 
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal

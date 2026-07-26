@@ -11,6 +11,7 @@ from pathlib import Path
 
 from core import (
     capture_artifact_baseline,
+    ensure_artifact_baseline,
     LifecycleError,
     load_profile,
     local_branch_exists,
@@ -138,6 +139,7 @@ def create(args: argparse.Namespace) -> Path:
         ensure_reusable_base(
             main, repo=target, rev="HEAD", base=args.base, label=f"worktree {target}"
         )
+        ensure_artifact_baseline(target)
         print(f"Worktree already exists: {target} ({branch})")
         return target
 

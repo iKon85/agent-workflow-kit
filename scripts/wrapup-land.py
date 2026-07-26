@@ -541,6 +541,7 @@ def ensure_worktree_removable(
     main_tree: str,
     *,
     verified_scratch_files: tuple[str, ...] = (),
+    verified_scratch_evidence: tuple[dict, ...] = (),
 ):
     profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
     if not profile_path.is_file():
@@ -551,6 +552,8 @@ def ensure_worktree_removable(
         kwargs = {"merge_target": "origin/main"}
         if verified_scratch_files:
             kwargs["verified_scratch_files"] = verified_scratch_files
+        if verified_scratch_evidence:
+            kwargs["verified_scratch_evidence"] = verified_scratch_evidence
         assessment = core.cleanup_assessment(
             profile, Path(main_tree), Path(wt), **kwargs
         )
@@ -580,21 +583,13 @@ def remove_verified_worktree_scratch(
         profile = core.load_profile(profile_path)
         evidence = verified_scratch_evidence
         paths = tuple(item["path"] for item in evidence) or verified_scratch_files
-        if not evidence and paths:
-            baseline = core.load_artifact_baseline(Path(wt))
-            with core.verified_worktree_root(
-                Path(wt), baseline.root_device, baseline.root_inode
-            ) as descriptor:
-                evidence = tuple(
-                    core.contained_regular_identity(descriptor, path)
-                    for path in paths
-                )
         latest = core.cleanup_assessment(
             profile,
             Path(main_tree),
             Path(wt),
             merge_target="origin/main",
             verified_scratch_files=paths,
+            verified_scratch_evidence=evidence,
         )
         if latest.reasons:
             raise core.LifecycleError(
@@ -606,6 +601,7 @@ def remove_verified_worktree_scratch(
             or latest.assumptions != assessment.assumptions
             or latest.root_device != assessment.root_device
             or latest.root_inode != assessment.root_inode
+            or latest.scratch_evidence != assessment.scratch_evidence
         ):
             raise core.LifecycleError(
                 "cleanup changed before removal: inventory no longer matches preview"
@@ -615,13 +611,12 @@ def remove_verified_worktree_scratch(
             latest.root_device,
             latest.root_inode,
         ) as root_descriptor:
-            for scratch in latest.scratch_files:
-                expected = next(
-                    item for item in evidence if item["path"] == scratch
-                )
-                core.remove_contained_regular(
-                    root_descriptor, scratch, expected_identity=expected
-                )
+            core.remove_authorized_scratch(
+                profile,
+                root_descriptor,
+                latest.scratch_files,
+                latest.scratch_evidence,
+            )
         final = core.cleanup_assessment(
             profile,
             Path(main_tree),
@@ -885,19 +880,19 @@ def cmd_land(args) -> dict:
     if wt_exists:
         if git(["status", "--porcelain"], cwd=wt, check=True).stdout.strip():
             raise Stop("land", "worktree dirty — run `commit` first", wt)
+        if getattr(args, "abandon_unfinished_attempt", False):
+            return {
+                "landing_attempt_abandoned": abandon_unfinished_landing_attempt(
+                    wt, main_tree
+                ),
+                "files_removed": [],
+                "next": (
+                    "current files remain protected; classify or move blockers, "
+                    "then rerun land"
+                ),
+            }
         landing_attempt = landing_start_artifact_inventory(wt, main_tree)
         if landing_attempt["state"] == "started" and not landing_attempt["newAttempt"]:
-            if getattr(args, "abandon_unfinished_attempt", False):
-                return {
-                    "landing_attempt_abandoned": abandon_unfinished_landing_attempt(
-                        wt, main_tree
-                    ),
-                    "files_removed": [],
-                    "next": (
-                        "classify or move ambiguous generated-pattern files, "
-                        "then rerun land"
-                    ),
-                }
             raise Stop(
                 "cleanup",
                 "unfinished landing generator attempt has no frozen output evidence; "
@@ -1016,6 +1011,7 @@ def cmd_land(args) -> dict:
             wt,
             main_tree,
             verified_scratch_files=generated,
+            verified_scratch_evidence=generated_evidence,
         )
         report["cleanup_guard"] = {
             "active": cleanup is not None,

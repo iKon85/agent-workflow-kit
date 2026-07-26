@@ -65,6 +65,42 @@ test('generic consumer creates a configured worktree without a port allocator', 
   assert.match((await git(worktree, 'branch', '--show-current')).stdout, /feat\/123-portable/);
 });
 
+test('reusing an exact clean legacy worktree backfills a conservative baseline', async (t) => {
+  const { root, repo } = await makeRepo();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(repo, '.gitignore'), '.sandboxes/\nbuild-cache/\n');
+  await git(repo, 'add', '.gitignore');
+  await git(repo, 'commit', '-m', 'ignore build cache');
+  const profile = join(repo, 'workflow-capabilities.json');
+  await writeFile(profile, JSON.stringify({
+    worktreeLifecycle: {
+      enabled: true,
+      worktreeRoot: '.sandboxes',
+      branchTemplate: '{type}/{issue}-{slug}',
+      pathTemplate: '{type}-{issue}-{slug}',
+      mainBranches: ['main'],
+      setupSteps: [],
+    },
+  }));
+  const args = [
+    SETUP, '--profile', profile, '--base', 'main', '124', 'legacy', 'feat',
+  ];
+  await run('python3', args, { cwd: repo });
+  const worktree = join(repo, '.sandboxes/feat-124-legacy');
+  const gitDir = (await git(worktree, 'rev-parse', '--absolute-git-dir')).stdout.trim();
+  await rm(join(gitDir, 'awkit-artifact-baseline-v1.json'));
+  await mkdir(join(worktree, 'build-cache'));
+  await writeFile(join(worktree, 'build-cache/existing.bin'), 'consumer\n');
+
+  const reused = await run('python3', args, { cwd: repo });
+  const baseline = JSON.parse(
+    await readFile(join(gitDir, 'awkit-artifact-baseline-v1.json'), 'utf8'),
+  );
+  assert.match(reused.stdout, /already exists/);
+  assert.deepEqual(baseline.initialIgnoredFiles, ['build-cache/existing.bin']);
+  assert.deepEqual(baseline.initialUntrackedFiles, ['build-cache/existing.bin']);
+});
+
 test('frozen Testreporter profile preserves branch, setup order, and deterministic port output', async (t) => {
   const { root, repo } = await makeRepo();
   t.after(() => rm(root, { recursive: true, force: true }));

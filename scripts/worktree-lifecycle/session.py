@@ -20,14 +20,16 @@ from cleanup import pr_state
 from core import (
     LifecycleError,
     capture_artifact_baseline,
+    bind_cleanup_scratch_evidence,
     classify_cleanup,
     collect_cleanup_facts,
     contained_untracked_identity,
+    durable_atomic_json,
     load_profile,
     load_artifact_baseline,
     main_worktree,
     registered_worktrees,
-    remove_contained_regular,
+    remove_authorized_scratch,
     remove_contained_untracked,
     run,
     verified_landing_scratch_evidence,
@@ -246,18 +248,13 @@ def receipt_lock(main: Path, anchor: str):
 
 def write_receipt(path: Path, receipt: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    descriptor = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            json.dump(receipt, stream, ensure_ascii=False, indent=2, sort_keys=True)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, path)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
+    durable_atomic_json(
+        path,
+        receipt,
+        label="write session teardown receipt",
+        mode=0o600,
+        sort_keys=True,
+    )
 
 
 def read_receipt(
@@ -1506,6 +1503,16 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
                     facts,
                     verified_scratch_files=verified_scratch,
                 )
+                try:
+                    cleanup = bind_cleanup_scratch_evidence(
+                        profile,
+                        cleanup,
+                        scratch_evidence,
+                        require_generator_evidence=True,
+                    )
+                    scratch_evidence = list(cleanup.scratch_evidence)
+                except LifecycleError as error:
+                    reasons.append(f"scratch evidence stop: {error}")
                 reasons.extend(
                     reason for reason in cleanup.reasons
                     if not reason.startswith("unmerged branch:")
@@ -1713,16 +1720,13 @@ def teardown(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                     entry["rootDevice"],
                     entry["rootInode"],
                 ) as descriptor:
-                    for scratch in row["scratchFiles"]:
-                        expected = next(
-                            item for item in row["scratchEvidence"]
-                            if item["path"] == scratch
-                        )
-                        remove_contained_regular(
-                            descriptor,
-                            scratch,
-                            expected_identity=expected,
-                        )
+                    profile = load_profile(Path(entry["profile"]))
+                    remove_authorized_scratch(
+                        profile,
+                        descriptor,
+                        row["scratchFiles"],
+                        row["scratchEvidence"],
+                    )
                 after_scratch = revalidate_target(
                     main,
                     args,

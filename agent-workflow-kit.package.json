@@ -687,7 +687,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "6021b95b7ef2f070b7968d3d5c87f72749b0418f22441f0c7b6e2a339c859664",
+      "sha256": "a5733b71f9257f0999c866bfdea551aedf4b9066572bd484fc263440cb292ca6",
       "mode": 420,
       "origin": "kit"
     },
@@ -757,7 +757,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "a124d7a9f96471ac93202c8fa78b76f98f8396a12a786b921ed704320eb63c4e",
+      "sha256": "e53e6b37bdfdfb0014e2e7ad8fe84cfc2af302eb1a9c6e9e682b1eec05036f1e",
       "mode": 420,
       "origin": "kit"
     },
@@ -997,7 +997,7 @@
       "ownerSkill": "wrapup",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "7e50b98441747d370b1feefae6ee5e63b859d2243b64f72024534a71b1d64482",
+      "sha256": "3943c39d2e0bf7190b2fbc8cd469ab483e3659ba7621e1124ff34fe677ba5b8d",
       "mode": 420,
       "origin": "kit"
     },
@@ -2029,7 +2029,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "6021b95b7ef2f070b7968d3d5c87f72749b0418f22441f0c7b6e2a339c859664",
+      "sha256": "a5733b71f9257f0999c866bfdea551aedf4b9066572bd484fc263440cb292ca6",
       "mode": 420,
       "origin": "kit"
     },
@@ -2099,7 +2099,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "a124d7a9f96471ac93202c8fa78b76f98f8396a12a786b921ed704320eb63c4e",
+      "sha256": "e53e6b37bdfdfb0014e2e7ad8fe84cfc2af302eb1a9c6e9e682b1eec05036f1e",
       "mode": 420,
       "origin": "kit"
     },
@@ -2347,7 +2347,7 @@
       "ownerSkill": "wrapup",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "7e50b98441747d370b1feefae6ee5e63b859d2243b64f72024534a71b1d64482",
+      "sha256": "3943c39d2e0bf7190b2fbc8cd469ab483e3659ba7621e1124ff34fe677ba5b8d",
       "mode": 420,
       "origin": "kit"
     },
@@ -2787,7 +2787,7 @@
       "path": "scripts/worktree-lifecycle/cleanup.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "397a74216096104d9848bfb845dde9a54b8a5b31bf0e71d6495f2bb600d490ac",
+      "sha256": "4dc3fbef455f82297ee927a97aaaa4aeeeeed13851be208e3faee8a9ab60bd9f",
       "mode": 493,
       "origin": "kit"
     },
@@ -2795,7 +2795,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "f81e3990ca380a48bc9125e0fc96d88509a5f63b8d9a790f4f0ed704e355186e",
+      "sha256": "2f5cf2e78994a041652c00a4032ff3615a88fdcbce364245aba9cd1ba3a7c62e",
       "mode": 420,
       "origin": "kit"
     },
@@ -2811,7 +2811,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "572ba4dc5f8060303a3790e8a3a83fd39cde526b698830ae5ec562e18e8abc5c",
+      "sha256": "0645df99e482fafc190f7bbc1b0a653da014b42482e4948ecd3d5ed807c6df37",
       "mode": 420,
       "origin": "kit"
     },
@@ -2819,7 +2819,7 @@
       "path": "scripts/worktree-lifecycle/session.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "99b74e24b0f3814e6eb9ec1386b05c521dbb0fb0cbb631d20f9d447e9d9d28eb",
+      "sha256": "18c2794aaf9fef96a15000c515b600345d3bf1715e23b07d0646156e601ea35a",
       "mode": 493,
       "origin": "kit"
     },
@@ -2827,7 +2827,7 @@
       "path": "scripts/worktree-lifecycle/setup.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "d1734284d8904aeb4b2187d6485f2e37c0e5574bb12cedb8aafa81c1a9e93bbb",
+      "sha256": "b0582ab293e92ab034ebd313d86ae36dec767b34c2f1557c0b3972e11328ca2a",
       "mode": 493,
       "origin": "kit"
     },
@@ -2835,7 +2835,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "5532aa7d7eaedc0963eb62aacce38b52fd61c34d4762d01ae3264e85ad18f9b0",
+      "sha256": "661edc5a0264e939c035f8eb59d79b853f1133cc68a9aa55190a72a5c8279e6f",
       "mode": 493,
       "origin": "kit"
     },

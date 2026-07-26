@@ -29,6 +29,7 @@ advisory, and safe cleanup policy as one unit.
     "operations": [
       "record-choice",
       "reconcile-profile-enabled",
+      "reconcile-landing-artifact-policy",
       "reconcile-hook-wiring"
     ]
   },
@@ -50,7 +51,8 @@ advisory, and safe cleanup policy as one unit.
     "state": "existing",
     "choice": "yes",
     "operations": [
-      "adopt-existing"
+      "adopt-existing",
+      "reconcile-landing-artifact-policy"
     ]
   },
   {
@@ -86,6 +88,21 @@ Reconcile an explicit `scratchPatterns` array when enabling a new profile.
 Derive its glob values from the consumer's ignored planning artefacts; an empty
 array is valid. Existing values are consumer-owned and remain byte-identical on
 adoption or rerun. Core never supplies filename defaults.
+
+Also reconcile an explicit
+`wrapup.landingGeneratedArtifactPatterns` array. Derive candidates from the
+consumer's real landing commands and ignored outputs, show the exact list for
+review, and write it only as part of that explicit setup decision. Never copy
+another repository's values or infer deletion authority from `.gitignore`
+alone. An empty array is valid. Existing configured values remain byte-identical.
+If an existing enabled profile lacks the key, report one actionable setup
+decision and leave the project layer unchanged until the consumer confirms the
+derived list.
+
+Patterns use repository-relative POSIX semantics: `*` stays within one segment,
+while `**` crosses `/`; a leading `**/` also matches the repository root.
+Thus `**/__pycache__/**` covers root and nested caches, while `dist-kit/*` does
+not cover `dist-kit/a/b`.
 
 The shipped read-only inventory is
 `python3 scripts/worktree-lifecycle/cleanup.py sweep`. The same profile powers

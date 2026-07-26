@@ -3,8 +3,9 @@
 Status: accepted (2026-07-26, Wave #271)
 
 Long agent sessions create branches, linked worktrees, setup outputs, and
-landing-time build artifacts. The desired end state is that everything created
-by that session can be removed, including branches whose changes reached
+landing-time build artifacts. The desired end state is that every
+provenance-captured target created by that session can be removed, including
+branches whose changes reached
 canonical `main` through patch-equivalent commits rather than ancestry.
 
 Repository state alone cannot identify that ownership safely. A foreign branch
@@ -26,9 +27,10 @@ from present-day similarity:
 3. Paths and patterns select candidates but never prove identity. Cleanup binds
    regular files and worktree roots to no-follow object evidence and revalidates
    that evidence immediately before mutation.
-4. The **Lifecycle receipt** is a state-transition journal. Prepared Git ref
-   transactions close the worktree-removal race, and committed intermediate
-   states make known outcomes resumable.
+4. The **Lifecycle receipt** is a durably replaced state-transition journal.
+   Prepared Git ref transactions close the worktree-removal race, and committed
+   intermediate states make known outcomes resumable. An external SIGKILL may
+   still leave Git's own lock files requiring operator recovery.
 5. Lost evidence is not reconstructed from coincidence. An interrupted landing
    attempt without frozen outputs can be archived without claiming or deleting
    its files, after which the ambiguous files must be classified before a new
@@ -58,12 +60,19 @@ from present-day similarity:
 ## Consequences
 
 - A completed session can remove its exact worktrees, branches, proof refs, and
-  generated artifacts without hiding history or sweeping unrelated repository
-  state.
-- Foreign branches, worktrees, symlinks, replacements, late writes, and
-  pre-landing consumer files are hard stops or remain outside cleanup authority.
-- Retry behavior is deterministic when evidence was persisted. Ambiguous
-  pre-freeze landing attempts require an explicit archive/classification step
-  and never silently gain ownership.
+  provenance-captured generated artifacts without hiding history or sweeping
+  unrelated repository state.
+- Foreign branches, worktrees, replacement symlinks, replacements, late writes,
+  and pre-landing consumer files are hard stops or remain outside cleanup
+  authority. Setup recovery may remove only a symlink whose exact no-follow
+  identity it captured as setup-created.
+- Exact unchanged frozen evidence is deterministically resumable. Started or
+  drifted frozen attempts can be explicitly relinquished by archiving only the
+  receipt; every current file then remains protected and must be classified
+  before another attempt.
+- Provenance-less legacy worktrees receive only a conservative baseline after
+  exact registration, no-follow root, attached branch, and clean tracked/index
+  checks. All current ignored and untracked files become protected; corrupt
+  evidence and active attempts are never backfilled.
 - The lifecycle implementation is necessarily a small transaction protocol,
   with more states and race tests than a path-based cleanup script.

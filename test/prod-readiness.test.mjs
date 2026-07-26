@@ -71,6 +71,8 @@ test('setup and wrapup publish the bounded Prod readiness contract on both surfa
     assert.match(wrapup, /<!-- readiness:end -->/);
     assert.match(wrapup, /Prod readiness is pending or missing; deploy reporting omitted\./);
     assert.match(wrapup, /landing continues/);
+    assert.match(wrapup, /--abandon-unfinished-attempt/);
+    assert.match(wrapup, /deletes and claims\s+no files/);
   }
 });
 

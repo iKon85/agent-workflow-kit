@@ -7,8 +7,7 @@ import os
 import re
 import stat
 from contextlib import contextmanager
-from dataclasses import dataclass
-from fnmatch import fnmatchcase
+from dataclasses import dataclass, replace
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from time import time
@@ -28,6 +27,84 @@ _BRANCH_CHANGE_RE = re.compile(r"\b(?:git\s+(?:checkout|switch)|gh\s+pr\s+(?:mer
 _BRANCH_CREATE_RE = re.compile(r"\bgit\s+(?:checkout|switch)\s+-[bc]\s+(\S+)")
 ARTIFACT_BASELINE_FILE = "awkit-artifact-baseline-v1.json"
 LANDING_ATTEMPT_FILE = "awkit-landing-attempt-v1.json"
+
+
+def durable_atomic_json(
+    path: Path,
+    document: dict[str, Any],
+    *,
+    label: str,
+    mode: int = 0o666,
+    sort_keys: bool = False,
+) -> None:
+    """Atomically replace one JSON journal and durably publish its directory entry."""
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        descriptor = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, mode)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(
+                document,
+                handle,
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=sort_keys,
+            )
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        directory_descriptor = os.open(
+            path.parent,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+        )
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
+    except OSError as error:
+        temporary.unlink(missing_ok=True)
+        raise LifecycleError(f"cannot {label}: {error}") from error
+
+
+def durable_replace(source: Path, destination: Path, *, label: str) -> None:
+    """Rename one journal durably without inspecting or claiming its payload files."""
+    try:
+        os.replace(source, destination)
+        directory_descriptor = os.open(
+            destination.parent,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+        )
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
+    except OSError as error:
+        raise LifecycleError(f"cannot {label}: {error}") from error
+
+
+def path_glob_matches(path: str, pattern: str) -> bool:
+    """Match repository-relative POSIX paths: * stays in a segment; ** crosses /."""
+    expression: list[str] = ["^"]
+    index = 0
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "*":
+            if index + 1 < len(pattern) and pattern[index + 1] == "*":
+                index += 2
+                if index < len(pattern) and pattern[index] == "/":
+                    expression.append("(?:.*/)?")
+                    index += 1
+                else:
+                    expression.append(".*")
+                continue
+            expression.append("[^/]*")
+        elif char == "?":
+            expression.append("[^/]")
+        else:
+            expression.append(re.escape(char))
+        index += 1
+    expression.append("$")
+    return re.fullmatch("".join(expression), path) is not None
 
 @dataclass(frozen=True)
 class RepoFacts:
@@ -56,6 +133,7 @@ class CleanupAssessment:
     root_device: int
     root_inode: int
     scratch_files: tuple[str, ...] = ()
+    scratch_evidence: tuple[dict[str, Any], ...] = ()
 
     @property
     def removable(self) -> bool:
@@ -171,25 +249,11 @@ def capture_artifact_baseline(worktree: Path) -> ArtifactBaseline:
     )
     digest = _baseline_digest(payload)
     path = artifact_baseline_path(worktree)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    try:
-        with temporary.open("x", encoding="utf-8") as handle:
-            json.dump({**payload, "sha256": digest}, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-        directory_descriptor = os.open(
-            path.parent,
-            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
-        )
-        try:
-            os.fsync(directory_descriptor)
-        finally:
-            os.close(directory_descriptor)
-    except OSError as error:
-        temporary.unlink(missing_ok=True)
-        raise LifecycleError(f"cannot write artifact provenance baseline: {error}") from error
+    durable_atomic_json(
+        path,
+        {**payload, "sha256": digest},
+        label="write artifact provenance baseline",
+    )
     return ArtifactBaseline(
         worktree,
         branch,
@@ -288,6 +352,42 @@ def load_artifact_baseline(worktree: Path) -> ArtifactBaseline:
     )
 
 
+def ensure_artifact_baseline(worktree: Path) -> ArtifactBaseline:
+    """Load provenance or conservatively backfill one exact clean legacy worktree."""
+    path = artifact_baseline_path(worktree)
+    if os.path.lexists(path):
+        return load_artifact_baseline(worktree)
+    attempt_path = path.with_name(LANDING_ATTEMPT_FILE)
+    if os.path.lexists(attempt_path):
+        raise LifecycleError(
+            "artifact provenance baseline is missing while a landing attempt exists"
+        )
+    absolute = worktree.absolute()
+    try:
+        metadata = os.lstat(absolute)
+    except OSError as error:
+        raise LifecycleError(
+            f"legacy artifact baseline root cannot be inspected: {error}"
+        ) from error
+    if not stat.S_ISDIR(metadata.st_mode) or absolute != worktree.resolve():
+        raise LifecycleError("legacy artifact baseline root is not an exact nofollow directory")
+    main = main_worktree(worktree)
+    if worktree.resolve() not in registered_worktrees(main):
+        raise LifecycleError("legacy artifact baseline requires an exact registered worktree")
+    branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
+    if not branch:
+        raise LifecycleError("legacy artifact baseline requires an attached branch")
+    for command in (
+        ["git", "diff", "--quiet"],
+        ["git", "diff", "--cached", "--quiet"],
+    ):
+        if run(command, cwd=worktree, check=False).returncode != 0:
+            raise LifecycleError(
+                "legacy artifact baseline requires a clean tracked worktree and index"
+            )
+    return capture_artifact_baseline(worktree)
+
+
 def verified_landing_scratch_files(
     profile: WorktreeProfile,
     worktree: Path,
@@ -311,7 +411,7 @@ def landing_start_artifact_inventory(
     worktree: Path,
 ) -> dict[str, Any]:
     """Persist/reuse the generated-path inventory preceding the landing build."""
-    baseline = load_artifact_baseline(worktree)
+    baseline = ensure_artifact_baseline(worktree)
     path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
     if path.exists():
         try:
@@ -359,25 +459,19 @@ def landing_start_artifact_inventory(
     generated = tuple(sorted(
         path for path in current
         if any(
-            fnmatchcase(path, pattern)
+            path_glob_matches(path, pattern)
             for pattern in profile.landing_generated_artifact_patterns
         )
     ))
-    evidence: list[dict[str, Any]] = []
     if generated:
-        with verified_worktree_root(
-            worktree,
-            baseline.root_device,
-            baseline.root_inode,
-        ) as descriptor:
-            evidence = [
-                contained_untracked_identity(descriptor, relative)
-                for relative in generated
-            ]
+        raise LifecycleError(
+            "landing-start generated paths are consumer-owned and protected: "
+            + ", ".join(generated)
+        )
     result = {
         "baselineDigest": baseline.digest,
         "generatedFiles": list(generated),
-        "generatedEvidence": evidence,
+        "generatedEvidence": [],
         "state": "started",
         "authorizedEvidence": [],
         "pushSucceeded": False,
@@ -391,19 +485,11 @@ def landing_start_artifact_inventory(
         **result,
     }
     digest = _baseline_digest(payload)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    try:
-        with temporary.open("x", encoding="utf-8") as handle:
-            json.dump({**payload, "sha256": digest}, handle, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    except OSError as error:
-        temporary.unlink(missing_ok=True)
-        raise LifecycleError(
-            f"cannot persist landing-attempt provenance: {error}"
-        ) from error
+    durable_atomic_json(
+        path,
+        {**payload, "sha256": digest},
+        label="persist landing-attempt provenance",
+    )
     return {**result, "newAttempt": True}
 
 
@@ -426,7 +512,7 @@ def verified_landing_scratch_evidence(
     initial_generated = sorted(
         path for path in initial
         if any(
-            fnmatchcase(path, pattern)
+            path_glob_matches(path, pattern)
             for pattern in profile.landing_generated_artifact_patterns
         )
     )
@@ -445,7 +531,7 @@ def verified_landing_scratch_evidence(
         for path in current.difference(baseline.initial_ignored_files)
         if path not in landing_start_files
         if any(
-            fnmatchcase(path, pattern)
+            path_glob_matches(path, pattern)
             for pattern in profile.landing_generated_artifact_patterns
         )
     ))
@@ -499,19 +585,11 @@ def freeze_landing_artifact_evidence(
         "pushSucceeded": push_succeeded,
     })
     digest = _baseline_digest(payload)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    try:
-        with temporary.open("x", encoding="utf-8") as handle:
-            json.dump({**payload, "sha256": digest}, handle, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    except OSError as error:
-        temporary.unlink(missing_ok=True)
-        raise LifecycleError(
-            f"cannot freeze landing-generated evidence: {error}"
-        ) from error
+    durable_atomic_json(
+        path,
+        {**payload, "sha256": digest},
+        label="freeze landing-generated evidence",
+    )
     return current
 
 
@@ -539,19 +617,11 @@ def reopen_frozen_landing_attempt(
         "pushSucceeded": False,
     })
     digest = _baseline_digest(payload)
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    try:
-        with temporary.open("x", encoding="utf-8") as handle:
-            json.dump({**payload, "sha256": digest}, handle, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    except OSError as error:
-        temporary.unlink(missing_ok=True)
-        raise LifecycleError(
-            f"cannot reopen validated landing attempt: {error}"
-        ) from error
+    durable_atomic_json(
+        path,
+        {**payload, "sha256": digest},
+        label="reopen validated landing attempt",
+    )
     return frozen
 
 
@@ -560,19 +630,44 @@ def abandon_unfinished_landing_attempt(
     worktree: Path,
 ) -> Path:
     """Archive an ambiguous started attempt without claiming or deleting files."""
-    attempt = landing_start_artifact_inventory(profile, worktree)
-    if attempt["newAttempt"] or attempt["state"] != "started":
-        raise LifecycleError("no pre-existing unfinished landing attempt to abandon")
     path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+    if not os.path.lexists(path):
+        raise LifecycleError("no pre-existing unfinished landing attempt to abandon")
+    try:
+        if path.is_symlink() or not path.is_file():
+            raise LifecycleError("landing-attempt provenance is not a regular file")
+        document = json.loads(path.read_text(encoding="utf-8"))
+        payload = {
+            key: document[key]
+            for key in (
+                "contractVersion", "worktree", "branch", "rootDevice",
+                "rootInode", "baselineDigest", "generatedFiles",
+                "generatedEvidence", "state", "authorizedEvidence",
+                "pushSucceeded",
+            )
+        }
+        digest = document["sha256"]
+        metadata = os.lstat(worktree)
+        branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
+    except LifecycleError:
+        raise
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise LifecycleError(f"landing-attempt provenance is incoherent: {error}") from error
+    if (
+        payload["contractVersion"] != 1
+        or payload["worktree"] != str(worktree.resolve())
+        or payload["branch"] != branch
+        or not stat.S_ISDIR(metadata.st_mode)
+        or (payload["rootDevice"], payload["rootInode"])
+        != (metadata.st_dev, metadata.st_ino)
+        or payload["state"] not in {"started", "frozen"}
+        or digest != _baseline_digest(payload)
+    ):
+        raise LifecycleError("landing-attempt provenance is incoherent")
     archive = path.with_name(
         f"{path.stem}.abandoned-{int(time() * 1_000_000)}.json"
     )
-    try:
-        os.replace(path, archive)
-    except OSError as error:
-        raise LifecycleError(
-            f"cannot archive unfinished landing attempt: {error}"
-        ) from error
+    durable_replace(path, archive, label="archive landing attempt")
     return archive
 
 
@@ -649,8 +744,9 @@ def cleanup_assessment(
     merge_target: str | None = None,
     pr_state: str = "none",
     verified_scratch_files: tuple[str, ...] = (),
+    verified_scratch_evidence: tuple[dict[str, Any], ...] = (),
 ) -> CleanupAssessment:
-    return classify_cleanup(
+    assessment = classify_cleanup(
         profile,
         collect_cleanup_facts(
             main,
@@ -659,6 +755,11 @@ def cleanup_assessment(
             pr_state=pr_state,
         ),
         verified_scratch_files=verified_scratch_files,
+    )
+    return bind_cleanup_scratch_evidence(
+        profile,
+        assessment,
+        verified_scratch_evidence,
     )
 
 
@@ -754,7 +855,7 @@ def classify_cleanup(
         path for path in facts.untracked_files
         if (
             path in verified
-            or any(fnmatchcase(path, pattern) for pattern in profile.scratch_patterns)
+            or any(path_glob_matches(path, pattern) for pattern in profile.scratch_patterns)
         )
     )
     non_scratch = sorted(set(facts.untracked_files).difference(scratch))
@@ -870,6 +971,107 @@ def remove_contained_regular(
             os.close(descriptor)
 
 
+def remove_authorized_scratch(
+    profile: WorktreeProfile,
+    root_descriptor: int,
+    scratch_files: tuple[str, ...] | list[str],
+    verified_evidence: tuple[dict[str, Any], ...] | list[dict[str, Any]] = (),
+) -> None:
+    """Remove profile scratch or exact generator evidence without weakening overlaps."""
+    evidence_by_path: dict[str, dict[str, Any]] = {}
+    for item in verified_evidence:
+        relative = item.get("path")
+        if not isinstance(relative, str) or relative in evidence_by_path:
+            raise LifecycleError("scratch evidence is incoherent")
+        evidence_by_path[relative] = item
+    unexpected = sorted(set(evidence_by_path).difference(scratch_files))
+    if unexpected:
+        raise LifecycleError(
+            "scratch evidence is outside the assessed inventory: "
+            + ", ".join(unexpected)
+        )
+    for relative in scratch_files:
+        generated = any(
+            path_glob_matches(relative, pattern)
+            for pattern in profile.landing_generated_artifact_patterns
+        )
+        profile_authorized = any(
+            path_glob_matches(relative, pattern)
+            for pattern in profile.scratch_patterns
+        )
+        expected = evidence_by_path.get(relative)
+        if generated and expected is None:
+            raise LifecycleError(
+                f"landing-generated scratch evidence is missing: {relative}"
+            )
+        if not profile_authorized and expected is None:
+            raise LifecycleError(f"verified scratch evidence is missing: {relative}")
+        remove_contained_regular(
+            root_descriptor,
+            relative,
+            expected_identity=expected,
+        )
+
+
+def bind_cleanup_scratch_evidence(
+    profile: WorktreeProfile,
+    assessment: CleanupAssessment,
+    verified_generator_evidence: tuple[dict[str, Any], ...] | list[dict[str, Any]] = (),
+    *,
+    require_generator_evidence: bool = False,
+) -> CleanupAssessment:
+    """Freeze identity for every assessed scratch path at its authority boundary."""
+    evidence_by_path = {
+        item.get("path"): item
+        for item in verified_generator_evidence
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    }
+    if len(evidence_by_path) != len(verified_generator_evidence):
+        raise LifecycleError("scratch evidence is incoherent")
+    scratch = set(assessment.scratch_files)
+    if not set(evidence_by_path).issubset(scratch):
+        raise LifecycleError("scratch evidence is outside the assessed inventory")
+    profile_only = [
+        relative
+        for relative in assessment.scratch_files
+        if not any(
+            path_glob_matches(relative, pattern)
+            for pattern in profile.landing_generated_artifact_patterns
+        )
+    ]
+    missing_generator = [
+        relative
+        for relative in assessment.scratch_files
+        if any(
+            path_glob_matches(relative, pattern)
+            for pattern in profile.landing_generated_artifact_patterns
+        )
+        and relative not in evidence_by_path
+    ]
+    if missing_generator and require_generator_evidence:
+        raise LifecycleError(
+            "landing-generated scratch evidence is missing: "
+            + ", ".join(missing_generator)
+        )
+    with verified_worktree_root(
+        assessment.worktree,
+        assessment.root_device,
+        assessment.root_inode,
+    ) as descriptor:
+        for relative in profile_only:
+            evidence_by_path[relative] = contained_regular_identity(
+                descriptor, relative
+            )
+    return replace(
+        assessment,
+        scratch_evidence=tuple(
+            evidence_by_path[relative]
+            for relative in assessment.scratch_files
+            if relative in evidence_by_path
+        ),
+    )
+
+
 def contained_regular_identity(root_descriptor: int, relative: str) -> dict[str, Any]:
     """Read one exact regular file identity without following path symlinks."""
     path = PurePosixPath(relative)
@@ -889,6 +1091,11 @@ def contained_regular_identity(root_descriptor: int, relative: str) -> dict[str,
                 dir_fd=current,
             )
             descriptors.append(current)
+        initial = os.stat(path.name, dir_fd=current, follow_symlinks=False)
+        if not stat.S_ISREG(initial.st_mode):
+            raise LifecycleError(
+                f"scratch path is not a regular file: {relative}"
+            )
         file_descriptor = os.open(
             path.name,
             os.O_RDONLY | no_follow,
@@ -896,8 +1103,14 @@ def contained_regular_identity(root_descriptor: int, relative: str) -> dict[str,
         )
         try:
             metadata = os.fstat(file_descriptor)
-            if not stat.S_ISREG(metadata.st_mode):
-                raise LifecycleError(f"scratch path is not a regular file: {relative}")
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or (metadata.st_dev, metadata.st_ino)
+                != (initial.st_dev, initial.st_ino)
+            ):
+                raise LifecycleError(
+                    f"scratch path changed before inspection: {relative}"
+                )
             digest = sha256()
             while chunk := os.read(file_descriptor, 128 * 1024):
                 digest.update(chunk)

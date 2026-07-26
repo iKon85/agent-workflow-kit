@@ -145,6 +145,33 @@ printf '%s\\n' '[]'
   );
 });
 
+test('cleanup preserves a same-path scratch replacement between assessments', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(worktree, 'PLAN.md'), '# assessed plan\n');
+  await git(root, 'remote', 'add', 'origin', root);
+  const count = join(root, 'mock-gh-replacement-count');
+  const mockGh = join(root, 'mock-gh-replacement-race');
+  await writeFile(mockGh, `#!/bin/sh
+value="$(cat '${count}' 2>/dev/null || printf 0)"
+value=$((value + 1))
+printf '%s\\n' "$value" > '${count}'
+if [ "$value" -eq 2 ]; then
+  rm '${join(worktree, 'PLAN.md')}'
+  printf '%s\\n' 'replacement' > '${join(worktree, 'PLAN.md')}'
+fi
+printf '%s\\n' '[]'
+`);
+  await run('chmod', ['+x', mockGh]);
+
+  await assert.rejects(run('python3', [
+    CLEANUP, '--profile', profile, '--gh-command', mockGh, '--remove', worktree,
+  ], { cwd: root }), /inventory no longer matches preview/);
+
+  assert.equal(await readFile(join(worktree, 'PLAN.md'), 'utf8'), 'replacement\n');
+  assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
+});
+
 test('cleanup rejects a profile-matched scratch symlink without touching its target', async (t) => {
   const { root, profile, worktree } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));

@@ -11,12 +11,13 @@ from pathlib import Path
 
 from core import (
     LifecycleError,
+    bind_cleanup_scratch_evidence,
     classify_cleanup,
     collect_cleanup_facts,
     collect_sweep,
     load_profile,
     main_worktree,
-    remove_contained_regular,
+    remove_authorized_scratch,
     run,
     verified_worktree_root,
 )
@@ -74,7 +75,10 @@ def collect_assessment(profile, main: Path, worktree: Path, gh_command: str):
         worktree,
     )
     state = pr_state(gh_command, main, facts.branch)
-    return classify_cleanup(profile, replace(facts, pr_state=state))
+    return bind_cleanup_scratch_evidence(
+        profile,
+        classify_cleanup(profile, replace(facts, pr_state=state)),
+    )
 
 
 def execute(args: argparse.Namespace) -> dict:
@@ -109,6 +113,7 @@ def execute(args: argparse.Namespace) -> dict:
         or latest.assumptions != assessment.assumptions
         or latest.root_device != assessment.root_device
         or latest.root_inode != assessment.root_inode
+        or latest.scratch_evidence != assessment.scratch_evidence
     ):
         raise LifecycleError("cleanup changed before removal: inventory no longer matches preview")
     with verified_worktree_root(
@@ -116,8 +121,12 @@ def execute(args: argparse.Namespace) -> dict:
         latest.root_device,
         latest.root_inode,
     ) as root_descriptor:
-        for scratch in latest.scratch_files:
-            remove_contained_regular(root_descriptor, scratch)
+        remove_authorized_scratch(
+            profile,
+            root_descriptor,
+            latest.scratch_files,
+            assessment.scratch_evidence,
+        )
     run(["git", "worktree", "remove", str(latest.worktree)], cwd=main)
     run(["git", "branch", "-d", assessment.branch], cwd=main)
     report["removed"] = True

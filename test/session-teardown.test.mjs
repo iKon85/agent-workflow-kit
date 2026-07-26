@@ -27,7 +27,7 @@ async function fixture() {
   await git(repo, 'config', 'user.name', 'Test User');
   await git(repo, 'config', 'user.email', 'test@example.invalid');
   await writeFile(join(repo, 'seed.txt'), 'seed\n');
-  await writeFile(join(repo, '.gitignore'), '.worktrees/\ndist-kit/\n');
+  await writeFile(join(repo, '.gitignore'), '.worktrees/\ndist-kit/\nPLAN.md\n');
   await mkdir(join(repo, 'docs/agents'), { recursive: true });
   await writeFile(join(repo, 'docs/agents/workflow-capabilities.json'), JSON.stringify({
     version: 1,
@@ -150,6 +150,37 @@ test('session receipt removes only its patch-equivalent target and leaves a fore
   const archived = JSON.parse(await readFile(begun.receipt, 'utf8'));
   assert.equal(archived.state, 'complete');
   assert.equal(archived.targets[0].recoveryOid, ownedOid);
+});
+
+test('session teardown removes profile-authorized PLAN.md without generator evidence', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const profilePath = join(repo, 'docs/agents/workflow-capabilities.json');
+  const profile = JSON.parse(await readFile(profilePath, 'utf8'));
+  profile.worktreeLifecycle.scratchPatterns = ['PLAN.md'];
+  await writeFile(profilePath, JSON.stringify(profile));
+  await git(repo, 'add', profilePath);
+  await git(repo, 'commit', '-m', 'configure planning scratch');
+  await plantClaim(repo);
+  await session(repo, 'begin', '--base', 'main');
+  const created = await session(
+    repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json',
+    '135', 'planning-scratch', 'feat',
+  );
+  await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
+  await git(created.worktree, 'add', 'owned.txt');
+  await git(created.worktree, 'commit', '-m', 'owned change');
+  const ownedOid = (await git(created.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await writeFile(join(created.worktree, 'PLAN.md'), 'plan\n');
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', ownedOid);
+
+  const preview = await session(repo, 'inspect', '--main', 'main', '--gh-command', 'false');
+  assert.deepEqual(preview.targets[0].scratchFiles, ['PLAN.md']);
+  assert.equal(preview.targets[0].scratchEvidence.length, 1);
+  assert.equal(preview.targets[0].scratchEvidence[0].path, 'PLAN.md');
+  const result = await session(repo, 'teardown', '--main', 'main', '--gh-command', 'false');
+  assert.equal(result.removed, true);
 });
 
 test('normal teardown hard-stops when its ownership proof disappears', async (t) => {

@@ -42,6 +42,7 @@ def create_merged_worktree(
     root: Path,
     *,
     setup_steps: list[dict] | None = None,
+    scratch_patterns: list[str] | None = None,
 ) -> tuple[Path, Path]:
     remote = root / "remote.git"
     main = root / "main"
@@ -63,7 +64,7 @@ def create_merged_worktree(
             "pathTemplate": "{issue}-{slug}",
             "mainBranches": ["main"],
             "protectedBranches": ["main"],
-            "scratchPatterns": [],
+            "scratchPatterns": scratch_patterns or [],
             "setupSteps": setup_steps or [],
         },
         "wrapup": {
@@ -117,6 +118,7 @@ def create_real_kit_merged_worktree(root: Path) -> tuple[Path, Path]:
         "dist-kit/",
         "**/__pycache__/",
         ".claude/logs/",
+        "PLAN.md",
     ]
     missing = [pattern for pattern in required_ignores if pattern not in ignored.splitlines()]
     if missing:
@@ -135,14 +137,13 @@ def create_real_kit_merged_worktree(root: Path) -> tuple[Path, Path]:
         "pathTemplate": "{issue}-{slug}",
         "mainBranches": ["main"],
         "protectedBranches": ["main"],
-        "scratchPatterns": [],
+        "scratchPatterns": ["PLAN.md", ".claude/logs/**"],
         "setupSteps": [],
     })
     profile["wrapup"] = {
         "landingGeneratedArtifactPatterns": [
             "dist-kit/**",
             "**/__pycache__/**",
-            ".claude/logs/**",
         ],
     }
     profile_path.write_text(
@@ -174,6 +175,214 @@ def create_real_kit_merged_worktree(root: Path) -> tuple[Path, Path]:
 
 
 class WorktreeCleanupContract(unittest.TestCase):
+    def test_profile_scratch_and_generated_evidence_share_safe_removal_contract(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(
+                Path(tmp), scratch_patterns=["PLAN.md"]
+            )
+            (worktree / "PLAN.md").write_text("plan\n", encoding="utf-8")
+            generated = worktree / "dist-kit/package.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("generated\n", encoding="utf-8")
+            evidence = wrapup.landing_verified_scratch_evidence(
+                str(worktree), str(main)
+            )
+            assessment = wrapup.ensure_worktree_removable(
+                str(worktree),
+                str(main),
+                verified_scratch_files=tuple(item["path"] for item in evidence),
+                verified_scratch_evidence=evidence,
+            )
+
+            final = wrapup.remove_verified_worktree_scratch(
+                str(worktree),
+                str(main),
+                assessment,
+                verified_scratch_evidence=evidence,
+            )
+
+            self.assertFalse(final.reasons)
+            self.assertFalse((worktree / "PLAN.md").exists())
+            self.assertFalse(generated.exists())
+
+    def test_profile_scratch_same_path_replacement_is_preserved(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(
+                Path(tmp), scratch_patterns=["PLAN.md"]
+            )
+            plan = worktree / "PLAN.md"
+            plan.write_text("assessed\n", encoding="utf-8")
+            assessment = wrapup.ensure_worktree_removable(
+                str(worktree), str(main)
+            )
+            plan.unlink()
+            plan.write_text("replacement\n", encoding="utf-8")
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.remove_verified_worktree_scratch(
+                    str(worktree), str(main), assessment
+                )
+            self.assertIn("inventory no longer matches preview", stopped.exception.reason)
+            self.assertEqual(plan.read_text(encoding="utf-8"), "replacement\n")
+
+    def test_missing_generator_identity_is_not_downgraded_to_profile_scratch(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            generated = worktree / "dist-kit/package.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("generated\n", encoding="utf-8")
+            assessment = wrapup.ensure_worktree_removable(
+                str(worktree),
+                str(main),
+                verified_scratch_files=("dist-kit/package.tgz",),
+            )
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.remove_verified_worktree_scratch(
+                    str(worktree),
+                    str(main),
+                    assessment,
+                    verified_scratch_files=("dist-kit/package.tgz",),
+                    verified_scratch_evidence=(),
+                )
+
+            self.assertIn("evidence", stopped.exception.reason)
+            self.assertTrue(generated.exists())
+
+    def test_generator_pattern_overlap_still_requires_exact_evidence(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(
+                Path(tmp), scratch_patterns=["dist-kit/**"]
+            )
+            generated = worktree / "dist-kit/package.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("generated\n", encoding="utf-8")
+            assessment = wrapup.ensure_worktree_removable(
+                str(worktree),
+                str(main),
+                verified_scratch_files=(),
+            )
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.remove_verified_worktree_scratch(
+                    str(worktree), str(main), assessment
+                )
+            self.assertIn("landing-generated scratch evidence is missing", stopped.exception.reason)
+            self.assertTrue(generated.exists())
+
+    def test_legacy_worktree_gets_conservative_baseline_without_claiming_existing_files(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            core = wrapup.load_worktree_cleanup_core()
+            core.artifact_baseline_path(worktree).unlink()
+            existing = worktree / "dist-kit/existing.tgz"
+            existing.parent.mkdir(parents=True)
+            existing.write_text("consumer\n", encoding="utf-8")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_start_artifact_inventory(
+                    str(worktree), str(main)
+                )
+
+            baseline = core.load_artifact_baseline(worktree)
+            self.assertIn("dist-kit/existing.tgz", baseline.initial_ignored_files)
+            self.assertIn("consumer-owned", stopped.exception.reason)
+            self.assertTrue(existing.exists())
+
+    def test_preexisting_generated_blocker_does_not_poison_next_attempt(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            blocker = worktree / "dist-kit/preexisting.tgz"
+            blocker.parent.mkdir(parents=True)
+            blocker.write_text("consumer\n", encoding="utf-8")
+            core = wrapup.load_worktree_cleanup_core()
+            attempt_path = core.artifact_baseline_path(worktree).with_name(
+                core.LANDING_ATTEMPT_FILE
+            )
+
+            with self.assertRaises(wrapup.Stop):
+                wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            self.assertFalse(attempt_path.exists())
+            blocker.unlink()
+            attempt = wrapup.landing_start_artifact_inventory(
+                str(worktree), str(main)
+            )
+            self.assertTrue(attempt["newAttempt"])
+
+    def test_abandon_archives_drifted_frozen_attempt_without_touching_files(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            generated = worktree / "dist-kit/package.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("one\n", encoding="utf-8")
+            wrapup.freeze_landing_artifact_evidence(
+                str(worktree), str(main), push_succeeded=True
+            )
+            generated.write_text("two\n", encoding="utf-8")
+
+            args = SimpleNamespace(
+                branch="fix/268-cleanup",
+                body_file=None,
+                title=None,
+                anchor=None,
+                skip_malformed_drift=False,
+                abandon_unfinished_attempt=True,
+            )
+            previous = Path.cwd()
+            try:
+                os.chdir(main)
+                result = wrapup.cmd_land(args)
+            finally:
+                os.chdir(previous)
+            archive = Path(result["landing_attempt_abandoned"])
+
+            self.assertTrue(archive.is_file())
+            self.assertEqual(generated.read_text(encoding="utf-8"), "two\n")
+            with self.assertRaises(wrapup.Stop):
+                wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+
+    def test_cli_abandon_archives_attempt_even_when_baseline_is_missing(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            generated = worktree / "dist-kit/ambiguous.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("keep\n", encoding="utf-8")
+            core = wrapup.load_worktree_cleanup_core()
+            core.artifact_baseline_path(worktree).unlink()
+            args = SimpleNamespace(
+                branch="fix/268-cleanup",
+                body_file=None,
+                title=None,
+                anchor=None,
+                skip_malformed_drift=False,
+                abandon_unfinished_attempt=True,
+            )
+            previous = Path.cwd()
+            try:
+                os.chdir(main)
+                result = wrapup.cmd_land(args)
+            finally:
+                os.chdir(previous)
+            self.assertTrue(Path(result["landing_attempt_abandoned"]).is_file())
+            self.assertEqual(generated.read_text(encoding="utf-8"), "keep\n")
+
+    def test_profile_globs_match_root_and_nested_without_star_crossing_slash(self):
+        wrapup = load_wrapup()
+        core = wrapup.load_worktree_cleanup_core()
+        self.assertTrue(core.path_glob_matches("__pycache__/a.pyc", "**/__pycache__/**"))
+        self.assertTrue(core.path_glob_matches("src/__pycache__/a.pyc", "**/__pycache__/**"))
+        self.assertTrue(core.path_glob_matches("dist-kit/a", "dist-kit/**"))
+        self.assertTrue(core.path_glob_matches("dist-kit/a/b", "dist-kit/**"))
+        self.assertFalse(core.path_glob_matches("dist-kit/a/b", "dist-kit/*"))
+
     def test_active_profile_delegates_removal_safety_to_shared_assessment(self):
         wrapup = load_wrapup()
         calls = []
@@ -206,6 +415,10 @@ class WorktreeCleanupContract(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             main, worktree = create_real_kit_merged_worktree(root)
+            appendable = worktree / ".claude/logs/session.log"
+            appendable.parent.mkdir(parents=True, exist_ok=True)
+            appendable.write_text("appendable\n", encoding="utf-8")
+            (worktree / "PLAN.md").write_text("plan\n", encoding="utf-8")
             # The first landing attempt journals its start before the real
             # pre-push generators run. A resumed already-MERGED land must
             # reuse that attempt instead of treating its outputs as user files.
@@ -286,6 +499,26 @@ class WorktreeCleanupContract(unittest.TestCase):
             self.assertEqual(first["worktree_removed"], str(worktree))
             self.assertFalse(worktree.exists())
             self.assertTrue(second["merged"])
+
+    def test_append_after_profile_log_assessment_is_preserved_and_stops(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(
+                Path(tmp), scratch_patterns=[".claude/logs/**"]
+            )
+            log = worktree / ".claude/logs/session.log"
+            log.parent.mkdir(parents=True)
+            log.write_text("assessed\n", encoding="utf-8")
+            assessment = wrapup.ensure_worktree_removable(
+                str(worktree), str(main)
+            )
+            with log.open("a", encoding="utf-8") as handle:
+                handle.write("late\n")
+            with self.assertRaises(wrapup.Stop):
+                wrapup.remove_verified_worktree_scratch(
+                    str(worktree), str(main), assessment
+                )
+            self.assertEqual(log.read_text(encoding="utf-8"), "assessed\nlate\n")
 
     def test_profile_generated_path_present_in_creation_baseline_is_not_scratch(self):
         wrapup = load_wrapup()
@@ -394,7 +627,7 @@ class WorktreeCleanupContract(unittest.TestCase):
                     verified_scratch_files=("dist-kit/package.tgz",),
                 )
 
-            self.assertIn("scratch path", stopped.exception.reason)
+            self.assertIn("evidence is missing", stopped.exception.reason)
             self.assertEqual(foreign.read_text(encoding="utf-8"), "keep")
             self.assertTrue(generated.is_symlink())
 
@@ -454,34 +687,29 @@ class WorktreeCleanupContract(unittest.TestCase):
                     verified_scratch_evidence=evidence,
                 )
 
-            self.assertIn("identity changed", stopped.exception.reason)
+            self.assertIn("inventory no longer matches preview", stopped.exception.reason)
             self.assertEqual(generated.read_text(encoding="utf-8"), "user replacement")
 
-    def test_landing_start_generated_file_is_never_reclassified_as_build_output(self):
+    def test_landing_start_generated_file_is_rejected_before_attempt_is_written(self):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             main, worktree = create_merged_worktree(Path(tmp))
             user_file = worktree / "dist-kit/user-note.txt"
             user_file.parent.mkdir(parents=True)
             user_file.write_text("keep", encoding="utf-8")
-            landing_start = wrapup.landing_start_artifact_inventory(
-                str(worktree),
-                str(main),
-            )
-            # A generator writing the same path cannot turn pre-landing user
-            # ownership into landing ownership.
-            user_file.write_text("overwritten during build", encoding="utf-8")
-
             with self.assertRaises(wrapup.Stop) as stopped:
-                wrapup.landing_verified_scratch_evidence(
-                    str(worktree),
-                    str(main),
-                    expected_baseline_digest=landing_start["baselineDigest"],
-                    landing_start_files=tuple(landing_start["generatedFiles"]),
+                wrapup.landing_start_artifact_inventory(
+                    str(worktree), str(main)
                 )
 
             self.assertIn("landing-start generated paths", stopped.exception.reason)
             self.assertTrue(user_file.exists())
+            core = wrapup.load_worktree_cleanup_core()
+            self.assertFalse(
+                core.artifact_baseline_path(worktree)
+                .with_name(core.LANDING_ATTEMPT_FILE)
+                .exists()
+            )
 
     def test_frozen_landing_output_does_not_claim_a_later_private_path(self):
         wrapup = load_wrapup()
@@ -606,12 +834,11 @@ class WorktreeCleanupContract(unittest.TestCase):
 
             self.assertTrue(archive.is_file())
             self.assertEqual(ambiguous.read_text(encoding="utf-8"), "unknown owner")
-            next_attempt = wrapup.landing_start_artifact_inventory(
-                str(worktree), str(main)
-            )
-            self.assertEqual(
-                next_attempt["generatedFiles"], ["dist-kit/ambiguous.tgz"]
-            )
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_start_artifact_inventory(
+                    str(worktree), str(main)
+                )
+            self.assertIn("consumer-owned", stopped.exception.reason)
 
 
 if __name__ == "__main__":
