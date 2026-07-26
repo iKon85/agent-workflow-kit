@@ -587,7 +587,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "928a771ecadd4b199169f20deb79647894fe3c0675973b0b97050cad0b675cc4",
+      "sha256": "c6855a479c030f93be30f6fb65b36b8ca317251f9627fd3f6f0f994d9a8b64fb",
       "mode": 420,
       "origin": "kit"
     },
@@ -687,7 +687,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "a5733b71f9257f0999c866bfdea551aedf4b9066572bd484fc263440cb292ca6",
+      "sha256": "f186bc7c30b22ebe52e33158d85b467f1c99467f222e02a801e99a8fa49cd5da",
       "mode": 420,
       "origin": "kit"
     },
@@ -1929,7 +1929,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "928a771ecadd4b199169f20deb79647894fe3c0675973b0b97050cad0b675cc4",
+      "sha256": "c6855a479c030f93be30f6fb65b36b8ca317251f9627fd3f6f0f994d9a8b64fb",
       "mode": 420,
       "origin": "kit"
     },
@@ -2029,7 +2029,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "a5733b71f9257f0999c866bfdea551aedf4b9066572bd484fc263440cb292ca6",
+      "sha256": "f186bc7c30b22ebe52e33158d85b467f1c99467f222e02a801e99a8fa49cd5da",
       "mode": 420,
       "origin": "kit"
     },
@@ -2429,6 +2429,14 @@
       "installRole": "consumer",
       "sha256": "b8bd0e654137a1e7d309f431ab6e7f76e8049c6a3206730323ae7cc90ebc06e8",
       "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/board_bootstrap.py",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "52f4bc89fb078bb9a8735481488bc60d2be438c5c8175555195ac84775e40bfb",
+      "mode": 493,
       "origin": "kit"
     },
     {

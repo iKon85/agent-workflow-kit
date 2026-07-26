@@ -16,6 +16,10 @@ export const HELPER_FILES = [
   // every board-specific value from docs/agents/board-sync.md through it, so it
   // MUST ship or they are broken-on-arrival. Library (imported, not run) → 0o644.
   { path: 'scripts/board_config.py', kind: 'script', mode: 0o644 },
+  // Offered board provisioning for /setup-workflow Section D: creates the
+  // project + Status/workflow fields, reads the opaque ids back, and writes the
+  // filled profile. Imports board_config (above). Invokable CLI → 0o755.
+  { path: 'scripts/board_bootstrap.py', kind: 'script', mode: 0o755 },
   // Pure Slices-table logic imported by board-sync.py for `anchor-sync` —
   // library (imported, not run) → 0o644. MUST ship or board-sync.py ImportErrors.
   { path: 'scripts/anchor_table.py', kind: 'script', mode: 0o644 },
