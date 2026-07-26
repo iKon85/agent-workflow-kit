@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import re
-from fnmatch import fnmatchcase
+import stat
+from contextlib import contextmanager
 from dataclasses import dataclass
-from pathlib import Path
+from fnmatch import fnmatchcase
+from pathlib import Path, PurePosixPath
 from time import time
 from typing import Any, Callable
 
@@ -142,6 +145,7 @@ def cleanup_assessment(
     target: Path,
     merge_target: str | None = None,
     pr_state: str = "none",
+    verified_scratch_files: tuple[str, ...] = (),
 ) -> CleanupAssessment:
     return classify_cleanup(
         profile,
@@ -151,6 +155,7 @@ def cleanup_assessment(
             merge_target=merge_target,
             pr_state=pr_state,
         ),
+        verified_scratch_files=verified_scratch_files,
     )
 
 
@@ -225,6 +230,8 @@ def collect_cleanup_facts(
 def classify_cleanup(
     profile: WorktreeProfile,
     facts: CleanupFacts,
+    *,
+    verified_scratch_files: tuple[str, ...] = (),
 ) -> CleanupAssessment:
     reasons = []
     if not facts.registered:
@@ -233,9 +240,19 @@ def classify_cleanup(
         reasons.append("detached or unreadable branch")
     if facts.branch in profile.protected_branches or facts.is_main:
         reasons.append(f"protected worktree branch: {facts.branch or '<unknown>'}")
+    verified = set(verified_scratch_files)
+    missing_verified = sorted(verified.difference(facts.untracked_files))
+    if missing_verified:
+        reasons.append(
+            "verified scratch evidence no longer matches inventory: "
+            + ", ".join(missing_verified)
+        )
     scratch = sorted(
         path for path in facts.untracked_files
-        if any(fnmatchcase(path, pattern) for pattern in profile.scratch_patterns)
+        if (
+            path in verified
+            or any(fnmatchcase(path, pattern) for pattern in profile.scratch_patterns)
+        )
     )
     non_scratch = sorted(set(facts.untracked_files).difference(scratch))
     if facts.tracked_files:
@@ -261,6 +278,55 @@ def classify_cleanup(
         facts.root_inode,
         tuple(scratch),
     )
+
+
+@contextmanager
+def verified_worktree_root(root: Path, expected_device: int, expected_inode: int):
+    """Open the assessed worktree root without following a replacement symlink."""
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    descriptor = None
+    try:
+        descriptor = os.open(root, directory_flags | no_follow)
+        metadata = os.fstat(descriptor)
+        if (metadata.st_dev, metadata.st_ino) != (expected_device, expected_inode):
+            raise LifecycleError("worktree root changed before removal")
+        yield descriptor
+    except OSError as error:
+        raise LifecycleError("worktree root changed before removal") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def remove_contained_regular(root_descriptor: int, relative: str) -> None:
+    """Delete one exact assessed regular file without following path symlinks."""
+    path = PurePosixPath(relative)
+    if path.is_absolute() or not path.parts or any(
+        part in {"", ".", ".."} for part in path.parts
+    ):
+        raise LifecycleError(f"unsafe scratch path: {relative}")
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    descriptors = []
+    try:
+        current = root_descriptor
+        for component in path.parts[:-1]:
+            current = os.open(
+                component,
+                directory_flags | no_follow,
+                dir_fd=current,
+            )
+            descriptors.append(current)
+        metadata = os.stat(path.name, dir_fd=current, follow_symlinks=False)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise LifecycleError(f"scratch path is not a regular file: {relative}")
+        os.unlink(path.name, dir_fd=current)
+    except OSError as error:
+        raise LifecycleError(f"scratch path changed before removal: {relative}") from error
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
 
 
 @dataclass(frozen=True)

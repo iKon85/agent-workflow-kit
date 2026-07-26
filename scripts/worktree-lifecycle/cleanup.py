@@ -4,13 +4,10 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
 from dataclasses import asdict, replace
 import json
-import os
-import stat
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from core import (
     LifecycleError,
@@ -19,7 +16,9 @@ from core import (
     collect_sweep,
     load_profile,
     main_worktree,
+    remove_contained_regular,
     run,
+    verified_worktree_root,
 )
 
 
@@ -76,51 +75,6 @@ def collect_assessment(profile, main: Path, worktree: Path, gh_command: str):
     )
     state = pr_state(gh_command, main, facts.branch)
     return classify_cleanup(profile, replace(facts, pr_state=state))
-
-
-@contextmanager
-def verified_worktree_root(root: Path, expected_device: int, expected_inode: int):
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    descriptor = None
-    try:
-        descriptor = os.open(root, directory_flags | no_follow)
-        metadata = os.fstat(descriptor)
-        if (metadata.st_dev, metadata.st_ino) != (expected_device, expected_inode):
-            raise LifecycleError("worktree root changed before removal")
-        yield descriptor
-    except OSError as error:
-        raise LifecycleError("worktree root changed before removal") from error
-    finally:
-        if descriptor is not None:
-            os.close(descriptor)
-
-
-def remove_contained_regular(root_descriptor: int, relative: str) -> None:
-    path = PurePosixPath(relative)
-    if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts):
-        raise LifecycleError(f"unsafe scratch path: {relative}")
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    descriptors = []
-    try:
-        current = root_descriptor
-        for component in path.parts[:-1]:
-            current = os.open(
-                component,
-                directory_flags | no_follow,
-                dir_fd=current,
-            )
-            descriptors.append(current)
-        metadata = os.stat(path.name, dir_fd=current, follow_symlinks=False)
-        if not stat.S_ISREG(metadata.st_mode):
-            raise LifecycleError(f"scratch path is not a regular file: {relative}")
-        os.unlink(path.name, dir_fd=current)
-    except OSError as error:
-        raise LifecycleError(f"scratch path changed before removal: {relative}") from error
-    finally:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
 
 
 def execute(args: argparse.Namespace) -> dict:

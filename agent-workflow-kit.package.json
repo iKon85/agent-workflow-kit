@@ -2787,7 +2787,7 @@
       "path": "scripts/worktree-lifecycle/cleanup.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "3c1c1113298c7c81b26850df95db8571574a49610cea25b57e208e2fa0a40af9",
+      "sha256": "397a74216096104d9848bfb845dde9a54b8a5b31bf0e71d6495f2bb600d490ac",
       "mode": 493,
       "origin": "kit"
     },
@@ -2795,7 +2795,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "d4846481f0e7eaeb8e87324a705f94ca323163e3d368b2d809bb572dfea6cd9b",
+      "sha256": "913918faba46f94e966297a47876a0471c03f8561a36fdde79a2890d65fdfae9",
       "mode": 420,
       "origin": "kit"
     },
@@ -2811,7 +2811,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "567a59845db059fc6385ea200a8f361e1250f857babaef01d9fa15054be0f753",
+      "sha256": "773e536d21862fafa1cc6310c46f99bc0569fb847729b7a07153726c2bbfb3d4",
       "mode": 420,
       "origin": "kit"
     },
@@ -2827,7 +2827,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "0f365204c5fd1b707a19fda0c4b4c4c9395f371adeaa8aa808f47e8d94a54bf6",
+      "sha256": "e6a3e6ff2a5d74687547aff40ad62fc988df1ac2479c080c3a84e6871fc4aaf2",
       "mode": 493,
       "origin": "kit"
     },

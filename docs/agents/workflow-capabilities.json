@@ -14,5 +14,12 @@
       "\\b(?:npm|pnpm|yarn)\\s+(?:run\\s+)?(?:test|typecheck|build)\\b",
       "\\bgit\\s+(?:commit|push)\\b"
     ]
+  },
+  "wrapup": {
+    "landingGeneratedArtifactPatterns": [
+      "dist-kit/**",
+      "**/__pycache__/**",
+      ".claude/logs/**"
+    ]
   }
 }
