@@ -452,13 +452,19 @@ class WorktreeCleanupContract(unittest.TestCase):
                 str(worktree), str(main), push_succeeded=True
             )
             (main / "docs/agents/workflow-capabilities.json").unlink()
+            victim = worktree / "consumer/ignored.txt"
+            victim.parent.mkdir(parents=True)
+            victim.write_text("preserve\n", encoding="utf-8")
 
-            assessment = wrapup.ensure_worktree_removable(
-                str(worktree), str(main)
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.ensure_worktree_removable(str(worktree), str(main))
+
+            self.assertIn(
+                "dirty worktree: untracked non-scratch: consumer/ignored.txt",
+                stopped.exception.detail,
             )
-
-            self.assertIsNotNone(assessment)
-            self.assertEqual(assessment.reasons, ())
+            self.assertEqual(victim.read_text(encoding="utf-8"), "preserve\n")
+            self.assertTrue(worktree.is_dir())
 
     def test_explicit_empty_landing_policy_is_distinct_from_missing(self):
         wrapup = load_wrapup()
@@ -1010,6 +1016,21 @@ class WorktreeCleanupContract(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             main, worktree = create_merged_worktree(Path(tmp))
             wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            core = wrapup.load_worktree_cleanup_core()
+            baseline_path = core.artifact_baseline_path(worktree)
+            attempt_path = baseline_path.with_name(core.LANDING_ATTEMPT_FILE)
+            attempt = json.loads(attempt_path.read_text(encoding="utf-8"))
+            payload = {
+                key: value
+                for key, value in attempt.items()
+                if key not in {"policyDigest", "sha256"}
+            }
+            payload["contractVersion"] = 1
+            attempt_path.write_text(
+                json.dumps({**payload, "sha256": core._baseline_digest(payload)}),
+                encoding="utf-8",
+            )
+            baseline_path.unlink()
             ambiguous = worktree / "dist-kit/ambiguous.tgz"
             ambiguous.parent.mkdir(parents=True)
             ambiguous.write_text("unknown owner", encoding="utf-8")
