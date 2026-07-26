@@ -37,6 +37,7 @@ BASE_PROFILE = {
 
 
 def load_board_sync(profile_dict: dict, module_name: str):
+    previous_profile = os.environ.get("BOARD_SYNC_PROFILE")
     with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as profile:
         profile.write("<!-- board-sync:profile -->\n```json\n")
         json.dump(profile_dict, profile)
@@ -48,8 +49,14 @@ def load_board_sync(profile_dict: dict, module_name: str):
     )
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
-    spec.loader.exec_module(module)
-    Path(profile_path).unlink()
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        Path(profile_path).unlink()
+        if previous_profile is None:
+            os.environ.pop("BOARD_SYNC_PROFILE", None)
+        else:
+            os.environ["BOARD_SYNC_PROFILE"] = previous_profile
     return module
 
 
@@ -74,6 +81,11 @@ class WaveTitleDefaultPrefix(unittest.TestCase):
             self.bs.wave_title("fix: Welle 7 — Auth hardening", 29),
             "Welle 29 — Auth hardening",
         )
+
+    def test_loading_board_sync_restores_the_caller_profile(self):
+        before = os.environ.get("BOARD_SYNC_PROFILE")
+        load_board_sync(copy.deepcopy(BASE_PROFILE), "board_sync_wave_isolation")
+        self.assertEqual(os.environ.get("BOARD_SYNC_PROFILE"), before)
 
 
 class WaveTitleProfilePrefix(unittest.TestCase):

@@ -40,6 +40,39 @@ class CensusBackstopTest(unittest.TestCase):
             "overrides": overrides or [],
         }) + "\n", encoding="utf-8")
 
+    def test_execute_ready_missing_profile_failure_is_captured_and_exact(self):
+        missing_profile = ROOT / "missing-board-profile.md"
+        environment = os.environ.copy()
+        environment["BOARD_SYNC_PROFILE"] = str(missing_profile)
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "execute-ready-check.py"),
+                "--issue",
+                "52",
+                "--mode",
+                "handoff",
+            ],
+            cwd=ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+        )
+
+        expected_stderr = (
+            "[FAIL] execute-ready-check: Board-Profil nicht verfügbar — "
+            f"board profile not found at {missing_profile} — run /setup-workflow "
+            "to seed docs/agents/board-sync.md.\n"
+        )
+        diagnostics = (
+            f"stdout:\n{completed.stdout}\n"
+            f"stderr:\n{completed.stderr}"
+        )
+        self.assertEqual(completed.returncode, 1, diagnostics)
+        self.assertEqual(completed.stdout, "", diagnostics)
+        self.assertEqual(completed.stderr, expected_stderr, diagnostics)
+
     def activate_current(self, root):
         fresh = DRIFT_GUARD.scan_census_status(root)["fresh"]
         (root / ".census" / "active.json").write_text(
