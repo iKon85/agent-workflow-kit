@@ -2795,7 +2795,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "82d5143bc8e348f608e9fadba9990e5fcd8e0cbe97a963ae0f1736d66e1c28a8",
+      "sha256": "d41b5525752dad60589a18aff8618b25714c5a23d9cdc96011264298ba69bb5f",
       "mode": 420,
       "origin": "kit"
     },
@@ -2811,7 +2811,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "4599adb54943a0a0afb94939beadc1617daa1627174c84d5c1531ca7884b6628",
+      "sha256": "3418d7e600469d442087cb9ad9c7464b65aeae0ad250e90ea51ea22d9b7a86bf",
       "mode": 420,
       "origin": "kit"
     },
@@ -2819,7 +2819,7 @@
       "path": "scripts/worktree-lifecycle/session.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "0aafbdd87710ca1c4797a05e357f65cbb2e7f216555aea245183a27e37e310da",
+      "sha256": "08fd0a95226e8c5c9a1e11780b0f07b0680de9ecee15ab533cb12a261fe189e6",
       "mode": 493,
       "origin": "kit"
     },

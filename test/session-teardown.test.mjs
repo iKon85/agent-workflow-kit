@@ -531,7 +531,10 @@ test('failed setup rolls back the newly created target without recording ownersh
   const profile = JSON.parse(await readFile(profilePath, 'utf8'));
   profile.worktreeLifecycle.setupSteps = [{
     kind: 'command',
-    command: ['node', '-e', 'process.exit(23)'],
+    command: [
+      'node', '-e',
+      "require('fs').writeFileSync('setup-owned.txt','owned\\n');process.exit(23)",
+    ],
   }];
   await writeFile(profilePath, JSON.stringify(profile));
 
@@ -543,6 +546,167 @@ test('failed setup rolls back the newly created target without recording ownersh
   assert.doesNotMatch((await git(repo, 'worktree', 'list')).stdout, /feat-108-rollback/);
   const receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
   assert.deepEqual(receipt.targets, []);
+});
+
+test('failed setup preserves recovery ownership when exact rollback is interrupted', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  const begun = await session(repo, 'begin', '--base', 'main');
+  const profilePath = join(repo, 'docs/agents/workflow-capabilities.json');
+  const profile = JSON.parse(await readFile(profilePath, 'utf8'));
+  profile.worktreeLifecycle.setupSteps = [{
+    kind: 'command',
+    command: [
+      'node', '-e',
+      "require('fs').writeFileSync('setup-owned.txt','owned\\n');process.exit(23)",
+    ],
+  }];
+  await writeFile(profilePath, JSON.stringify(profile));
+
+  const realGit = (await command('sh', ['-c', 'command -v git'], repo)).stdout.trim();
+  const fakeBin = join(root, 'fake-bin');
+  const marker = join(root, 'remove.failed');
+  await mkdir(fakeBin);
+  await writeFile(join(fakeBin, 'git'), `#!/usr/bin/env bash
+if [[ "$1 $2" == "worktree remove" && ! -e "$ROLLBACK_MARKER" ]]; then
+  : > "$ROLLBACK_MARKER"
+  exit 91
+fi
+exec "${realGit}" "$@"
+`);
+  await chmod(join(fakeBin, 'git'), 0o755);
+
+  await assert.rejects(
+    command('python3', [
+      SESSION, 'create', '--anchor', '42', '--owner', 'run-alpha',
+      '--profile', profilePath, '118', 'recovery', 'feat',
+    ], repo, {
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH}`,
+        ROLLBACK_MARKER: marker,
+      },
+    }),
+    /failed/,
+  );
+
+  let receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
+  assert.equal(receipt.targets.length, 1);
+  assert.equal(receipt.targets[0].state, 'recovery-pending');
+  assert.equal(receipt.targets[0].branch, 'feat/118-recovery');
+  assert.match(receipt.targets[0].artifactBaselineDigest, /^[0-9a-f]{64}$/);
+
+  const worktree = receipt.targets[0].worktree;
+  await writeFile(join(worktree, 'foreign-after-failure.txt'), 'foreign\n');
+  await assert.rejects(
+    session(
+      repo,
+      'recover',
+      '--branch', 'feat/118-recovery',
+      '--gh-command', 'false',
+    ),
+    /foreign untracked files/,
+  );
+  receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
+  assert.equal(receipt.targets[0].state, 'recovery-pending');
+  await rm(join(worktree, 'foreign-after-failure.txt'));
+
+  await writeFile(join(worktree, 'setup-owned.txt'), 'foreign replacement\n');
+  await assert.rejects(
+    session(
+      repo,
+      'recover',
+      '--branch', 'feat/118-recovery',
+      '--gh-command', 'false',
+    ),
+    /identity changed/,
+  );
+  receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
+  assert.equal(receipt.targets[0].state, 'recovery-pending');
+  await rm(join(worktree, 'setup-owned.txt'));
+
+  const recovered = await session(
+    repo,
+    'recover',
+    '--branch', 'feat/118-recovery',
+    '--gh-command', 'false',
+  );
+  assert.equal(recovered.recovered, true);
+  await assert.rejects(git(repo, 'show-ref', '--verify', 'refs/heads/feat/118-recovery'));
+  assert.doesNotMatch((await git(repo, 'worktree', 'list')).stdout, /feat-118-recovery/);
+  receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
+  assert.deepEqual(receipt.targets, []);
+  assert.equal(receipt.recoveredTargets.at(-1).branch, 'feat/118-recovery');
+});
+
+test('recovery refuses a concurrently moved ref and preserves its pending receipt', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  const begun = await session(repo, 'begin', '--base', 'main');
+  const profilePath = join(repo, 'docs/agents/workflow-capabilities.json');
+  const profile = JSON.parse(await readFile(profilePath, 'utf8'));
+  profile.worktreeLifecycle.setupSteps = [{
+    kind: 'command',
+    command: [
+      'node', '-e',
+      "require('fs').writeFileSync('setup-owned.txt','owned\\n');process.exit(23)",
+    ],
+  }];
+  await writeFile(profilePath, JSON.stringify(profile));
+
+  const realGit = (await command('sh', ['-c', 'command -v git'], repo)).stdout.trim();
+  const fakeBin = join(root, 'fake-bin');
+  const marker = join(root, 'remove.failed');
+  await mkdir(fakeBin);
+  await writeFile(join(fakeBin, 'git'), `#!/usr/bin/env bash
+if [[ "$1 $2" == "worktree remove" && ! -e "$ROLLBACK_MARKER" ]]; then
+  : > "$ROLLBACK_MARKER"
+  exit 91
+fi
+exec "${realGit}" "$@"
+`);
+  await chmod(join(fakeBin, 'git'), 0o755);
+  await assert.rejects(
+    command('python3', [
+      SESSION, 'create', '--anchor', '42', '--owner', 'run-alpha',
+      '--profile', profilePath, '119', 'moved-recovery', 'feat',
+    ], repo, {
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH}`,
+        ROLLBACK_MARKER: marker,
+      },
+    }),
+  );
+
+  await writeFile(join(repo, 'later.txt'), 'later\n');
+  await git(repo, 'add', 'later.txt');
+  await git(repo, 'commit', '-m', 'later main');
+  const movedOid = (await git(repo, 'rev-parse', 'HEAD')).stdout.trim();
+  await git(
+    repo,
+    'update-ref',
+    'refs/heads/feat/119-moved-recovery',
+    movedOid,
+  );
+
+  await assert.rejects(
+    session(
+      repo,
+      'recover',
+      '--branch', 'feat/119-moved-recovery',
+      '--gh-command', 'false',
+    ),
+    /unexpected OID/,
+  );
+  const receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
+  assert.equal(receipt.targets[0].state, 'recovery-pending');
+  assert.equal(
+    (await git(repo, 'rev-parse', 'refs/heads/feat/119-moved-recovery')).stdout.trim(),
+    movedOid,
+  );
 });
 
 test('a write after seal makes the owned worktree dirty and blocks cleanup', async (t) => {

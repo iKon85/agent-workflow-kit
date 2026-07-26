@@ -84,6 +84,7 @@ class ArtifactBaseline:
     root_inode: int
     setup_head: str
     initial_ignored_files: tuple[str, ...]
+    initial_untracked_files: tuple[str, ...]
     digest: str
 
 
@@ -96,6 +97,16 @@ def ignored_file_inventory(worktree: Path) -> tuple[str, ...]:
         cwd=worktree,
     )
     return tuple(sorted(path for path in result.stdout.split("\0") if path))
+
+
+def untracked_file_inventory(worktree: Path) -> tuple[str, ...]:
+    ordinary = run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+        cwd=worktree,
+    ).stdout.split("\0")
+    return tuple(sorted(
+        set(path for path in ordinary if path).union(ignored_file_inventory(worktree))
+    ))
 
 
 def artifact_baseline_path(worktree: Path) -> Path:
@@ -117,15 +128,17 @@ def _baseline_payload(
     root_inode: int,
     setup_head: str,
     initial_ignored_files: tuple[str, ...],
+    initial_untracked_files: tuple[str, ...],
 ) -> dict[str, Any]:
     return {
-        "contractVersion": 1,
+        "contractVersion": 2,
         "worktree": str(worktree),
         "branch": branch,
         "rootDevice": root_device,
         "rootInode": root_inode,
         "setupHead": setup_head,
         "initialIgnoredFiles": list(initial_ignored_files),
+        "initialUntrackedFiles": list(initial_untracked_files),
     }
 
 
@@ -145,6 +158,7 @@ def capture_artifact_baseline(worktree: Path) -> ArtifactBaseline:
     branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
     setup_head = run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
     ignored = ignored_file_inventory(worktree)
+    untracked = untracked_file_inventory(worktree)
     payload = _baseline_payload(
         worktree=worktree,
         branch=branch,
@@ -152,6 +166,7 @@ def capture_artifact_baseline(worktree: Path) -> ArtifactBaseline:
         root_inode=metadata.st_ino,
         setup_head=setup_head,
         initial_ignored_files=ignored,
+        initial_untracked_files=untracked,
     )
     digest = _baseline_digest(payload)
     path = artifact_baseline_path(worktree)
@@ -181,6 +196,7 @@ def capture_artifact_baseline(worktree: Path) -> ArtifactBaseline:
         metadata.st_ino,
         setup_head,
         ignored,
+        untracked,
         digest,
     )
 
@@ -202,6 +218,7 @@ def load_artifact_baseline(worktree: Path) -> ArtifactBaseline:
                 "rootInode",
                 "setupHead",
                 "initialIgnoredFiles",
+                "initialUntrackedFiles",
             )
         }
         digest = document["sha256"]
@@ -210,8 +227,9 @@ def load_artifact_baseline(worktree: Path) -> ArtifactBaseline:
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
         raise LifecycleError(f"artifact provenance baseline is incoherent: {error}") from error
     ignored = payload["initialIgnoredFiles"]
+    untracked = payload["initialUntrackedFiles"]
     if (
-        payload["contractVersion"] != 1
+        payload["contractVersion"] != 2
         or not isinstance(payload["worktree"], str)
         or not isinstance(payload["branch"], str)
         or not payload["branch"]
@@ -228,6 +246,16 @@ def load_artifact_baseline(worktree: Path) -> ArtifactBaseline:
             for path_value in ignored
         )
         or ignored != sorted(set(ignored))
+        or not isinstance(untracked, list)
+        or not all(
+            isinstance(path_value, str)
+            and path_value
+            and not PurePosixPath(path_value).is_absolute()
+            and ".." not in PurePosixPath(path_value).parts
+            for path_value in untracked
+        )
+        or untracked != sorted(set(untracked))
+        or not set(ignored).issubset(untracked)
         or not isinstance(digest, str)
         or re.fullmatch(r"[0-9a-f]{64}", digest) is None
         or digest != _baseline_digest(payload)
@@ -254,6 +282,7 @@ def load_artifact_baseline(worktree: Path) -> ArtifactBaseline:
         metadata.st_ino,
         payload["setupHead"],
         tuple(ignored),
+        tuple(untracked),
         digest,
     )
 
@@ -520,7 +549,11 @@ def verified_worktree_root(root: Path, expected_device: int, expected_inode: int
             os.close(descriptor)
 
 
-def remove_contained_regular(root_descriptor: int, relative: str) -> None:
+def remove_contained_regular(
+    root_descriptor: int,
+    relative: str,
+    expected_identity: dict[str, Any] | None = None,
+) -> None:
     """Delete one exact assessed regular file without following path symlinks."""
     path = PurePosixPath(relative)
     if path.is_absolute() or not path.parts or any(
@@ -539,12 +572,93 @@ def remove_contained_regular(root_descriptor: int, relative: str) -> None:
                 dir_fd=current,
             )
             descriptors.append(current)
-        metadata = os.stat(path.name, dir_fd=current, follow_symlinks=False)
-        if not stat.S_ISREG(metadata.st_mode):
+        initial_metadata = os.stat(
+            path.name,
+            dir_fd=current,
+            follow_symlinks=False,
+        )
+        if not stat.S_ISREG(initial_metadata.st_mode):
             raise LifecycleError(f"scratch path is not a regular file: {relative}")
+        file_descriptor = os.open(
+            path.name,
+            os.O_RDONLY | no_follow,
+            dir_fd=current,
+        )
+        try:
+            metadata = os.fstat(file_descriptor)
+            digest = sha256()
+            while chunk := os.read(file_descriptor, 128 * 1024):
+                digest.update(chunk)
+        finally:
+            os.close(file_descriptor)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or (metadata.st_dev, metadata.st_ino)
+            != (initial_metadata.st_dev, initial_metadata.st_ino)
+        ):
+            raise LifecycleError(f"scratch path changed before removal: {relative}")
+        identity = {
+            "path": relative,
+            "device": metadata.st_dev,
+            "inode": metadata.st_ino,
+            "size": metadata.st_size,
+            "sha256": digest.hexdigest(),
+        }
+        if expected_identity is not None and identity != expected_identity:
+            raise LifecycleError(f"scratch path identity changed: {relative}")
+        latest = os.stat(path.name, dir_fd=current, follow_symlinks=False)
+        if (latest.st_dev, latest.st_ino) != (metadata.st_dev, metadata.st_ino):
+            raise LifecycleError(f"scratch path changed before removal: {relative}")
         os.unlink(path.name, dir_fd=current)
     except OSError as error:
         raise LifecycleError(f"scratch path changed before removal: {relative}") from error
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def contained_regular_identity(root_descriptor: int, relative: str) -> dict[str, Any]:
+    """Read one exact regular file identity without following path symlinks."""
+    path = PurePosixPath(relative)
+    if path.is_absolute() or not path.parts or any(
+        part in {"", ".", ".."} for part in path.parts
+    ):
+        raise LifecycleError(f"unsafe scratch path: {relative}")
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    descriptors = []
+    try:
+        current = root_descriptor
+        for component in path.parts[:-1]:
+            current = os.open(
+                component,
+                directory_flags | no_follow,
+                dir_fd=current,
+            )
+            descriptors.append(current)
+        file_descriptor = os.open(
+            path.name,
+            os.O_RDONLY | no_follow,
+            dir_fd=current,
+        )
+        try:
+            metadata = os.fstat(file_descriptor)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise LifecycleError(f"scratch path is not a regular file: {relative}")
+            digest = sha256()
+            while chunk := os.read(file_descriptor, 128 * 1024):
+                digest.update(chunk)
+        finally:
+            os.close(file_descriptor)
+        return {
+            "path": relative,
+            "device": metadata.st_dev,
+            "inode": metadata.st_ino,
+            "size": metadata.st_size,
+            "sha256": digest.hexdigest(),
+        }
+    except OSError as error:
+        raise LifecycleError(f"scratch path changed before inspection: {relative}") from error
     finally:
         for descriptor in reversed(descriptors):
             os.close(descriptor)

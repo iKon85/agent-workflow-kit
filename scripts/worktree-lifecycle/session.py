@@ -20,6 +20,7 @@ from core import (
     capture_artifact_baseline,
     classify_cleanup,
     collect_cleanup_facts,
+    contained_regular_identity,
     load_profile,
     load_artifact_baseline,
     main_worktree,
@@ -212,11 +213,54 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
         if target_base is None or not is_ancestor(main, receipt["baseOid"], target_base):
             raise LifecycleError("target base is unresolved or incoherent with the receipt base")
 
-        run(
-            ["git", "worktree", "add", str(target), "-b", branch, target_base],
-            cwd=main,
-        )
+        entry = {
+            "state": "provisional",
+            "branch": branch,
+            "worktree": str(target),
+            "profile": str(configured_path),
+            "createdOid": target_base,
+            "expectedOid": target_base,
+            "rootDevice": None,
+            "rootInode": None,
+            "artifactBaselineDigest": None,
+            "removed": False,
+        }
+        # Journal ownership before git creates either the ref or worktree. A
+        # crash or failed setup can therefore never turn our target into a
+        # pre-existing foreign-looking orphan on retry.
+        receipt["targets"].append(entry)
+        write_receipt(path, receipt)
         try:
+            run(
+                ["git", "worktree", "add", str(target), "-b", branch, target_base],
+                cwd=main,
+            )
+            created_oid = resolve_ref(main, f"refs/heads/{branch}")
+            if created_oid != target_base:
+                raise LifecycleError("new session branch did not retain the recorded base OID")
+            linked = worktree_branches(main)
+            if linked.get(branch) != target.resolve():
+                raise LifecycleError("new session worktree registration is incoherent")
+            metadata = target.stat()
+            entry.update({
+                "state": "baseline-pending",
+                "rootDevice": metadata.st_dev,
+                "rootInode": metadata.st_ino,
+            })
+            write_receipt(path, receipt)
+
+            # This baseline must precede every project setup step: only its
+            # exact untracked delta can later be attributed to failed setup.
+            artifact_baseline = capture_artifact_baseline(target)
+            if artifact_baseline.setup_head != created_oid:
+                raise LifecycleError(
+                    "artifact provenance baseline does not match the created OID"
+                )
+            entry.update({
+                "state": "setting-up",
+                "artifactBaselineDigest": artifact_baseline.digest,
+            })
+            write_receipt(path, receipt)
             for step in profile.setup_steps:
                 execute_step(
                     step,
@@ -228,39 +272,266 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             created_oid = resolve_ref(main, f"refs/heads/{branch}")
             if created_oid != target_base:
                 raise LifecycleError("new session branch did not retain the recorded base OID")
-            artifact_baseline = capture_artifact_baseline(target)
-            if artifact_baseline.setup_head != created_oid:
-                raise LifecycleError(
-                    "artifact provenance baseline does not match the created OID"
-                )
             metadata = target.stat()
-            entry = {
-                "branch": branch,
-                "worktree": str(target),
-                "profile": str(configured_path),
-                "createdOid": created_oid,
-                "expectedOid": None,
+            if (metadata.st_dev, metadata.st_ino) != (
+                entry["rootDevice"], entry["rootInode"]
+            ):
+                raise LifecycleError("session worktree root changed during setup")
+            entry.update({
+                "state": "active",
                 "rootDevice": metadata.st_dev,
                 "rootInode": metadata.st_ino,
-                "artifactBaselineDigest": artifact_baseline.digest,
-                "removed": False,
-            }
-            receipt["targets"].append(entry)
+                "expectedOid": None,
+            })
             write_receipt(path, receipt)
-        except Exception:
-            removed = run(
-                ["git", "worktree", "remove", str(target)],
-                cwd=main,
-                check=False,
+        except Exception as error:
+            entry["state"] = "recovery-pending"
+            entry["failure"] = str(error)
+            write_receipt(path, receipt)
+            _capture_setup_created_evidence(main, target, entry)
+            write_receipt(path, receipt)
+            _recover_creation_entry(
+                main,
+                args,
+                path,
+                receipt,
+                entry,
+                archive_reason="automatic rollback after failed setup",
             )
-            if removed.returncode == 0:
-                run(
-                    ["git", "update-ref", "-d", f"refs/heads/{branch}", target_base],
-                    cwd=main,
-                    check=False,
-                )
             raise
     return {"branch": branch, "worktree": str(target), "createdOid": created_oid}
+
+
+def _capture_setup_created_evidence(
+    main: Path,
+    target: Path,
+    entry: dict[str, Any],
+) -> None:
+    if not target.exists() or not entry.get("artifactBaselineDigest"):
+        entry["setupCreatedFiles"] = []
+        return
+    baseline = load_artifact_baseline(target)
+    if baseline.digest != entry["artifactBaselineDigest"]:
+        raise LifecycleError("creation baseline changed before recovery journaling")
+    facts = collect_cleanup_facts(main, target, pr_state="none")
+    if facts.tracked_files:
+        raise LifecycleError(
+            "tracked changes stop creation recovery: " + ", ".join(facts.tracked_files)
+        )
+    created = tuple(sorted(
+        set(facts.untracked_files).difference(baseline.initial_untracked_files)
+    ))
+    with verified_worktree_root(
+        target,
+        entry["rootDevice"],
+        entry["rootInode"],
+    ) as descriptor:
+        entry["setupCreatedFiles"] = [
+            contained_regular_identity(descriptor, relative)
+            for relative in created
+        ]
+
+
+def _archive_recovered_target(
+    path: Path,
+    receipt: dict[str, Any],
+    entry: dict[str, Any],
+    reason: str,
+) -> None:
+    receipt.setdefault("recoveredTargets", []).append({
+        **entry,
+        "state": "recovered",
+        "recoveryReason": reason,
+    })
+    receipt["targets"].remove(entry)
+    write_receipt(path, receipt)
+
+
+def _recover_creation_entry(
+    main: Path,
+    args: argparse.Namespace,
+    path: Path,
+    receipt: dict[str, Any],
+    entry: dict[str, Any],
+    *,
+    archive_reason: str,
+) -> None:
+    current_path, current_receipt = read_receipt(main, args.anchor, args.owner)
+    if current_path != path or current_receipt != receipt:
+        raise LifecycleError("active claim or recovery receipt changed")
+    if entry.get("state") != "recovery-pending":
+        raise LifecycleError("target is not pending creation recovery")
+
+    branch = entry["branch"]
+    target = Path(entry["worktree"])
+    profile = load_profile(Path(entry["profile"]))
+    if branch in profile.protected_branches:
+        raise LifecycleError(f"protected branch during creation recovery: {branch}")
+    if pr_state(args.gh_command, main, branch) == "open":
+        raise LifecycleError(f"open PR during creation recovery: {branch}")
+
+    current_oid = resolve_ref(main, f"refs/heads/{branch}")
+    expected_oid = entry["createdOid"]
+    linked = worktree_branches(main)
+    linked_path = linked.get(branch)
+    if current_oid is not None and current_oid != expected_oid:
+        raise LifecycleError(
+            f"unexpected OID during creation recovery: {branch}: "
+            f"expected {expected_oid}, found {current_oid}"
+        )
+    if current_oid is None and (target.exists() or linked_path is not None):
+        raise LifecycleError(
+            f"session ref disappeared while its worktree remains: {branch}"
+        )
+    if current_oid is None and not target.exists() and linked_path is None:
+        _archive_recovered_target(path, receipt, entry, archive_reason)
+        return
+    if linked_path != target.resolve():
+        raise LifecycleError(
+            f"worktree registration changed during creation recovery: {branch}"
+        )
+    if not target.exists():
+        raise LifecycleError(
+            f"worktree directory is missing while Git registration remains: {branch}"
+        )
+    metadata = target.stat()
+    recorded_identity = (entry.get("rootDevice"), entry.get("rootInode"))
+    if None not in recorded_identity and recorded_identity != (
+        metadata.st_dev, metadata.st_ino
+    ):
+        raise LifecycleError(
+            f"worktree root identity changed during creation recovery: {branch}"
+        )
+    if None in recorded_identity:
+        raise LifecycleError(
+            f"worktree creation identity was not journaled before recovery: {branch}"
+        )
+
+    facts = collect_cleanup_facts(main, target, pr_state="none")
+    if facts.tracked_files:
+        raise LifecycleError(
+            "tracked changes stop creation recovery: " + ", ".join(facts.tracked_files)
+        )
+    baseline_digest = entry.get("artifactBaselineDigest")
+    if not baseline_digest:
+        if facts.untracked_files:
+            raise LifecycleError(
+                "creation baseline is missing while untracked files remain"
+            )
+        setup_created: tuple[str, ...] = ()
+    else:
+        baseline = load_artifact_baseline(target)
+        if (
+            baseline.digest != baseline_digest
+            or baseline.setup_head != expected_oid
+            or (baseline.root_device, baseline.root_inode) != recorded_identity
+        ):
+            raise LifecycleError("creation baseline changed or is incoherent")
+        initial = set(baseline.initial_untracked_files)
+        current = set(facts.untracked_files)
+        if not initial.issubset(current):
+            raise LifecycleError(
+                "creation baseline inventory changed before recovery"
+            )
+        evidence = entry.get("setupCreatedFiles")
+        if not isinstance(evidence, list) or not all(
+            isinstance(item, dict) and isinstance(item.get("path"), str)
+            for item in evidence
+        ):
+            raise LifecycleError("setup-created file evidence is missing or incoherent")
+        evidenced_paths = {item["path"] for item in evidence}
+        unexpected = current.difference(initial).difference(evidenced_paths)
+        if unexpected:
+            raise LifecycleError(
+                "foreign untracked files appeared after failed setup: "
+                + ", ".join(sorted(unexpected))
+            )
+        setup_created = tuple(sorted(current.intersection(evidenced_paths)))
+        if initial:
+            raise LifecycleError(
+                "pre-setup untracked files remain protected: "
+                + ", ".join(sorted(initial))
+            )
+
+    with verified_worktree_root(
+        target,
+        entry["rootDevice"],
+        entry["rootInode"],
+    ) as descriptor:
+        for relative in setup_created:
+            expected = next(
+                item for item in entry["setupCreatedFiles"]
+                if item["path"] == relative
+            )
+            remove_contained_regular(
+                descriptor,
+                relative,
+                expected_identity=expected,
+            )
+    latest = collect_cleanup_facts(main, target, pr_state="none")
+    if latest.tracked_files or latest.untracked_files:
+        raise LifecycleError("creation recovery inventory changed before removal")
+    removed = run(
+        ["git", "worktree", "remove", str(target)],
+        cwd=main,
+        check=False,
+    )
+    if removed.returncode != 0:
+        raise LifecycleError(
+            f"ordinary worktree removal failed during creation recovery: "
+            f"{(removed.stderr or removed.stdout).strip()}"
+        )
+    if target.exists() or branch in worktree_branches(main):
+        raise LifecycleError("worktree still exists after creation recovery")
+    if resolve_ref(main, f"refs/heads/{branch}") != expected_oid:
+        raise LifecycleError(f"unexpected OID before creation ref cleanup: {branch}")
+    deleted = run(
+        ["git", "update-ref", "-d", f"refs/heads/{branch}", expected_oid],
+        cwd=main,
+        check=False,
+    )
+    if deleted.returncode != 0:
+        raise LifecycleError(f"compare-delete failed during creation recovery: {branch}")
+    _archive_recovered_target(path, receipt, entry, archive_reason)
+
+
+def recover_creation(main: Path, args: argparse.Namespace) -> dict[str, Any]:
+    with receipt_lock(main, args.anchor):
+        path, receipt = read_receipt(main, args.anchor, args.owner)
+        entry = next(
+            (
+                candidate for candidate in receipt["targets"]
+                if candidate.get("branch") == args.branch
+            ),
+            None,
+        )
+        if entry is None:
+            raise LifecycleError(f"no receipt target for recovery: {args.branch}")
+        if entry.get("state") not in {
+            "provisional",
+            "baseline-pending",
+            "setting-up",
+            "recovery-pending",
+        }:
+            raise LifecycleError(
+                f"target is not a recoverable creation attempt: {args.branch}: "
+                f"{entry.get('state', '<missing>')}"
+            )
+        entry["state"] = "recovery-pending"
+        write_receipt(path, receipt)
+        _recover_creation_entry(
+            main,
+            args,
+            path,
+            receipt,
+            entry,
+            archive_reason="explicit creation recovery",
+        )
+    return {
+        "recovered": True,
+        "branch": args.branch,
+        "receipt": str(path),
+    }
 
 
 def worktree_branches(main: Path) -> dict[str, Path]:
@@ -285,6 +556,11 @@ def seal(main: Path, args: argparse.Namespace) -> dict[str, Any]:
         linked = worktree_branches(main)
         for entry in receipt["targets"]:
             branch = entry["branch"]
+            if entry.get("state") != "active":
+                raise LifecycleError(
+                    f"session target is not ready to seal: {branch}: "
+                    f"{entry.get('state', '<missing>')}"
+                )
             target = Path(entry["worktree"])
             if linked.get(branch) != target.resolve():
                 raise LifecycleError(f"session worktree identity changed before seal: {branch}")
@@ -303,6 +579,7 @@ def seal(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             ).returncode != 0:
                 raise LifecycleError(f"session branch moved outside its created history: {branch}")
             entry["expectedOid"] = expected
+            entry["state"] = "sealed"
         receipt["state"] = "sealed"
         write_receipt(path, receipt)
     return receipt_report(path, receipt)
@@ -775,9 +1052,14 @@ def parser() -> argparse.ArgumentParser:
         "--profile", default="docs/agents/workflow-capabilities.json"
     )
     create_parser.add_argument("--base")
+    create_parser.add_argument("--gh-command", default="gh")
     create_parser.add_argument("issue")
     create_parser.add_argument("slug")
     create_parser.add_argument("branch_type", nargs="?", default="feat")
+
+    recover_parser = common("recover")
+    recover_parser.add_argument("--branch", required=True)
+    recover_parser.add_argument("--gh-command", default="gh")
 
     common("seal")
     for name in ("inspect", "teardown"):
@@ -794,6 +1076,7 @@ def main() -> int:
         actions = {
             "begin": begin,
             "create": create_target,
+            "recover": recover_creation,
             "seal": seal,
             "inspect": inspect,
             "teardown": teardown,

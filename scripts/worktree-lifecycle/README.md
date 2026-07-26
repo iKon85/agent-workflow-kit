@@ -49,11 +49,13 @@ same removable inventory, deletes only the exact contained regular scratch
 files from that inventory, and uses ordinary `git worktree remove`. It never
 bypasses Git's final concurrent-change check with force removal.
 
-After a newly created worktree completes every configured setup step, setup
-atomically records its ignored-file inventory in that linked worktree's Git
-metadata. The record is bound to the worktree path, branch, root device/inode,
-and setup HEAD, and carries a canonical digest. Existing worktrees are never
-backfilled because their initial inventory is no longer knowable.
+The generic setup route atomically records its ignored and complete
+untracked-file inventories in the linked worktree's Git metadata after its
+configured setup steps. The record is bound to the worktree path, branch, root
+device/inode, and setup HEAD, and carries a canonical digest. Existing
+worktrees are never backfilled because their initial inventory is no longer
+knowable. The claim-bound session route below captures its stricter baseline
+before project setup so a failed setup has an exact recovery boundary.
 
 The landing adapter may carry exact scratch evidence only for current ignored
 files that match the consumer-owned
@@ -76,14 +78,16 @@ Git common directory to the active `wave-active/<anchor>` annotated claim:
 ```sh
 python3 scripts/worktree-lifecycle/session.py begin --anchor <n> --owner <run> --base <wave-head>
 python3 scripts/worktree-lifecycle/session.py create --anchor <n> --owner <run> --base <current-wave-head> <issue> <slug> <type>
+python3 scripts/worktree-lifecycle/session.py recover --anchor <n> --owner <run> --branch <exact-branch>
 python3 scripts/worktree-lifecycle/session.py seal --anchor <n> --owner <run>
 python3 scripts/worktree-lifecycle/session.py inspect --anchor <n> --owner <run> --main origin/main
 python3 scripts/worktree-lifecycle/session.py teardown --anchor <n> --owner <run> --main origin/main
 ```
 
 Only `create` can add an inventory row, and it refuses any branch or path that
-already existed. After setup it captures the shared ignored-artifact creation
-baseline and records that baseline's digest in the receipt. Session inspection
+already existed. It journals a provisional exact row before `git worktree add`,
+then captures the shared artifact baseline before project setup and promotes
+the row only after setup succeeds. Session inspection
 therefore accepts generated scratch only when the exact path matches the
 profile and is absent from the creation baseline; missing, changed, or
 incoherent provenance stops. `seal` records the final exact branch OIDs.
@@ -92,6 +96,14 @@ content, and ambiguity separately. Empty commits, non-ancestry merge commits,
 duplicate patch IDs, open or unreadable PR evidence, dirt, protected names,
 stale registrations, recreated removed targets, and identity drift stop the
 whole teardown before mutation.
+
+If setup fails, the provisional row becomes `recovery-pending`. Automatic and
+explicit `recover` use the same bounded route: active claim and receipt,
+protected name, PR state, exact ref OID, registration/root identity, and the
+creation baseline are revalidated. Only regular files whose path,
+device/inode, size, and digest were frozen at the setup failure may be removed;
+later foreign files or replacements stop without losing receipt ownership.
+Recovery uses ordinary worktree removal and compare-deletes the exact ref.
 
 Teardown re-runs that complete assessment, archives every recovery OID in the
 receipt before its first mutation, and revalidates canonical main, the active
