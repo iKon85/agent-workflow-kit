@@ -29,10 +29,19 @@ _BRANCH_CHANGE_RE = re.compile(r"\b(?:git\s+(?:checkout|switch)|gh\s+pr\s+(?:mer
 _BRANCH_CREATE_RE = re.compile(r"\bgit\s+(?:checkout|switch)\s+-[bc]\s+(\S+)")
 ARTIFACT_BASELINE_FILE = "awkit-artifact-baseline-v1.json"
 LANDING_ATTEMPT_FILE = "awkit-landing-attempt-v1.json"
+# Archived receipts are named from a contract-version-neutral stem plus the
+# archived receipt's own contractVersion, so a v2 receipt is never filed as v1.
+LANDING_ATTEMPT_ARCHIVE_STEM = "awkit-landing-attempt"
+LANDING_ATTEMPT_CONTRACT_VERSION = 2
+ABANDON_ATTEMPT_FLAG = "--abandon-unfinished-attempt"
 
 
 class BaselineBackfillDeferred(LifecycleError):
     """A safe legacy baseline cannot be captured until consumer state changes."""
+
+
+class LegacyLandingAttempt(LifecycleError):
+    """A coherent attempt journal predates the active contract and is not adoptable."""
 
 
 def durable_atomic_json(
@@ -207,6 +216,22 @@ def artifact_baseline_path(worktree: Path) -> Path:
     if not git_dir.is_absolute():
         raise LifecycleError("artifact provenance baseline git dir is not absolute")
     return git_dir / ARTIFACT_BASELINE_FILE
+
+
+def landing_attempt_path(worktree: Path) -> Path:
+    """Return the one landing-attempt journal path beside the artifact baseline."""
+    return artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+
+
+def landing_attempt_exists(path: Path) -> bool:
+    """Classify journal presence without following a symlink at that name."""
+    return os.path.lexists(path)
+
+
+def require_regular_landing_attempt(path: Path) -> None:
+    """Refuse a journal name occupied by a symlink or any non-regular entry."""
+    if path.is_symlink() or not path.is_file():
+        raise LifecycleError("landing-attempt provenance is not a regular file")
 
 
 def _baseline_payload(
@@ -395,8 +420,7 @@ def ensure_artifact_baseline(
     path = artifact_baseline_path(worktree)
     if os.path.lexists(path):
         return load_artifact_baseline(worktree)
-    attempt_path = path.with_name(LANDING_ATTEMPT_FILE)
-    if os.path.lexists(attempt_path):
+    if landing_attempt_exists(landing_attempt_path(worktree)):
         raise LifecycleError(
             "artifact provenance baseline is missing while a landing attempt exists"
         )
@@ -456,10 +480,11 @@ def landing_start_artifact_inventory(
         worktree,
         reject_ignored_patterns=profile.landing_generated_artifact_patterns,
     )
-    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
-    if path.exists():
+    attempt_path = landing_attempt_path(worktree)
+    if landing_attempt_exists(attempt_path):
+        require_regular_landing_attempt(attempt_path)
         try:
-            document = json.loads(path.read_text(encoding="utf-8"))
+            document = json.loads(attempt_path.read_text(encoding="utf-8"))
             payload = {
                 key: document[key]
                 for key in (
@@ -528,7 +553,7 @@ def landing_start_artifact_inventory(
         "policyDigest": landing_cleanup_policy_digest(profile),
     }
     payload = {
-        "contractVersion": 2,
+        "contractVersion": LANDING_ATTEMPT_CONTRACT_VERSION,
         "worktree": str(worktree.resolve()),
         "branch": baseline.branch,
         "rootDevice": baseline.root_device,
@@ -537,7 +562,7 @@ def landing_start_artifact_inventory(
     }
     digest = _baseline_digest(payload)
     durable_atomic_json(
-        path,
+        attempt_path,
         {**payload, "sha256": digest},
         label="persist landing-attempt provenance",
     )
@@ -620,7 +645,7 @@ def freeze_landing_artifact_evidence(
         )
     if attempt["state"] == "frozen":
         return frozen
-    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+    path = landing_attempt_path(worktree)
     document = json.loads(path.read_text(encoding="utf-8"))
     payload = {
         key: document[key]
@@ -652,7 +677,7 @@ def reopen_frozen_landing_attempt(
     frozen = freeze_landing_artifact_evidence(
         profile, worktree, push_succeeded=False
     )
-    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+    path = landing_attempt_path(worktree)
     document = json.loads(path.read_text(encoding="utf-8"))
     payload = {
         key: document[key]
@@ -680,12 +705,11 @@ def abandon_unfinished_landing_attempt(
     worktree: Path,
 ) -> Path:
     """Archive an ambiguous started attempt without claiming or deleting files."""
-    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
-    if not os.path.lexists(path):
+    path = landing_attempt_path(worktree)
+    if not landing_attempt_exists(path):
         raise LifecycleError("no pre-existing unfinished landing attempt to abandon")
     try:
-        if path.is_symlink() or not path.is_file():
-            raise LifecycleError("landing-attempt provenance is not a regular file")
+        require_regular_landing_attempt(path)
         document = json.loads(path.read_text(encoding="utf-8"))
         contract_version = document["contractVersion"]
         keys = [
@@ -719,7 +743,8 @@ def abandon_unfinished_landing_attempt(
     ):
         raise LifecycleError("landing-attempt provenance is incoherent")
     archive = path.with_name(
-        f"{path.stem}.abandoned-{int(time() * 1_000_000)}.json"
+        f"{LANDING_ATTEMPT_ARCHIVE_STEM}.v{payload['contractVersion']}"
+        f".abandoned-{int(time() * 1_000_000)}.json"
     )
     durable_replace(path, archive, label="archive landing attempt")
     return archive

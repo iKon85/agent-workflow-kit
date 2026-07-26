@@ -490,10 +490,7 @@ def load_canonical_landing_profile(core, wt: str, main_tree: str):
         raise core.LifecycleError(
             "worktree cleanup policy differs from merged canonical origin/main"
         )
-    attempt_path = core.artifact_baseline_path(Path(wt)).with_name(
-        core.LANDING_ATTEMPT_FILE
-    )
-    if not os.path.lexists(attempt_path):
+    if not core.landing_attempt_exists(core.landing_attempt_path(Path(wt))):
         raise core.LifecycleError(
             "landing attempt is missing before canonical cleanup authorization"
         )
@@ -506,15 +503,6 @@ def load_canonical_landing_profile(core, wt: str, main_tree: str):
             "landing attempt cleanup policy differs from merged canonical origin/main"
         )
     return canonical
-
-
-def landing_artifact_baseline_digest(wt: str, main_tree: str) -> str:
-    core = load_worktree_cleanup_core()
-    try:
-        load_candidate_landing_profile(core, wt)
-        return core.load_artifact_baseline(Path(wt)).digest
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
 
 
 def landing_start_artifact_inventory(wt: str, main_tree: str) -> dict:
@@ -936,8 +924,6 @@ def cmd_land(args) -> dict:
 
     # drift markers from the build-time log — mechanical, no gate
     markers: list[dict] = []
-    artifact_baseline_digest: str | None = None
-    landing_start_files: tuple[str, ...] = ()
     landing_attempt: dict | None = None
     generated_evidence: tuple[dict, ...] = ()
     if wt_exists:
@@ -961,14 +947,16 @@ def cmd_land(args) -> dict:
                 "unfinished landing generator attempt has no frozen output evidence; "
                 "classify its files, then rerun with --abandon-unfinished-attempt",
             )
-        landing_start_files = tuple(landing_attempt["generatedFiles"])
-        if landing_start_files:
+        # Retained structural backstop: a journal on the active contract always
+        # carries an empty `generatedFiles`, because a landing-start blocker is
+        # refused before the journal is written. A non-empty list therefore means
+        # tampered or migrated evidence — never a path this run may claim.
+        if landing_attempt["generatedFiles"]:
             raise Stop(
                 "cleanup",
                 "landing-start generated paths are consumer-owned and protected: "
-                + ", ".join(landing_start_files),
+                + ", ".join(landing_attempt["generatedFiles"]),
             )
-        artifact_baseline_digest = landing_attempt["baselineDigest"]
         annahmen = Path(wt) / "ANNAHMEN.md"
         if annahmen.is_file():
             markers, malformed = parse_annahmen(annahmen.read_text(), default_section)
@@ -1077,18 +1065,16 @@ def cmd_land(args) -> dict:
             verified_scratch_evidence=generated_evidence,
         )
         report["cleanup_guard"] = {
-            "active": cleanup is not None,
-            "assumptions_read": bool(cleanup and cleanup.assumptions),
+            "assumptions_read": bool(cleanup.assumptions),
             "landing_generated_files": list(generated),
         }
         report["killed_processes"] = kill_worktree_processes(wt)
-        if cleanup is not None:
-            cleanup = remove_verified_worktree_scratch(
-                wt,
-                main_tree,
-                cleanup,
-                verified_scratch_evidence=generated_evidence,
-            )
+        remove_verified_worktree_scratch(
+            wt,
+            main_tree,
+            cleanup,
+            verified_scratch_evidence=generated_evidence,
+        )
         p = git(["worktree", "remove", wt], cwd=main_tree)
         if p.returncode != 0:
             raise Stop("4 worktree-remove", "git worktree remove refused — no --force; "

@@ -98,7 +98,11 @@ Landing-start blockers are classified before a journal is written, so moving a
 protected blocker permits a clean next attempt. An explicit relinquish archives
 either a started or frozen attempt, including drifted evidence, without
 deleting or claiming any file; the next preflight treats every current file as
-pre-existing. Exact unchanged frozen evidence remains directly resumable.
+pre-existing. Exact unchanged frozen evidence remains directly resumable. The
+attempt journal name is classified without following a symlink, so a symlinked
+or dangling journal entry stops instead of being read or replaced, and each
+archived receipt is filed under a contract-version-neutral stem plus its own
+recorded contract version.
 
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal
