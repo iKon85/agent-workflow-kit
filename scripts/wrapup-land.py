@@ -550,8 +550,12 @@ def ensure_worktree_removable(
     try:
         profile = core.load_profile(profile_path)
         kwargs = {"merge_target": "origin/main"}
-        if verified_scratch_files:
-            kwargs["verified_scratch_files"] = verified_scratch_files
+        paths = (
+            tuple(item["path"] for item in verified_scratch_evidence)
+            or verified_scratch_files
+        )
+        if paths:
+            kwargs["verified_scratch_files"] = paths
         if verified_scratch_evidence:
             kwargs["verified_scratch_evidence"] = verified_scratch_evidence
         assessment = core.cleanup_assessment(

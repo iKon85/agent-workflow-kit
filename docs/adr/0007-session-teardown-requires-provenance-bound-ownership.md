@@ -72,7 +72,10 @@ from present-day similarity:
   before another attempt.
 - Provenance-less legacy worktrees receive only a conservative baseline after
   exact registration, no-follow root, attached branch, and clean tracked/index
-  checks. All current ignored and untracked files become protected; corrupt
-  evidence and active attempts are never backfilled.
+  checks. Setup reuse defers backfill while tracked work or current
+  landing-generated blockers remain. Landing classifies those blockers before
+  writing evidence; after they are moved, all remaining current ignored and
+  untracked files become protected. Corrupt evidence and active attempts are
+  never backfilled.
 - The lifecycle implementation is necessarily a small transaction protocol,
   with more states and race tests than a path-based cleanup script.

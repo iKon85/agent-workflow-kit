@@ -64,11 +64,14 @@ configured setup steps. The record is bound to the worktree path, branch, root
 device/inode, and setup HEAD, and carries a canonical digest. Existing
 worktrees can receive a conservative baseline only when they are the exact
 registered no-follow directory on an attached branch with a clean tracked
-worktree and index. Every current ignored and untracked path is recorded as
-pre-existing and therefore protected. A corrupt baseline or an active landing
-attempt is never overwritten. The claim-bound session route below captures its
-stricter baseline before project setup so a failed setup has an exact recovery
-boundary.
+worktree and index. Setup reuse defers that backfill, without blocking the
+existing worktree, while tracked work is dirty or landing-generated blockers
+are present. Landing classifies those blockers before writing any baseline;
+after they are moved, every remaining current ignored and untracked path is
+recorded as pre-existing and therefore protected. A corrupt baseline or an
+active landing attempt is never overwritten. The claim-bound session route
+below captures its stricter baseline before project setup so a failed setup has
+an exact recovery boundary.
 
 The landing adapter may carry exact scratch evidence only for current ignored
 files that match the consumer-owned

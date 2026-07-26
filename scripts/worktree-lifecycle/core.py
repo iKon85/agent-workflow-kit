@@ -30,6 +30,10 @@ ARTIFACT_BASELINE_FILE = "awkit-artifact-baseline-v1.json"
 LANDING_ATTEMPT_FILE = "awkit-landing-attempt-v1.json"
 
 
+class BaselineBackfillDeferred(LifecycleError):
+    """A safe legacy baseline cannot be captured until consumer state changes."""
+
+
 def durable_atomic_json(
     path: Path,
     document: dict[str, Any],
@@ -236,13 +240,27 @@ def _baseline_digest(payload: dict[str, Any]) -> str:
     return sha256(encoded).hexdigest()
 
 
-def capture_artifact_baseline(worktree: Path) -> ArtifactBaseline:
+def capture_artifact_baseline(
+    worktree: Path,
+    *,
+    reject_ignored_patterns: tuple[str, ...] = (),
+) -> ArtifactBaseline:
     worktree = worktree.resolve()
     metadata = worktree.stat()
     branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
     setup_head = run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
     ignored = ignored_file_inventory(worktree)
     untracked = untracked_file_inventory(worktree)
+    blocked = tuple(sorted(
+        path
+        for path in ignored
+        if any(path_glob_matches(path, pattern) for pattern in reject_ignored_patterns)
+    ))
+    if blocked:
+        raise BaselineBackfillDeferred(
+            "landing-start generated paths are consumer-owned and protected: "
+            + ", ".join(blocked)
+        )
     payload = _baseline_payload(
         worktree=worktree,
         branch=branch,
@@ -357,7 +375,11 @@ def load_artifact_baseline(worktree: Path) -> ArtifactBaseline:
     )
 
 
-def ensure_artifact_baseline(worktree: Path) -> ArtifactBaseline:
+def ensure_artifact_baseline(
+    worktree: Path,
+    *,
+    reject_ignored_patterns: tuple[str, ...] = (),
+) -> ArtifactBaseline:
     """Load provenance or conservatively backfill one exact clean legacy worktree."""
     path = artifact_baseline_path(worktree)
     if os.path.lexists(path):
@@ -387,10 +409,13 @@ def ensure_artifact_baseline(worktree: Path) -> ArtifactBaseline:
         ["git", "diff", "--cached", "--quiet"],
     ):
         if run(command, cwd=worktree, check=False).returncode != 0:
-            raise LifecycleError(
+            raise BaselineBackfillDeferred(
                 "legacy artifact baseline requires a clean tracked worktree and index"
             )
-    return capture_artifact_baseline(worktree)
+    return capture_artifact_baseline(
+        worktree,
+        reject_ignored_patterns=reject_ignored_patterns,
+    )
 
 
 def verified_landing_scratch_files(
@@ -416,7 +441,10 @@ def landing_start_artifact_inventory(
     worktree: Path,
 ) -> dict[str, Any]:
     """Persist/reuse the generated-path inventory preceding the landing build."""
-    baseline = ensure_artifact_baseline(worktree)
+    baseline = ensure_artifact_baseline(
+        worktree,
+        reject_ignored_patterns=profile.landing_generated_artifact_patterns,
+    )
     path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
     if path.exists():
         try:
@@ -761,11 +789,18 @@ def cleanup_assessment(
         ),
         verified_scratch_files=verified_scratch_files,
     )
-    return bind_cleanup_scratch_evidence(
-        profile,
-        assessment,
-        verified_scratch_evidence,
-    )
+    try:
+        return bind_cleanup_scratch_evidence(
+            profile,
+            assessment,
+            verified_scratch_evidence,
+            require_generator_evidence=True,
+        )
+    except LifecycleError as error:
+        return replace(
+            assessment,
+            reasons=assessment.reasons + (f"scratch evidence stop: {error}",),
+        )
 
 
 def collect_cleanup_facts(
@@ -1009,8 +1044,12 @@ def remove_authorized_scratch(
             raise LifecycleError(
                 f"landing-generated scratch evidence is missing: {relative}"
             )
+        if profile_authorized and expected is None:
+            raise LifecycleError(f"profile scratch evidence is missing: {relative}")
         if not profile_authorized and expected is None:
             raise LifecycleError(f"verified scratch evidence is missing: {relative}")
+    for relative in scratch_files:
+        expected = evidence_by_path[relative]
         remove_contained_regular(
             root_descriptor,
             relative,

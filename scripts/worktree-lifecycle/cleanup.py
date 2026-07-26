@@ -75,10 +75,18 @@ def collect_assessment(profile, main: Path, worktree: Path, gh_command: str):
         worktree,
     )
     state = pr_state(gh_command, main, facts.branch)
-    return bind_cleanup_scratch_evidence(
-        profile,
-        classify_cleanup(profile, replace(facts, pr_state=state)),
-    )
+    assessment = classify_cleanup(profile, replace(facts, pr_state=state))
+    try:
+        return bind_cleanup_scratch_evidence(
+            profile,
+            assessment,
+            require_generator_evidence=True,
+        )
+    except LifecycleError as error:
+        return replace(
+            assessment,
+            reasons=assessment.reasons + (f"scratch evidence stop: {error}",),
+        )
 
 
 def execute(args: argparse.Namespace) -> dict:

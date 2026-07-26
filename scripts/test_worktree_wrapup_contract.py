@@ -71,7 +71,6 @@ def create_merged_worktree(
             "landingGeneratedArtifactPatterns": [
                 "dist-kit/**",
                 "**/__pycache__/**",
-                ".claude/logs/**",
             ],
         },
     }), encoding="utf-8")
@@ -233,22 +232,15 @@ class WorktreeCleanupContract(unittest.TestCase):
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
             generated.write_text("generated\n", encoding="utf-8")
-            assessment = wrapup.ensure_worktree_removable(
-                str(worktree),
-                str(main),
-                verified_scratch_files=("dist-kit/package.tgz",),
-            )
-
             with self.assertRaises(wrapup.Stop) as stopped:
-                wrapup.remove_verified_worktree_scratch(
+                wrapup.ensure_worktree_removable(
                     str(worktree),
                     str(main),
-                    assessment,
                     verified_scratch_files=("dist-kit/package.tgz",),
                     verified_scratch_evidence=(),
                 )
 
-            self.assertIn("evidence", stopped.exception.reason)
+            self.assertIn("evidence", stopped.exception.detail)
             self.assertTrue(generated.exists())
 
     def test_generator_pattern_overlap_still_requires_exact_evidence(self):
@@ -260,16 +252,14 @@ class WorktreeCleanupContract(unittest.TestCase):
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
             generated.write_text("generated\n", encoding="utf-8")
-            assessment = wrapup.ensure_worktree_removable(
-                str(worktree),
-                str(main),
-                verified_scratch_files=(),
-            )
             with self.assertRaises(wrapup.Stop) as stopped:
-                wrapup.remove_verified_worktree_scratch(
-                    str(worktree), str(main), assessment
+                wrapup.ensure_worktree_removable(
+                    str(worktree), str(main), verified_scratch_files=()
                 )
-            self.assertIn("landing-generated scratch evidence is missing", stopped.exception.reason)
+            self.assertIn(
+                "landing-generated scratch evidence is missing",
+                stopped.exception.detail,
+            )
             self.assertTrue(generated.exists())
 
     def test_legacy_worktree_gets_conservative_baseline_without_claiming_existing_files(self):
@@ -281,16 +271,38 @@ class WorktreeCleanupContract(unittest.TestCase):
             existing = worktree / "dist-kit/existing.tgz"
             existing.parent.mkdir(parents=True)
             existing.write_text("consumer\n", encoding="utf-8")
+            preserved = worktree / "consumer/keep.txt"
+            preserved.parent.mkdir(parents=True)
+            preserved.write_text("preserve\n", encoding="utf-8")
 
             with self.assertRaises(wrapup.Stop) as stopped:
                 wrapup.landing_start_artifact_inventory(
                     str(worktree), str(main)
                 )
 
-            baseline = core.load_artifact_baseline(worktree)
-            self.assertIn("dist-kit/existing.tgz", baseline.initial_ignored_files)
+            self.assertFalse(core.artifact_baseline_path(worktree).exists())
             self.assertIn("consumer-owned", stopped.exception.reason)
             self.assertTrue(existing.exists())
+            self.assertTrue(preserved.exists())
+
+            existing.unlink()
+            attempt = wrapup.landing_start_artifact_inventory(
+                str(worktree), str(main)
+            )
+            baseline = core.load_artifact_baseline(worktree)
+            self.assertNotIn("dist-kit/existing.tgz", baseline.initial_ignored_files)
+            self.assertIn("consumer/keep.txt", baseline.initial_ignored_files)
+            existing.write_text("landing-generated\n", encoding="utf-8")
+            evidence = wrapup.landing_verified_scratch_evidence(
+                str(worktree),
+                str(main),
+                expected_baseline_digest=attempt["baselineDigest"],
+                landing_start_files=tuple(attempt["generatedFiles"]),
+            )
+            self.assertEqual(
+                [item["path"] for item in evidence],
+                ["dist-kit/existing.tgz"],
+            )
 
     def test_preexisting_generated_blocker_does_not_poison_next_attempt(self):
         wrapup = load_wrapup()
@@ -615,21 +627,14 @@ class WorktreeCleanupContract(unittest.TestCase):
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
             generated.symlink_to(foreign)
-            assessment = wrapup.ensure_worktree_removable(
-                str(worktree),
-                str(main),
-                verified_scratch_files=("dist-kit/package.tgz",),
-            )
-
             with self.assertRaises(wrapup.Stop) as stopped:
-                wrapup.remove_verified_worktree_scratch(
+                wrapup.ensure_worktree_removable(
                     str(worktree),
                     str(main),
-                    assessment,
                     verified_scratch_files=("dist-kit/package.tgz",),
                 )
 
-            self.assertIn("evidence is missing", stopped.exception.reason)
+            self.assertIn("evidence is missing", stopped.exception.detail)
             self.assertEqual(foreign.read_text(encoding="utf-8"), "keep")
             self.assertTrue(generated.is_symlink())
 
@@ -640,13 +645,18 @@ class WorktreeCleanupContract(unittest.TestCase):
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
             generated.write_text("package", encoding="utf-8")
+            evidence = wrapup.landing_verified_scratch_evidence(
+                str(worktree),
+                str(main),
+                landing_start_files=(),
+            )
             assessment = wrapup.ensure_worktree_removable(
                 str(worktree),
                 str(main),
-                verified_scratch_files=("dist-kit/package.tgz",),
+                verified_scratch_evidence=evidence,
             )
-            late = worktree / ".claude/logs/late.log"
-            late.parent.mkdir(parents=True)
+            late = worktree / "dist-kit/late.tgz"
+            late.parent.mkdir(parents=True, exist_ok=True)
             late.write_text("late", encoding="utf-8")
 
             with self.assertRaises(wrapup.Stop) as stopped:
@@ -654,10 +664,10 @@ class WorktreeCleanupContract(unittest.TestCase):
                     str(worktree),
                     str(main),
                     assessment,
-                    verified_scratch_files=("dist-kit/package.tgz",),
+                    verified_scratch_evidence=evidence,
                 )
 
-            self.assertIn(".claude/logs/late.log", stopped.exception.reason)
+            self.assertIn("dist-kit/late.tgz", stopped.exception.reason)
             self.assertTrue(generated.exists())
             self.assertTrue(late.exists())
 
@@ -676,7 +686,7 @@ class WorktreeCleanupContract(unittest.TestCase):
             assessment = wrapup.ensure_worktree_removable(
                 str(worktree),
                 str(main),
-                verified_scratch_files=("dist-kit/package.tgz",),
+                verified_scratch_evidence=evidence,
             )
             generated.unlink()
             generated.write_text("user replacement", encoding="utf-8")
@@ -689,7 +699,7 @@ class WorktreeCleanupContract(unittest.TestCase):
                     verified_scratch_evidence=evidence,
                 )
 
-            self.assertIn("inventory no longer matches preview", stopped.exception.reason)
+            self.assertIn("identity changed", stopped.exception.reason)
             self.assertEqual(generated.read_text(encoding="utf-8"), "user replacement")
 
     def test_landing_start_generated_file_is_rejected_before_attempt_is_written(self):
@@ -724,8 +734,8 @@ class WorktreeCleanupContract(unittest.TestCase):
             wrapup.freeze_landing_artifact_evidence(
                 str(worktree), str(main), push_succeeded=True
             )
-            private = worktree / ".claude/logs/private.log"
-            private.parent.mkdir(parents=True)
+            private = worktree / "dist-kit/private.log"
+            private.parent.mkdir(parents=True, exist_ok=True)
             private.write_text("keep", encoding="utf-8")
 
             with self.assertRaises(wrapup.Stop) as stopped:
