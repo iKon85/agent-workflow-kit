@@ -206,6 +206,10 @@ class WorktreeCleanupContract(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             main, worktree = create_real_kit_merged_worktree(root)
+            # The first landing attempt journals its start before the real
+            # pre-push generators run. A resumed already-MERGED land must
+            # reuse that attempt instead of treating its outputs as user files.
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             command(["npm", "run", "kit:build"], worktree)
             command([
                 os.sys.executable,
@@ -213,6 +217,11 @@ class WorktreeCleanupContract(unittest.TestCase):
                 "py_compile",
                 "scripts/worktree-lifecycle/core.py",
             ], worktree)
+            wrapup.freeze_landing_artifact_evidence(
+                str(worktree),
+                str(main),
+                push_succeeded=True,
+            )
             self.assertTrue((worktree / "dist-kit/package.json").is_file())
             self.assertTrue(
                 any(
@@ -385,7 +394,7 @@ class WorktreeCleanupContract(unittest.TestCase):
                     verified_scratch_files=("dist-kit/package.tgz",),
                 )
 
-            self.assertIn("not a regular file", stopped.exception.reason)
+            self.assertIn("scratch path", stopped.exception.reason)
             self.assertEqual(foreign.read_text(encoding="utf-8"), "keep")
             self.assertTrue(generated.is_symlink())
 
@@ -416,6 +425,193 @@ class WorktreeCleanupContract(unittest.TestCase):
             self.assertIn(".claude/logs/late.log", stopped.exception.reason)
             self.assertTrue(generated.exists())
             self.assertTrue(late.exists())
+
+    def test_same_path_generated_replacement_is_preserved_by_frozen_evidence(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            generated = worktree / "dist-kit/package.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("generator-owned", encoding="utf-8")
+            evidence = wrapup.landing_verified_scratch_evidence(
+                str(worktree),
+                str(main),
+                landing_start_files=(),
+            )
+            assessment = wrapup.ensure_worktree_removable(
+                str(worktree),
+                str(main),
+                verified_scratch_files=("dist-kit/package.tgz",),
+            )
+            generated.unlink()
+            generated.write_text("user replacement", encoding="utf-8")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.remove_verified_worktree_scratch(
+                    str(worktree),
+                    str(main),
+                    assessment,
+                    verified_scratch_evidence=evidence,
+                )
+
+            self.assertIn("identity changed", stopped.exception.reason)
+            self.assertEqual(generated.read_text(encoding="utf-8"), "user replacement")
+
+    def test_landing_start_generated_file_is_never_reclassified_as_build_output(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            user_file = worktree / "dist-kit/user-note.txt"
+            user_file.parent.mkdir(parents=True)
+            user_file.write_text("keep", encoding="utf-8")
+            landing_start = wrapup.landing_start_artifact_inventory(
+                str(worktree),
+                str(main),
+            )
+            # A generator writing the same path cannot turn pre-landing user
+            # ownership into landing ownership.
+            user_file.write_text("overwritten during build", encoding="utf-8")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_verified_scratch_evidence(
+                    str(worktree),
+                    str(main),
+                    expected_baseline_digest=landing_start["baselineDigest"],
+                    landing_start_files=tuple(landing_start["generatedFiles"]),
+                )
+
+            self.assertIn("landing-start generated paths", stopped.exception.reason)
+            self.assertTrue(user_file.exists())
+
+    def test_frozen_landing_output_does_not_claim_a_later_private_path(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            generated = worktree / "dist-kit/package.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("generator", encoding="utf-8")
+            wrapup.freeze_landing_artifact_evidence(
+                str(worktree), str(main), push_succeeded=True
+            )
+            private = worktree / ".claude/logs/private.log"
+            private.parent.mkdir(parents=True)
+            private.write_text("keep", encoding="utf-8")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.freeze_landing_artifact_evidence(
+                    str(worktree), str(main), push_succeeded=True
+                )
+
+            self.assertIn("evidence changed", stopped.exception.reason)
+            self.assertTrue(generated.exists())
+            self.assertTrue(private.exists())
+
+    def test_failed_push_retry_validates_replacement_before_invoking_push(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            generated = worktree / "dist-kit/package.tgz"
+            generated.parent.mkdir(parents=True)
+            generated.write_text("generator", encoding="utf-8")
+            wrapup.freeze_landing_artifact_evidence(
+                str(worktree), str(main), push_succeeded=False
+            )
+            generated.unlink()
+            generated.write_text("user replacement", encoding="utf-8")
+            pushes = []
+            real_git = wrapup.git
+
+            def observed_git(args, **kwargs):
+                if args and args[0] == "push":
+                    pushes.append(args)
+                return real_git(args, **kwargs)
+
+            args = SimpleNamespace(
+                branch="fix/268-cleanup",
+                body_file=None,
+                title=None,
+                anchor=None,
+                skip_malformed_drift=False,
+                abandon_unfinished_attempt=False,
+            )
+            previous = Path.cwd()
+            try:
+                os.chdir(main)
+                with (
+                    patch.object(wrapup, "git", side_effect=observed_git),
+                    self.assertRaises(wrapup.Stop) as stopped,
+                ):
+                    wrapup.cmd_land(args)
+            finally:
+                os.chdir(previous)
+
+            self.assertIn("evidence changed", stopped.exception.reason)
+            self.assertEqual(pushes, [])
+            self.assertEqual(
+                generated.read_text(encoding="utf-8"), "user replacement"
+            )
+
+    def test_first_attempt_protects_preexisting_generated_path_before_push(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            user_file = worktree / "dist-kit/package.json"
+            user_file.parent.mkdir(parents=True)
+            user_file.write_text("user bytes", encoding="utf-8")
+            pushes = []
+            real_git = wrapup.git
+
+            def observed_git(args, **kwargs):
+                if args and args[0] == "push":
+                    pushes.append(args)
+                return real_git(args, **kwargs)
+
+            args = SimpleNamespace(
+                branch="fix/268-cleanup",
+                body_file=None,
+                title=None,
+                anchor=None,
+                skip_malformed_drift=False,
+                abandon_unfinished_attempt=False,
+            )
+            previous = Path.cwd()
+            try:
+                os.chdir(main)
+                with (
+                    patch.object(wrapup, "git", side_effect=observed_git),
+                    self.assertRaises(wrapup.Stop) as stopped,
+                ):
+                    wrapup.cmd_land(args)
+            finally:
+                os.chdir(previous)
+
+            self.assertIn("consumer-owned", stopped.exception.reason)
+            self.assertEqual(pushes, [])
+            self.assertEqual(user_file.read_text(encoding="utf-8"), "user bytes")
+
+    def test_unfinished_attempt_can_be_archived_without_claiming_ambiguous_files(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            ambiguous = worktree / "dist-kit/ambiguous.tgz"
+            ambiguous.parent.mkdir(parents=True)
+            ambiguous.write_text("unknown owner", encoding="utf-8")
+
+            archive = Path(wrapup.abandon_unfinished_landing_attempt(
+                str(worktree), str(main)
+            ))
+
+            self.assertTrue(archive.is_file())
+            self.assertEqual(ambiguous.read_text(encoding="utf-8"), "unknown owner")
+            next_attempt = wrapup.landing_start_artifact_inventory(
+                str(worktree), str(main)
+            )
+            self.assertEqual(
+                next_attempt["generatedFiles"], ["dist-kit/ambiguous.tgz"]
+            )
 
 
 if __name__ == "__main__":

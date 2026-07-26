@@ -30,7 +30,7 @@ from core import (
     remove_contained_regular,
     remove_contained_untracked,
     run,
-    verified_landing_scratch_files,
+    verified_landing_scratch_evidence,
     verified_worktree_root,
 )
 from setup import execute_step
@@ -317,12 +317,11 @@ def profile_path(main: Path, value: str) -> Path:
 
 
 def contained_target(main: Path, relative: Path) -> Path:
-    target = (main / relative).resolve()
-    try:
-        target.relative_to(main.resolve())
-    except ValueError as error:
-        raise LifecycleError(f"worktree path escapes repository root: {relative}") from error
-    return target
+    if relative.is_absolute() or not relative.parts or any(
+        part in {"", ".", ".."} for part in relative.parts
+    ):
+        raise LifecycleError(f"worktree path escapes repository root: {relative}")
+    return main.resolve().joinpath(*relative.parts)
 
 
 def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
@@ -350,7 +349,7 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             raise LifecycleError("target is already present in this receipt")
         if resolve_ref(main, f"refs/heads/{branch}") is not None:
             raise LifecycleError(f"branch pre-existed this run: {branch}")
-        if target.exists() or target in registered_worktrees(main):
+        if os.path.lexists(target) or target in registered_worktrees(main):
             raise LifecycleError(f"worktree path pre-existed this run: {target}")
         target_base = (
             resolve_commit(main, args.base) if args.base else receipt["baseOid"]
@@ -395,7 +394,22 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                 raise LifecycleError("session branch ownership acquisition failed")
             entry["acquisitionState"] = "acquired"
             write_receipt(path, receipt)
+            failure_class = "root-preparation"
+            parent, prepared = prepare_target_root_nofollow(main, target)
+            entry.update({
+                "state": "worktree-pending",
+                "parentDevice": parent.st_dev,
+                "parentInode": parent.st_ino,
+                "rootDevice": prepared.st_dev,
+                "rootInode": prepared.st_ino,
+            })
+            write_receipt(path, receipt)
             failure_class = "worktree-add"
+            verify_target_parent_nofollow(
+                main,
+                target,
+                (entry["parentDevice"], entry["parentInode"]),
+            )
             run(
                 ["git", "worktree", "add", str(target), branch],
                 cwd=main,
@@ -404,10 +418,18 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             created_oid = resolve_ref(main, f"refs/heads/{branch}")
             if created_oid != target_base:
                 raise LifecycleError("new session branch did not retain the recorded base OID")
-            linked = worktree_branches(main)
-            if linked.get(branch) != target.resolve():
-                raise LifecycleError("new session worktree registration is incoherent")
-            metadata = target.stat()
+            metadata = verify_created_worktree_root(
+                main,
+                target,
+                branch,
+                expected_parent_identity=(
+                    entry["parentDevice"], entry["parentInode"]
+                ),
+            )
+            if (metadata.st_dev, metadata.st_ino) != (
+                entry["rootDevice"], entry["rootInode"]
+            ):
+                raise LifecycleError("new session worktree root identity changed")
             entry.update({
                 "state": "baseline-pending",
                 "rootDevice": metadata.st_dev,
@@ -418,6 +440,15 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             # This baseline must precede every project setup step: only its
             # exact untracked delta can later be attributed to failed setup.
             failure_class = "baseline-capture"
+            verify_created_worktree_root(
+                main,
+                target,
+                branch,
+                expected_identity=(entry["rootDevice"], entry["rootInode"]),
+                expected_parent_identity=(
+                    entry["parentDevice"], entry["parentInode"]
+                ),
+            )
             artifact_baseline = capture_artifact_baseline(target)
             if artifact_baseline.setup_head != created_oid:
                 raise LifecycleError(
@@ -430,6 +461,15 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             write_receipt(path, receipt)
             failure_class = "setup-step"
             for step in profile.setup_steps:
+                verify_created_worktree_root(
+                    main,
+                    target,
+                    branch,
+                    expected_identity=(entry["rootDevice"], entry["rootInode"]),
+                    expected_parent_identity=(
+                        entry["parentDevice"], entry["parentInode"]
+                    ),
+                )
                 execute_step(
                     step,
                     main=main,
@@ -438,10 +478,19 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                     branch=branch,
                 )
             failure_class = "promotion"
+            verify_created_worktree_root(
+                main,
+                target,
+                branch,
+                expected_identity=(entry["rootDevice"], entry["rootInode"]),
+                expected_parent_identity=(
+                    entry["parentDevice"], entry["parentInode"]
+                ),
+            )
             created_oid = resolve_ref(main, f"refs/heads/{branch}")
             if created_oid != target_base:
                 raise LifecycleError("new session branch did not retain the recorded base OID")
-            metadata = target.stat()
+            metadata = target.lstat()
             if (metadata.st_dev, metadata.st_ino) != (
                 entry["rootDevice"], entry["rootInode"]
             ):
@@ -489,6 +538,16 @@ def _capture_setup_created_evidence(
     entry: dict[str, Any],
 ) -> None:
     entry.pop("evidenceFailureClass", None)
+    if entry.get("rootDevice") is not None:
+        verify_created_worktree_root(
+            main,
+            target,
+            entry["branch"],
+            expected_identity=(entry["rootDevice"], entry["rootInode"]),
+            expected_parent_identity=(
+                entry["parentDevice"], entry["parentInode"]
+            ),
+        )
     if not target.exists() or not entry.get("artifactBaselineDigest"):
         entry["setupCreatedFiles"] = []
         entry["setupTrackedEvidence"] = _tracked_evidence(target) if target.exists() else None
@@ -661,15 +720,13 @@ def _recover_creation_entry(
     linked_path = linked.get(branch)
     target_present = os.path.lexists(target)
     if entry.get("acquisitionState") == "failed":
-        if (
-            current_oid is not None
-            or proof_oid is not None
-            or target_present
-            or linked_path is not None
-        ):
+        if proof_oid is not None:
             raise LifecycleError(
-                f"failed acquisition collided with foreign target: {branch}"
+                f"failed acquisition has ambiguous ownership proof: {branch}"
             )
+        # The atomic ref transaction is the sole ownership grant. Without its
+        # proof ref, every same-name branch/path/registration is foreign and
+        # must be ignored rather than turning the receipt into a liveness trap.
         _archive_recovered_target(path, receipt, entry, archive_reason)
         return
     if proof_oid is None:
@@ -709,6 +766,45 @@ def _recover_creation_entry(
         ):
             raise LifecycleError(
                 f"compare-delete failed during branch-only creation recovery: {branch}"
+            )
+        _archive_recovered_target(path, receipt, entry, archive_reason)
+        return
+    if current_oid == expected_oid and target_present and linked_path is None:
+        metadata = target.lstat()
+        recorded_identity = (entry.get("rootDevice"), entry.get("rootInode"))
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or None in recorded_identity
+            or recorded_identity != (metadata.st_dev, metadata.st_ino)
+        ):
+            raise LifecycleError(
+                f"unregistered prepared root identity changed: {branch}"
+            )
+        with verified_worktree_root(
+            target, entry["rootDevice"], entry["rootInode"]
+        ) as descriptor:
+            if os.listdir(descriptor):
+                raise LifecycleError(
+                    f"unregistered prepared root is not empty: {branch}"
+                )
+        _revalidate_creation_safety(main, args, path, receipt, entry)
+        try:
+            os.rmdir(target)
+        except OSError as error:
+            raise LifecycleError(
+                f"unregistered prepared root changed before removal: {branch}"
+            ) from error
+        if not delete_owned_refs_prepared(
+            main,
+            branch,
+            proof_ref,
+            expected_oid,
+            entry["createdOid"],
+            f"refs/tags/wave-active/{args.anchor}",
+            receipt["claimOid"],
+        ):
+            raise LifecycleError(
+                f"compare-delete failed after prepared-root recovery: {branch}"
             )
         _archive_recovered_target(path, receipt, entry, archive_reason)
         return
@@ -896,6 +992,7 @@ def recover_creation(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             raise LifecycleError(f"no receipt target for recovery: {args.branch}")
         if entry.get("state") not in {
             "provisional",
+            "worktree-pending",
             "baseline-pending",
             "setting-up",
             "recovery-pending",
@@ -934,13 +1031,157 @@ def worktree_branches(main: Path) -> dict[str, Path]:
     return result
 
 
+def lexical_worktree_branches(main: Path) -> dict[str, Path]:
+    """Return Git's registered paths without resolving a substituted symlink."""
+    output = run(["git", "worktree", "list", "--porcelain"], cwd=main).stdout
+    result: dict[str, Path] = {}
+    current: Path | None = None
+    for line in output.splitlines():
+        if line.startswith("worktree "):
+            current = Path(line.split(" ", 1)[1]).absolute()
+        elif line.startswith("branch refs/heads/") and current is not None:
+            result[line.removeprefix("branch refs/heads/")] = current
+    return result
+
+
+def prepare_target_root_nofollow(
+    main: Path,
+    target: Path,
+) -> tuple[os.stat_result, os.stat_result]:
+    """Create the lexical target through directory descriptors only."""
+    relative = target.relative_to(main.resolve())
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    descriptors: list[int] = []
+    current = os.open(main, directory_flags | no_follow)
+    try:
+        descriptors.append(current)
+        for component in relative.parts[:-1]:
+            try:
+                child = os.open(
+                    component, directory_flags | no_follow, dir_fd=current
+                )
+            except FileNotFoundError:
+                os.mkdir(component, mode=0o700, dir_fd=current)
+                child = os.open(
+                    component, directory_flags | no_follow, dir_fd=current
+                )
+            current = child
+            descriptors.append(current)
+        parent_metadata = os.fstat(current)
+        os.mkdir(relative.name, mode=0o700, dir_fd=current)
+        root_metadata = os.stat(
+            relative.name, dir_fd=current, follow_symlinks=False
+        )
+        if not stat.S_ISDIR(root_metadata.st_mode):
+            raise LifecycleError("new session worktree root is not a directory")
+        return parent_metadata, root_metadata
+    except OSError as error:
+        raise LifecycleError(
+            "new session worktree parent/root creation is unsafe"
+        ) from error
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def verify_target_parent_nofollow(
+    main: Path,
+    target: Path,
+    expected_identity: tuple[int, int],
+) -> None:
+    relative = target.relative_to(main.resolve())
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    descriptors: list[int] = []
+    current = os.open(main, directory_flags | no_follow)
+    try:
+        descriptors.append(current)
+        for component in relative.parts[:-1]:
+            current = os.open(
+                component, directory_flags | no_follow, dir_fd=current
+            )
+            descriptors.append(current)
+        metadata = os.fstat(current)
+        if (metadata.st_dev, metadata.st_ino) != expected_identity:
+            raise LifecycleError("new session worktree parent identity changed")
+    except OSError as error:
+        raise LifecycleError(
+            "new session worktree parent identity changed"
+        ) from error
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def verify_created_worktree_root(
+    main: Path,
+    target: Path,
+    branch: str,
+    *,
+    expected_identity: tuple[int, int] | None = None,
+    expected_parent_identity: tuple[int, int] | None = None,
+) -> os.stat_result:
+    """Bind setup to the lexical linked-worktree directory without symlink following."""
+    lexical_target = target.absolute()
+    if expected_parent_identity is not None:
+        verify_target_parent_nofollow(main, target, expected_parent_identity)
+    if lexical_worktree_branches(main).get(branch) != lexical_target:
+        raise LifecycleError("new session worktree registration is incoherent")
+    try:
+        metadata = target.lstat()
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise LifecycleError("new session worktree root is not a directory")
+        with verified_worktree_root(
+            target,
+            metadata.st_dev,
+            metadata.st_ino,
+        ) as descriptor:
+            git_file = os.open(
+                ".git",
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=descriptor,
+            )
+            try:
+                opened = os.fstat(git_file)
+                if not stat.S_ISREG(opened.st_mode):
+                    raise LifecycleError("new session worktree backlink is incoherent")
+                backlink = os.read(git_file, 16 * 1024).decode("utf-8").strip()
+            finally:
+                os.close(git_file)
+    except OSError as error:
+        raise LifecycleError("new session worktree root identity is incoherent") from error
+    if not backlink.startswith("gitdir: "):
+        raise LifecycleError("new session worktree backlink is incoherent")
+    git_dir = Path(backlink.removeprefix("gitdir: "))
+    common = common_git_dir(main)
+    try:
+        git_dir.relative_to(common / "worktrees")
+        git_dir_metadata = git_dir.lstat()
+        if not stat.S_ISDIR(git_dir_metadata.st_mode):
+            raise ValueError
+        recorded_backlink = (git_dir / "gitdir").read_text(encoding="utf-8").strip()
+    except (OSError, ValueError) as error:
+        raise LifecycleError("new session worktree backlink is incoherent") from error
+    if Path(recorded_backlink).absolute() != lexical_target / ".git":
+        raise LifecycleError("new session worktree backlink is incoherent")
+    identity = (metadata.st_dev, metadata.st_ino)
+    if expected_identity is not None and identity != expected_identity:
+        raise LifecycleError("new session worktree root identity changed")
+    return metadata
+
+
 def seal(main: Path, args: argparse.Namespace) -> dict[str, Any]:
     with receipt_lock(main, args.anchor):
         path, receipt = read_receipt(main, args.anchor, args.owner)
         if receipt.get("state") == "sealed":
             return receipt_report(path, receipt)
-        if receipt.get("state") != "open" or not receipt["targets"]:
-            raise LifecycleError("only a non-empty open receipt can be sealed")
+        if receipt.get("state") != "open" or (
+            not receipt["targets"] and not receipt.get("recoveredTargets")
+        ):
+            raise LifecycleError(
+                "only an open receipt with active or recovered targets can be sealed"
+            )
         linked = worktree_branches(main)
         for entry in receipt["targets"]:
             branch = entry["branch"]
@@ -1147,6 +1388,7 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
                     "reasons": [],
                     "removable": True,
                     "scratchFiles": [],
+                    "scratchEvidence": [],
                 })
             else:
                 rows.append({
@@ -1159,6 +1401,7 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
                     "reasons": ["removed target was recreated"],
                     "removable": False,
                     "scratchFiles": [],
+                    "scratchEvidence": [],
                 })
             continue
         if (
@@ -1175,6 +1418,7 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
                 "reasons": [],
                 "removable": True,
                 "scratchFiles": [],
+                "scratchEvidence": [],
             })
             continue
         if fully_absent:
@@ -1188,6 +1432,7 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
                 "reasons": ["owned target disappeared outside session teardown"],
                 "removable": False,
                 "scratchFiles": [],
+                "scratchEvidence": [],
             })
             continue
         expected_oid = entry.get("expectedOid")
@@ -1215,6 +1460,7 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
             reasons.append("ambiguous patch identity")
 
         scratch: list[str] = []
+        scratch_evidence: list[dict[str, Any]] = []
         if target_exists or linked_path is not None:
             if not target_exists and linked_path is not None:
                 reasons.append(
@@ -1240,11 +1486,13 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
                         raise LifecycleError(
                             "artifact provenance baseline changed or is incoherent"
                         )
-                    verified_scratch = verified_landing_scratch_files(
+                    evidence = verified_landing_scratch_evidence(
                         profile,
                         target,
                         expected_baseline_digest=entry["artifactBaselineDigest"],
                     )
+                    scratch_evidence = list(evidence)
+                    verified_scratch = tuple(item["path"] for item in evidence)
                 except (LifecycleError, KeyError) as error:
                     reasons.append(f"artifact provenance baseline stop: {error}")
                 facts = collect_cleanup_facts(
@@ -1273,6 +1521,7 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
             "reasons": list(dict.fromkeys(reasons)),
             "removable": not reasons,
             "scratchFiles": scratch,
+            "scratchEvidence": scratch_evidence,
         })
     report = {
         "receipt": str(path),
@@ -1448,9 +1697,13 @@ def teardown(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                 entry,
                 preview["mainOid"],
             )
-            if row["scratchFiles"] != by_branch[entry["branch"]]["scratchFiles"]:
+            if (
+                row["scratchFiles"] != by_branch[entry["branch"]]["scratchFiles"]
+                or row["scratchEvidence"]
+                != by_branch[entry["branch"]]["scratchEvidence"]
+            ):
                 raise LifecycleError(
-                    f"scratch inventory changed before target mutation: "
+                    f"scratch evidence changed before target mutation: "
                     f"{entry['branch']}"
                 )
             target = Path(entry["worktree"])
@@ -1461,7 +1714,15 @@ def teardown(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                     entry["rootInode"],
                 ) as descriptor:
                     for scratch in row["scratchFiles"]:
-                        remove_contained_regular(descriptor, scratch)
+                        expected = next(
+                            item for item in row["scratchEvidence"]
+                            if item["path"] == scratch
+                        )
+                        remove_contained_regular(
+                            descriptor,
+                            scratch,
+                            expected_identity=expected,
+                        )
                 after_scratch = revalidate_target(
                     main,
                     args,

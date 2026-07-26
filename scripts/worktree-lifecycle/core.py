@@ -27,6 +27,7 @@ from profile import (
 _BRANCH_CHANGE_RE = re.compile(r"\b(?:git\s+(?:checkout|switch)|gh\s+pr\s+(?:merge|checkout))\b")
 _BRANCH_CREATE_RE = re.compile(r"\bgit\s+(?:checkout|switch)\s+-[bc]\s+(\S+)")
 ARTIFACT_BASELINE_FILE = "awkit-artifact-baseline-v1.json"
+LANDING_ATTEMPT_FILE = "awkit-landing-attempt-v1.json"
 
 @dataclass(frozen=True)
 class RepoFacts:
@@ -292,7 +293,128 @@ def verified_landing_scratch_files(
     worktree: Path,
     *,
     expected_baseline_digest: str | None = None,
+    landing_start_files: tuple[str, ...] = (),
 ) -> tuple[str, ...]:
+    return tuple(
+        item["path"]
+        for item in verified_landing_scratch_evidence(
+            profile,
+            worktree,
+            expected_baseline_digest=expected_baseline_digest,
+            landing_start_files=landing_start_files,
+        )
+    )
+
+
+def landing_start_artifact_inventory(
+    profile: WorktreeProfile,
+    worktree: Path,
+) -> dict[str, Any]:
+    """Persist/reuse the generated-path inventory preceding the landing build."""
+    baseline = load_artifact_baseline(worktree)
+    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+    if path.exists():
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+            payload = {
+                key: document[key]
+                for key in (
+                    "contractVersion", "worktree", "branch", "rootDevice",
+                    "rootInode", "baselineDigest", "generatedFiles",
+                    "generatedEvidence", "state", "authorizedEvidence",
+                    "pushSucceeded",
+                )
+            }
+            digest = document["sha256"]
+        except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+            raise LifecycleError(
+                f"landing-attempt provenance is incoherent: {error}"
+            ) from error
+        if (
+            payload["contractVersion"] != 1
+            or payload["worktree"] != str(worktree.resolve())
+            or payload["branch"] != baseline.branch
+            or (payload["rootDevice"], payload["rootInode"])
+            != (baseline.root_device, baseline.root_inode)
+            or payload["baselineDigest"] != baseline.digest
+            or not isinstance(payload["generatedFiles"], list)
+            or payload["generatedFiles"] != sorted(set(payload["generatedFiles"]))
+            or not isinstance(payload["generatedEvidence"], list)
+            or payload["state"] not in {"started", "frozen"}
+            or not isinstance(payload["authorizedEvidence"], list)
+            or type(payload["pushSucceeded"]) is not bool
+            or digest != _baseline_digest(payload)
+        ):
+            raise LifecycleError("landing-attempt provenance is incoherent")
+        return {
+            "baselineDigest": payload["baselineDigest"],
+            "generatedFiles": payload["generatedFiles"],
+            "generatedEvidence": payload["generatedEvidence"],
+            "state": payload["state"],
+            "authorizedEvidence": payload["authorizedEvidence"],
+            "pushSucceeded": payload["pushSucceeded"],
+            "newAttempt": False,
+        }
+    current = set(ignored_file_inventory(worktree))
+    generated = tuple(sorted(
+        path for path in current
+        if any(
+            fnmatchcase(path, pattern)
+            for pattern in profile.landing_generated_artifact_patterns
+        )
+    ))
+    evidence: list[dict[str, Any]] = []
+    if generated:
+        with verified_worktree_root(
+            worktree,
+            baseline.root_device,
+            baseline.root_inode,
+        ) as descriptor:
+            evidence = [
+                contained_untracked_identity(descriptor, relative)
+                for relative in generated
+            ]
+    result = {
+        "baselineDigest": baseline.digest,
+        "generatedFiles": list(generated),
+        "generatedEvidence": evidence,
+        "state": "started",
+        "authorizedEvidence": [],
+        "pushSucceeded": False,
+    }
+    payload = {
+        "contractVersion": 1,
+        "worktree": str(worktree.resolve()),
+        "branch": baseline.branch,
+        "rootDevice": baseline.root_device,
+        "rootInode": baseline.root_inode,
+        **result,
+    }
+    digest = _baseline_digest(payload)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            json.dump({**payload, "sha256": digest}, handle, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except OSError as error:
+        temporary.unlink(missing_ok=True)
+        raise LifecycleError(
+            f"cannot persist landing-attempt provenance: {error}"
+        ) from error
+    return {**result, "newAttempt": True}
+
+
+def verified_landing_scratch_evidence(
+    profile: WorktreeProfile,
+    worktree: Path,
+    *,
+    expected_baseline_digest: str | None = None,
+    landing_start_files: tuple[str, ...] = (),
+) -> tuple[dict[str, Any], ...]:
+    """Return frozen regular-file identities for the authorized generator delta."""
     baseline = load_artifact_baseline(worktree)
     if (
         expected_baseline_digest is not None
@@ -313,14 +435,145 @@ def verified_landing_scratch_files(
             "artifact provenance baseline protects initial generated paths: "
             + ", ".join(initial_generated)
         )
-    return tuple(sorted(
+    if landing_start_files:
+        raise LifecycleError(
+            "landing-start generated paths are consumer-owned and protected: "
+            + ", ".join(sorted(landing_start_files))
+        )
+    candidates = tuple(sorted(
         path
         for path in current.difference(baseline.initial_ignored_files)
+        if path not in landing_start_files
         if any(
             fnmatchcase(path, pattern)
             for pattern in profile.landing_generated_artifact_patterns
         )
     ))
+    if not candidates:
+        return ()
+    with verified_worktree_root(
+        worktree,
+        baseline.root_device,
+        baseline.root_inode,
+    ) as descriptor:
+        return tuple(
+            contained_regular_identity(descriptor, relative)
+            for relative in candidates
+        )
+
+
+def freeze_landing_artifact_evidence(
+    profile: WorktreeProfile,
+    worktree: Path,
+    *,
+    push_succeeded: bool,
+) -> tuple[dict[str, Any], ...]:
+    """Freeze or revalidate the exact output of one generator-capable push."""
+    attempt = landing_start_artifact_inventory(profile, worktree)
+    current = verified_landing_scratch_evidence(
+        profile,
+        worktree,
+        expected_baseline_digest=attempt["baselineDigest"],
+        landing_start_files=tuple(attempt["generatedFiles"]),
+    )
+    frozen = tuple(attempt["authorizedEvidence"])
+    if attempt["state"] == "frozen" and frozen != current:
+        raise LifecycleError(
+            "landing-generated evidence changed after it was frozen"
+        )
+    if attempt["state"] == "frozen":
+        return frozen
+    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    payload = {
+        key: document[key]
+        for key in (
+            "contractVersion", "worktree", "branch", "rootDevice",
+            "rootInode", "baselineDigest", "generatedFiles",
+            "generatedEvidence",
+        )
+    }
+    payload.update({
+        "state": "frozen",
+        "authorizedEvidence": list(current),
+        "pushSucceeded": push_succeeded,
+    })
+    digest = _baseline_digest(payload)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            json.dump({**payload, "sha256": digest}, handle, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except OSError as error:
+        temporary.unlink(missing_ok=True)
+        raise LifecycleError(
+            f"cannot freeze landing-generated evidence: {error}"
+        ) from error
+    return current
+
+
+def reopen_frozen_landing_attempt(
+    profile: WorktreeProfile,
+    worktree: Path,
+) -> tuple[dict[str, Any], ...]:
+    """Validate a failed push boundary before permitting its generator to retry."""
+    frozen = freeze_landing_artifact_evidence(
+        profile, worktree, push_succeeded=False
+    )
+    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    payload = {
+        key: document[key]
+        for key in (
+            "contractVersion", "worktree", "branch", "rootDevice",
+            "rootInode", "baselineDigest", "generatedFiles",
+            "generatedEvidence",
+        )
+    }
+    payload.update({
+        "state": "started",
+        "authorizedEvidence": [],
+        "pushSucceeded": False,
+    })
+    digest = _baseline_digest(payload)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            json.dump({**payload, "sha256": digest}, handle, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except OSError as error:
+        temporary.unlink(missing_ok=True)
+        raise LifecycleError(
+            f"cannot reopen validated landing attempt: {error}"
+        ) from error
+    return frozen
+
+
+def abandon_unfinished_landing_attempt(
+    profile: WorktreeProfile,
+    worktree: Path,
+) -> Path:
+    """Archive an ambiguous started attempt without claiming or deleting files."""
+    attempt = landing_start_artifact_inventory(profile, worktree)
+    if attempt["newAttempt"] or attempt["state"] != "started":
+        raise LifecycleError("no pre-existing unfinished landing attempt to abandon")
+    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+    archive = path.with_name(
+        f"{path.stem}.abandoned-{int(time() * 1_000_000)}.json"
+    )
+    try:
+        os.replace(path, archive)
+    except OSError as error:
+        raise LifecycleError(
+            f"cannot archive unfinished landing attempt: {error}"
+        ) from error
+    return archive
 
 
 def collect_facts(cwd: Path) -> RepoFacts:

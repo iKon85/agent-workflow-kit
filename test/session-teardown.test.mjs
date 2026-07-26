@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import {
-  chmod, copyFile, mkdtemp, mkdir, readFile, rename, rm, writeFile,
+  chmod, copyFile, mkdtemp, mkdir, readFile, readdir, rename, rm, writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -204,6 +204,44 @@ test('session teardown accepts only generated files absent from its creation bas
   assert.deepEqual(preview.targets[0].scratchFiles, ['dist-kit/package.tgz']);
   await session(repo, 'teardown', '--main', 'main', '--gh-command', 'false');
   assert.equal(await git(repo, 'show-ref', '--verify', 'refs/heads/main').then(() => true), true);
+});
+
+test('session teardown preserves a same-path replacement after its frozen preview', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  await session(repo, 'begin', '--base', 'main');
+  const created = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '134', 'artifact-race', 'feat');
+  await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
+  await git(created.worktree, 'add', 'owned.txt');
+  await git(created.worktree, 'commit', '-m', 'owned change');
+  const ownedOid = (await git(created.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await mkdir(join(created.worktree, 'dist-kit'), { recursive: true });
+  const generated = join(created.worktree, 'dist-kit/package.tgz');
+  await writeFile(generated, 'generator-owned\n');
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', ownedOid);
+  await git(repo, 'init', '--bare', join(root, 'remote.git'));
+  await git(repo, 'remote', 'add', 'origin', join(root, 'remote.git'));
+  const fake = await mutatingGh(
+    root,
+    'mutate-artifact-on-revalidate',
+    2,
+    `rm -f '${generated}'; printf '%s\\n' 'user replacement' > '${generated}'`,
+  );
+
+  await assert.rejects(
+    command('python3', [
+      SESSION, 'teardown', '--anchor', '42', '--owner', 'run-alpha',
+      '--main', 'main', '--gh-command', fake.path,
+    ], repo, { env: fake.env }),
+    /teardown inventory changed|scratch evidence changed|identity changed/,
+  );
+  assert.equal(await readFile(generated, 'utf8'), 'user replacement\n');
+  assert.match(
+    (await git(repo, 'show-ref', '--verify', `refs/heads/${created.branch}`)).stdout,
+    /artifact-race/,
+  );
 });
 
 test('a missing session artifact baseline is a cleanup hard stop', async (t) => {
@@ -632,8 +670,15 @@ exec "${realGit}" "$@"
     '',
   );
   const receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
-  assert.equal(receipt.targets[0].state, 'recovery-pending');
-  assert.equal(receipt.targets[0].acquisitionState, 'failed');
+  assert.deepEqual(receipt.targets, []);
+  assert.equal(receipt.recoveredTargets[0].branch, 'feat/124-foreign-race');
+  assert.equal(receipt.recoveredTargets[0].acquisitionState, 'failed');
+  assert.match(
+    (await git(repo, 'show-ref', '--verify', 'refs/heads/feat/124-foreign-race')).stdout,
+    /feat\/124-foreign-race/,
+  );
+  const sealed = await session(repo, 'seal');
+  assert.equal(sealed.state, 'sealed');
 });
 
 test('branch acquisition atomically verifies the active claim', async (t) => {
@@ -703,7 +748,8 @@ exec "${realGit}" "$@"
   assert.equal((await git(foreignPath, 'status', '--porcelain')).stdout, '');
   assert.match((await git(repo, 'worktree', 'list')).stdout, /feat-125-foreign-worktree/);
   const receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
-  assert.equal(receipt.targets[0].state, 'recovery-pending');
+  assert.deepEqual(receipt.targets, []);
+  assert.equal(receipt.recoveredTargets[0].branch, 'feat/125-foreign-worktree');
 });
 
 test('a failed acquisition never adopts a racing branch and matching proof ref', async (t) => {
@@ -764,6 +810,157 @@ test('invalid branch text is rejected before any ownership journal or transactio
   );
   const receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
   assert.deepEqual(receipt.targets, []);
+});
+
+test('create never runs setup through a symlink-substituted worktree root', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  const profilePath = join(repo, 'docs/agents/workflow-capabilities.json');
+  const profile = JSON.parse(await readFile(profilePath, 'utf8'));
+  profile.worktreeLifecycle.setupSteps = [{
+    kind: 'command',
+    command: ['sh', '-c', 'printf setup-ran > setup-ran-in-foreign.txt'],
+  }];
+  await writeFile(profilePath, JSON.stringify(profile));
+  await session(repo, 'begin', '--base', 'main');
+  const realGit = (await command('sh', ['-c', 'command -v git'], repo)).stdout.trim();
+  const fakeBin = join(root, 'fake-bin');
+  await mkdir(fakeBin);
+  await writeFile(join(fakeBin, 'git'), `#!/usr/bin/env bash
+if [[ "$1 $2" == "worktree add" ]]; then
+  target="$3"
+  "${realGit}" "$@"
+  status=$?
+  if [[ "$status" -eq 0 ]]; then
+    mv "$target" "$target.original"
+    ln -s "$MAIN_REPO" "$target"
+  fi
+  exit "$status"
+fi
+exec "${realGit}" "$@"
+`);
+  await chmod(join(fakeBin, 'git'), 0o755);
+
+  await assert.rejects(
+    command('python3', [
+      SESSION, 'create', '--anchor', '42', '--owner', 'run-alpha',
+      '--profile', 'docs/agents/workflow-capabilities.json',
+      '--gh-command', 'false', '135', 'root-symlink', 'feat',
+    ], repo, {
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH}`,
+        MAIN_REPO: repo,
+      },
+    }),
+    /root-journal/,
+  );
+  await assert.rejects(readFile(join(repo, 'setup-ran-in-foreign.txt'), 'utf8'));
+  assert.equal(
+    (await git(repo, 'status', '--porcelain', '--', 'setup-ran-in-foreign.txt')).stdout,
+    '',
+  );
+});
+
+test('create never adopts a substituted real directory with a copied backlink', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  const profilePath = join(repo, 'docs/agents/workflow-capabilities.json');
+  const profile = JSON.parse(await readFile(profilePath, 'utf8'));
+  profile.worktreeLifecycle.setupSteps = [{
+    kind: 'command',
+    command: ['sh', '-c', 'printf setup-ran > setup-ran-in-replacement.txt'],
+  }];
+  await writeFile(profilePath, JSON.stringify(profile));
+  await session(repo, 'begin', '--base', 'main');
+  const realGit = (await command('sh', ['-c', 'command -v git'], repo)).stdout.trim();
+  const fakeBin = join(root, 'fake-bin');
+  await mkdir(fakeBin);
+  await writeFile(join(fakeBin, 'git'), `#!/usr/bin/env bash
+if [[ "$1 $2" == "worktree add" ]]; then
+  target="$3"
+  "${realGit}" "$@"
+  status=$?
+  if [[ "$status" -eq 0 ]]; then
+    mv "$target" "$target.original"
+    mkdir "$target"
+    cp "$target.original/.git" "$target/.git"
+  fi
+  exit "$status"
+fi
+exec "${realGit}" "$@"
+`);
+  await chmod(join(fakeBin, 'git'), 0o755);
+  const target = join(repo, '.worktrees', 'feat-136-root-directory');
+
+  await assert.rejects(
+    command('python3', [
+      SESSION, 'create', '--anchor', '42', '--owner', 'run-alpha',
+      '--profile', 'docs/agents/workflow-capabilities.json',
+      '--gh-command', 'false', '136', 'root-directory', 'feat',
+    ], repo, {
+      env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
+    }),
+    /root-journal/,
+  );
+  await assert.rejects(readFile(join(target, 'setup-ran-in-replacement.txt'), 'utf8'));
+  await assert.rejects(readFile(join(repo, 'setup-ran-in-replacement.txt'), 'utf8'));
+});
+
+test('create never follows a substituted worktree parent after ref acquisition', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  const profilePath = join(repo, 'docs/agents/workflow-capabilities.json');
+  const profile = JSON.parse(await readFile(profilePath, 'utf8'));
+  profile.worktreeLifecycle.setupSteps = [{
+    kind: 'command',
+    command: ['sh', '-c', 'printf setup-ran > setup-ran-in-foreign-parent.txt'],
+  }];
+  await writeFile(profilePath, JSON.stringify(profile));
+  await session(repo, 'begin', '--base', 'main');
+  await mkdir(join(repo, '.worktrees'), { recursive: true });
+  const foreign = join(root, 'foreign-parent');
+  await mkdir(foreign);
+  const realGit = (await command('sh', ['-c', 'command -v git'], repo)).stdout.trim();
+  const fakeBin = join(root, 'fake-bin');
+  await mkdir(fakeBin);
+  await writeFile(join(fakeBin, 'git'), `#!/usr/bin/env bash
+if [[ "$1 $2" == "update-ref --stdin" && ! -f "$RACE_MARKER" ]]; then
+  payload="$(cat)"
+  printf '%s\\n' "$payload" | "${realGit}" "$@"
+  status=$?
+  if [[ "$status" -eq 0 ]]; then
+    : > "$RACE_MARKER"
+    mv "$MAIN_REPO/.worktrees" "$MAIN_REPO/.worktrees.original"
+    ln -s "$FOREIGN_PARENT" "$MAIN_REPO/.worktrees"
+  fi
+  exit "$status"
+fi
+exec "${realGit}" "$@"
+`);
+  await chmod(join(fakeBin, 'git'), 0o755);
+
+  await assert.rejects(
+    command('python3', [
+      SESSION, 'create', '--anchor', '42', '--owner', 'run-alpha',
+      '--profile', 'docs/agents/workflow-capabilities.json',
+      '--gh-command', 'false', '137', 'parent-symlink', 'feat',
+    ], repo, {
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH}`,
+        MAIN_REPO: repo,
+        FOREIGN_PARENT: foreign,
+        RACE_MARKER: join(root, 'parent-race-fired'),
+      },
+    }),
+    /root-preparation/,
+  );
+  await assert.rejects(readFile(join(foreign, 'setup-ran-in-foreign-parent.txt'), 'utf8'));
+  assert.deepEqual(await readdir(foreign), []);
 });
 
 test('failed setup rolls back the newly created target without recording ownership', async (t) => {
