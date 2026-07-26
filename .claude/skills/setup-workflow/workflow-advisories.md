@@ -74,6 +74,40 @@ key. Consumer values are never normalized on adoption.
 Empty command surfaces are honest inactive defaults. Setup recommends concrete
 project commands from the tools already present, then asks before activating.
 
+## Profile glob dialect
+
+`baseline.sourceGlobs`, `preRefactor.surfaces[].globs`, and
+`stopChecks.surfaces[].globs` are matched by the one shared dialect in
+`scripts/profile_globs.py` — the same matcher Worktree Lifecycle uses for its
+scratch and landing-artifact policies. There is no second matcher and no
+per-capability variant:
+
+- `*` matches any run of characters inside one path segment, never `/`.
+- `?` matches exactly one character inside one path segment.
+- `[seq]` and `[!seq]` are per-segment character classes; `/` is always a
+  separator and never a class member.
+- `**` as a complete segment matches zero or more segments, so a leading `**/`
+  also matches the repository root and `dir/**` also matches `dir` itself.
+- Matching is always case-sensitive, on every host filesystem.
+- A pattern must match the whole repository-relative path.
+
+Thus `src/**` covers `src/a/b.ts`, `**/*.ts` covers both `index.ts` and
+`src/index.ts`, and `*.ts` covers only a root-level file.
+
+A profile written for the older whole-string matcher can therefore change
+meaning. When adopting an existing profile, or after any kit update, review it:
+
+```bash
+python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json
+```
+
+The check names every pattern whose match set narrows or widens, prints the
+concrete witness path that proves the difference, and separately flags patterns
+that only matched case-insensitively on the previous matcher. Exit code 1 means
+at least one pattern needs review. Report the named patterns and let the
+consumer rewrite them; never migrate a pattern automatically. The check reads
+the profile and never edits it.
+
 ## Hook ownership
 
 - PreToolUse on Read:

@@ -24,10 +24,24 @@ they do not carry a second branch regex, worktree traversal, or failure policy.
   deletion authority, so setup never derives it from `.gitignore` alone and
   update never installs a universal default.
 
-Profile globs use repository-relative POSIX semantics. `*` stays inside one
-path segment; `**` crosses `/`, and leading `**/` also matches the repository
-root. For example, `**/__pycache__/**` matches both root and nested caches,
+Profile globs use one repository-relative POSIX dialect, implemented once in
+`scripts/profile_globs.py` and loaded by this core and by
+`scripts/workflow-advisories/core.py`. `*` and `?` stay inside one path
+segment; `[seq]`/`[!seq]` are per-segment character classes; `**` as a whole
+segment matches zero or more segments, so a leading `**/` also matches the
+repository root and `dir/**` also matches `dir` itself; matching is always
+case-sensitive on every host filesystem; and a pattern must match the whole
+path. For example, `**/__pycache__/**` matches both root and nested caches,
 while `dist-kit/*` does not match `dist-kit/a/b`.
+
+Because both capabilities load the same matcher, a pattern can never select one
+set of paths for an advisory and a different set for a deletion decision. Run
+`python3 scripts/profile_globs.py <profile.json>` to review an installed
+profile: it names every pattern whose match set narrows or widens against that
+key's legacy matcher, prints the witness path proving it, marks the keys that
+carry deletion authority, and exits 1 when anything needs review. It reads the
+profile and never rewrites a pattern, so a migration cannot silently expand
+cleanup authority.
 
 Unknown or malformed events fail open without changing repository state.
 Security-sensitive, profile-matched edits and commands fail closed only when

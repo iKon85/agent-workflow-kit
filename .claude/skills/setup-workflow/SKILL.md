@@ -216,6 +216,15 @@ Worktree Lifecycle for this repository?"* Offer exactly **Yes**, **Later**, and
 - **Disable** — remove only the exact kit-owned hook commands first, then set
   `enabled: false`; retain the profile, setup policy, and unknown keys.
 
+Whenever a profile already carries patterns — on **Yes** over an existing
+section and on **Existing** — run
+`python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json` and
+report every pattern it names. Patterns whose match set narrows or widens under
+the shared dialect are a consumer decision: name them with their witness path,
+mark the deletion-authority keys, and let the consumer rewrite them. Never
+rewrite a pattern for them, and never accept a widened deletion-authority
+pattern silently.
+
 The default setup entry is
 `python3 scripts/worktree-lifecycle/setup.py`; a proven consumer-native helper
 may remain the configured `setupEntry` for parity. The handoff advisory always
@@ -272,6 +281,12 @@ repository?"* Offer exactly **Yes**, **Later**, and **No**.
 - **Existing** — adopt profile and wiring byte-safely.
 - **Disable** — remove exact kit-owned commands first, then set `enabled:
   false`; preserve every profile value and unknown key.
+
+`baseline.sourceGlobs` and the `preRefactor`/`stopChecks` surface globs use the
+same shared dialect as the Worktree Lifecycle patterns above. An adopted
+profile written for the older whole-string matcher can change meaning, so run
+`python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json` and
+report every pattern it names before treating the section as reconciled.
 
 ### 2f. Section A7 — Optional Safety Guardrails
 
