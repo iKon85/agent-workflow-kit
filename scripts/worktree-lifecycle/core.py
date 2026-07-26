@@ -53,9 +53,25 @@ def load_profile_globs():
 # never disagree about which repository-relative paths a pattern selects.
 path_glob_matches = load_profile_globs().path_glob_matches
 
+# Archived receipts are named from a contract-version-neutral stem plus the
+# archived receipt's own contractVersion, so a v2 receipt is never filed as v1.
+LANDING_ATTEMPT_ARCHIVE_STEM = "awkit-landing-attempt"
+LANDING_ATTEMPT_CONTRACT_VERSION = 2
+LANDING_ATTEMPT_KEYS = (
+    "contractVersion", "worktree", "branch", "rootDevice",
+    "rootInode", "baselineDigest", "generatedFiles",
+    "generatedEvidence", "state", "authorizedEvidence",
+    "pushSucceeded",
+)
+ABANDON_ATTEMPT_FLAG = "--abandon-unfinished-attempt"
+
 
 class BaselineBackfillDeferred(LifecycleError):
     """A safe legacy baseline cannot be captured until consumer state changes."""
+
+
+class LegacyLandingAttempt(LifecycleError):
+    """A coherent attempt journal predates the active contract and is not adoptable."""
 
 
 def durable_atomic_json(
@@ -202,6 +218,30 @@ def artifact_baseline_path(worktree: Path) -> Path:
     if not git_dir.is_absolute():
         raise LifecycleError("artifact provenance baseline git dir is not absolute")
     return git_dir / ARTIFACT_BASELINE_FILE
+
+
+def landing_attempt_path(worktree: Path) -> Path:
+    """Return the one landing-attempt journal path beside the artifact baseline."""
+    return artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+
+
+def landing_attempt_exists(path: Path) -> bool:
+    """Classify journal presence without following a symlink at that name."""
+    return os.path.lexists(path)
+
+
+def require_regular_landing_attempt(path: Path) -> None:
+    """Refuse a journal name occupied by a symlink or any non-regular entry."""
+    if path.is_symlink() or not path.is_file():
+        raise LifecycleError("landing-attempt provenance is not a regular file")
+
+
+def landing_attempt_keys(contract_version: Any) -> list[str]:
+    """Return the exact journal key set recorded by one contract version."""
+    keys = list(LANDING_ATTEMPT_KEYS)
+    if contract_version == LANDING_ATTEMPT_CONTRACT_VERSION:
+        keys.append("policyDigest")
+    return keys
 
 
 def _baseline_payload(
@@ -390,8 +430,7 @@ def ensure_artifact_baseline(
     path = artifact_baseline_path(worktree)
     if os.path.lexists(path):
         return load_artifact_baseline(worktree)
-    attempt_path = path.with_name(LANDING_ATTEMPT_FILE)
-    if os.path.lexists(attempt_path):
+    if landing_attempt_exists(landing_attempt_path(worktree)):
         raise LifecycleError(
             "artifact provenance baseline is missing while a landing attempt exists"
         )
@@ -442,6 +481,36 @@ def verified_landing_scratch_files(
     )
 
 
+def _classify_superseded_landing_attempt(
+    payload: dict[str, Any],
+    digest: Any,
+    baseline: ArtifactBaseline,
+    worktree: Path,
+) -> None:
+    """Separate a coherent pre-upgrade journal from genuinely corrupt evidence.
+
+    A journal written before the active contract can never be adopted, but it is
+    not damage: it has an exact, non-deleting route out. Only evidence that also
+    fails its own recorded contract is reported as corruption.
+    """
+    if (
+        payload["contractVersion"] != 1
+        or payload["worktree"] != str(worktree.resolve())
+        or payload["branch"] != baseline.branch
+        or (payload["rootDevice"], payload["rootInode"])
+        != (baseline.root_device, baseline.root_inode)
+        or payload["state"] not in {"started", "frozen"}
+        or digest != _baseline_digest(payload)
+    ):
+        raise LifecycleError("landing-attempt provenance is incoherent")
+    raise LegacyLandingAttempt(
+        "landing attempt was started under the superseded v1 journal contract "
+        "and cannot be adopted; archive it with "
+        f"`land {ABANDON_ATTEMPT_FLAG}` — that deletes and claims no file — "
+        "then rerun land"
+    )
+
+
 def landing_start_artifact_inventory(
     profile: WorktreeProfile,
     worktree: Path,
@@ -451,31 +520,32 @@ def landing_start_artifact_inventory(
         worktree,
         reject_ignored_patterns=profile.landing_generated_artifact_patterns,
     )
-    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
-    if path.exists():
+    attempt_path = landing_attempt_path(worktree)
+    if landing_attempt_exists(attempt_path):
+        require_regular_landing_attempt(attempt_path)
         try:
-            document = json.loads(path.read_text(encoding="utf-8"))
+            document = json.loads(attempt_path.read_text(encoding="utf-8"))
+            contract_version = document["contractVersion"]
             payload = {
                 key: document[key]
-                for key in (
-                    "contractVersion", "worktree", "branch", "rootDevice",
-                    "rootInode", "baselineDigest", "generatedFiles",
-                    "generatedEvidence", "state", "authorizedEvidence",
-                    "pushSucceeded", "policyDigest",
-                )
+                for key in landing_attempt_keys(contract_version)
             }
             digest = document["sha256"]
         except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
             raise LifecycleError(
                 f"landing-attempt provenance is incoherent: {error}"
             ) from error
+        if contract_version != LANDING_ATTEMPT_CONTRACT_VERSION:
+            _classify_superseded_landing_attempt(
+                payload, digest, baseline, worktree
+            )
         if payload["policyDigest"] != landing_cleanup_policy_digest(profile):
             raise LifecycleError(
                 "landing cleanup policy changed after attempt start; "
                 "abandon the unfinished attempt before retrying"
             )
         if (
-            payload["contractVersion"] != 2
+            payload["contractVersion"] != LANDING_ATTEMPT_CONTRACT_VERSION
             or payload["worktree"] != str(worktree.resolve())
             or payload["branch"] != baseline.branch
             or (payload["rootDevice"], payload["rootInode"])
@@ -523,7 +593,7 @@ def landing_start_artifact_inventory(
         "policyDigest": landing_cleanup_policy_digest(profile),
     }
     payload = {
-        "contractVersion": 2,
+        "contractVersion": LANDING_ATTEMPT_CONTRACT_VERSION,
         "worktree": str(worktree.resolve()),
         "branch": baseline.branch,
         "rootDevice": baseline.root_device,
@@ -532,7 +602,7 @@ def landing_start_artifact_inventory(
     }
     digest = _baseline_digest(payload)
     durable_atomic_json(
-        path,
+        attempt_path,
         {**payload, "sha256": digest},
         label="persist landing-attempt provenance",
     )
@@ -615,7 +685,7 @@ def freeze_landing_artifact_evidence(
         )
     if attempt["state"] == "frozen":
         return frozen
-    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+    path = landing_attempt_path(worktree)
     document = json.loads(path.read_text(encoding="utf-8"))
     payload = {
         key: document[key]
@@ -647,7 +717,7 @@ def reopen_frozen_landing_attempt(
     frozen = freeze_landing_artifact_evidence(
         profile, worktree, push_succeeded=False
     )
-    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
+    path = landing_attempt_path(worktree)
     document = json.loads(path.read_text(encoding="utf-8"))
     payload = {
         key: document[key]
@@ -675,25 +745,15 @@ def abandon_unfinished_landing_attempt(
     worktree: Path,
 ) -> Path:
     """Archive an ambiguous started attempt without claiming or deleting files."""
-    path = artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
-    if not os.path.lexists(path):
+    path = landing_attempt_path(worktree)
+    if not landing_attempt_exists(path):
         raise LifecycleError("no pre-existing unfinished landing attempt to abandon")
     try:
-        if path.is_symlink() or not path.is_file():
-            raise LifecycleError("landing-attempt provenance is not a regular file")
+        require_regular_landing_attempt(path)
         document = json.loads(path.read_text(encoding="utf-8"))
-        contract_version = document["contractVersion"]
-        keys = [
-            "contractVersion", "worktree", "branch", "rootDevice",
-            "rootInode", "baselineDigest", "generatedFiles",
-            "generatedEvidence", "state", "authorizedEvidence",
-            "pushSucceeded",
-        ]
-        if contract_version == 2:
-            keys.append("policyDigest")
         payload = {
             key: document[key]
-            for key in keys
+            for key in landing_attempt_keys(document["contractVersion"])
         }
         digest = document["sha256"]
         metadata = os.lstat(worktree)
@@ -714,10 +774,106 @@ def abandon_unfinished_landing_attempt(
     ):
         raise LifecycleError("landing-attempt provenance is incoherent")
     archive = path.with_name(
-        f"{path.stem}.abandoned-{int(time() * 1_000_000)}.json"
+        f"{LANDING_ATTEMPT_ARCHIVE_STEM}.v{payload['contractVersion']}"
+        f".abandoned-{int(time() * 1_000_000)}.json"
     )
     durable_replace(path, archive, label="archive landing attempt")
     return archive
+
+
+def canonical_recovery_evidence(
+    canonical: WorktreeProfile,
+    worktree: Path,
+) -> tuple[dict[str, Any], ...]:
+    """Revalidate one frozen landing attempt against canonical policy alone.
+
+    Canonical cleanup-policy drift between attempt start and post-merge cleanup
+    strands an already-merged worktree, because the attempt is bound to the
+    policy that nominated it. This route re-derives deletion authority from the
+    merged canonical policy only. It never re-scans the worktree for new
+    candidates, so broader stale candidate evidence cannot enter; every frozen
+    identity must additionally still be named by canonical policy and still
+    match byte-for-byte on disk, so a narrowed canonical policy, a changed file,
+    and any pre-existing state stop the recovery instead of being deleted.
+    """
+    path = landing_attempt_path(worktree)
+    if not landing_attempt_exists(path):
+        raise LifecycleError(
+            "canonical cleanup recovery requires the landing attempt that froze "
+            "this teardown's evidence"
+        )
+    try:
+        require_regular_landing_attempt(path)
+        document = json.loads(path.read_text(encoding="utf-8"))
+        contract_version = document["contractVersion"]
+        payload = {
+            key: document[key]
+            for key in landing_attempt_keys(contract_version)
+        }
+        digest = document["sha256"]
+        metadata = os.lstat(worktree)
+        branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
+    except LifecycleError:
+        raise
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise LifecycleError(f"landing-attempt provenance is incoherent: {error}") from error
+    if (
+        contract_version != LANDING_ATTEMPT_CONTRACT_VERSION
+        or payload["worktree"] != str(worktree.resolve())
+        or payload["branch"] != branch
+        or not stat.S_ISDIR(metadata.st_mode)
+        or (payload["rootDevice"], payload["rootInode"])
+        != (metadata.st_dev, metadata.st_ino)
+        or not isinstance(payload["generatedFiles"], list)
+        or not isinstance(payload["authorizedEvidence"], list)
+        or type(payload["pushSucceeded"]) is not bool
+        or digest != _baseline_digest(payload)
+    ):
+        raise LifecycleError("landing-attempt provenance is incoherent")
+    if payload["state"] != "frozen" or not payload["pushSucceeded"]:
+        raise LifecycleError(
+            "canonical cleanup recovery requires a frozen landing attempt from a "
+            f"completed push; archive an unfinished attempt with `{ABANDON_ATTEMPT_FLAG}`"
+        )
+    if payload["generatedFiles"]:
+        raise LifecycleError(
+            "landing-start generated paths are consumer-owned and protected: "
+            + ", ".join(payload["generatedFiles"])
+        )
+    baseline = load_artifact_baseline(worktree)
+    if payload["baselineDigest"] != baseline.digest:
+        raise LifecycleError("artifact provenance baseline changed during landing")
+    frozen = tuple(payload["authorizedEvidence"])
+    relatives: list[str] = []
+    for item in frozen:
+        relative = item.get("path") if isinstance(item, dict) else None
+        if not isinstance(relative, str) or relative in relatives:
+            raise LifecycleError("scratch evidence is incoherent")
+        relatives.append(relative)
+    outside = sorted(
+        relative for relative in relatives
+        if not any(
+            path_glob_matches(relative, pattern)
+            for pattern in canonical.landing_generated_artifact_patterns
+        )
+    )
+    if outside:
+        raise LifecycleError(
+            "landing-attempt evidence is outside canonical cleanup policy: "
+            + ", ".join(outside)
+        )
+    with verified_worktree_root(
+        worktree,
+        baseline.root_device,
+        baseline.root_inode,
+    ) as descriptor:
+        current = tuple(
+            contained_regular_identity(descriptor, relative)
+            for relative in relatives
+        )
+    if current != frozen:
+        raise LifecycleError("landing-generated evidence changed after it was frozen")
+    return current
 
 
 def collect_facts(cwd: Path) -> RepoFacts:

@@ -97,6 +97,16 @@ checked against that canonical generator policy. A missing policy is distinct
 from an explicit empty policy. An unmerged or transient branch policy therefore
 cannot grant itself broader cleanup authority.
 
+Canonical policy that drifts between attempt start and post-merge cleanup keeps
+that refusal, and the refusal names its supported recovery. Recovery re-derives
+authority from the merged canonical policy alone: it never consults the stale
+worktree candidate, never re-scans for new candidates, requires the branch to
+already be an ancestor of canonical main, and requires each frozen identity to
+be both named by canonical policy and unchanged on disk. Evidence outside
+canonical policy, a changed identity, and pre-existing or foreign state stop the
+recovery instead of being deleted, and a repeated run after a completed teardown
+is a no-op.
+
 The landing adapter may carry exact scratch evidence only for current ignored
 files that match the consumer-owned
 `wrapup.landingGeneratedArtifactPatterns` profile and were absent from that
@@ -112,7 +122,14 @@ Landing-start blockers are classified before a journal is written, so moving a
 protected blocker permits a clean next attempt. An explicit relinquish archives
 either a started or frozen attempt, including drifted evidence, without
 deleting or claiming any file; the next preflight treats every current file as
-pre-existing. Exact unchanged frozen evidence remains directly resumable.
+pre-existing. Exact unchanged frozen evidence remains directly resumable. The
+attempt journal name is classified without following a symlink, so a symlinked
+or dangling journal entry stops instead of being read or replaced, and each
+archived receipt is filed under a contract-version-neutral stem plus its own
+recorded contract version. A journal written under a superseded contract is
+classified as legacy rather than corrupt when it still satisfies its own
+recorded contract; that refusal names the archive route explicitly, while a
+journal that fails its own contract is still reported as incoherent evidence.
 
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal
