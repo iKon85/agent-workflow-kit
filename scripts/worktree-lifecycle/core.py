@@ -785,6 +785,101 @@ def abandon_unfinished_landing_attempt(
     return archive
 
 
+def canonical_recovery_evidence(
+    canonical: WorktreeProfile,
+    worktree: Path,
+) -> tuple[dict[str, Any], ...]:
+    """Revalidate one frozen landing attempt against canonical policy alone.
+
+    Canonical cleanup-policy drift between attempt start and post-merge cleanup
+    strands an already-merged worktree, because the attempt is bound to the
+    policy that nominated it. This route re-derives deletion authority from the
+    merged canonical policy only. It never re-scans the worktree for new
+    candidates, so broader stale candidate evidence cannot enter; every frozen
+    identity must additionally still be named by canonical policy and still
+    match byte-for-byte on disk, so a narrowed canonical policy, a changed file,
+    and any pre-existing state stop the recovery instead of being deleted.
+    """
+    path = landing_attempt_path(worktree)
+    if not landing_attempt_exists(path):
+        raise LifecycleError(
+            "canonical cleanup recovery requires the landing attempt that froze "
+            "this teardown's evidence"
+        )
+    try:
+        require_regular_landing_attempt(path)
+        document = json.loads(path.read_text(encoding="utf-8"))
+        contract_version = document["contractVersion"]
+        payload = {
+            key: document[key]
+            for key in landing_attempt_keys(contract_version)
+        }
+        digest = document["sha256"]
+        metadata = os.lstat(worktree)
+        branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
+    except LifecycleError:
+        raise
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise LifecycleError(f"landing-attempt provenance is incoherent: {error}") from error
+    if (
+        contract_version != LANDING_ATTEMPT_CONTRACT_VERSION
+        or payload["worktree"] != str(worktree.resolve())
+        or payload["branch"] != branch
+        or not stat.S_ISDIR(metadata.st_mode)
+        or (payload["rootDevice"], payload["rootInode"])
+        != (metadata.st_dev, metadata.st_ino)
+        or not isinstance(payload["generatedFiles"], list)
+        or not isinstance(payload["authorizedEvidence"], list)
+        or type(payload["pushSucceeded"]) is not bool
+        or digest != _baseline_digest(payload)
+    ):
+        raise LifecycleError("landing-attempt provenance is incoherent")
+    if payload["state"] != "frozen" or not payload["pushSucceeded"]:
+        raise LifecycleError(
+            "canonical cleanup recovery requires a frozen landing attempt from a "
+            f"completed push; archive an unfinished attempt with `{ABANDON_ATTEMPT_FLAG}`"
+        )
+    if payload["generatedFiles"]:
+        raise LifecycleError(
+            "landing-start generated paths are consumer-owned and protected: "
+            + ", ".join(payload["generatedFiles"])
+        )
+    baseline = load_artifact_baseline(worktree)
+    if payload["baselineDigest"] != baseline.digest:
+        raise LifecycleError("artifact provenance baseline changed during landing")
+    frozen = tuple(payload["authorizedEvidence"])
+    relatives: list[str] = []
+    for item in frozen:
+        relative = item.get("path") if isinstance(item, dict) else None
+        if not isinstance(relative, str) or relative in relatives:
+            raise LifecycleError("scratch evidence is incoherent")
+        relatives.append(relative)
+    outside = sorted(
+        relative for relative in relatives
+        if not any(
+            path_glob_matches(relative, pattern)
+            for pattern in canonical.landing_generated_artifact_patterns
+        )
+    )
+    if outside:
+        raise LifecycleError(
+            "landing-attempt evidence is outside canonical cleanup policy: "
+            + ", ".join(outside)
+        )
+    with verified_worktree_root(
+        worktree,
+        baseline.root_device,
+        baseline.root_inode,
+    ) as descriptor:
+        current = tuple(
+            contained_regular_identity(descriptor, relative)
+            for relative in relatives
+        )
+    if current != frozen:
+        raise LifecycleError("landing-generated evidence changed after it was frozen")
+    return current
+
+
 def collect_facts(cwd: Path) -> RepoFacts:
     root = Path(run(["git", "rev-parse", "--show-toplevel"], cwd=cwd).stdout.strip()).resolve()
     main = main_worktree(root)

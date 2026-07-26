@@ -1412,6 +1412,227 @@ class LegacyLandingAttemptContract(unittest.TestCase):
             self.assertTrue(worktree.is_dir())
 
 
+class CanonicalCleanupDriftRecovery(unittest.TestCase):
+    """#272 — canonical policy drift stays fail-closed but has a supported route out."""
+
+    def drifted_merged_worktree(self, root: Path, wrapup, mutate) -> tuple[Path, Path]:
+        """Freeze a landing attempt, then drift canonical policy after the merge."""
+        main, worktree = create_merged_worktree(
+            root, scratch_patterns=[".claude/logs/**"]
+        )
+        wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+        generated = worktree / "dist-kit/package.tgz"
+        generated.parent.mkdir(parents=True)
+        generated.write_text("generated\n", encoding="utf-8")
+        wrapup.freeze_landing_artifact_evidence(
+            str(worktree), str(main), push_succeeded=True
+        )
+        profile_path = main / "docs/agents/workflow-capabilities.json"
+        document = json.loads(profile_path.read_text(encoding="utf-8"))
+        mutate(document)
+        profile_path.write_text(json.dumps(document), encoding="utf-8")
+        command(["git", "add", "docs/agents/workflow-capabilities.json"], main)
+        command(["git", "commit", "-m", "drift canonical cleanup policy"], main)
+        command(["git", "push", "origin", "main"], main)
+        return main, worktree
+
+    @staticmethod
+    def widen_scratch(document):
+        document["worktreeLifecycle"]["scratchPatterns"] = [
+            ".claude/logs/**", "**/.cache/**",
+        ]
+
+    @staticmethod
+    def drop_generator_pattern(document):
+        document["wrapup"]["landingGeneratedArtifactPatterns"] = [
+            "**/__pycache__/**",
+        ]
+
+    def test_first_cleanup_stops_before_every_mutation_and_names_recovery(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = self.drifted_merged_worktree(
+                Path(tmp), wrapup, self.widen_scratch
+            )
+            generated = worktree / "dist-kit/package.tgz"
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args())
+
+            self.assertIn(
+                "worktree cleanup policy differs from merged canonical origin/main",
+                stopped.exception.reason,
+            )
+            self.assertIn("--recover-canonical-cleanup", stopped.exception.reason)
+            self.assertTrue(worktree.is_dir())
+            self.assertEqual(generated.read_text(encoding="utf-8"), "generated\n")
+            self.assertIn(
+                "fix/268-cleanup",
+                command(["git", "branch", "--list", "fix/268-cleanup"], main).stdout,
+            )
+
+    def test_recovery_retires_the_merged_worktree_and_branch_idempotently(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = self.drifted_merged_worktree(
+                Path(tmp), wrapup, self.widen_scratch
+            )
+            log = worktree / ".claude/logs/session.log"
+            log.parent.mkdir(parents=True)
+            log.write_text("session\n", encoding="utf-8")
+
+            first = run_land(
+                wrapup, main, land_args(recover_canonical_cleanup=True)
+            )
+            second = run_land(
+                wrapup, main, land_args(recover_canonical_cleanup=True)
+            )
+
+            self.assertEqual(first["worktree_removed"], str(worktree))
+            self.assertEqual(
+                first["cleanup_guard"]["landing_generated_files"],
+                ["dist-kit/package.tgz"],
+            )
+            self.assertFalse(worktree.exists())
+            self.assertEqual(first["branch_retired"], True)
+            self.assertEqual(second["worktree_removed"], None)
+            self.assertEqual(second["branch_retired"], "already absent")
+            self.assertEqual(
+                command(["git", "branch", "--list", "fix/268-cleanup"], main).stdout,
+                "",
+            )
+
+    def test_recovery_refuses_evidence_outside_canonical_policy(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = self.drifted_merged_worktree(
+                Path(tmp), wrapup, self.drop_generator_pattern
+            )
+            generated = worktree / "dist-kit/package.tgz"
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args(recover_canonical_cleanup=True))
+
+            self.assertIn(
+                "outside canonical cleanup policy", stopped.exception.reason
+            )
+            self.assertIn("dist-kit/package.tgz", stopped.exception.reason)
+            self.assertEqual(generated.read_text(encoding="utf-8"), "generated\n")
+            self.assertTrue(worktree.is_dir())
+
+    def test_recovery_refuses_a_changed_frozen_identity(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = self.drifted_merged_worktree(
+                Path(tmp), wrapup, self.widen_scratch
+            )
+            generated = worktree / "dist-kit/package.tgz"
+            generated.write_text("replaced by a user\n", encoding="utf-8")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args(recover_canonical_cleanup=True))
+
+            self.assertIn("evidence changed", stopped.exception.reason)
+            self.assertEqual(
+                generated.read_text(encoding="utf-8"), "replaced by a user\n"
+            )
+            self.assertTrue(worktree.is_dir())
+
+    def test_recovery_preserves_pre_existing_and_foreign_files(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            main, worktree = self.drifted_merged_worktree(
+                root, wrapup, self.widen_scratch
+            )
+            consumer = worktree / "consumer/private.cache"
+            consumer.parent.mkdir(parents=True)
+            consumer.write_text("mine", encoding="utf-8")
+            foreign = root / "foreign.txt"
+            foreign.write_text("keep", encoding="utf-8")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args(recover_canonical_cleanup=True))
+
+            self.assertIn("consumer/private.cache", stopped.exception.detail)
+            self.assertEqual(consumer.read_text(encoding="utf-8"), "mine")
+            self.assertEqual(foreign.read_text(encoding="utf-8"), "keep")
+            self.assertTrue((worktree / "dist-kit/package.tgz").exists())
+            self.assertTrue(worktree.is_dir())
+
+    def test_recovery_refuses_an_unmerged_branch(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            wrapup.freeze_landing_artifact_evidence(
+                str(worktree), str(main), push_succeeded=True
+            )
+            (worktree / "later.txt").write_text("unmerged\n", encoding="utf-8")
+            command(["git", "add", "later.txt"], worktree)
+            command(["git", "commit", "-m", "unmerged work"], worktree)
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args(recover_canonical_cleanup=True))
+
+            self.assertIn("not merged into canonical origin/main",
+                          stopped.exception.reason)
+            self.assertTrue(worktree.is_dir())
+
+    def test_recovery_refuses_an_unfrozen_attempt(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = self.drifted_merged_worktree(
+                Path(tmp), wrapup, self.widen_scratch
+            )
+            core = wrapup.load_worktree_cleanup_core()
+            rewrite_landing_attempt(
+                core,
+                worktree,
+                lambda payload: payload.update(
+                    {"state": "started", "authorizedEvidence": [],
+                     "pushSucceeded": False},
+                ),
+            )
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args(recover_canonical_cleanup=True))
+
+            self.assertIn("frozen landing attempt", stopped.exception.reason)
+            self.assertTrue((worktree / "dist-kit/package.tgz").exists())
+            self.assertTrue(worktree.is_dir())
+
+    def test_recovery_never_adopts_a_legacy_journal(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = self.drifted_merged_worktree(
+                Path(tmp), wrapup, self.widen_scratch
+            )
+            core = wrapup.load_worktree_cleanup_core()
+            downgrade_landing_attempt_to_v1(core, worktree)
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args(recover_canonical_cleanup=True))
+
+            self.assertIn("incoherent", stopped.exception.reason)
+            self.assertTrue((worktree / "dist-kit/package.tgz").exists())
+            self.assertTrue(worktree.is_dir())
+
+    def test_abandon_and_recovery_flags_are_mutually_exclusive(self):
+        result = subprocess.run(
+            [
+                os.sys.executable, str(WRAPUP), "land", "--branch", "fix/1-x",
+                "--abandon-unfinished-attempt", "--recover-canonical-cleanup",
+            ],
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("not allowed with argument", result.stderr)
+
+
 def core_archive_stem(wrapup) -> str:
     return wrapup.load_worktree_cleanup_core().LANDING_ATTEMPT_ARCHIVE_STEM
 

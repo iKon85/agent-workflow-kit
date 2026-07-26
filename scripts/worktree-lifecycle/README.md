@@ -83,6 +83,16 @@ checked against that canonical generator policy. A missing policy is distinct
 from an explicit empty policy. An unmerged or transient branch policy therefore
 cannot grant itself broader cleanup authority.
 
+Canonical policy that drifts between attempt start and post-merge cleanup keeps
+that refusal, and the refusal names its supported recovery. Recovery re-derives
+authority from the merged canonical policy alone: it never consults the stale
+worktree candidate, never re-scans for new candidates, requires the branch to
+already be an ancestor of canonical main, and requires each frozen identity to
+be both named by canonical policy and unchanged on disk. Evidence outside
+canonical policy, a changed identity, and pre-existing or foreign state stop the
+recovery instead of being deleted, and a repeated run after a completed teardown
+is a no-op.
+
 The landing adapter may carry exact scratch evidence only for current ignored
 files that match the consumer-owned
 `wrapup.landingGeneratedArtifactPatterns` profile and were absent from that
