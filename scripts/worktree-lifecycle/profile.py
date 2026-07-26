@@ -26,6 +26,7 @@ class WorktreeProfile:
     setup_entry: str
     risky_command_patterns: tuple[str, ...]
     scratch_patterns: tuple[str, ...]
+    landing_generated_artifact_patterns: tuple[str, ...]
 
     def branch_name(self, issue: str, slug: str, branch_type: str) -> str:
         return _render(self.branch_template, issue, slug, branch_type)
@@ -55,6 +56,17 @@ def load_profile(path: Path) -> WorktreeProfile:
         raise LifecycleError(f"cannot load worktree lifecycle profile: {error}") from error
     if raw.get("enabled") is not True:
         raise LifecycleError("worktree lifecycle is not enabled")
+    wrapup = document.get("wrapup")
+    if wrapup is None:
+        wrapup = {}
+    if not isinstance(wrapup, dict):
+        raise LifecycleError("invalid wrapup profile")
+    generated_patterns = wrapup.get("landingGeneratedArtifactPatterns") or ()
+    if (
+        not isinstance(generated_patterns, (list, tuple))
+        or not all(isinstance(pattern, str) and pattern for pattern in generated_patterns)
+    ):
+        raise LifecycleError("invalid wrapup landingGeneratedArtifactPatterns")
     main = tuple(raw.get("mainBranches") or ("main", "master"))
     return WorktreeProfile(
         root=raw.get("worktreeRoot", ".worktrees"),
@@ -76,6 +88,7 @@ def load_profile(path: Path) -> WorktreeProfile:
             r"\bgit\s+(?:commit|push)\b",
         )),
         scratch_patterns=tuple(raw.get("scratchPatterns") or ()),
+        landing_generated_artifact_patterns=tuple(generated_patterns),
     )
 
 

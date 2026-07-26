@@ -27,7 +27,6 @@ import re
 import subprocess
 import sys
 import time
-from fnmatch import fnmatchcase
 from pathlib import Path
 from urllib.parse import quote
 
@@ -438,41 +437,33 @@ def load_worktree_cleanup_core():
     return module
 
 
-def ignored_worktree_files(wt: str) -> set[str]:
-    result = git(
-        ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"],
-        cwd=wt,
-        check=True,
-    )
-    return {path for path in result.stdout.split("\0") if path}
-
-
-def landing_generated_patterns(main_tree: str) -> tuple[str, ...]:
+def landing_artifact_baseline_digest(wt: str, main_tree: str) -> str:
     profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
+    core = load_worktree_cleanup_core()
     try:
-        document = json.loads(profile_path.read_text(encoding="utf-8"))
-        patterns = document.get("wrapup", {}).get(
-            "landingGeneratedArtifactPatterns", []
-        )
-    except (OSError, json.JSONDecodeError, AttributeError):
-        return ()
-    if not isinstance(patterns, list) or not all(
-        isinstance(pattern, str) and pattern for pattern in patterns
-    ):
-        return ()
-    return tuple(patterns)
+        core.load_profile(profile_path)
+        return core.load_artifact_baseline(Path(wt)).digest
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
 
 
-def landing_generated_files(
-    current: set[str],
-    patterns: tuple[str, ...],
+def landing_verified_scratch_files(
+    wt: str,
+    main_tree: str,
+    *,
+    expected_baseline_digest: str | None = None,
 ) -> tuple[str, ...]:
-    """Return exact ignored files in repository-authorized generated namespaces."""
-    return tuple(sorted(
-        path
-        for path in current
-        if any(fnmatchcase(path, pattern) for pattern in patterns)
-    ))
+    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
+    core = load_worktree_cleanup_core()
+    try:
+        profile = core.load_profile(profile_path)
+        return core.verified_landing_scratch_files(
+            profile,
+            Path(wt),
+            expected_baseline_digest=expected_baseline_digest,
+        )
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
 
 
 def ensure_worktree_removable(
@@ -800,9 +791,11 @@ def cmd_land(args) -> dict:
 
     # drift markers from the build-time log — mechanical, no gate
     markers: list[dict] = []
+    artifact_baseline_digest: str | None = None
     if wt_exists:
         if git(["status", "--porcelain"], cwd=wt, check=True).stdout.strip():
             raise Stop("land", "worktree dirty — run `commit` first", wt)
+        artifact_baseline_digest = landing_artifact_baseline_digest(wt, main_tree)
         annahmen = Path(wt) / "ANNAHMEN.md"
         if annahmen.is_file():
             markers, malformed = parse_annahmen(annahmen.read_text(), default_section)
@@ -887,9 +880,10 @@ def cmd_land(args) -> dict:
     # Step 2 — kill the worktree's dev server, then Step 4 — teardown
     if wt_exists:
         git(["fetch", "origin", "main"], cwd=main_tree, check=True)
-        generated = landing_generated_files(
-            ignored_worktree_files(wt),
-            landing_generated_patterns(main_tree),
+        generated = landing_verified_scratch_files(
+            wt,
+            main_tree,
+            expected_baseline_digest=artifact_baseline_digest,
         )
         cleanup = ensure_worktree_removable(
             wt,

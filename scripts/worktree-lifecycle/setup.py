@@ -10,6 +10,7 @@ import zlib
 from pathlib import Path
 
 from core import (
+    capture_artifact_baseline,
     LifecycleError,
     load_profile,
     local_branch_exists,
@@ -157,6 +158,7 @@ def create(args: argparse.Namespace) -> Path:
                 issue=args.issue,
                 branch=branch,
             )
+        capture_artifact_baseline(target)
     except Exception:
         remove_failed_worktree(main, target, branch, not branch_existed)
         raise

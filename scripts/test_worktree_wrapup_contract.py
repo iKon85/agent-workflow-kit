@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parent.parent
 WRAPUP = REPO / "scripts/wrapup-land.py"
+SETUP = REPO / "scripts/worktree-lifecycle/setup.py"
 
 
 def load_wrapup():
@@ -32,16 +33,19 @@ def command(args, cwd):
     )
 
 
-def create_merged_worktree(root: Path) -> tuple[Path, Path]:
+def create_merged_worktree(
+    root: Path,
+    *,
+    setup_steps: list[dict] | None = None,
+) -> tuple[Path, Path]:
     remote = root / "remote.git"
     main = root / "main"
-    worktree = root / "feature"
     command(["git", "init", "--bare", str(remote)], root)
     command(["git", "init", "-b", "main", str(main)], root)
     command(["git", "config", "user.name", "Test"], main)
     command(["git", "config", "user.email", "test@example.invalid"], main)
     (main / ".gitignore").write_text(
-        "dist-kit/\n__pycache__/\n.claude/logs/\nconsumer/\n",
+        ".worktrees/\ndist-kit/\n__pycache__/\n.claude/logs/\nconsumer/\n",
         encoding="utf-8",
     )
     profile = main / "docs/agents/workflow-capabilities.json"
@@ -49,9 +53,13 @@ def create_merged_worktree(root: Path) -> tuple[Path, Path]:
     profile.write_text(json.dumps({
         "worktreeLifecycle": {
             "enabled": True,
+            "worktreeRoot": ".worktrees",
+            "branchTemplate": "{type}/{issue}-{slug}",
+            "pathTemplate": "{issue}-{slug}",
             "mainBranches": ["main"],
             "protectedBranches": ["main"],
             "scratchPatterns": [],
+            "setupSteps": setup_steps or [],
         },
         "wrapup": {
             "landingGeneratedArtifactPatterns": [
@@ -65,10 +73,19 @@ def create_merged_worktree(root: Path) -> tuple[Path, Path]:
     command(["git", "commit", "-m", "seed"], main)
     command(["git", "remote", "add", "origin", str(remote)], main)
     command(["git", "push", "-u", "origin", "main"], main)
-    command(
-        ["git", "worktree", "add", "-b", "fix/268-cleanup", str(worktree)],
-        main,
-    )
+    command([
+        os.sys.executable,
+        str(SETUP),
+        "--profile",
+        str(profile),
+        "--base",
+        "origin/main",
+        "268",
+        "cleanup",
+        "fix",
+    ], main)
+    worktree = main / ".worktrees/268-cleanup"
+    command(["git", "rev-parse", "--verify", "HEAD"], worktree)
     (worktree / "change.txt").write_text("landed\n", encoding="utf-8")
     command(["git", "add", "change.txt"], worktree)
     command(["git", "commit", "-m", "change"], worktree)
@@ -105,19 +122,23 @@ class WorktreeCleanupContract(unittest.TestCase):
         self.assertIn("shared cleanup guard", stopped.exception.reason)
         self.assertEqual(calls[1][-1], "origin/main")
 
-    def test_already_merged_land_removes_artifacts_created_before_land(self):
+    def test_release_build_subprocess_after_creation_baseline_is_cleaned_by_land(self):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             main, worktree = create_merged_worktree(root)
-            generated = {
-                worktree / "dist-kit/package.tgz": "package",
-                worktree / "scripts/__pycache__/guard.pyc": "cache",
-                worktree / ".claude/logs/wrapup.log": "log",
-            }
-            for path, content in generated.items():
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(content, encoding="utf-8")
+            generator = """
+from pathlib import Path
+for relative, content in {
+    "dist-kit/package.tgz": "package",
+    "scripts/__pycache__/guard.pyc": "cache",
+    ".claude/logs/wrapup.log": "log",
+}.items():
+    path = Path(relative)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+"""
+            command([os.sys.executable, "-c", generator], worktree)
 
             real_run = wrapup.run
 
@@ -172,27 +193,66 @@ class WorktreeCleanupContract(unittest.TestCase):
             self.assertFalse(worktree.exists())
             self.assertTrue(second["merged"])
 
-    def test_profile_authorizes_preexisting_generated_namespace(self):
+    def test_profile_generated_path_present_in_creation_baseline_is_not_scratch(self):
         wrapup = load_wrapup()
-
-        self.assertEqual(
-            wrapup.landing_generated_files(
-                {"dist-kit/old-build.txt", "dist-kit/package.tgz"},
-                ("dist-kit/**",),
-            ),
-            ("dist-kit/old-build.txt", "dist-kit/package.tgz"),
-        )
-
-    def test_unmatched_new_ignored_file_is_not_landing_generated(self):
-        wrapup = load_wrapup()
-        current = {
-            "dist-kit/package.tgz",
-            "consumer/private.cache",
+        setup_step = {
+            "kind": "command",
+            "command": [
+                os.sys.executable,
+                "-c",
+                (
+                    "from pathlib import Path; "
+                    "p=Path('dist-kit/setup-owned.txt'); "
+                    "p.parent.mkdir(parents=True); p.write_text('initial')"
+                ),
+            ],
         }
-        self.assertEqual(
-            wrapup.landing_generated_files(current, ("dist-kit/**",)),
-            ("dist-kit/package.tgz",),
-        )
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(
+                Path(tmp),
+                setup_steps=[setup_step],
+            )
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_verified_scratch_files(
+                    str(worktree),
+                    str(main),
+                )
+
+            self.assertIn("dist-kit/setup-owned.txt", stopped.exception.reason)
+
+    def test_missing_creation_baseline_fails_safe(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            core = wrapup.load_worktree_cleanup_core()
+            core.artifact_baseline_path(worktree).unlink()
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_verified_scratch_files(
+                    str(worktree),
+                    str(main),
+                )
+
+            self.assertIn("artifact provenance baseline", stopped.exception.reason)
+
+    def test_incoherent_creation_baseline_fails_safe(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            core = wrapup.load_worktree_cleanup_core()
+            baseline_path = core.artifact_baseline_path(worktree)
+            baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+            baseline["branch"] = "fix/999-foreign"
+            baseline_path.write_text(json.dumps(baseline), encoding="utf-8")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_verified_scratch_files(
+                    str(worktree),
+                    str(main),
+                )
+
+            self.assertIn("artifact provenance baseline", stopped.exception.reason)
 
     def test_arbitrary_ignored_file_stops_exact_landing_cleanup(self):
         wrapup = load_wrapup()

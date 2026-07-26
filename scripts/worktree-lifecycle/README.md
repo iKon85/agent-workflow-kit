@@ -49,13 +49,19 @@ same removable inventory, deletes only the exact contained regular scratch
 files from that inventory, and uses ordinary `git worktree remove`. It never
 bypasses Git's final concurrent-change check with force removal.
 
-The landing adapter may additionally carry exact scratch evidence for ignored
-files inside repository-authorized generated namespaces. Only paths matching
-the consumer-owned `wrapup.landingGeneratedArtifactPatterns` profile are
-eligible, including build output created earlier in the same session.
-Unmatched files, symlinks, and writes after the evidence snapshot remain
-cleanup stops; deletion still uses the same descriptor-bound regular-file
-primitive and a second inventory check.
+After a newly created worktree completes every configured setup step, setup
+atomically records its ignored-file inventory in that linked worktree's Git
+metadata. The record is bound to the worktree path, branch, root device/inode,
+and setup HEAD, and carries a canonical digest. Existing worktrees are never
+backfilled because their initial inventory is no longer knowable.
+
+The landing adapter may carry exact scratch evidence only for current ignored
+files that match the consumer-owned
+`wrapup.landingGeneratedArtifactPatterns` profile and were absent from that
+creation baseline. Missing, changed, or incoherent provenance stops landing
+cleanup. Initial/profile-matched files, unmatched files, symlinks, and writes
+after the landing evidence snapshot remain cleanup stops; deletion still uses
+the same descriptor-bound regular-file primitive and a second inventory check.
 
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal

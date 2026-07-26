@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import stat
 from contextlib import contextmanager
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
+from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from time import time
 from typing import Any, Callable
@@ -24,6 +26,7 @@ from profile import (
 
 _BRANCH_CHANGE_RE = re.compile(r"\b(?:git\s+(?:checkout|switch)|gh\s+pr\s+(?:merge|checkout))\b")
 _BRANCH_CREATE_RE = re.compile(r"\bgit\s+(?:checkout|switch)\s+-[bc]\s+(\S+)")
+ARTIFACT_BASELINE_FILE = "awkit-artifact-baseline-v1.json"
 
 @dataclass(frozen=True)
 class RepoFacts:
@@ -71,6 +74,224 @@ class CleanupFacts:
     assumptions: str
     root_device: int
     root_inode: int
+
+
+@dataclass(frozen=True)
+class ArtifactBaseline:
+    worktree: Path
+    branch: str
+    root_device: int
+    root_inode: int
+    setup_head: str
+    initial_ignored_files: tuple[str, ...]
+    digest: str
+
+
+def ignored_file_inventory(worktree: Path) -> tuple[str, ...]:
+    result = run(
+        [
+            "git", "ls-files", "--others", "--ignored",
+            "--exclude-standard", "-z",
+        ],
+        cwd=worktree,
+    )
+    return tuple(sorted(path for path in result.stdout.split("\0") if path))
+
+
+def artifact_baseline_path(worktree: Path) -> Path:
+    result = run(
+        ["git", "rev-parse", "--absolute-git-dir"],
+        cwd=worktree,
+    )
+    git_dir = Path(result.stdout.strip())
+    if not git_dir.is_absolute():
+        raise LifecycleError("artifact provenance baseline git dir is not absolute")
+    return git_dir / ARTIFACT_BASELINE_FILE
+
+
+def _baseline_payload(
+    *,
+    worktree: Path,
+    branch: str,
+    root_device: int,
+    root_inode: int,
+    setup_head: str,
+    initial_ignored_files: tuple[str, ...],
+) -> dict[str, Any]:
+    return {
+        "contractVersion": 1,
+        "worktree": str(worktree),
+        "branch": branch,
+        "rootDevice": root_device,
+        "rootInode": root_inode,
+        "setupHead": setup_head,
+        "initialIgnoredFiles": list(initial_ignored_files),
+    }
+
+
+def _baseline_digest(payload: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return sha256(encoded).hexdigest()
+
+
+def capture_artifact_baseline(worktree: Path) -> ArtifactBaseline:
+    worktree = worktree.resolve()
+    metadata = worktree.stat()
+    branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
+    setup_head = run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
+    ignored = ignored_file_inventory(worktree)
+    payload = _baseline_payload(
+        worktree=worktree,
+        branch=branch,
+        root_device=metadata.st_dev,
+        root_inode=metadata.st_ino,
+        setup_head=setup_head,
+        initial_ignored_files=ignored,
+    )
+    digest = _baseline_digest(payload)
+    path = artifact_baseline_path(worktree)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            json.dump({**payload, "sha256": digest}, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        directory_descriptor = os.open(
+            path.parent,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+        )
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
+    except OSError as error:
+        temporary.unlink(missing_ok=True)
+        raise LifecycleError(f"cannot write artifact provenance baseline: {error}") from error
+    return ArtifactBaseline(
+        worktree,
+        branch,
+        metadata.st_dev,
+        metadata.st_ino,
+        setup_head,
+        ignored,
+        digest,
+    )
+
+
+def load_artifact_baseline(worktree: Path) -> ArtifactBaseline:
+    worktree = worktree.resolve()
+    path = artifact_baseline_path(worktree)
+    try:
+        if path.is_symlink() or not path.is_file():
+            raise LifecycleError("artifact provenance baseline is missing or not a regular file")
+        document = json.loads(path.read_text(encoding="utf-8"))
+        payload = {
+            key: document[key]
+            for key in (
+                "contractVersion",
+                "worktree",
+                "branch",
+                "rootDevice",
+                "rootInode",
+                "setupHead",
+                "initialIgnoredFiles",
+            )
+        }
+        digest = document["sha256"]
+    except LifecycleError:
+        raise
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise LifecycleError(f"artifact provenance baseline is incoherent: {error}") from error
+    ignored = payload["initialIgnoredFiles"]
+    if (
+        payload["contractVersion"] != 1
+        or not isinstance(payload["worktree"], str)
+        or not isinstance(payload["branch"], str)
+        or not payload["branch"]
+        or type(payload["rootDevice"]) is not int
+        or type(payload["rootInode"]) is not int
+        or not isinstance(payload["setupHead"], str)
+        or re.fullmatch(r"[0-9a-f]{40,64}", payload["setupHead"]) is None
+        or not isinstance(ignored, list)
+        or not all(
+            isinstance(path_value, str)
+            and path_value
+            and not PurePosixPath(path_value).is_absolute()
+            and ".." not in PurePosixPath(path_value).parts
+            for path_value in ignored
+        )
+        or ignored != sorted(set(ignored))
+        or not isinstance(digest, str)
+        or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+        or digest != _baseline_digest(payload)
+    ):
+        raise LifecycleError("artifact provenance baseline is incoherent")
+    try:
+        metadata = worktree.stat()
+        branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
+    except (OSError, LifecycleError) as error:
+        raise LifecycleError(
+            f"artifact provenance baseline binding cannot be verified: {error}"
+        ) from error
+    if (
+        payload["worktree"] != str(worktree)
+        or payload["branch"] != branch
+        or (payload["rootDevice"], payload["rootInode"])
+        != (metadata.st_dev, metadata.st_ino)
+    ):
+        raise LifecycleError("artifact provenance baseline binding does not match worktree")
+    return ArtifactBaseline(
+        worktree,
+        branch,
+        metadata.st_dev,
+        metadata.st_ino,
+        payload["setupHead"],
+        tuple(ignored),
+        digest,
+    )
+
+
+def verified_landing_scratch_files(
+    profile: WorktreeProfile,
+    worktree: Path,
+    *,
+    expected_baseline_digest: str | None = None,
+) -> tuple[str, ...]:
+    baseline = load_artifact_baseline(worktree)
+    if (
+        expected_baseline_digest is not None
+        and baseline.digest != expected_baseline_digest
+    ):
+        raise LifecycleError("artifact provenance baseline changed during landing")
+    current = set(ignored_file_inventory(worktree))
+    initial = current.intersection(baseline.initial_ignored_files)
+    initial_generated = sorted(
+        path for path in initial
+        if any(
+            fnmatchcase(path, pattern)
+            for pattern in profile.landing_generated_artifact_patterns
+        )
+    )
+    if initial_generated:
+        raise LifecycleError(
+            "artifact provenance baseline protects initial generated paths: "
+            + ", ".join(initial_generated)
+        )
+    return tuple(sorted(
+        path
+        for path in current.difference(baseline.initial_ignored_files)
+        if any(
+            fnmatchcase(path, pattern)
+            for pattern in profile.landing_generated_artifact_patterns
+        )
+    ))
 
 
 def collect_facts(cwd: Path) -> RepoFacts:
