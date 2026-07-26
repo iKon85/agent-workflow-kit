@@ -1087,7 +1087,7 @@
       "path": ".claude/hooks/drift-guard.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "a248eb3697522b8804fd7d68d1fe3e95613a71829464501c8c7fa4c09d229a64",
+      "sha256": "1480bd322d988a546ed589a2420796b38bbf0f52300598a1dd9aa9ddbeb3ea1d",
       "mode": 493,
       "origin": "kit"
     },
