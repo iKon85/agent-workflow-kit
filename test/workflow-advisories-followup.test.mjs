@@ -108,6 +108,22 @@ test('migration reminder is profile-driven and non-matching commands are no-ops'
     tool_input: { command: 'npm test' },
   });
   const matched = await runHook(root, 'migration-snapshot-reminder.py', {
+    session_id: 'session-177',
+    tool_name: 'Bash',
+    tool_input: { command: 'db migrate --latest' },
+  });
+  const repeated = await runHook(root, 'migration-snapshot-reminder.py', {
+    session_id: 'session-177',
+    tool_name: 'Bash',
+    tool_input: { command: 'schema apply --latest' },
+  });
+  const quotedMention = await runHook(root, 'migration-snapshot-reminder.py', {
+    session_id: 'session-quoted',
+    tool_name: 'Bash',
+    tool_input: { command: 'git commit -m "document db migrate --latest usage"' },
+  });
+  const directAfterQuoted = await runHook(root, 'migration-snapshot-reminder.py', {
+    session_id: 'session-quoted',
     tool_name: 'Bash',
     tool_input: { command: 'db migrate --latest' },
   });
@@ -117,6 +133,9 @@ test('migration reminder is profile-driven and non-matching commands are no-ops'
   assert.equal(payload.hookSpecificOutput.hookEventName, 'PostToolUse');
   assert.match(payload.hookSpecificOutput.additionalContext, /schema\/snapshot\.json/);
   assert.match(payload.hookSpecificOutput.additionalContext, /npm run schema:snapshot/);
+  assert.equal(repeated.stdout, '');
+  assert.equal(quotedMention.stdout, '');
+  assert.notEqual(directAfterQuoted.stdout, '');
 });
 
 test('LoC forewarning consumes the gate threshold and issue marker without weakening failures', async (t) => {
