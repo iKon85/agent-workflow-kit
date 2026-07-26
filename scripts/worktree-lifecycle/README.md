@@ -17,6 +17,8 @@ they do not carry a second branch regex, worktree traversal, or failure policy.
 - `setupEntry` and ordered `setupSteps`: the portable setup command and project
   setup sequence.
 - `riskyCommandPatterns`: commands that must target the active linked worktree.
+- `scratchPatterns`: consumer-owned glob patterns for untracked disposable
+  planning artefacts. No filename is assumed by Core.
 
 Unknown or malformed events fail open without changing repository state.
 Security-sensitive, profile-matched edits and commands fail closed only when
@@ -35,10 +37,17 @@ the core proves the target is unsafe.
 
 ## Cleanup
 
-`cleanup.py` previews by default. Removal refuses protected, dirty, or unmerged
-worktrees. The assessment reads `ANNAHMEN.md` before removal and returns its
-contents for propagation. `wrapup-land.py` invokes this same assessment after a
-merge and before killing processes or removing the worktree.
+`cleanup.py` previews by default. Removal refuses protected, tracked-dirty,
+non-scratch-dirty, open-PR, or unmerged worktrees. Profile-declared untracked
+scratch is named in the report but does not block removal. The assessment reads
+`ANNAHMEN.md` before removal and returns its contents for propagation.
+`wrapup-land.py` invokes this same assessment after a merge and before killing
+processes or removing the worktree.
+
+`cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
+every linked worktree and local branch, reports issue/PR/merge/age/removal
+facts, and counts merged remote branches separately. It never removes a
+worktree or branch.
 
 Claude hook wiring and any Codex adaptation consume this same profile and core.
 An adapter may change only the surface event envelope; it must preserve the

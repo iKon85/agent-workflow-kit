@@ -4,19 +4,58 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 import json
 import sys
 from pathlib import Path
 
-from core import LifecycleError, cleanup_assessment, load_profile, main_worktree, run
+from core import LifecycleError, cleanup_assessment, collect_sweep, load_profile, main_worktree, run
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", default="docs/agents/workflow-capabilities.json")
     parser.add_argument("--remove", action="store_true")
-    parser.add_argument("worktree")
+    parser.add_argument("--gh-command", default="gh")
+    parser.add_argument("worktree", nargs="?")
     return parser.parse_args()
+
+
+def parse_sweep_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="cleanup.py sweep")
+    parser.add_argument("--profile", default="docs/agents/workflow-capabilities.json")
+    parser.add_argument("--gh-command", default="gh")
+    return parser.parse_args(argv)
+
+
+def pr_state(gh_command: str, main: Path, branch: str) -> str:
+    remote = run(
+        ["git", "remote", "get-url", "origin"],
+        cwd=main,
+        check=False,
+    )
+    if remote.returncode != 0:
+        return "none"
+    result = run(
+        [
+            gh_command, "pr", "list", "--state", "all", "--head", branch,
+            "--json", "number,state,mergedAt",
+        ],
+        cwd=main,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise LifecycleError(f"cannot determine PR state for {branch}: {detail}")
+    try:
+        prs = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise LifecycleError(f"cannot determine PR state for {branch}: invalid gh output") from error
+    if any(str(pr.get("state", "")).upper() == "OPEN" for pr in prs):
+        return "open"
+    if any(pr.get("mergedAt") or str(pr.get("state", "")).upper() == "MERGED" for pr in prs):
+        return "merged"
+    return "none"
 
 
 def execute(args: argparse.Namespace) -> dict:
@@ -25,28 +64,84 @@ def execute(args: argparse.Namespace) -> dict:
     if not profile_path.is_absolute():
         profile_path = main / profile_path
     profile = load_profile(profile_path)
-    assessment = cleanup_assessment(profile, main, Path(args.worktree))
+    if not args.worktree:
+        raise LifecycleError("worktree is required")
+    assessment = cleanup_assessment(
+        profile,
+        main,
+        Path(args.worktree),
+        pr_state=pr_state(args.gh_command, main, run(
+            ["git", "-C", str(Path(args.worktree).resolve()), "branch", "--show-current"],
+            cwd=main,
+            check=False,
+        ).stdout.strip()),
+    )
     report = {
         "worktree": str(assessment.worktree),
         "branch": assessment.branch,
         "removable": assessment.removable,
         "reasons": list(assessment.reasons),
         "assumptions": assessment.assumptions,
+        "scratchFiles": list(assessment.scratch_files),
         "removed": False,
     }
     if not args.remove:
         return report
     if not assessment.removable:
         raise LifecycleError("; ".join(assessment.reasons))
-    run(["git", "worktree", "remove", str(assessment.worktree)], cwd=main)
+    command = ["git", "worktree", "remove"]
+    if assessment.scratch_files:
+        command.append("--force")
+    run([*command, str(assessment.worktree)], cwd=main)
     run(["git", "branch", "-d", assessment.branch], cwd=main)
     report["removed"] = True
     return report
 
 
+def sweep(args: argparse.Namespace) -> dict:
+    main = main_worktree(Path.cwd())
+    profile_path = Path(args.profile)
+    if not profile_path.is_absolute():
+        profile_path = main / profile_path
+    profile = load_profile(profile_path)
+    report = collect_sweep(
+        profile,
+        main,
+        lambda branch: pr_state(args.gh_command, main, branch),
+    )
+    payload = asdict(report)
+    return {
+        "mainBranch": payload["main_branch"],
+        "worktreeCount": payload["worktree_count"],
+        "localBranchCount": payload["local_branch_count"],
+        "mergedRemoteBranchCount": payload["merged_remote_branch_count"],
+        "rows": [
+            {
+                "kind": row["kind"],
+                "path": row["path"],
+                "branch": row["branch"],
+                "issue": row["issue"],
+                "prState": row["pr_state"],
+                "mergedIntoMain": row["merged_into_main"],
+                "lastCommitAgeSeconds": row["last_commit_age_seconds"],
+                "removable": row["removable"],
+                "reasons": list(row["reasons"]),
+                "verdictReason": row["verdict_reason"],
+                "scratchFiles": list(row["scratch_files"]),
+                "assumptions": row["assumptions"],
+            }
+            for row in payload["rows"]
+        ],
+    }
+
+
 def main() -> int:
     try:
-        print(json.dumps(execute(parse_args()), ensure_ascii=False, indent=2))
+        if len(sys.argv) > 1 and sys.argv[1] == "sweep":
+            result = sweep(parse_sweep_args(sys.argv[2:]))
+        else:
+            result = execute(parse_args())
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     except LifecycleError as error:
         print(f"STOP: {error}", file=sys.stderr)

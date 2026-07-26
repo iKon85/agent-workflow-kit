@@ -45,6 +45,7 @@ async function reconcile(root, effect) {
         branchRegex: '^(?:feat|fix|chore|docs)/(?P<issue>\\d+)-',
         mainBranches: ['main', 'master'],
         protectedBranches: ['main', 'master'],
+        scratchPatterns: [],
         setupEntry: 'python3 scripts/worktree-lifecycle/setup.py',
         setupSteps: [],
         ...profile.worktreeLifecycle,
@@ -80,7 +81,12 @@ test('yes/later/no/existing/disable activation matrix is idempotent and preserve
       await mkdir(join(root, 'docs/agents'), { recursive: true });
       await writeFile(join(root, 'docs/agents/workflow-capabilities.json'), JSON.stringify({
         consumerKey: 'keep',
-        worktreeLifecycle: { enabled: true, choice: 'yes', unknownKey: 'keep' },
+        worktreeLifecycle: {
+          enabled: true,
+          choice: 'yes',
+          unknownKey: 'keep',
+          scratchPatterns: ['LOCAL-PLAN.md'],
+        },
       }));
     }
     const paths = await reconcile(root, effects[state]);
@@ -94,6 +100,7 @@ test('yes/later/no/existing/disable activation matrix is idempotent and preserve
     if (state === 'existing' || state === 'disable') {
       assert.equal(profile.consumerKey, 'keep');
       assert.equal(profile.worktreeLifecycle.unknownKey, 'keep');
+      assert.deepEqual(profile.worktreeLifecycle.scratchPatterns, ['LOCAL-PLAN.md']);
     }
     if (state === 'disable') assert.equal(profile.worktreeLifecycle.enabled, false);
   }

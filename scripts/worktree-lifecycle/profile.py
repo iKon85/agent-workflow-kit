@@ -25,6 +25,7 @@ class WorktreeProfile:
     branch_regex: str
     setup_entry: str
     risky_command_patterns: tuple[str, ...]
+    scratch_patterns: tuple[str, ...]
 
     def branch_name(self, issue: str, slug: str, branch_type: str) -> str:
         return _render(self.branch_template, issue, slug, branch_type)
@@ -74,6 +75,7 @@ def load_profile(path: Path) -> WorktreeProfile:
             r"\b(?:npm|pnpm|yarn)\s+(?:run\s+)?(?:test|typecheck|build)\b",
             r"\bgit\s+(?:commit|push)\b",
         )),
+        scratch_patterns=tuple(raw.get("scratchPatterns") or ()),
     )
 
 

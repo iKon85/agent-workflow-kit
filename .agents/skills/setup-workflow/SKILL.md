@@ -203,8 +203,8 @@ Worktree Lifecycle for this repository?"* Offer exactly **Yes**, **Later**, and
 
 - **Yes** — create or deepen only the `worktreeLifecycle` section in
   `docs/agents/workflow-capabilities.json`, preserve every other section and
-  unknown key, and reconcile only the exact kit-owned hook commands listed in
-  the seed.
+  unknown key, reconcile an explicit consumer-derived `scratchPatterns` array,
+  and reconcile only the exact kit-owned hook commands listed in the seed.
 - **Later / No** — record the choice in the tracked profile without installing
   hook wiring. Ordinary reruns do not ask again.
 - **Existing** — adopt the current section and wiring without normalizing

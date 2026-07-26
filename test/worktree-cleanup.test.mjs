@@ -20,7 +20,7 @@ async function fixture() {
   await git(root, 'config', 'user.email', 'test@example.invalid');
   await git(root, 'config', 'user.name', 'Test User');
   await writeFile(join(root, 'tracked.txt'), 'base\n');
-  await writeFile(join(root, '.gitignore'), 'ANNAHMEN.md\n');
+  await writeFile(join(root, '.gitignore'), 'ANNAHMEN.md\nPLAN*.md\n');
   await mkdir(join(root, 'docs/agents'), { recursive: true });
   const profile = join(root, 'docs/agents/workflow-capabilities.json');
   await writeFile(profile, JSON.stringify({
@@ -33,6 +33,7 @@ async function fixture() {
       branchRegex: '^(?:feat|fix)/(?P<issue>\\d+)-',
       mainBranches: ['main'],
       protectedBranches: ['main'],
+      scratchPatterns: ['PLAN.md', 'PLAN-REVIEW-LOG.md'],
       setupSteps: [],
     },
   }));
@@ -68,6 +69,112 @@ test('cleanup refuses a clean branch whose commit is not merged into main', asyn
   ], { cwd: root }), /unmerged/);
 
   assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
+});
+
+test('cleanup classifies profile-declared untracked scratch as removable and names it', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(worktree, 'PLAN.md'), '# local plan\n');
+
+  const preview = JSON.parse((await run('python3', [
+    CLEANUP, '--profile', profile, worktree,
+  ], { cwd: root })).stdout);
+
+  assert.equal(preview.removable, true);
+  assert.deepEqual(preview.scratchFiles, ['PLAN.md']);
+  assert.deepEqual(preview.reasons, []);
+});
+
+test('explicit cleanup removes a merged worktree whose only dirt is reported scratch', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(worktree, 'PLAN.md'), '# local plan\n');
+
+  const removed = JSON.parse((await run('python3', [
+    CLEANUP, '--profile', profile, '--remove', worktree,
+  ], { cwd: root })).stdout);
+
+  assert.deepEqual(removed.scratchFiles, ['PLAN.md']);
+  assert.equal(removed.removed, true);
+  assert.doesNotMatch((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
+});
+
+test('cleanup refuses untracked non-scratch and tracked modifications separately', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(worktree, 'PLAN.md'), '# local plan\n');
+  await writeFile(join(worktree, 'notes.txt'), 'not declared scratch\n');
+  await writeFile(join(worktree, 'tracked.txt'), 'real work\n');
+
+  const preview = JSON.parse((await run('python3', [
+    CLEANUP, '--profile', profile, worktree,
+  ], { cwd: root })).stdout);
+
+  assert.equal(preview.removable, false);
+  assert.deepEqual(preview.scratchFiles, ['PLAN.md']);
+  assert.match(preview.reasons.join('\n'), /tracked modifications: tracked\.txt/);
+  assert.match(preview.reasons.join('\n'), /untracked non-scratch: notes\.txt/);
+});
+
+test('cleanup refuses an open PR using the same external fact as sweep', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await git(root, 'remote', 'add', 'origin', root);
+  const mockGh = join(root, 'mock-gh-open');
+  await writeFile(mockGh, "#!/bin/sh\nprintf '%s\\n' '[{\"number\":245,\"state\":\"OPEN\",\"mergedAt\":null}]'\n");
+  await run('chmod', ['+x', mockGh]);
+
+  const preview = JSON.parse((await run('python3', [
+    CLEANUP, '--profile', profile, '--gh-command', mockGh, worktree,
+  ], { cwd: root })).stdout);
+
+  assert.equal(preview.removable, false);
+  assert.match(preview.reasons.join('\n'), /open PR/);
+});
+
+test('read-only sweep accounts for linked worktrees and local branches without mutation', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(worktree, 'feature.txt'), 'feature\n');
+  await git(worktree, 'add', 'feature.txt');
+  await git(worktree, 'commit', '-m', 'feature');
+  await git(root, 'branch', 'fix/99-local-only', 'main');
+  await git(root, 'branch', 'fix/77-merged-remote', 'main');
+  await git(root, 'remote', 'add', 'origin', root);
+  await git(root, 'fetch', 'origin');
+
+  const mockGh = join(root, 'mock-gh');
+  await writeFile(mockGh, `#!/bin/sh
+case "$*" in
+  *feat/88-cleanup*) printf '%s\\n' '[{"number":245,"state":"OPEN","mergedAt":null}]' ;;
+  *) printf '%s\\n' '[]' ;;
+esac
+`);
+  await run('chmod', ['+x', mockGh]);
+  const before = (await git(root, 'status', '--porcelain=v1')).stdout;
+  const worktreesBefore = (await git(root, 'worktree', 'list', '--porcelain')).stdout;
+  const refsBefore = (await git(root, 'show-ref')).stdout;
+
+  const report = JSON.parse((await run('python3', [
+    CLEANUP, 'sweep', '--profile', profile, '--gh-command', mockGh,
+  ], { cwd: root })).stdout);
+
+  assert.equal(report.worktreeCount, 2);
+  assert.equal(report.localBranchCount, 4);
+  assert.equal(report.rows.filter((row) => row.kind === 'worktree').length, 2);
+  assert.equal(report.rows.filter((row) => row.kind === 'branch').length, 2);
+  const linked = report.rows.find((row) => row.branch === 'feat/88-cleanup');
+  assert.equal(linked.issue, '88');
+  assert.equal(linked.prState, 'open');
+  assert.equal(linked.mergedIntoMain, false);
+  assert.equal(linked.removable, false);
+  assert.match(linked.reasons.join('\n'), /open PR/);
+  assert.match(linked.verdictReason, /open PR/);
+  assert.equal(typeof linked.lastCommitAgeSeconds, 'number');
+  assert.equal(typeof report.mergedRemoteBranchCount, 'number');
+  assert.equal((await git(root, 'status', '--porcelain=v1')).stdout, before);
+  assert.equal((await git(root, 'worktree', 'list', '--porcelain')).stdout, worktreesBefore);
+  assert.equal((await git(root, 'show-ref')).stdout, refsBefore);
 });
 
 test('cleanup reads assumptions before removing a clean merged worktree', async (t) => {
