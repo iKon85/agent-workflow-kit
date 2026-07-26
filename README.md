@@ -434,6 +434,12 @@ Until the explicit policy is committed, `wrapup-land` fails closed before
 landing instead of assuming that no generated artifact is eligible for
 session-owned cleanup.
 
+You do not have to remember this note. `kit-update` carries a versioned
+registry of required consumer migrations and names any outstanding one in its
+preview and in its terminal report — interactively, under `--yes`, as JSON via
+`update --json`, and in the automated update pull request. It reports the
+decision you still owe; it never writes a cleanup policy for you.
+
 ### 0.33.0 — capability-gated orchestration
 
 `kit-update` reconciles this release for you. These notes matter only if you

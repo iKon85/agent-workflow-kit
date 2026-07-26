@@ -51,6 +51,35 @@ test('automated update pull requests carry the behavior availability summary', a
   assert.match(created.body, /never merged automatically/);
 });
 
+test('automated update pull requests carry the required consumer migrations', async () => {
+  const h = harness({ update: {
+    exitCode: 0,
+    stdout: [
+      'newly available: none',
+      'required migration: wrapup-landing-artifact-policy · setup-workflow · '
+        + 'docs/agents/workflow-capabilities.json · wrapup.landingGeneratedArtifactPatterns',
+    ].join('\n'),
+    stderr: '',
+  } });
+
+  await orchestrateUpdatePullRequest(h.options);
+
+  const created = h.calls.find((call) => Array.isArray(call) && call[0] === 'create')[1];
+  assert.match(created.body, /## Required migrations/);
+  assert.match(created.body, /required migration: wrapup-landing-artifact-policy/);
+  assert.match(created.body, /docs\/agents\/workflow-capabilities\.json/);
+  assert.match(created.body, /wrapup\.landingGeneratedArtifactPatterns/);
+});
+
+test('a pull request without pending migrations says so explicitly', async () => {
+  const h = harness({ update: { exitCode: 0, stdout: 'newly available: none', stderr: '' } });
+
+  await orchestrateUpdatePullRequest(h.options);
+
+  const created = h.calls.find((call) => Array.isArray(call) && call[0] === 'create')[1];
+  assert.match(created.body, /## Required migrations\n\nNo required consumer migrations reported\./);
+});
+
 test('a conflict produces a structured report without touching the stable branch', async () => {
   const h = harness({ update: { exitCode: 2, stdout: 'conflicts: 1', stderr: '' } });
   const report = await orchestrateUpdatePullRequest(h.options);

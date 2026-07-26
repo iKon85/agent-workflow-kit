@@ -16,6 +16,7 @@ import {
 } from './lib/contributionRouting.mjs';
 import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
 import { nonInteractiveUpdateDecision } from './lib/updateDecisions.mjs';
+import { renderRequiredMigration } from './lib/consumerMigrations.mjs';
 import { currentAgentSurface } from './lib/agentSurfaceRegistry.mjs';
 import { createCommandAdapter } from '../scripts/release-state.mjs';
 import { installedIdentityFromDir } from '../scripts/release-parity.mjs';
@@ -43,6 +44,8 @@ export async function runCli({
   const keepDeleted = args.includes('--keep-deleted');
   const restoreDeleted = args.includes('--restore-deleted');
   const ownershipState = args.find((arg) => arg.startsWith('--as='))?.slice('--as='.length);
+  // Machine-readable rendering of the same update record the interactive run prints.
+  const jsonReport = cmd === 'update' && args.includes('--json');
   let exitCode = 0;
 
   if (cmd === 'update' && keepDeleted && restoreDeleted) {
@@ -57,7 +60,7 @@ export async function runCli({
     return 1;
   }
 
-  p.intro('agent-workflow-kit');
+  if (!jsonReport) p.intro('agent-workflow-kit');
 
   try {
   if (cmd === 'init') {
@@ -94,6 +97,11 @@ export async function runCli({
       releaseIdentities,
       routingProfile: routingProfileOptions(yes),
     });
+    if (jsonReport) {
+      process.stdout.write(`${JSON.stringify(updateDocument(r), null, 2)}\n`);
+      if (r.state === 'failed') return 1;
+      return r.state === 'conflicted' ? 2 : 0;
+    }
     printPlan(r);
     printRoutingProfile(r.routingProfile);
     for (const c of r.conflicts) p.note(c.diff || '(binary/!text)', `conflict (not applied): ${c.path}`);
@@ -183,10 +191,29 @@ export async function runCli({
     p.outro('');
   }
 } catch (err) {
+  if (jsonReport) {
+    process.stdout.write(`${JSON.stringify({
+      schemaVersion: UPDATE_DOCUMENT_SCHEMA_VERSION, state: 'failed', error: err.message,
+    }, null, 2)}\n`);
+    return 1;
+  }
   p.cancel(`Error: ${err.message}`);
   return 1;
 }
   return exitCode;
+}
+
+const UPDATE_DOCUMENT_SCHEMA_VERSION = 1;
+
+/** The single structured update record; `printPlan` renders the same source. */
+function updateDocument(r) {
+  return {
+    schemaVersion: UPDATE_DOCUMENT_SCHEMA_VERSION,
+    state: r.state,
+    status: r.status ?? null,
+    report: r.report,
+    ...(r.error ? { error: renderUpdateFailure(r) } : {}),
+  };
 }
 
 const invokedPath = process.argv[1] ? realpathSync(process.argv[1]) : '';
@@ -210,6 +237,10 @@ function printPlan(r) {
     ]) {
       lines.push(`${label}: ${r.availability[key].join(', ') || 'none'}`);
     }
+  }
+  for (const action of r.requiredMigrations ?? []) {
+    lines.push(renderRequiredMigration(action));
+    lines.push(`  ${action.consequence} ${action.remediation}`);
   }
   for (const owned of r.ownedDiffs ?? []) {
     lines.push(`${owned.state} ${owned.path}`);
