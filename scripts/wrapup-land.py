@@ -95,7 +95,10 @@ def check_name(check: dict) -> str:
 
 
 def check_conclusion(check: dict) -> str:
-    return str(check.get("conclusion") or check.get("state") or "").upper()
+    # CheckRun entries carry `conclusion: null` while pending. Do not let a
+    # simultaneously present legacy `state` field turn that explicit null green.
+    value = check.get("conclusion") if "conclusion" in check else check.get("state")
+    return str(value or "").upper()
 
 
 def pending_checks(checks: list[dict]) -> list[dict]:
@@ -144,11 +147,17 @@ def infrastructure_failure_diagnosis(
         return "infrastructure failure (billing or runner unavailable)"
 
     details_url = check.get("detailsUrl") or check.get("targetUrl")
-    if not isinstance(details_url, str) or "/actions/" not in details_url:
+    run_match = (
+        re.search(r"/actions/runs/(\d+)(?:/|$)", details_url)
+        if isinstance(details_url, str)
+        else None
+    )
+    if run_match is None:
         return ""
+    run_id = run_match.group(1)
 
     jobs_result = command_runner(
-        ["gh", "run", "view", details_url, "--json", "jobs"]
+        ["gh", "run", "view", run_id, "--json", "jobs"]
     )
     if jobs_result.returncode == 0:
         try:
@@ -165,7 +174,7 @@ def infrastructure_failure_diagnosis(
         if zero_step_failure:
             return "infrastructure failure (failed Actions job had zero steps)"
 
-    log_result = command_runner(["gh", "run", "view", details_url, "--log-failed"])
+    log_result = command_runner(["gh", "run", "view", run_id, "--log-failed"])
     external = sanitize_external_detail(
         (log_result.stdout or "") + " " + (log_result.stderr or "")
     )

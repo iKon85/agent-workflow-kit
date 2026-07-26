@@ -80,6 +80,16 @@ class WrapupCheckGateContract(unittest.TestCase):
         self.assertIn("waiting for PR #42 checks", progress.getvalue())
         self.assertIn("test", progress.getvalue())
 
+    def test_explicit_null_conclusion_waits_even_with_green_legacy_state(self):
+        checks = [{
+            "name": "test",
+            "status": "COMPLETED",
+            "conclusion": None,
+            "state": "SUCCESS",
+        }]
+
+        self.assertEqual(self.wrapup.pending_checks(checks), checks)
+
     def test_terminal_red_check_stops_before_merge_and_names_check(self):
         snapshot = {
             "state": "OPEN",
@@ -182,6 +192,7 @@ class WrapupCheckGateContract(unittest.TestCase):
 
         self.assertIn("test", stopped.exception.detail)
         self.assertIn("infrastructure failure", stopped.exception.detail)
+        self.assertIn(["gh", "run", "view", "123", "--json", "jobs"], commands)
         self.assertEqual(
             [cmd[:3] for cmd in commands].count(["gh", "run", "view"]), 1
         )
