@@ -49,11 +49,10 @@ def _render(template: str, issue: str, slug: str, branch_type: str) -> str:
         raise LifecycleError(f"invalid worktree template: {error}") from error
 
 
-def load_profile(path: Path) -> WorktreeProfile:
+def _load_profile_document(document: Any) -> WorktreeProfile:
     try:
-        document = json.loads(path.read_text(encoding="utf-8"))
         raw = document["worktreeLifecycle"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+    except (KeyError, TypeError) as error:
         raise LifecycleError(f"cannot load worktree lifecycle profile: {error}") from error
     if raw.get("enabled") is not True:
         raise LifecycleError("worktree lifecycle is not enabled")
@@ -97,6 +96,22 @@ def load_profile(path: Path) -> WorktreeProfile:
         landing_generated_artifact_policy_configured=generated_policy_configured,
         landing_generated_artifact_patterns=tuple(generated_patterns),
     )
+
+
+def load_profile(path: Path) -> WorktreeProfile:
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError) as error:
+        raise LifecycleError(f"cannot load worktree lifecycle profile: {error}") from error
+    return _load_profile_document(document)
+
+
+def load_profile_text(text: str) -> WorktreeProfile:
+    try:
+        document = json.loads(text)
+    except (json.JSONDecodeError, TypeError) as error:
+        raise LifecycleError(f"cannot load worktree lifecycle profile: {error}") from error
+    return _load_profile_document(document)
 
 
 def run(

@@ -437,28 +437,47 @@ def load_worktree_cleanup_core():
     return module
 
 
-def load_canonical_landing_profile(core, wt: str, main_tree: str):
-    """Require one reviewed cleanup policy before writing or consuming evidence."""
-    canonical = core.load_profile(
-        Path(main_tree) / "docs/agents/workflow-capabilities.json"
-    )
+def load_candidate_landing_profile(core, wt: str):
+    """Let the committed worktree policy nominate evidence without deletion."""
     candidate = core.load_profile(
         Path(wt) / "docs/agents/workflow-capabilities.json"
     )
+    if not candidate.landing_generated_artifact_policy_configured:
+        raise core.LifecycleError(
+            "worktree landing artifact policy is not configured; "
+            "run setup-workflow and commit the explicit policy decision first"
+        )
+    return candidate
+
+
+def load_canonical_landing_profile(core, wt: str, main_tree: str):
+    """Authorize deletion only after the candidate policy is canonical."""
+    candidate = load_candidate_landing_profile(core, wt)
+    result = core.run(
+        [
+            "git", "show",
+            "origin/main:docs/agents/workflow-capabilities.json",
+        ],
+        cwd=Path(main_tree),
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise core.LifecycleError(
+            f"canonical landing profile cannot be read from origin/main: {detail}"
+        )
+    canonical = core.load_profile_text(result.stdout)
     if not canonical.landing_generated_artifact_policy_configured:
         raise core.LifecycleError(
-            "canonical landing artifact policy is not configured; "
-            "land the reviewed workflow-capabilities policy migration first"
+            "merged canonical landing artifact policy is not configured"
         )
     if (
-        not candidate.landing_generated_artifact_policy_configured
-        or candidate.landing_generated_artifact_patterns
+        candidate.landing_generated_artifact_patterns
         != canonical.landing_generated_artifact_patterns
         or candidate.scratch_patterns != canonical.scratch_patterns
     ):
         raise core.LifecycleError(
-            "worktree cleanup policy differs from canonical main; "
-            "land the reviewed workflow-capabilities policy migration first"
+            "worktree cleanup policy differs from merged canonical origin/main"
         )
     return canonical
 
@@ -466,7 +485,7 @@ def load_canonical_landing_profile(core, wt: str, main_tree: str):
 def landing_artifact_baseline_digest(wt: str, main_tree: str) -> str:
     core = load_worktree_cleanup_core()
     try:
-        load_canonical_landing_profile(core, wt, main_tree)
+        load_candidate_landing_profile(core, wt)
         return core.load_artifact_baseline(Path(wt)).digest
     except core.LifecycleError as error:
         raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
@@ -475,7 +494,7 @@ def landing_artifact_baseline_digest(wt: str, main_tree: str) -> str:
 def landing_start_artifact_inventory(wt: str, main_tree: str) -> dict:
     core = load_worktree_cleanup_core()
     try:
-        profile = load_canonical_landing_profile(core, wt, main_tree)
+        profile = load_candidate_landing_profile(core, wt)
         return core.landing_start_artifact_inventory(profile, Path(wt))
     except core.LifecycleError as error:
         raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
@@ -490,7 +509,7 @@ def landing_verified_scratch_evidence(
 ) -> tuple[dict, ...]:
     core = load_worktree_cleanup_core()
     try:
-        profile = load_canonical_landing_profile(core, wt, main_tree)
+        profile = load_candidate_landing_profile(core, wt)
         return core.verified_landing_scratch_evidence(
             profile,
             Path(wt),
@@ -509,7 +528,7 @@ def freeze_landing_artifact_evidence(
 ) -> tuple[dict, ...]:
     core = load_worktree_cleanup_core()
     try:
-        profile = load_canonical_landing_profile(core, wt, main_tree)
+        profile = load_candidate_landing_profile(core, wt)
         return core.freeze_landing_artifact_evidence(
             profile,
             Path(wt),
@@ -522,7 +541,7 @@ def freeze_landing_artifact_evidence(
 def reopen_frozen_landing_attempt(wt: str, main_tree: str) -> tuple[dict, ...]:
     core = load_worktree_cleanup_core()
     try:
-        profile = load_canonical_landing_profile(core, wt, main_tree)
+        profile = load_candidate_landing_profile(core, wt)
         return core.reopen_frozen_landing_attempt(profile, Path(wt))
     except core.LifecycleError as error:
         raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
@@ -546,7 +565,7 @@ def landing_verified_scratch_files(
 ) -> tuple[str, ...]:
     core = load_worktree_cleanup_core()
     try:
-        profile = load_canonical_landing_profile(core, wt, main_tree)
+        profile = load_candidate_landing_profile(core, wt)
         return core.verified_landing_scratch_files(
             profile,
             Path(wt),

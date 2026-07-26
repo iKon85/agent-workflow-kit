@@ -997,7 +997,7 @@
       "ownerSkill": "wrapup",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "b72669828481606ac0754cf3b94ae7e4d22be2db20652a77680d872501548199",
+      "sha256": "0f1cc0463c19f60543d559aac24e39dbced517b1d656979d07d6965caf848aab",
       "mode": 420,
       "origin": "kit"
     },
@@ -2347,7 +2347,7 @@
       "ownerSkill": "wrapup",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "b72669828481606ac0754cf3b94ae7e4d22be2db20652a77680d872501548199",
+      "sha256": "0f1cc0463c19f60543d559aac24e39dbced517b1d656979d07d6965caf848aab",
       "mode": 420,
       "origin": "kit"
     },
@@ -2795,7 +2795,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "b1a8cc4d4b171dfb3667dfdfcc062b1c1ef13cf827767a9459e6f31ce2c9cc7a",
+      "sha256": "2e78fb0df41c809184f43545972c6bdb91312d946c6e202705dd81a3e2c9081e",
       "mode": 420,
       "origin": "kit"
     },
@@ -2803,7 +2803,7 @@
       "path": "scripts/worktree-lifecycle/profile.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "a871454d85cd9fe36d40f9f260b62af00cae833367794ec6f505b9e9de65888a",
+      "sha256": "4a76462e4a9f7c4c3fd1b199217f8c68b9946c49bc934eef7bc888244bdbd16f",
       "mode": 420,
       "origin": "kit"
     },
@@ -2811,7 +2811,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "5be9cd6e669bff89f4a6efc1367c101c941fb4d82349cccbd10cb0b1da93feef",
+      "sha256": "bd594440af73099a162a8d7c8284d65ab876b05d045a25914194c9bdc8dd3462",
       "mode": 420,
       "origin": "kit"
     },
@@ -2835,7 +2835,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "cf6a30a419794a89ede11bae874d111dc5e466eae55fec3faff348dba0eb1e96",
+      "sha256": "7070874bd4b8860a12a4fe1193770aca34fc734573cdf740e231e01d4d348ffc",
       "mode": 493,
       "origin": "kit"
     },

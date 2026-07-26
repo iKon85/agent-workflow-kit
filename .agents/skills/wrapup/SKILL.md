@@ -105,10 +105,11 @@ One call covers: push → PR create/reuse (+ drift markers merged into the body)
 
 STOP → diagnose in the main conversation, fix, re-run `land` (an already-merged PR resumes at teardown).
 
-If STOP says the canonical landing policy is missing or differs from the
-worktree, land the reviewed `docs/agents/workflow-capabilities.json` policy
-change as a small migration PR first. Never use the unmerged branch profile as
-deletion authority. Then update/rebase the dependent branch and rerun `land`.
+Before merge, the committed worktree policy only nominates exact landing
+evidence. After merge, cleanup reloads `docs/agents/workflow-capabilities.json`
+from canonical `origin/main`; only the identical merged scratch and generator
+policy authorizes deletion. A mismatch is a hard STOP that preserves every
+file—never bypass it with the unmerged branch profile.
 
 Landing provenance has one explicit relinquish route. If the STOP names an
 unfinished or drifted landing attempt and the ambiguous files cannot be restored

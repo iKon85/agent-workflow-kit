@@ -325,7 +325,7 @@ class WorktreeCleanupContract(unittest.TestCase):
             )
             self.assertTrue(attempt["newAttempt"])
 
-    def test_missing_canonical_landing_policy_stops_before_baseline_or_attempt(self):
+    def test_candidate_policy_blocks_generated_path_before_canonical_bootstrap(self):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             main, worktree = create_merged_worktree(Path(tmp))
@@ -336,6 +336,9 @@ class WorktreeCleanupContract(unittest.TestCase):
             canonical = json.loads(canonical_profile.read_text(encoding="utf-8"))
             del canonical["wrapup"]
             canonical_profile.write_text(json.dumps(canonical), encoding="utf-8")
+            blocker = worktree / "dist-kit/bootstrap.tgz"
+            blocker.parent.mkdir(parents=True)
+            blocker.write_text("preserve\n", encoding="utf-8")
 
             with self.assertRaises(wrapup.Stop) as stopped:
                 wrapup.landing_start_artifact_inventory(
@@ -343,7 +346,7 @@ class WorktreeCleanupContract(unittest.TestCase):
                 )
 
             self.assertIn(
-                "canonical landing artifact policy is not configured",
+                "landing-start generated paths are consumer-owned",
                 stopped.exception.reason,
             )
             self.assertFalse(baseline_path.exists())
@@ -351,7 +354,7 @@ class WorktreeCleanupContract(unittest.TestCase):
                 baseline_path.with_name(core.LANDING_ATTEMPT_FILE).exists()
             )
 
-    def test_worktree_cleanup_policy_cannot_widen_canonical_authority(self):
+    def test_candidate_policy_cannot_widen_post_merge_deletion_authority(self):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             main, worktree = create_merged_worktree(Path(tmp))
@@ -364,16 +367,15 @@ class WorktreeCleanupContract(unittest.TestCase):
                 core.LANDING_ATTEMPT_FILE
             )
 
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             with self.assertRaises(wrapup.Stop) as stopped:
-                wrapup.landing_start_artifact_inventory(
-                    str(worktree), str(main)
-                )
+                wrapup.ensure_worktree_removable(str(worktree), str(main))
 
             self.assertIn(
-                "worktree cleanup policy differs from canonical main",
+                "worktree cleanup policy differs from merged canonical origin/main",
                 stopped.exception.reason,
             )
-            self.assertFalse(attempt_path.exists())
+            self.assertTrue(attempt_path.exists())
 
     def test_explicit_empty_landing_policy_is_distinct_from_missing(self):
         wrapup = load_wrapup()
@@ -494,7 +496,14 @@ class WorktreeCleanupContract(unittest.TestCase):
             profile = main / "docs/agents/workflow-capabilities.json"
             profile.parent.mkdir(parents=True)
             profile.write_text('{"worktreeLifecycle":{"enabled":true}}\n')
-            with patch.object(wrapup, "load_worktree_cleanup_core", return_value=FakeCore):
+            with (
+                patch.object(wrapup, "load_worktree_cleanup_core", return_value=FakeCore),
+                patch.object(
+                    wrapup,
+                    "load_canonical_landing_profile",
+                    return_value=SimpleNamespace(),
+                ),
+            ):
                 with self.assertRaises(wrapup.Stop) as stopped:
                     wrapup.ensure_worktree_removable(str(main / "wt"), str(main))
 

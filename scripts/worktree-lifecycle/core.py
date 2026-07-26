@@ -18,6 +18,7 @@ from profile import (
     LifecycleError,
     WorktreeProfile,
     load_profile,
+    load_profile_text,
     local_branch_exists,
     main_worktree,
     registered_worktrees,
