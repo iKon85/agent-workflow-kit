@@ -302,14 +302,14 @@ test('duplicate package-manifest paths fail the manifest invariant before mutati
     pkg.files.push({ ...pkg.files[0] });
     await writeManifest(pkgPath, pkg);
 
-    const result = await update({
-      kitRoot: kit,
-      consumerRoot: consumer,
-      releaseIdentities: releaseIdentities(),
-    });
-
-    assert.equal(result.state, 'failed');
-    assert.match(result.error, /candidate invariant manifest: duplicate path.*scripts\/kit-tool\.mjs/);
+    await assert.rejects(
+      update({
+        kitRoot: kit,
+        consumerRoot: consumer,
+        releaseIdentities: releaseIdentities(),
+      }),
+      /invalid package manifest: entry #2 \(scripts\/kit-tool\.mjs\) duplicates path scripts\/kit-tool\.mjs/,
+    );
     assert.equal(await readFile(join(consumer, TOOL), 'utf8'), 'export const version = 1;\n');
   } finally {
     await cleanup(kit, consumer);

@@ -40,6 +40,37 @@ test('failed update output names its transaction phase and consumer state', () =
   }), 'candidate update failed · phase: activation · consumerState: rolled-back · disk write failed');
 });
 
+test('invalid consumer ledger blocks update during checking before staging or mutation', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifest = await readManifest(manifestPath);
+    manifest.installed.push({ ...manifest.installed[0] });
+    await writeManifest(manifestPath, manifest);
+    const manifestBefore = await readFile(manifestPath);
+    const fileBefore = await readFile(join(consumer, P));
+    const states = [];
+
+    await assert.rejects(
+      update({
+        kitRoot: kit,
+        consumerRoot: consumer,
+        releaseIdentities: releaseIdentities(),
+        onState: (state) => states.push(state),
+      }),
+      /invalid consumer manifest.*duplicates path.*restore/i,
+    );
+
+    assert.deepEqual(states, ['checking'], 'candidate staging never began');
+    assert.deepEqual(await readFile(manifestPath), manifestBefore);
+    assert.deepEqual(await readFile(join(consumer, P)), fileBefore);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('update applies an upstream mode-only change with unchanged bytes', async () => {
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();
@@ -296,7 +327,8 @@ test('candidate ledger covers the release-manifest denominator plus the Project 
     await init({ kitRoot: kit, consumerRoot: consumer });
     const manifestPath = join(consumer, 'agent-workflow-kit.json');
     const manifest = await readManifest(manifestPath);
-    await writeManifest(manifestPath, { ...manifest, installRole: 'legacy' });
+    const { installRole: _legacyOmission, ...legacyManifest } = manifest;
+    await writeManifest(manifestPath, legacyManifest);
     let stagedInstalled;
 
     const result = await update({

@@ -36,6 +36,28 @@ test('init copies kit files, writes the consumer manifest, seeds doc stubs', asy
   }
 });
 
+test('init rejects an invalid package manifest before copying or seeding consumer files', async () => {
+  const path = '.claude/skills/to-prd/SKILL.md';
+  const kit = await makeKit({ [path]: '# to-prd\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    const manifestPath = join(kit, PACKAGE_MANIFEST_NAME);
+    const manifest = await readManifest(manifestPath);
+    manifest.files.push({ ...manifest.files[0] });
+    await writeManifest(manifestPath, manifest);
+
+    await assert.rejects(
+      init({ kitRoot: kit, consumerRoot: consumer }),
+      /invalid package manifest.*duplicates path.*regenerate/i,
+    );
+    assert.equal(await exists(join(consumer, path)), false);
+    assert.equal(await exists(join(consumer, CONSUMER_MANIFEST_NAME)), false);
+    assert.equal(await exists(join(consumer, 'docs/agents/issue-tracker.md')), false);
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('init establishes and preserves a consumer-owned Project skill registry beside Kit Core', async () => {
   const core = `${JSON.stringify({
     schema_version: 1,

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join, posix } from 'node:path';
 import { writeAtomic } from './atomicWrite.mjs';
 
 // Two manifests (Codex R1#9 / R3#1):
@@ -20,6 +20,16 @@ export const READINESS_CONTRACT_VERSION = 1;
 export const READINESS_MANIFEST_PATH = '.claude/skills/skill-manifest.json';
 export { PROJECT_SKILL_REGISTRY_PATH } from './skillRegistry.mjs';
 
+const HASH = /^[a-f0-9]{64}$/;
+const KINDS = new Set(['skill', 'script', 'hook', 'template', 'doc']);
+const SURFACES = new Set(['claude', 'codex']);
+const INSTALL_ROLES = new Set([CONSUMER_INSTALL_ROLE, 'maintainer']);
+const ORIGINS = new Set([KIT_ORIGIN, CONSUMER_ORIGIN]);
+const OWNERSHIP_STATES = new Set([
+  'project-extension', 'contribution-bridge', 'explicit-fork',
+]);
+const READINESS_DECISIONS = new Set(['pending', 'not-applicable']);
+
 /**
  * Parse a JSON manifest, or null if the file does not exist. A corrupt file
  * (invalid JSON — e.g. from an aborted write before writeManifest went atomic)
@@ -35,8 +45,9 @@ export async function readManifest(path) {
     if (err.code === 'ENOENT') return null;
     throw err;
   }
+  let manifest;
   try {
-    return JSON.parse(raw);
+    manifest = JSON.parse(raw);
   } catch (err) {
     throw new Error(
       `${path} is corrupt (invalid JSON) and can't be read. ` +
@@ -44,6 +55,162 @@ export async function readManifest(path) {
       { cause: err }
     );
   }
+  const name = basename(path);
+  if (name === PACKAGE_MANIFEST_NAME) {
+    return validateManifest(manifest, { kind: 'package', path });
+  }
+  if (name === CONSUMER_MANIFEST_NAME) {
+    return validateManifest(manifest, { kind: 'consumer', path });
+  }
+  return manifest;
+}
+
+/**
+ * Validate the two persisted lifecycle manifests before their entries are
+ * indexed or trusted. Unknown extension keys remain untouched; known fields
+ * are deliberately strict. Compatibility is explicit:
+ * - package manifests before role-aware installs may omit `installRole`;
+ * - consumer ledgers before role-aware installs may omit `installRole`;
+ * - readiness fields introduced after the first consumer ledger are optional.
+ */
+export function validateManifest(manifest, { kind, path }) {
+  if (kind !== 'package' && kind !== 'consumer') {
+    throw new Error(`unknown manifest class: ${kind}`);
+  }
+  const recovery = kind === 'package'
+    ? 'Reinstall the Kit or regenerate its package manifest from a trusted checkout.'
+    : 'Restore the consumer manifest from its ".bak" backup, or delete it and re-run `init`.';
+  const fail = (detail) => {
+    throw new Error(`${path} is an invalid ${kind} manifest: ${detail} ${recovery}`);
+  };
+  if (!plainObject(manifest)) fail('the root must be a JSON object.');
+  if (typeof manifest.kitVersion !== 'string' || manifest.kitVersion.length === 0) {
+    fail('kitVersion must be a non-empty string.');
+  }
+  const key = kind === 'package' ? 'files' : 'installed';
+  if (!Array.isArray(manifest[key])) fail(`${key} must be an array.`);
+  if (kind === 'consumer') validateConsumerRoot(manifest, fail);
+
+  const seen = new Set();
+  for (const [offset, entry] of manifest[key].entries()) {
+    const ordinal = `entry #${offset + 1}`;
+    if (!plainObject(entry)) fail(`${ordinal} must be a JSON object.`);
+    if (!safeManifestPath(entry.path)) {
+      fail(`${ordinal} has an unsafe consumer path (${display(entry.path)}); use a relative POSIX path without "." or ".." segments.`);
+    }
+    const label = `${ordinal} (${entry.path})`;
+    if (seen.has(entry.path)) fail(`${label} duplicates path ${entry.path}.`);
+    seen.add(entry.path);
+    validateEnum(entry, 'kind', KINDS, label, fail, true);
+    validateOptionalString(entry, 'ownerSkill', label, fail);
+    validateEnum(entry, 'surface', SURFACES, label, fail);
+    validateEnum(entry, 'installRole', INSTALL_ROLES, label, fail);
+    validateEnum(entry, 'origin', ORIGINS, label, fail, true);
+    if (kind === 'package') {
+      validateHash(entry.sha256, `${label} sha256`, fail);
+      if (!Number.isInteger(entry.mode) || entry.mode < 0 || entry.mode > 0o777) {
+        fail(`${label} mode must be an integer from 0 through 511.`);
+      }
+      if (entry.origin !== KIT_ORIGIN) fail(`${label} origin must be "kit".`);
+    } else {
+      validateHash(entry.installedSha256, `${label} installedSha256`, fail);
+      if ('sha256' in entry) validateHash(entry.sha256, `${label} sha256`, fail);
+      if ('mode' in entry
+          && (!Number.isInteger(entry.mode) || entry.mode < 0 || entry.mode > 0o777)) {
+        fail(`${label} mode must be an integer from 0 through 511.`);
+      }
+      validateConsumerEntry(entry, label, fail);
+    }
+  }
+  return manifest;
+}
+
+function validateConsumerRoot(manifest, fail) {
+  if ('installRole' in manifest && manifest.installRole !== CONSUMER_INSTALL_ROLE) {
+    fail('installRole must be "consumer".');
+  }
+  if ('readinessContractVersion' in manifest
+      && (!Number.isInteger(manifest.readinessContractVersion)
+        || manifest.readinessContractVersion < 1)) {
+    fail('readinessContractVersion must be a positive integer.');
+  }
+  if ('readinessDecisions' in manifest) {
+    if (!plainObject(manifest.readinessDecisions)) {
+      fail('readinessDecisions must be a JSON object.');
+    }
+    for (const [capability, decision] of Object.entries(manifest.readinessDecisions)) {
+      if (!capability || !READINESS_DECISIONS.has(decision)) {
+        fail(`readinessDecisions.${capability || '<empty>'} has unsupported value ${display(decision)}.`);
+      }
+    }
+  }
+}
+
+function validateConsumerEntry(entry, label, fail) {
+  if ('orphanedByUninstall' in entry && typeof entry.orphanedByUninstall !== 'boolean') {
+    fail(`${label} orphanedByUninstall must be a boolean.`);
+  }
+  validateEnum(entry, 'ownershipState', OWNERSHIP_STATES, label, fail);
+  if ('ownershipState' in entry && entry.origin !== CONSUMER_ORIGIN) {
+    fail(`${label} ownershipState requires origin "consumer".`);
+  }
+  if (!('contributionBridge' in entry)) return;
+  const bridge = entry.contributionBridge;
+  if (!plainObject(bridge)
+      || bridge.schemaVersion !== 1
+      || typeof bridge.baseKitVersion !== 'string'
+      || bridge.baseKitVersion.length === 0) {
+    fail(`${label} contributionBridge must be a schemaVersion 1 object with baseKitVersion.`);
+  }
+  validateHash(bridge.baseSha256, `${label} contributionBridge.baseSha256`, fail);
+  validateHash(bridge.localSha256, `${label} contributionBridge.localSha256`, fail);
+  if (entry.origin !== CONSUMER_ORIGIN
+      || entry.ownershipState !== 'contribution-bridge'
+      || entry.installedSha256 !== bridge.localSha256) {
+    fail(`${label} contributionBridge must match consumer ownership and installedSha256.`);
+  }
+}
+
+function validateEnum(entry, field, values, label, fail, required = false) {
+  if (!(field in entry)) {
+    if (required) fail(`${label} ${field} is required.`);
+    return;
+  }
+  if (typeof entry[field] !== 'string' || !values.has(entry[field])) {
+    fail(`${label} ${field} has unsupported value ${display(entry[field])}.`);
+  }
+}
+
+function validateOptionalString(entry, field, label, fail) {
+  if (field in entry && (typeof entry[field] !== 'string' || entry[field].length === 0)) {
+    fail(`${label} ${field} must be a non-empty string when present.`);
+  }
+}
+
+function validateHash(value, field, fail) {
+  if (typeof value !== 'string' || !HASH.test(value)) {
+    fail(`${field} must be a lowercase 64-hex SHA-256.`);
+  }
+}
+
+function safeManifestPath(path) {
+  return typeof path === 'string'
+    && path.length > 0
+    && path !== '.'
+    && !path.includes('\\')
+    && !path.includes('//')
+    && !path.split('/').some((part) => part === '' || part === '.' || part === '..')
+    && !posix.isAbsolute(path)
+    && !/^[a-zA-Z]:/.test(path)
+    && posix.normalize(path) === path;
+}
+
+function plainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function display(value) {
+  return typeof value === 'string' ? JSON.stringify(value) : String(value);
 }
 
 /**
@@ -90,7 +257,10 @@ export function filesForInstallRole(manifest, installRole = CONSUMER_INSTALL_ROL
 /** Map a manifest's file list (under `key`) by `path` for quick lookup. */
 export function indexByPath(manifest, key) {
   const idx = new Map();
-  for (const entry of (manifest?.[key] ?? [])) idx.set(entry.path, entry);
+  for (const entry of (manifest?.[key] ?? [])) {
+    if (idx.has(entry.path)) throw new Error(`duplicate manifest path: ${entry.path}`);
+    idx.set(entry.path, entry);
+  }
   return idx;
 }
 
