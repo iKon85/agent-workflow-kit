@@ -2899,7 +2899,7 @@
       "path": "src/lib/projectSkillExtension.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "af43ac9b0a4963f7a881aad373a4f1923967828142376ec9661a69095edb7476",
+      "sha256": "37694090968b528209638db74233333bb2da1deb77c42a5441ae353c0593ccdd",
       "mode": 420,
       "origin": "kit"
     },

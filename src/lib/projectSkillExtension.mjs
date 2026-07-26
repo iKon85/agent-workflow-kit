@@ -26,6 +26,7 @@ function meaningfulSectionBody(lines) {
   const meaningful = content
     .filter((line) =>
       !/^(?:TODO|TBD)(?:[.!:]*)$/i.test(line)
+      && !/^<\/?[^>\n]+>$/.test(line)
       && !/^<(?:placeholder|fill|configure|add)(?:\s+[^>]*)?>[.!:]*$/i.test(line)
       && !/^(?:Run|Use|Configure|Add|Replace)\s+`?<[^>]+>`?[.!:]*$/i.test(line))
     .join('\n');
