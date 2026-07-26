@@ -24,13 +24,18 @@ def load_wrapup():
 
 
 def command(args, cwd):
-    return subprocess.run(
+    result = subprocess.run(
         args,
         cwd=cwd,
-        check=True,
         capture_output=True,
         text=True,
     )
+    if result.returncode != 0:
+        raise AssertionError(
+            f"{' '.join(args)} failed ({result.returncode}): "
+            f"{(result.stderr or result.stdout).strip()}"
+        )
+    return result
 
 
 def create_merged_worktree(
@@ -94,6 +99,80 @@ def create_merged_worktree(
     return main, worktree
 
 
+def create_real_kit_merged_worktree(root: Path) -> tuple[Path, Path]:
+    main = root / "main"
+    remote = root / "remote.git"
+    command(["git", "clone", "--no-local", str(REPO), str(main)], root)
+    command(["git", "config", "user.name", "Test"], main)
+    command(["git", "config", "user.email", "test@example.invalid"], main)
+    command(["git", "checkout", "-B", "main"], main)
+    command(["git", "remote", "remove", "origin"], main)
+    command(["git", "init", "--bare", str(remote)], root)
+    command(["git", "remote", "add", "origin", str(remote)], main)
+
+    ignore = main / ".gitignore"
+    ignored = ignore.read_text(encoding="utf-8")
+    required_ignores = [
+        ".worktrees/",
+        "dist-kit/",
+        "**/__pycache__/",
+        ".claude/logs/",
+    ]
+    missing = [pattern for pattern in required_ignores if pattern not in ignored.splitlines()]
+    if missing:
+        ignore.write_text(
+            ignored.rstrip("\n") + "\n" + "\n".join(missing) + "\n",
+            encoding="utf-8",
+        )
+
+    profile_path = main / "docs/agents/workflow-capabilities.json"
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    lifecycle = profile.setdefault("worktreeLifecycle", {})
+    lifecycle.update({
+        "enabled": True,
+        "worktreeRoot": ".worktrees",
+        "branchTemplate": "{type}/{issue}-{slug}",
+        "pathTemplate": "{issue}-{slug}",
+        "mainBranches": ["main"],
+        "protectedBranches": ["main"],
+        "scratchPatterns": [],
+        "setupSteps": [],
+    })
+    profile["wrapup"] = {
+        "landingGeneratedArtifactPatterns": [
+            "dist-kit/**",
+            "**/__pycache__/**",
+            ".claude/logs/**",
+        ],
+    }
+    profile_path.write_text(
+        json.dumps(profile, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    command(["git", "add", ".gitignore", str(profile_path.relative_to(main))], main)
+    command(["git", "commit", "-m", "configure lifecycle fixture"], main)
+    command(["git", "push", "-u", "origin", "main"], main)
+
+    command([
+        os.sys.executable,
+        str(SETUP),
+        "--profile",
+        str(profile_path),
+        "--base",
+        "origin/main",
+        "268",
+        "real-generator",
+        "fix",
+    ], main)
+    worktree = main / ".worktrees/268-real-generator"
+    (worktree / "change.txt").write_text("landed\n", encoding="utf-8")
+    command(["git", "add", "change.txt"], worktree)
+    command(["git", "commit", "-m", "change"], worktree)
+    command(["git", "merge", "--ff-only", "fix/268-real-generator"], main)
+    command(["git", "push", "origin", "main"], main)
+    return main, worktree
+
+
 class WorktreeCleanupContract(unittest.TestCase):
     def test_active_profile_delegates_removal_safety_to_shared_assessment(self):
         wrapup = load_wrapup()
@@ -122,23 +201,26 @@ class WorktreeCleanupContract(unittest.TestCase):
         self.assertIn("shared cleanup guard", stopped.exception.reason)
         self.assertEqual(calls[1][-1], "origin/main")
 
-    def test_release_build_subprocess_after_creation_baseline_is_cleaned_by_land(self):
+    def test_real_build_and_python_check_after_baseline_are_cleaned_by_land(self):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            main, worktree = create_merged_worktree(root)
-            generator = """
-from pathlib import Path
-for relative, content in {
-    "dist-kit/package.tgz": "package",
-    "scripts/__pycache__/guard.pyc": "cache",
-    ".claude/logs/wrapup.log": "log",
-}.items():
-    path = Path(relative)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-"""
-            command([os.sys.executable, "-c", generator], worktree)
+            main, worktree = create_real_kit_merged_worktree(root)
+            command(["npm", "run", "kit:build"], worktree)
+            command([
+                os.sys.executable,
+                "-m",
+                "py_compile",
+                "scripts/worktree-lifecycle/core.py",
+            ], worktree)
+            self.assertTrue((worktree / "dist-kit/package.json").is_file())
+            self.assertTrue(
+                any(
+                    (worktree / "scripts/worktree-lifecycle/__pycache__").glob(
+                        "core.*.pyc"
+                    )
+                )
+            )
 
             real_run = wrapup.run
 
@@ -162,7 +244,7 @@ for relative, content in {
                 return real_run(args, cwd=cwd, check=check)
 
             args = SimpleNamespace(
-                branch="fix/268-cleanup",
+                branch="fix/268-real-generator",
                 body_file=None,
                 title=None,
                 anchor=None,
@@ -181,13 +263,16 @@ for relative, content in {
             finally:
                 os.chdir(previous)
 
-            self.assertEqual(
-                first["cleanup_guard"]["landing_generated_files"],
-                [
-                    ".claude/logs/wrapup.log",
-                    "dist-kit/package.tgz",
-                    "scripts/__pycache__/guard.pyc",
-                ],
+            generated = first["cleanup_guard"]["landing_generated_files"]
+            self.assertIn("dist-kit/package.json", generated)
+            self.assertTrue(
+                any(
+                    path.startswith(
+                        "scripts/worktree-lifecycle/__pycache__/core."
+                    )
+                    and path.endswith(".pyc")
+                    for path in generated
+                ),
             )
             self.assertEqual(first["worktree_removed"], str(worktree))
             self.assertFalse(worktree.exists())
