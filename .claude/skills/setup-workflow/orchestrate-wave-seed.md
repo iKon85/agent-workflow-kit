@@ -10,8 +10,9 @@ detail. The skill probes it at runtime (Phase 0); with the sections below
 
 > **Section contract.** The skeleton refers to these exact headings by name.
 > Keep them; fill each with your project's real detail. While a section is empty
-> the skill treats the whole layer as absent (Phase-0 sentinel-stub rule) and
-> falls back to generic instructions — so fill them before relying on the recipe.
+> the Kit Core `all-sections-filled` readiness policy treats the whole layer as
+> absent and the skill falls back to generic instructions — so fill them before
+> relying on the recipe.
 
 ## §Setup
 <!-- Project setup steps Phase 0 runs before verify: DB/tunnel/services the

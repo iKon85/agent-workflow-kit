@@ -97,7 +97,7 @@ async function projectExtensionVerdict(root, evidence) {
     });
     return { verdict: result.state === 'active' ? 'valid' : 'absent' };
   } catch (error) {
-    return { verdict: 'invalid', diagnostic: error.message };
+    return { verdict: 'invalid', blocking: true, diagnostic: error.message };
   }
 }
 
@@ -183,7 +183,14 @@ export async function evaluateCapability({ root, capability, decision }) {
   const diagnostics = evaluated?.diagnostics?.length
     ? { diagnostics: evaluated.diagnostics }
     : (evaluated?.diagnostic ? { diagnostic: evaluated.diagnostic } : {});
-  if (evidence === 'invalid') return { state: 'invalid', clearDecision: false, ...diagnostics };
+  if (evidence === 'invalid') {
+    return {
+      state: 'invalid',
+      clearDecision: false,
+      ...(evaluated?.blocking ? { blocking: true } : {}),
+      ...diagnostics,
+    };
+  }
   if (evidence === 'valid') return { state: 'ready', clearDecision: Boolean(decision) };
   if (decision === 'pending') return { state: 'pending', clearDecision: false, ...diagnostics };
   if (decision === 'not-applicable' && capability.allowNotApplicable) {
@@ -224,7 +231,10 @@ export async function checkSkill({ root, skill, manifest }) {
     (capabilities[name].state === 'ready' ? activeBlocks : inactiveBlocks).push(block);
   }
   const invalid = Object.values(capabilities).some(({ state }) => state === 'invalid');
-  const verdict = requiredBlocked ? 'blocked' : (inactiveBlocks.length || invalid ? 'degraded' : 'ready');
+  const fatal = Object.values(capabilities).some(({ blocking }) => blocking === true);
+  const verdict = requiredBlocked || fatal
+    ? 'blocked'
+    : (inactiveBlocks.length || invalid ? 'degraded' : 'ready');
   return { contractVersion: manifest.readiness.contractVersion, verdict, capabilities, activeBlocks, inactiveBlocks };
 }
 

@@ -152,7 +152,9 @@ test('structured Project-extension readiness uses the runtime activation contrac
       '<!-- agent-workflow-kit: project-extension/v2; skill=orchestrate-wave -->\n',
     );
     result = await checkSkill({ root, skill: 'orchestrate-wave', manifest });
+    assert.equal(result.verdict, 'blocked');
     assert.equal(result.capabilities.orchestrateWaveRecipe.state, 'invalid');
+    assert.equal(result.capabilities.orchestrateWaveRecipe.blocking, true);
     assert.match(
       result.capabilities.orchestrateWaveRecipe.diagnostic,
       /unsupported schema.*expected project-extension\/v1/,

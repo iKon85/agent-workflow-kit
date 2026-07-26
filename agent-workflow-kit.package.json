@@ -447,7 +447,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "b75a89d13e862556e334957aecdc6cd228944d4c32cfc9a179cefac58824a89b",
+      "sha256": "5e1ac5810432c9524ff4a4456330b3866afa1fd7d0ee0f001ab96a672892c6e2",
       "mode": 420,
       "origin": "kit"
     },
@@ -667,7 +667,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "4ced75934cb409903344f196253e99c1166d7c8705d92c477bfeda92f8a9cadf",
+      "sha256": "78f24c6f32bb4b3dd65293c2121b726fbf495f95d884d0527a32b6f1cfae52f5",
       "mode": 420,
       "origin": "kit"
     },
@@ -1769,7 +1769,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "b75a89d13e862556e334957aecdc6cd228944d4c32cfc9a179cefac58824a89b",
+      "sha256": "5e1ac5810432c9524ff4a4456330b3866afa1fd7d0ee0f001ab96a672892c6e2",
       "mode": 420,
       "origin": "kit"
     },
@@ -2009,7 +2009,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "4ced75934cb409903344f196253e99c1166d7c8705d92c477bfeda92f8a9cadf",
+      "sha256": "78f24c6f32bb4b3dd65293c2121b726fbf495f95d884d0527a32b6f1cfae52f5",
       "mode": 420,
       "origin": "kit"
     },
@@ -2675,7 +2675,7 @@
       "path": "scripts/readiness.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "123424eb742767891440e8e52a36ec2e4e624a571a4cb829a18aca37527dea22",
+      "sha256": "385854b0a1d8f7915c59cc4f35a3ee6774c4d4ac631a96357abe11cb81be3021",
       "mode": 493,
       "origin": "kit"
     },
@@ -2899,7 +2899,7 @@
       "path": "src/lib/projectSkillExtension.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "62e50f0800cf7ca74ed959047680a7608bdfcc148e6689c80ac94e58bfa766b5",
+      "sha256": "af43ac9b0a4963f7a881aad373a4f1923967828142376ec9661a69095edb7476",
       "mode": 420,
       "origin": "kit"
     },

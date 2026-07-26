@@ -7,16 +7,29 @@ const MARKER_PREFIX = '<!-- agent-workflow-kit: project-extension/';
 const MARKER = /^<!-- agent-workflow-kit: project-extension\/([^;]+); skill=([a-z0-9-]+) -->$/;
 
 function meaningfulSectionBody(lines) {
-  const body = lines
-    .join('\n')
-    .replace(/<!--[\s\S]*?-->/g, '');
-  if (/<[^>\n]+>/.test(body)) return '';
-  return body
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line && !/^#{1,6}\s+/.test(line) && !/^```/.test(line))
-    .join('\n')
-    .trim();
+  const body = lines.join('\n').replace(/<!--[\s\S]*?-->/g, '');
+  const content = [];
+  let fence = null;
+  for (const rawLine of body.split('\n')) {
+    const line = rawLine.trim();
+    const delimiter = /^(`{3,}|~{3,})/.exec(line)?.[1];
+    if (delimiter && !fence) {
+      fence = { character: delimiter[0], length: delimiter.length };
+      continue;
+    }
+    if (fence && new RegExp(`^\\${fence.character}{${fence.length},}\\s*$`).test(line)) {
+      fence = null;
+      continue;
+    }
+    if (line && !/^#{1,6}\s+/.test(line)) content.push(line);
+  }
+  const meaningful = content
+    .filter((line) =>
+      !/^(?:TODO|TBD)(?:[.!:]*)$/i.test(line)
+      && !/^<(?:placeholder|fill|configure|add)(?:\s+[^>]*)?>[.!:]*$/i.test(line)
+      && !/^(?:Run|Use|Configure|Add|Replace)\s+`?<[^>]+>`?[.!:]*$/i.test(line))
+    .join('\n');
+  return meaningful.trim();
 }
 
 function sectionBodies(body, path) {
