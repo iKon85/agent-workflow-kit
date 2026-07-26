@@ -100,9 +100,20 @@ whole teardown before mutation.
 If setup fails, the provisional row becomes `recovery-pending`. Automatic and
 explicit `recover` use the same bounded route: active claim and receipt,
 protected name, PR state, exact ref OID, registration/root identity, and the
-creation baseline are revalidated. Only regular files whose path,
-device/inode, size, and digest were frozen at the setup failure may be removed;
-later foreign files or replacements stop without losing receipt ownership.
+creation baseline are revalidated. A branch-only remainder is compare-deleted
+only at its provisional OID. A registered worktree whose add succeeded before
+root journaling is adopted only when its Git registration/backlink, branch,
+OID, and exact-clean inventory all match.
+
+For failed project setup, exact index/worktree diff hashes and paths are frozen
+without storing diff content. Exact regular-file or no-follow symlink identity
+is frozen for every setup-created untracked path. Recovery revalidates that
+evidence, restores only the frozen tracked paths to the creation OID, and
+unlinks only matching untracked identities; later foreign files,
+modifications, or replacements stop without losing receipt ownership. If
+identity capture cannot finish, the receipt retains only a bounded failure
+class and can retry from the unchanged inventory or an exact-clean worktree.
+Raw command, exception, stdout, and stderr text is never retained or archived.
 Recovery uses ordinary worktree removal and compare-deletes the exact ref.
 
 Teardown re-runs that complete assessment, archives every recovery OID in the

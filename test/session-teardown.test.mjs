@@ -548,6 +548,222 @@ test('failed setup rolls back the newly created target without recording ownersh
   assert.deepEqual(receipt.targets, []);
 });
 
+test('a branch-only worktree-add remainder is compare-deleted from provisional ownership', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  const begun = await session(repo, 'begin', '--base', 'main');
+  const realGit = (await command('sh', ['-c', 'command -v git'], repo)).stdout.trim();
+  const fakeBin = join(root, 'fake-bin');
+  await mkdir(fakeBin);
+  await writeFile(join(fakeBin, 'git'), `#!/usr/bin/env bash
+if [[ "$1 $2" == "worktree add" ]]; then
+  "${realGit}" branch "$5" "$6"
+  printf '%s\\n' 'SECRET_BRANCH_ONLY_CANARY' >&2
+  exit 91
+fi
+exec "${realGit}" "$@"
+`);
+  await chmod(join(fakeBin, 'git'), 0o755);
+
+  let failure;
+  try {
+    await command('python3', [
+      SESSION, 'create', '--anchor', '42', '--owner', 'run-alpha',
+      '--profile', 'docs/agents/workflow-capabilities.json',
+      '--gh-command', 'false', '116', 'branch-only', 'feat',
+    ], repo, {
+      env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
+    });
+  } catch (error) {
+    failure = error;
+  }
+  assert.ok(failure);
+  assert.doesNotMatch(`${failure.stdout}${failure.stderr}${failure.message}`, /SECRET_BRANCH_ONLY_CANARY/);
+  await assert.rejects(git(repo, 'show-ref', '--verify', 'refs/heads/feat/116-branch-only'));
+  const receiptText = await readFile(begun.receipt, 'utf8');
+  assert.doesNotMatch(receiptText, /SECRET_BRANCH_ONLY_CANARY|"failure":/);
+  const receipt = JSON.parse(receiptText);
+  assert.deepEqual(receipt.targets, []);
+  assert.equal(receipt.recoveredTargets.at(-1).failureClass, 'worktree-add');
+});
+
+test('a real worktree add followed by wrapper failure is recovered from Git backlinks', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  const begun = await session(repo, 'begin', '--base', 'main');
+  const realGit = (await command('sh', ['-c', 'command -v git'], repo)).stdout.trim();
+  const fakeBin = join(root, 'fake-bin');
+  await mkdir(fakeBin);
+  await writeFile(join(fakeBin, 'git'), `#!/usr/bin/env bash
+if [[ "$1 $2" == "worktree add" ]]; then
+  "${realGit}" "$@" || exit $?
+  printf '%s\\n' 'SECRET_POST_ADD_CANARY' >&2
+  exit 92
+fi
+exec "${realGit}" "$@"
+`);
+  await chmod(join(fakeBin, 'git'), 0o755);
+
+  let failure;
+  try {
+    await command('python3', [
+      SESSION, 'create', '--anchor', '42', '--owner', 'run-alpha',
+      '--profile', 'docs/agents/workflow-capabilities.json',
+      '--gh-command', 'false', '117', 'post-add', 'feat',
+    ], repo, {
+      env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
+    });
+  } catch (error) {
+    failure = error;
+  }
+  assert.ok(failure);
+  assert.doesNotMatch(`${failure.stdout}${failure.stderr}${failure.message}`, /SECRET_POST_ADD_CANARY/);
+  await assert.rejects(git(repo, 'show-ref', '--verify', 'refs/heads/feat/117-post-add'));
+  assert.doesNotMatch((await git(repo, 'worktree', 'list')).stdout, /feat-117-post-add/);
+  const receiptText = await readFile(begun.receipt, 'utf8');
+  assert.doesNotMatch(receiptText, /SECRET_POST_ADD_CANARY|"failure":/);
+  assert.deepEqual(JSON.parse(receiptText).targets, []);
+});
+
+test('failed setup freezes tracked and symlink identity without leaking command stderr', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  const begun = await session(repo, 'begin', '--base', 'main');
+  const profilePath = join(repo, 'docs/agents/workflow-capabilities.json');
+  const profile = JSON.parse(await readFile(profilePath, 'utf8'));
+  profile.worktreeLifecycle.setupSteps = [
+    {
+      kind: 'command',
+      command: ['node', '-e', "require('fs').writeFileSync('seed.txt','setup\\n')"],
+    },
+    { kind: 'command', command: ['git', 'add', 'seed.txt'] },
+    {
+      kind: 'command',
+      command: [
+        'node', '-e',
+        "require('fs').symlinkSync('private-target','setup-link');"
+          + "process.stderr.write('SECRET_SETUP_CANARY\\n');process.exit(23)",
+      ],
+    },
+  ];
+  await writeFile(profilePath, JSON.stringify(profile));
+
+  const realGit = (await command('sh', ['-c', 'command -v git'], repo)).stdout.trim();
+  const fakeBin = join(root, 'fake-bin');
+  await mkdir(fakeBin);
+  await writeFile(join(fakeBin, 'git'), `#!/usr/bin/env bash
+if [[ "$1" == "restore" ]]; then
+  exit 93
+fi
+exec "${realGit}" "$@"
+`);
+  await chmod(join(fakeBin, 'git'), 0o755);
+
+  let failure;
+  try {
+    await command('python3', [
+      SESSION, 'create', '--anchor', '42', '--owner', 'run-alpha',
+      '--profile', profilePath, '--gh-command', 'false',
+      '120', 'tracked-symlink', 'feat',
+    ], repo, {
+      env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
+    });
+  } catch (error) {
+    failure = error;
+  }
+  assert.ok(failure);
+  assert.doesNotMatch(`${failure.stdout}${failure.stderr}${failure.message}`, /SECRET_SETUP_CANARY/);
+
+  let receiptText = await readFile(begun.receipt, 'utf8');
+  assert.doesNotMatch(receiptText, /SECRET_SETUP_CANARY|"failure":/);
+  let receipt = JSON.parse(receiptText);
+  const target = receipt.targets[0];
+  assert.equal(target.evidenceState, 'complete');
+  assert.deepEqual(target.setupTrackedEvidence.paths, ['seed.txt']);
+  assert.equal(target.setupCreatedFiles[0].kind, 'symlink');
+  await writeFile(join(target.worktree, 'seed.txt'), 'later change\n');
+  await assert.rejects(
+    session(repo, 'recover', '--branch', target.branch, '--gh-command', 'false'),
+    /tracked setup changes changed/,
+  );
+
+  await writeFile(join(target.worktree, 'seed.txt'), 'setup\n');
+  const recovered = await session(
+    repo, 'recover', '--branch', target.branch, '--gh-command', 'false',
+  );
+  assert.equal(recovered.recovered, true);
+  await assert.rejects(git(repo, 'show-ref', '--verify', `refs/heads/${target.branch}`));
+  receiptText = await readFile(begun.receipt, 'utf8');
+  receipt = JSON.parse(receiptText);
+  assert.deepEqual(receipt.targets, []);
+  assert.doesNotMatch(receiptText, /SECRET_SETUP_CANARY|"failure":/);
+});
+
+test('incomplete evidence capture remains retryable after the worktree is made exact-clean', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  const begun = await session(repo, 'begin', '--base', 'main');
+  const profilePath = join(repo, 'docs/agents/workflow-capabilities.json');
+  const profile = JSON.parse(await readFile(profilePath, 'utf8'));
+  profile.worktreeLifecycle.setupSteps = [{
+    kind: 'command',
+    command: [
+      'node', '-e',
+      "require('fs').writeFileSync('setup-owned.txt','owned\\n');"
+        + "process.stderr.write('SECRET_CAPTURE_CANARY\\n');process.exit(23)",
+    ],
+  }];
+  await writeFile(profilePath, JSON.stringify(profile));
+  const realGit = (await command('sh', ['-c', 'command -v git'], repo)).stdout.trim();
+  const fakeBin = join(root, 'fake-bin');
+  await mkdir(fakeBin);
+  await writeFile(join(fakeBin, 'git'), `#!/usr/bin/env bash
+if [[ "$1" == "diff" ]]; then
+  printf '%s\\n' 'SECRET_DIFF_CANARY' >&2
+  exit 94
+fi
+exec "${realGit}" "$@"
+`);
+  await chmod(join(fakeBin, 'git'), 0o755);
+
+  let failure;
+  try {
+    await command('python3', [
+      SESSION, 'create', '--anchor', '42', '--owner', 'run-alpha',
+      '--profile', profilePath, '--gh-command', 'false',
+      '122', 'pending-evidence', 'feat',
+    ], repo, {
+      env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
+    });
+  } catch (error) {
+    failure = error;
+  }
+  assert.ok(failure);
+  assert.doesNotMatch(
+    `${failure.stdout}${failure.stderr}${failure.message}`,
+    /SECRET_(?:CAPTURE|DIFF)_CANARY/,
+  );
+  let receiptText = await readFile(begun.receipt, 'utf8');
+  assert.doesNotMatch(receiptText, /SECRET_(?:CAPTURE|DIFF)_CANARY|"failure":/);
+  let receipt = JSON.parse(receiptText);
+  const target = receipt.targets[0];
+  assert.equal(target.state, 'recovery-pending');
+  assert.equal(target.evidenceState, 'pending');
+  assert.equal(target.evidenceFailureClass, 'identity-capture');
+
+  await rm(join(target.worktree, 'setup-owned.txt'));
+  await session(repo, 'recover', '--branch', target.branch, '--gh-command', 'false');
+  receiptText = await readFile(begun.receipt, 'utf8');
+  receipt = JSON.parse(receiptText);
+  assert.deepEqual(receipt.targets, []);
+  assert.equal(receipt.recoveredTargets.at(-1).evidenceState, 'complete');
+  assert.equal('evidenceFailureClass' in receipt.recoveredTargets.at(-1), false);
+});
+
 test('failed setup preserves recovery ownership when exact rollback is interrupted', async (t) => {
   const { root, repo } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));

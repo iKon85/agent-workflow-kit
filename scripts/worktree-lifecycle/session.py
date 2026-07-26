@@ -7,6 +7,7 @@ import argparse
 from collections import Counter
 from contextlib import contextmanager
 import fcntl
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
@@ -20,12 +21,13 @@ from core import (
     capture_artifact_baseline,
     classify_cleanup,
     collect_cleanup_facts,
-    contained_regular_identity,
+    contained_untracked_identity,
     load_profile,
     load_artifact_baseline,
     main_worktree,
     registered_worktrees,
     remove_contained_regular,
+    remove_contained_untracked,
     run,
     verified_landing_scratch_files,
     verified_worktree_root,
@@ -230,11 +232,13 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
         # pre-existing foreign-looking orphan on retry.
         receipt["targets"].append(entry)
         write_receipt(path, receipt)
+        failure_class = "worktree-add"
         try:
             run(
                 ["git", "worktree", "add", str(target), "-b", branch, target_base],
                 cwd=main,
             )
+            failure_class = "root-journal"
             created_oid = resolve_ref(main, f"refs/heads/{branch}")
             if created_oid != target_base:
                 raise LifecycleError("new session branch did not retain the recorded base OID")
@@ -251,6 +255,7 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
 
             # This baseline must precede every project setup step: only its
             # exact untracked delta can later be attributed to failed setup.
+            failure_class = "baseline-capture"
             artifact_baseline = capture_artifact_baseline(target)
             if artifact_baseline.setup_head != created_oid:
                 raise LifecycleError(
@@ -261,6 +266,7 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                 "artifactBaselineDigest": artifact_baseline.digest,
             })
             write_receipt(path, receipt)
+            failure_class = "setup-step"
             for step in profile.setup_steps:
                 execute_step(
                     step,
@@ -269,6 +275,7 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                     issue=args.issue,
                     branch=branch,
                 )
+            failure_class = "promotion"
             created_oid = resolve_ref(main, f"refs/heads/{branch}")
             if created_oid != target_base:
                 raise LifecycleError("new session branch did not retain the recorded base OID")
@@ -286,19 +293,31 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             write_receipt(path, receipt)
         except Exception as error:
             entry["state"] = "recovery-pending"
-            entry["failure"] = str(error)
+            entry.pop("failure", None)
+            entry["failureClass"] = failure_class
             write_receipt(path, receipt)
-            _capture_setup_created_evidence(main, target, entry)
+            try:
+                _capture_setup_created_evidence(main, target, entry)
+            except Exception:
+                entry["evidenceState"] = "pending"
+                entry["evidenceFailureClass"] = "identity-capture"
             write_receipt(path, receipt)
-            _recover_creation_entry(
-                main,
-                args,
-                path,
-                receipt,
-                entry,
-                archive_reason="automatic rollback after failed setup",
-            )
-            raise
+            try:
+                _recover_creation_entry(
+                    main,
+                    args,
+                    path,
+                    receipt,
+                    entry,
+                    archive_reason="automatic rollback after failed setup",
+                )
+            except Exception:
+                # Ownership and the bounded failure class are already durable.
+                # Never surface a setup command's exception/stdout/stderr.
+                pass
+            raise LifecycleError(
+                f"session creation failed ({failure_class}); recovery receipt retained"
+            ) from error
     return {"branch": branch, "worktree": str(target), "createdOid": created_oid}
 
 
@@ -307,29 +326,108 @@ def _capture_setup_created_evidence(
     target: Path,
     entry: dict[str, Any],
 ) -> None:
+    entry.pop("evidenceFailureClass", None)
     if not target.exists() or not entry.get("artifactBaselineDigest"):
         entry["setupCreatedFiles"] = []
+        entry["setupTrackedEvidence"] = _tracked_evidence(target) if target.exists() else None
+        entry["evidenceState"] = "complete"
         return
     baseline = load_artifact_baseline(target)
     if baseline.digest != entry["artifactBaselineDigest"]:
         raise LifecycleError("creation baseline changed before recovery journaling")
     facts = collect_cleanup_facts(main, target, pr_state="none")
-    if facts.tracked_files:
-        raise LifecycleError(
-            "tracked changes stop creation recovery: " + ", ".join(facts.tracked_files)
-        )
     created = tuple(sorted(
         set(facts.untracked_files).difference(baseline.initial_untracked_files)
     ))
+    tracked = _tracked_evidence(target)
+    entry["setupTrackedEvidence"] = tracked
+    entry["setupCreatedPaths"] = list(created)
+    entry["setupInventoryDigest"] = _inventory_digest(tracked, created)
+    entry["evidenceState"] = "pending"
     with verified_worktree_root(
         target,
         entry["rootDevice"],
         entry["rootInode"],
     ) as descriptor:
         entry["setupCreatedFiles"] = [
-            contained_regular_identity(descriptor, relative)
+            contained_untracked_identity(descriptor, relative)
             for relative in created
         ]
+    entry["evidenceState"] = "complete"
+
+
+def _tracked_evidence(target: Path) -> dict[str, Any]:
+    paths: set[str] = set()
+    digests: dict[str, str] = {}
+    for name, cached in (("worktree", False), ("index", True)):
+        diff_command = [
+            "git", "diff", "--binary", "--full-index", "--no-renames",
+        ]
+        names_command = ["git", "diff", "--name-only", "-z", "--no-renames"]
+        if cached:
+            diff_command.insert(2, "--cached")
+            names_command.insert(2, "--cached")
+        diff = run(diff_command, cwd=target).stdout
+        names = run(names_command, cwd=target).stdout
+        values = [value for value in names.split("\0") if value]
+        if any(
+            Path(value).is_absolute() or ".." in Path(value).parts
+            for value in values
+        ):
+            raise LifecycleError("tracked recovery path is unsafe")
+        paths.update(values)
+        digests[f"{name}DiffSha256"] = sha256(
+            diff.encode("utf-8", errors="surrogateescape")
+        ).hexdigest()
+    return {"paths": sorted(paths), **digests}
+
+
+def _inventory_digest(
+    tracked: dict[str, Any],
+    untracked_paths: tuple[str, ...] | list[str],
+) -> str:
+    payload = json.dumps(
+        {"tracked": tracked, "untrackedPaths": list(untracked_paths)},
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return sha256(payload).hexdigest()
+
+
+def _tracked_evidence_at_created_oid() -> dict[str, Any]:
+    empty = sha256(b"").hexdigest()
+    return {
+        "paths": [],
+        "worktreeDiffSha256": empty,
+        "indexDiffSha256": empty,
+    }
+
+
+def _worktree_backlink_matches(main: Path, target: Path, branch: str) -> bool:
+    top = run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=target,
+        check=False,
+    )
+    common = run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=target,
+        check=False,
+    )
+    current = run(
+        ["git", "branch", "--show-current"],
+        cwd=target,
+        check=False,
+    )
+    return (
+        top.returncode == 0
+        and Path(top.stdout.strip()).resolve() == target.resolve()
+        and common.returncode == 0
+        and Path(common.stdout.strip()).resolve() == common_git_dir(main)
+        and current.returncode == 0
+        and current.stdout.strip() == branch
+    )
 
 
 def _archive_recovered_target(
@@ -338,8 +436,10 @@ def _archive_recovered_target(
     entry: dict[str, Any],
     reason: str,
 ) -> None:
+    entry.pop("failure", None)
+    archived = {key: value for key, value in entry.items() if key != "failure"}
     receipt.setdefault("recoveredTargets", []).append({
-        **entry,
+        **archived,
         "state": "recovered",
         "recoveryReason": reason,
     })
@@ -374,25 +474,42 @@ def _recover_creation_entry(
     expected_oid = entry["createdOid"]
     linked = worktree_branches(main)
     linked_path = linked.get(branch)
+    target_present = os.path.lexists(target)
     if current_oid is not None and current_oid != expected_oid:
         raise LifecycleError(
             f"unexpected OID during creation recovery: {branch}: "
             f"expected {expected_oid}, found {current_oid}"
         )
-    if current_oid is None and (target.exists() or linked_path is not None):
+    if current_oid is None and (target_present or linked_path is not None):
         raise LifecycleError(
             f"session ref disappeared while its worktree remains: {branch}"
         )
-    if current_oid is None and not target.exists() and linked_path is None:
+    if current_oid is None and not target_present and linked_path is None:
+        _archive_recovered_target(path, receipt, entry, archive_reason)
+        return
+    if current_oid == expected_oid and not target_present and linked_path is None:
+        deleted = run(
+            ["git", "update-ref", "-d", f"refs/heads/{branch}", expected_oid],
+            cwd=main,
+            check=False,
+        )
+        if deleted.returncode != 0:
+            raise LifecycleError(
+                f"compare-delete failed during branch-only creation recovery: {branch}"
+            )
         _archive_recovered_target(path, receipt, entry, archive_reason)
         return
     if linked_path != target.resolve():
         raise LifecycleError(
             f"worktree registration changed during creation recovery: {branch}"
         )
-    if not target.exists():
+    if not target_present:
         raise LifecycleError(
             f"worktree directory is missing while Git registration remains: {branch}"
+        )
+    if target.is_symlink() or not target.is_dir():
+        raise LifecycleError(
+            f"worktree root type changed during creation recovery: {branch}"
         )
     metadata = target.stat()
     recorded_identity = (entry.get("rootDevice"), entry.get("rootInode"))
@@ -403,22 +520,28 @@ def _recover_creation_entry(
             f"worktree root identity changed during creation recovery: {branch}"
         )
     if None in recorded_identity:
-        raise LifecycleError(
-            f"worktree creation identity was not journaled before recovery: {branch}"
-        )
+        if (
+            not _worktree_backlink_matches(main, target, branch)
+            or collect_cleanup_facts(main, target, pr_state="none").tracked_files
+            or collect_cleanup_facts(main, target, pr_state="none").untracked_files
+        ):
+            raise LifecycleError(
+                f"worktree creation identity was not journaled before recovery: {branch}"
+            )
+        entry["rootDevice"] = metadata.st_dev
+        entry["rootInode"] = metadata.st_ino
+        recorded_identity = (metadata.st_dev, metadata.st_ino)
+        write_receipt(path, receipt)
 
     facts = collect_cleanup_facts(main, target, pr_state="none")
-    if facts.tracked_files:
-        raise LifecycleError(
-            "tracked changes stop creation recovery: " + ", ".join(facts.tracked_files)
-        )
     baseline_digest = entry.get("artifactBaselineDigest")
     if not baseline_digest:
-        if facts.untracked_files:
+        if facts.tracked_files or facts.untracked_files:
             raise LifecycleError(
-                "creation baseline is missing while untracked files remain"
+                "creation baseline is missing while worktree changes remain"
             )
         setup_created: tuple[str, ...] = ()
+        tracked_evidence = _tracked_evidence(target)
     else:
         baseline = load_artifact_baseline(target)
         if (
@@ -434,11 +557,47 @@ def _recover_creation_entry(
                 "creation baseline inventory changed before recovery"
             )
         evidence = entry.get("setupCreatedFiles")
+        tracked_evidence = entry.get("setupTrackedEvidence")
+        evidence_state = entry.get("evidenceState")
+        if evidence_state == "pending":
+            current_tracked = _tracked_evidence(target)
+            current_created = tuple(sorted(current.difference(initial)))
+            current_digest = _inventory_digest(current_tracked, current_created)
+            if not facts.tracked_files and not current_created:
+                entry["setupTrackedEvidence"] = current_tracked
+                entry["setupCreatedFiles"] = []
+                entry["setupCreatedPaths"] = []
+                entry["setupInventoryDigest"] = current_digest
+                entry["evidenceState"] = "complete"
+                entry.pop("evidenceFailureClass", None)
+                write_receipt(path, receipt)
+                evidence = []
+                tracked_evidence = current_tracked
+            elif current_digest == entry.get("setupInventoryDigest"):
+                _capture_setup_created_evidence(main, target, entry)
+                write_receipt(path, receipt)
+                evidence = entry.get("setupCreatedFiles")
+                tracked_evidence = entry.get("setupTrackedEvidence")
+            else:
+                raise LifecycleError(
+                    "creation recovery evidence is pending and inventory changed"
+                )
         if not isinstance(evidence, list) or not all(
-            isinstance(item, dict) and isinstance(item.get("path"), str)
+            isinstance(item, dict)
+            and isinstance(item.get("path"), str)
+            and item.get("kind") in {"regular", "symlink"}
             for item in evidence
         ):
             raise LifecycleError("setup-created file evidence is missing or incoherent")
+        if (
+            not isinstance(tracked_evidence, dict)
+            or not isinstance(tracked_evidence.get("paths"), list)
+        ):
+            raise LifecycleError("setup-created tracked evidence is missing or incoherent")
+        current_tracked = _tracked_evidence(target)
+        clean_tracked = _tracked_evidence_at_created_oid()
+        if current_tracked != clean_tracked and current_tracked != tracked_evidence:
+            raise LifecycleError("tracked setup changes changed after failed setup")
         evidenced_paths = {item["path"] for item in evidence}
         unexpected = current.difference(initial).difference(evidenced_paths)
         if unexpected:
@@ -453,6 +612,25 @@ def _recover_creation_entry(
                 + ", ".join(sorted(initial))
             )
 
+    if tracked_evidence != _tracked_evidence_at_created_oid():
+        current_tracked = _tracked_evidence(target)
+        if current_tracked == tracked_evidence:
+            paths = tracked_evidence["paths"]
+            if paths:
+                restored = run(
+                    [
+                        "git", "restore", f"--source={expected_oid}",
+                        "--staged", "--worktree", "--", *paths,
+                    ],
+                    cwd=target,
+                    check=False,
+                )
+                if restored.returncode != 0:
+                    raise LifecycleError(
+                        "bounded tracked restoration failed during creation recovery"
+                    )
+        elif current_tracked != _tracked_evidence_at_created_oid():
+            raise LifecycleError("tracked setup changes changed after failed setup")
     with verified_worktree_root(
         target,
         entry["rootDevice"],
@@ -463,11 +641,7 @@ def _recover_creation_entry(
                 item for item in entry["setupCreatedFiles"]
                 if item["path"] == relative
             )
-            remove_contained_regular(
-                descriptor,
-                relative,
-                expected_identity=expected,
-            )
+            remove_contained_untracked(descriptor, expected)
     latest = collect_cleanup_facts(main, target, pr_state="none")
     if latest.tracked_files or latest.untracked_files:
         raise LifecycleError("creation recovery inventory changed before removal")
@@ -478,10 +652,9 @@ def _recover_creation_entry(
     )
     if removed.returncode != 0:
         raise LifecycleError(
-            f"ordinary worktree removal failed during creation recovery: "
-            f"{(removed.stderr or removed.stdout).strip()}"
+            "ordinary worktree removal failed during creation recovery"
         )
-    if target.exists() or branch in worktree_branches(main):
+    if os.path.lexists(target) or branch in worktree_branches(main):
         raise LifecycleError("worktree still exists after creation recovery")
     if resolve_ref(main, f"refs/heads/{branch}") != expected_oid:
         raise LifecycleError(f"unexpected OID before creation ref cleanup: {branch}")
@@ -518,6 +691,7 @@ def recover_creation(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                 f"{entry.get('state', '<missing>')}"
             )
         entry["state"] = "recovery-pending"
+        entry.pop("failure", None)
         write_receipt(path, receipt)
         _recover_creation_entry(
             main,

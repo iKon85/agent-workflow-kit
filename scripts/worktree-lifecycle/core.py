@@ -664,6 +664,107 @@ def contained_regular_identity(root_descriptor: int, relative: str) -> dict[str,
             os.close(descriptor)
 
 
+def contained_untracked_identity(
+    root_descriptor: int,
+    relative: str,
+) -> dict[str, Any]:
+    """Read exact regular/symlink identity without following any symlink."""
+    path = PurePosixPath(relative)
+    if path.is_absolute() or not path.parts or any(
+        part in {"", ".", ".."} for part in path.parts
+    ):
+        raise LifecycleError(f"unsafe recovery path: {relative}")
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    descriptors = []
+    try:
+        current = root_descriptor
+        for component in path.parts[:-1]:
+            current = os.open(
+                component,
+                directory_flags | no_follow,
+                dir_fd=current,
+            )
+            descriptors.append(current)
+        metadata = os.stat(path.name, dir_fd=current, follow_symlinks=False)
+        common = {
+            "path": relative,
+            "device": metadata.st_dev,
+            "inode": metadata.st_ino,
+            "size": metadata.st_size,
+        }
+        if stat.S_ISLNK(metadata.st_mode):
+            target = os.readlink(path.name, dir_fd=current).encode(
+                "utf-8", errors="surrogateescape"
+            )
+            return {**common, "kind": "symlink", "sha256": sha256(target).hexdigest()}
+        if not stat.S_ISREG(metadata.st_mode):
+            raise LifecycleError(f"unsupported recovery path type: {relative}")
+        file_descriptor = os.open(
+            path.name,
+            os.O_RDONLY | no_follow,
+            dir_fd=current,
+        )
+        try:
+            opened = os.fstat(file_descriptor)
+            if (opened.st_dev, opened.st_ino) != (
+                metadata.st_dev, metadata.st_ino
+            ):
+                raise LifecycleError(
+                    f"recovery path changed before inspection: {relative}"
+                )
+            digest = sha256()
+            while chunk := os.read(file_descriptor, 128 * 1024):
+                digest.update(chunk)
+        finally:
+            os.close(file_descriptor)
+        return {**common, "kind": "regular", "sha256": digest.hexdigest()}
+    except OSError as error:
+        raise LifecycleError(
+            f"recovery path changed before inspection: {relative}"
+        ) from error
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def remove_contained_untracked(
+    root_descriptor: int,
+    expected_identity: dict[str, Any],
+) -> None:
+    """Unlink one frozen regular file or symlink if its identity still matches."""
+    relative = expected_identity.get("path")
+    if not isinstance(relative, str):
+        raise LifecycleError("recovery path evidence is incoherent")
+    current = contained_untracked_identity(root_descriptor, relative)
+    if current != expected_identity:
+        raise LifecycleError(f"recovery path identity changed: {relative}")
+    path = PurePosixPath(relative)
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    descriptors = []
+    try:
+        parent = root_descriptor
+        for component in path.parts[:-1]:
+            parent = os.open(
+                component,
+                directory_flags | no_follow,
+                dir_fd=parent,
+            )
+            descriptors.append(parent)
+        latest = os.stat(path.name, dir_fd=parent, follow_symlinks=False)
+        if (latest.st_dev, latest.st_ino) != (
+            expected_identity["device"], expected_identity["inode"]
+        ):
+            raise LifecycleError(f"recovery path changed before removal: {relative}")
+        os.unlink(path.name, dir_fd=parent)
+    except OSError as error:
+        raise LifecycleError(f"recovery path changed before removal: {relative}") from error
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
 @dataclass(frozen=True)
 class SweepRow:
     kind: str
