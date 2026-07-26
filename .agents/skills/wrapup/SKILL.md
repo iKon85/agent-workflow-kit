@@ -11,7 +11,8 @@ description: >-
   tree (after an .env/secret check), pushes, and opens the PR — reusing one if
   it already exists. User-triggered only (never auto-invoke, never hook). Aborts
   hard only on: not in a feature worktree, a detected .env/secret, a rejected
-  push, a conflicting PR, or red (FAILURE) checks.
+  push, a conflicting PR, terminal red checks, or checks still pending after
+  the bounded wait budget.
 ---
 
 <!-- project-extension:protocol-v1:start -->
@@ -100,7 +101,7 @@ Run **from the main tree** (the script refuses inside the worktree — an in-wor
 ```bash
 python3 scripts/wrapup-land.py land --branch "<branch>" --title "<title>" --body-file /tmp/wrapup-pr-body.md
 ```
-One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (red check / `CONFLICTING` = STOP; fresh-PR `UNKNOWN` mergeable passes — the merge itself is the real gate) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` ports + cwd-under-worktree walk, own shell ancestry excluded) → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → main `--ff-only` pull + `branch -d` → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program).
+One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (pending/null-conclusion checks poll for up to 20 minutes with progress on stderr; terminal red / `CONFLICTING` / timeout = STOP; known zero-step billing or runner failures are named `infrastructure failure`; an already-`MERGED` PR resumes at teardown) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` ports + cwd-under-worktree walk, own shell ancestry excluded) → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → main `--ff-only` pull + `branch -d` → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program).
 
 STOP → diagnose in the main conversation, fix, re-run `land` (an already-merged PR resumes at teardown).
 
