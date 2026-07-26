@@ -322,6 +322,7 @@ rolls that migration back with the rest of the candidate.
 ```sh
 npx github:iKon85/agent-workflow-kit diff        # preview an update (dry run, writes nothing)
 npx github:iKon85/agent-workflow-kit update      # apply it
+npx github:iKon85/agent-workflow-kit update --yes --keep-deleted  # headless/CI
 npx github:iKon85/agent-workflow-kit uninstall   # remove kit-installed files
 ```
 
@@ -369,8 +370,16 @@ Containment and file type are revalidated when read.
 Ownership commands are designed for a single-user CLI workflow and are not
 concurrency-safe. Do not run manifest-mutating commands concurrently. Flags:
 `--force` (overwrite pre-existing untracked files on `init`), `--yes` / `-y`
-(confirm only already-classified safe update actions), and
+(run `update` non-interactively and confirm only already-classified safe
+actions), `--keep-deleted` (follow upstream deletions and remove those files
+locally), `--restore-deleted` (retain files that were deleted upstream), and
 `--as=explicit-fork` for `own`.
+
+A headless `update` requires `--yes`; otherwise it exits before reading release
+state or touching consumer files. The mutually exclusive deletion flags only
+override the blanket answer for files removed upstream. They never resolve an
+ownership collision or content conflict, so a conflicted headless update still
+prints its report, exits non-zero, and leaves the consumer byte-identical.
 
 The optional Contribution Routing capability is consumer-owned:
 

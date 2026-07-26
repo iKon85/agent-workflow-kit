@@ -509,7 +509,7 @@ test('shipped CLI wires init and update while unattended init never prompts or i
     );
 
     const cli = await readFile('src/cli.mjs', 'utf8');
-    assert.equal((cli.match(/routingProfile: routingProfileOptions\(\)/g) ?? []).length, 2);
+    assert.equal((cli.match(/routingProfile: routingProfileOptions\(yes\)/g) ?? []).length, 2);
     assert.match(cli, /p\.multiselect/);
     assert.match(cli, /question\.options\.map/);
     assert.doesNotMatch(cli, /Claude Code.*Codex|Codex.*Claude Code/);

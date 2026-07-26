@@ -20,29 +20,51 @@ import { createCommandAdapter } from '../scripts/release-state.mjs';
 import { installedIdentityFromDir } from '../scripts/release-parity.mjs';
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const consumerRoot = process.cwd();
 
 function stamp() {
   // backup suffix: YYYYMMDDTHHMMSS (no separators that collide with shells)
   return new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '');
 }
 
-const args = process.argv.slice(2);
-const cmd = args[0];
-const force = args.includes('--force');
-const yes = args.includes('--yes') || args.includes('-y');
-const owned = args.includes('--owned');
-const ownershipState = args.find((arg) => arg.startsWith('--as='))?.slice('--as='.length);
+export async function runCli({
+  argv = process.argv.slice(2),
+  kitRoot = KIT_ROOT,
+  consumerRoot = process.cwd(),
+  hasTTY = Boolean(process.stdin.isTTY && process.stdout.isTTY),
+  readUpdateRelease: releaseReader = readUpdateRelease,
+  updateCommand = update,
+} = {}) {
+  const args = argv;
+  const cmd = args[0];
+  const force = args.includes('--force');
+  const yes = args.includes('--yes') || args.includes('-y');
+  const owned = args.includes('--owned');
+  const keepDeleted = args.includes('--keep-deleted');
+  const restoreDeleted = args.includes('--restore-deleted');
+  const ownershipState = args.find((arg) => arg.startsWith('--as='))?.slice('--as='.length);
+  let exitCode = 0;
 
-p.intro('agent-workflow-kit');
+  if (cmd === 'update' && keepDeleted && restoreDeleted) {
+    process.stderr.write('Error: --keep-deleted and --restore-deleted are mutually exclusive.\n');
+    return 1;
+  }
+  if (cmd === 'update' && !hasTTY && !yes) {
+    process.stderr.write(
+      'Error: interactive prompts need a TTY. For non-interactive update, pass --yes '
+      + 'and optionally --keep-deleted or --restore-deleted.\n',
+    );
+    return 1;
+  }
 
-try {
+  p.intro('agent-workflow-kit');
+
+  try {
   if (cmd === 'init') {
     const r = await init({
-      kitRoot: KIT_ROOT,
+      kitRoot,
       consumerRoot,
       force,
-      routingProfile: routingProfileOptions(),
+      routingProfile: routingProfileOptions(yes),
     });
     p.note(
       `copied ${r.copied.length} · seeded ${r.seeded.length} stub(s)` +
@@ -53,21 +75,23 @@ try {
     p.outro('Next: run /setup-workflow to fill the project layer + board profile. ' +
       'To enable the drift-guard hook, add .claude/hooks/drift-guard.py to your settings.json hooks.');
   } else if (cmd === 'diff') {
-    const r = await diff({ kitRoot: KIT_ROOT, consumerRoot, owned });
+    const r = await diff({ kitRoot, consumerRoot, owned });
     printPlan(r);
     p.outro('Dry run — nothing written. Run `update` to apply.');
   } else if (cmd === 'update') {
     const decide = (action, path, classification) => (
-      decideUpdate(action, path, yes, classification)
+      decideUpdate(action, path, yes, classification, {
+        deleted: keepDeleted ? 'keep' : restoreDeleted ? 'restore' : undefined,
+      })
     );
-    const releaseIdentities = await readUpdateRelease();
-    const r = await update({
-      kitRoot: KIT_ROOT,
+    const releaseIdentities = await releaseReader();
+    const r = await updateCommand({
+      kitRoot,
       consumerRoot,
       now: stamp(),
       decide,
       releaseIdentities,
-      routingProfile: routingProfileOptions(),
+      routingProfile: routingProfileOptions(yes),
     });
     printPlan(r);
     printRoutingProfile(r.routingProfile);
@@ -79,7 +103,7 @@ try {
         `not applied · conflicts ${r.conflicts.length} · ` +
         `ownership collisions ${r.collisions.length}`,
       );
-      process.exitCode = 2;
+      exitCode = 2;
     } else if (r.status === 'current') {
       p.outro(`aktuell · unchanged ${r.unchanged.length} · local modifications ${r.userModified.length}`);
     } else {
@@ -87,7 +111,7 @@ try {
     }
   } else if (cmd === 'uninstall') {
     const ok = yes || (await p.confirm({ message: 'Remove kit-installed files?' })) === true;
-    if (!ok) { p.cancel('Aborted.'); process.exit(0); }
+    if (!ok) { p.cancel('Aborted.'); return 0; }
     const r = await uninstall({ consumerRoot });
     p.outro(`removed ${r.removed.length} · retained (edited/referenced) ${r.retained.length}`);
   } else if (cmd === 'contribute') {
@@ -101,7 +125,7 @@ try {
       );
     }
     if (action === 'start') {
-      await beginContributionBridge({ kitRoot: KIT_ROOT, consumerRoot, path });
+      await beginContributionBridge({ kitRoot, consumerRoot, path });
       p.outro(`${path} is now a contribution bridge; no remote was changed`);
     } else if (action === 'status') {
       const surface = args.find((arg) => arg.startsWith('--surface='))
@@ -132,7 +156,7 @@ try {
         );
       }
       await prepareContributionArtifact({
-        kitRoot: KIT_ROOT, consumerRoot, path, output,
+        kitRoot, consumerRoot, path, output,
       });
       p.outro(`prepared local contribution artifact ${output}; no remote was changed`);
     }
@@ -145,7 +169,7 @@ try {
     }
     const origin = cmd === 'own' ? CONSUMER_ORIGIN : KIT_ORIGIN;
     if (origin === CONSUMER_ORIGIN && ownershipState === 'contribution-bridge') {
-      await beginContributionBridge({ kitRoot: KIT_ROOT, consumerRoot, path: args[1] });
+      await beginContributionBridge({ kitRoot, consumerRoot, path: args[1] });
     } else {
       await setOwnership({ consumerRoot, path: args[1], origin, ownershipState });
     }
@@ -153,12 +177,19 @@ try {
       (origin === CONSUMER_ORIGIN ? ` (${ownershipState ?? 'explicit-fork'})` : ''));
   } else {
     p.note('Usage: agent-workflow-kit <init|update|diff|uninstall|own|disown|contribute> ' +
-      '[<path>] [--force] [--yes] [--owned] [--as=contribution-bridge|explicit-fork]');
+      '[<path>] [--force] [--yes] [--keep-deleted|--restore-deleted] [--owned] ' +
+      '[--as=contribution-bridge|explicit-fork]');
     p.outro('');
   }
 } catch (err) {
   p.cancel(`Error: ${err.message}`);
-  process.exit(1);
+  return 1;
+}
+  return exitCode;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  process.exitCode = await runCli();
 }
 
 function printPlan(r) {
@@ -190,8 +221,8 @@ function printPlan(r) {
   p.note(lines.join('\n') || 'no changes', 'plan');
 }
 
-async function decideUpdate(action, path, yes, classification) {
-  if (yes) return nonInteractiveUpdateDecision(action);
+async function decideUpdate(action, path, yes, classification, choices = {}) {
+  if (yes) return nonInteractiveUpdateDecision(action, choices);
   if (action === 'delete') {
     return (await p.confirm({ message: `Upstream removed ${path} — delete it locally?` })) === true;
   }
@@ -213,7 +244,7 @@ async function decideUpdate(action, path, yes, classification) {
   throw new Error(`unknown update decision action: ${action}`);
 }
 
-function routingProfileOptions() {
+function routingProfileOptions(yes) {
   return {
     currentSurface: currentAgentSurface(),
     prompt: yes ? undefined : promptRoutingProfile,
