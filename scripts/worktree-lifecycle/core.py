@@ -46,6 +46,8 @@ class CleanupAssessment:
     branch: str
     assumptions: str
     reasons: tuple[str, ...]
+    root_device: int
+    root_inode: int
     scratch_files: tuple[str, ...] = ()
 
     @property
@@ -64,6 +66,8 @@ class CleanupFacts:
     merged: bool
     pr_state: str
     assumptions: str
+    root_device: int
+    root_inode: int
 
 
 def collect_facts(cwd: Path) -> RepoFacts:
@@ -158,6 +162,7 @@ def collect_cleanup_facts(
     pr_state: str = "none",
 ) -> CleanupFacts:
     worktree = target.resolve()
+    root_metadata = worktree.stat()
     branch = run(
         ["git", "-C", str(worktree), "branch", "--show-current"],
         cwd=main,
@@ -212,6 +217,8 @@ def collect_cleanup_facts(
         merged=merged,
         pr_state=pr_state,
         assumptions=assumptions,
+        root_device=root_metadata.st_dev,
+        root_inode=root_metadata.st_ino,
     )
 
 
@@ -250,6 +257,8 @@ def classify_cleanup(
         facts.branch,
         facts.assumptions,
         tuple(reasons),
+        facts.root_device,
+        facts.root_inode,
         tuple(scratch),
     )
 
@@ -366,12 +375,16 @@ def collect_sweep_facts(
             ) if path is not None else None,
         ))
     for path in detached:
+        commit_time = run(
+            ["git", "-C", str(path), "show", "-s", "--format=%ct", "HEAD"],
+            cwd=main,
+        ).stdout.strip()
         rows.append(SweepFactRow(
             path=path,
             branch="",
             pr_state="none",
             merged_into_main=False,
-            last_commit_age_seconds=0,
+            last_commit_age_seconds=max(0, timestamp - int(commit_time)),
         ))
     remote_merged = run(
         [

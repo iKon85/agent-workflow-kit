@@ -77,6 +77,32 @@ test('an all-sections extension stays inactive until every section has instructi
         '# Project layer',
         '',
         '## §Setup',
+        '- TODO',
+        '',
+        '## §Landing',
+        '* [ ] TBD.',
+        '',
+      ].join('\n'),
+    );
+    assert.deepEqual(
+      await inspectProjectSkillExtension({ root, skill: 'orchestrate-wave', activation }),
+      {
+        state: 'inactive',
+        reason: 'sections-unfilled',
+        schemaVersion: 1,
+        path: 'docs/agents/skills/orchestrate-wave.md',
+        missingSections: ['§Setup', '§Landing'],
+      },
+    );
+
+    await write(
+      root,
+      'docs/agents/skills/orchestrate-wave.md',
+      [
+        marker,
+        '# Project layer',
+        '',
+        '## §Setup',
         '<command>',
         '',
         '## §Landing',

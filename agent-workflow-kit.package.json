@@ -2787,7 +2787,7 @@
       "path": "scripts/worktree-lifecycle/cleanup.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "1e268ff10d625a18a44b133f44bc510b6ce4a748e27c58e1a040877ea026c8b4",
+      "sha256": "3c1c1113298c7c81b26850df95db8571574a49610cea25b57e208e2fa0a40af9",
       "mode": 493,
       "origin": "kit"
     },
@@ -2795,7 +2795,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "69c862a5db4bb5320b4dc8ea716a2768e95405f71747add47c2a6402904e83a1",
+      "sha256": "d4846481f0e7eaeb8e87324a705f94ca323163e3d368b2d809bb572dfea6cd9b",
       "mode": 420,
       "origin": "kit"
     },
@@ -2827,7 +2827,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "05cbe7655c99425ca6890e2d7f391de5bd9ce7e0ba89fd860c9490e3c473e6d4",
+      "sha256": "77977bed7202a47700c358c66443075e198c51e6eaf6b2adaf90849729efb721",
       "mode": 493,
       "origin": "kit"
     },
@@ -2899,7 +2899,7 @@
       "path": "src/lib/projectSkillExtension.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "37694090968b528209638db74233333bb2da1deb77c42a5441ae353c0593ccdd",
+      "sha256": "63fa51c0aa6a0bf1b7168467c33810ecca95d9f1252a1455cbce122d3d4cf8d2",
       "mode": 420,
       "origin": "kit"
     },

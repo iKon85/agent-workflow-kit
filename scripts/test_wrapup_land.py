@@ -23,6 +23,34 @@ def completed(payload, returncode=0, stderr=""):
     return subprocess.CompletedProcess([], returncode, json.dumps(payload), stderr)
 
 
+def pr_snapshot(**overrides):
+    snapshot = {
+        "state": "OPEN",
+        "mergeable": "MERGEABLE",
+        "mergeStateStatus": "CLEAN",
+        "statusCheckRollup": [],
+    }
+    snapshot.update(overrides)
+    return snapshot
+
+
+def gate_runner(snapshots, required_checks):
+    snapshots = iter(snapshots)
+    required_checks = iter(required_checks)
+
+    def runner(cmd, **_kwargs):
+        if cmd[:3] == ["gh", "pr", "view"]:
+            return completed(next(snapshots))
+        if cmd[:3] == ["gh", "pr", "checks"]:
+            checks = next(required_checks)
+            return completed(checks, returncode=1 if any(
+                check.get("state") == "FAILURE" for check in checks
+            ) else 0)
+        raise AssertionError(f"unexpected command: {cmd}")
+
+    return runner
+
+
 class FakeClock:
     def __init__(self):
         self.now = 0.0
@@ -40,28 +68,22 @@ class WrapupCheckGateContract(unittest.TestCase):
 
     def test_pending_checks_are_visible_then_green_checks_proceed(self):
         snapshots = iter([
-            {
-                "state": "OPEN",
-                "mergeable": "UNKNOWN",
-                "mergeStateStatus": "BLOCKED",
-                "statusCheckRollup": [
-                    {"name": "test", "status": "IN_PROGRESS", "conclusion": None},
-                ],
-            },
-            {
-                "state": "OPEN",
-                "mergeable": "MERGEABLE",
-                "mergeStateStatus": "CLEAN",
-                "statusCheckRollup": [
-                    {"name": "test", "status": "COMPLETED", "conclusion": "SUCCESS"},
-                ],
-            },
+            pr_snapshot(mergeable="UNKNOWN", mergeStateStatus="BLOCKED"),
+            pr_snapshot(),
+        ])
+        checks = iter([
+            [{"name": "test", "state": "PENDING", "link": "https://example.test"}],
+            [{"name": "test", "state": "SUCCESS", "link": "https://example.test"}],
         ])
         calls = []
 
         def runner(cmd, **_kwargs):
             calls.append(cmd)
-            return completed(next(snapshots))
+            if cmd[:3] == ["gh", "pr", "view"]:
+                return completed(next(snapshots))
+            if cmd[:3] == ["gh", "pr", "checks"]:
+                return completed(next(checks))
+            raise AssertionError(f"unexpected command: {cmd}")
 
         clock = FakeClock()
         progress = io.StringIO()
@@ -76,7 +98,7 @@ class WrapupCheckGateContract(unittest.TestCase):
         )
 
         self.assertFalse(already_merged)
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 4)
         self.assertIn("waiting for PR #42 checks", progress.getvalue())
         self.assertIn("test", progress.getvalue())
 
@@ -91,18 +113,16 @@ class WrapupCheckGateContract(unittest.TestCase):
         self.assertEqual(self.wrapup.pending_checks(checks), checks)
 
     def test_terminal_red_check_stops_before_merge_and_names_check(self):
-        snapshot = {
-            "state": "OPEN",
-            "mergeable": "MERGEABLE",
-            "mergeStateStatus": "BLOCKED",
-            "statusCheckRollup": [
-                {"name": "test", "status": "COMPLETED", "conclusion": "FAILURE"},
-            ],
-        }
+        snapshot = pr_snapshot(mergeStateStatus="BLOCKED")
+        checks = [[{
+            "name": "test",
+            "state": "FAILURE",
+            "link": "https://example.test",
+        }]]
 
         with self.assertRaises(self.wrapup.Stop) as stopped:
             self.wrapup.wait_for_merge_gate(
-                "42", command_runner=lambda *_args, **_kwargs: completed(snapshot)
+                "42", command_runner=gate_runner([snapshot], checks)
             )
 
         self.assertEqual(stopped.exception.step, "0c merge-gate")
@@ -110,15 +130,11 @@ class WrapupCheckGateContract(unittest.TestCase):
         self.assertNotIn("infrastructure failure", stopped.exception.detail)
 
     def test_timeout_names_pending_checks_and_elapsed_time(self):
-        snapshot = {
-            "state": "OPEN",
-            "mergeable": "UNKNOWN",
-            "mergeStateStatus": "BLOCKED",
-            "statusCheckRollup": [
-                {"name": "test", "status": "QUEUED", "conclusion": None},
-                {"context": "lint", "state": "PENDING"},
-            ],
-        }
+        snapshot = pr_snapshot(mergeable="UNKNOWN", mergeStateStatus="BLOCKED")
+        checks = [
+            {"name": "test", "state": "QUEUED"},
+            {"name": "lint", "state": "PENDING"},
+        ]
         clock = FakeClock()
 
         with self.assertRaises(self.wrapup.Stop) as stopped:
@@ -126,7 +142,10 @@ class WrapupCheckGateContract(unittest.TestCase):
                 "42",
                 timeout_seconds=10,
                 poll_interval=5,
-                command_runner=lambda *_args, **_kwargs: completed(snapshot),
+                command_runner=gate_runner(
+                    [snapshot, snapshot, snapshot],
+                    [checks, checks, checks],
+                ),
                 clock=clock.monotonic,
                 sleeper=clock.sleep,
                 progress_stream=io.StringIO(),
@@ -138,19 +157,19 @@ class WrapupCheckGateContract(unittest.TestCase):
         self.assertIn("lint", stopped.exception.detail)
 
     def test_already_merged_pr_bypasses_check_wait(self):
-        snapshot = {
-            "state": "MERGED",
-            "mergeable": "UNKNOWN",
-            "mergeStateStatus": "UNKNOWN",
-            "statusCheckRollup": [
-                {"name": "test", "status": "IN_PROGRESS", "conclusion": None},
-            ],
-        }
+        snapshot = pr_snapshot(
+            state="MERGED", mergeable="UNKNOWN", mergeStateStatus="UNKNOWN"
+        )
         clock = FakeClock()
+        commands = []
+
+        def runner(cmd, **_kwargs):
+            commands.append(cmd)
+            return completed(snapshot)
 
         already_merged = self.wrapup.wait_for_merge_gate(
             "42",
-            command_runner=lambda *_args, **_kwargs: completed(snapshot),
+            command_runner=runner,
             clock=clock.monotonic,
             sleeper=clock.sleep,
             progress_stream=io.StringIO(),
@@ -158,20 +177,31 @@ class WrapupCheckGateContract(unittest.TestCase):
 
         self.assertTrue(already_merged)
         self.assertEqual(clock.now, 0)
+        self.assertEqual(len(commands), 1)
+
+    def test_optional_red_check_does_not_block_when_required_check_is_green(self):
+        snapshot = pr_snapshot(
+            mergeStateStatus="BLOCKED",
+            statusCheckRollup=[{
+                "name": "advisory-browser",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+            }],
+        )
+        runner = gate_runner([snapshot], [[{
+            "name": "test",
+            "state": "SUCCESS",
+            "link": "https://example.test",
+        }]])
+
+        self.assertFalse(self.wrapup.wait_for_merge_gate("42", command_runner=runner))
 
     def test_zero_step_failed_job_is_named_as_infrastructure_failure(self):
-        snapshot = {
-            "state": "OPEN",
-            "mergeable": "MERGEABLE",
-            "mergeStateStatus": "BLOCKED",
-            "statusCheckRollup": [
-                {
-                    "name": "test",
-                    "status": "COMPLETED",
-                    "conclusion": "FAILURE",
-                    "detailsUrl": "https://github.com/acme/repo/actions/runs/123",
-                },
-            ],
+        snapshot = pr_snapshot(mergeStateStatus="BLOCKED")
+        check = {
+            "name": "test",
+            "state": "FAILURE",
+            "link": "https://github.com/acme/repo/actions/runs/123/job/456",
         }
         commands = []
 
@@ -179,9 +209,16 @@ class WrapupCheckGateContract(unittest.TestCase):
             commands.append(cmd)
             if cmd[:3] == ["gh", "pr", "view"]:
                 return completed(snapshot)
+            if cmd[:3] == ["gh", "pr", "checks"]:
+                return completed([check], returncode=1)
             if "--json" in cmd:
                 return completed({
-                    "jobs": [{"name": "test", "conclusion": "failure", "steps": []}],
+                    "jobs": [{
+                        "databaseId": 456,
+                        "name": "test",
+                        "conclusion": "failure",
+                        "steps": [],
+                    }],
                 })
             return subprocess.CompletedProcess(
                 cmd, 1, "", "log unavailable"
@@ -205,13 +242,20 @@ class WrapupCheckGateContract(unittest.TestCase):
         )
         check = {
             "name": "test",
-            "conclusion": "FAILURE",
-            "detailsUrl": "https://github.com/acme/repo/actions/runs/123",
+            "state": "FAILURE",
+            "link": "https://github.com/acme/repo/actions/runs/123/job/456",
         }
 
         def runner(cmd, **_kwargs):
             if "--json" in cmd:
-                return completed({"jobs": [{"conclusion": "failure", "steps": [{"name": "x"}]}]})
+                return completed({"jobs": [{
+                    "databaseId": 456,
+                    "name": "test",
+                    "conclusion": "failure",
+                    "steps": [{"name": "x"}],
+                }]})
+            self.assertIn("--job", cmd)
+            self.assertIn("456", cmd)
             return subprocess.CompletedProcess(cmd, 0, noisy, "")
 
         diagnosis = self.wrapup.infrastructure_failure_diagnosis(
@@ -221,6 +265,70 @@ class WrapupCheckGateContract(unittest.TestCase):
         self.assertIn("infrastructure failure", diagnosis)
         self.assertLessEqual(len(diagnosis), self.wrapup.MAX_EXTERNAL_DETAIL)
         self.assertNotIn("\n", diagnosis)
+
+    def test_mixed_run_does_not_misclassify_real_test_failure_as_infra(self):
+        check = {
+            "name": "test",
+            "state": "FAILURE",
+            "link": "https://github.com/acme/repo/actions/runs/123/job/456",
+        }
+        commands = []
+
+        def runner(cmd, **_kwargs):
+            commands.append(cmd)
+            if "--json" in cmd:
+                return completed({"jobs": [
+                    {
+                        "databaseId": 111,
+                        "name": "setup",
+                        "conclusion": "startup_failure",
+                        "steps": [],
+                    },
+                    {
+                        "databaseId": 456,
+                        "name": "test",
+                        "conclusion": "failure",
+                        "steps": [{"name": "Run tests", "conclusion": "failure"}],
+                    },
+                ]})
+            return subprocess.CompletedProcess(
+                cmd, 0, "AssertionError: expected green", ""
+            )
+
+        diagnosis = self.wrapup.infrastructure_failure_diagnosis(
+            check, command_runner=runner
+        )
+
+        self.assertEqual(diagnosis, "")
+        self.assertIn(
+            ["gh", "run", "view", "123", "--job", "456", "--log-failed"],
+            commands,
+        )
+
+    def test_check_without_unique_job_match_is_not_classified_from_run_logs(self):
+        check = {
+            "name": "test",
+            "state": "FAILURE",
+            "link": "https://github.com/acme/repo/actions/runs/123",
+        }
+        commands = []
+
+        def runner(cmd, **_kwargs):
+            commands.append(cmd)
+            if "--json" in cmd:
+                return completed({"jobs": [
+                    {"name": "test", "conclusion": "failure", "steps": []},
+                    {"name": "test", "conclusion": "failure", "steps": []},
+                ]})
+            raise AssertionError("aggregate run logs must not be inspected")
+
+        self.assertEqual(
+            self.wrapup.infrastructure_failure_diagnosis(
+                check, command_runner=runner
+            ),
+            "",
+        )
+        self.assertEqual(len(commands), 1)
 
 
 if __name__ == "__main__":

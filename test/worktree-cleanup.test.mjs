@@ -160,6 +160,66 @@ test('cleanup rejects a profile-matched scratch symlink without touching its tar
   assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
 });
 
+test('cleanup rejects a worktree root replaced by a symlink after revalidation', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(worktree, 'PLAN.md'), '# local plan\n');
+  const outside = join(root, 'outside');
+  await mkdir(outside);
+  await writeFile(join(outside, 'PLAN.md'), 'preserve outside\n');
+  await git(root, 'remote', 'add', 'origin', root);
+  const displaced = `${worktree}-displaced`;
+  const callCount = join(root, 'mock-gh-root-symlink-count');
+  const mockGh = join(root, 'mock-gh-root-symlink-race');
+  await writeFile(mockGh, `#!/bin/sh
+count="$(cat '${callCount}' 2>/dev/null || printf 0)"
+count=$((count + 1))
+printf '%s\\n' "$count" > '${callCount}'
+if [ "$count" -eq 2 ]; then
+  mv '${worktree}' '${displaced}'
+  ln -s '${outside}' '${worktree}'
+fi
+printf '%s\\n' '[]'
+`);
+  await run('chmod', ['+x', mockGh]);
+
+  await assert.rejects(run('python3', [
+    CLEANUP, '--profile', profile, '--gh-command', mockGh, '--remove', worktree,
+  ], { cwd: root }), /worktree root changed before removal/);
+
+  assert.equal(await readFile(join(outside, 'PLAN.md'), 'utf8'), 'preserve outside\n');
+  assert.equal(await readFile(join(displaced, 'PLAN.md'), 'utf8'), '# local plan\n');
+});
+
+test('cleanup rejects a worktree root replaced by another directory after revalidation', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(worktree, 'PLAN.md'), '# local plan\n');
+  await git(root, 'remote', 'add', 'origin', root);
+  const displaced = `${worktree}-displaced`;
+  const callCount = join(root, 'mock-gh-root-directory-count');
+  const mockGh = join(root, 'mock-gh-root-directory-race');
+  await writeFile(mockGh, `#!/bin/sh
+count="$(cat '${callCount}' 2>/dev/null || printf 0)"
+count=$((count + 1))
+printf '%s\\n' "$count" > '${callCount}'
+if [ "$count" -eq 2 ]; then
+  mv '${worktree}' '${displaced}'
+  mkdir '${worktree}'
+  printf '%s\\n' 'preserve replacement' > '${join(worktree, 'PLAN.md')}'
+fi
+printf '%s\\n' '[]'
+`);
+  await run('chmod', ['+x', mockGh]);
+
+  await assert.rejects(run('python3', [
+    CLEANUP, '--profile', profile, '--gh-command', mockGh, '--remove', worktree,
+  ], { cwd: root }), /worktree root changed before removal/);
+
+  assert.equal(await readFile(join(worktree, 'PLAN.md'), 'utf8'), 'preserve replacement\n');
+  assert.equal(await readFile(join(displaced, 'PLAN.md'), 'utf8'), '# local plan\n');
+});
+
 test('cleanup refuses untracked non-scratch and tracked modifications separately', async (t) => {
   const { root, profile, worktree } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -236,6 +296,39 @@ esac
   assert.equal((await git(root, 'status', '--porcelain=v1')).stdout, before);
   assert.equal((await git(root, 'worktree', 'list', '--porcelain')).stdout, worktreesBefore);
   assert.equal((await git(root, 'show-ref')).stdout, refsBefore);
+});
+
+test('read-only sweep reports detached HEAD commit age from the detached commit', async (t) => {
+  const { root, profile } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const oldCommitEpoch = 946684800;
+  await git(root, 'checkout', '-b', 'old-detached-source', 'main');
+  await run('git', ['commit', '--allow-empty', '-m', 'historical detached head'], {
+    cwd: root,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: '2000-01-01T00:00:00Z',
+      GIT_COMMITTER_DATE: '2000-01-01T00:00:00Z',
+    },
+  });
+  const oldCommit = (await git(root, 'rev-parse', 'HEAD')).stdout.trim();
+  await git(root, 'checkout', 'main');
+  await git(root, 'branch', '-D', 'old-detached-source');
+  const detached = join(root, '.worktrees', 'detached-historical');
+  await git(root, 'worktree', 'add', '--detach', detached, oldCommit);
+
+  const before = Math.floor(Date.now() / 1000);
+  const report = JSON.parse((await run('python3', [
+    CLEANUP, 'sweep', '--profile', profile,
+  ], { cwd: root })).stdout);
+  const after = Math.floor(Date.now() / 1000);
+  const row = report.rows.find((candidate) => candidate.path === detached);
+
+  assert.ok(row);
+  assert.equal(row.branch, '');
+  assert.ok(row.lastCommitAgeSeconds >= before - oldCommitEpoch);
+  assert.ok(row.lastCommitAgeSeconds <= after - oldCommitEpoch);
+  assert.notEqual(row.lastCommitAgeSeconds, 0);
 });
 
 test('cleanup reads assumptions before removing a clean merged worktree', async (t) => {

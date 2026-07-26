@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 from dataclasses import asdict, replace
 import json
 import os
@@ -77,7 +78,25 @@ def collect_assessment(profile, main: Path, worktree: Path, gh_command: str):
     return classify_cleanup(profile, replace(facts, pr_state=state))
 
 
-def remove_contained_regular(root: Path, relative: str) -> None:
+@contextmanager
+def verified_worktree_root(root: Path, expected_device: int, expected_inode: int):
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    descriptor = None
+    try:
+        descriptor = os.open(root, directory_flags | no_follow)
+        metadata = os.fstat(descriptor)
+        if (metadata.st_dev, metadata.st_ino) != (expected_device, expected_inode):
+            raise LifecycleError("worktree root changed before removal")
+        yield descriptor
+    except OSError as error:
+        raise LifecycleError("worktree root changed before removal") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def remove_contained_regular(root_descriptor: int, relative: str) -> None:
     path = PurePosixPath(relative)
     if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts):
         raise LifecycleError(f"unsafe scratch path: {relative}")
@@ -85,8 +104,7 @@ def remove_contained_regular(root: Path, relative: str) -> None:
     no_follow = getattr(os, "O_NOFOLLOW", 0)
     descriptors = []
     try:
-        current = os.open(root, directory_flags)
-        descriptors.append(current)
+        current = root_descriptor
         for component in path.parts[:-1]:
             current = os.open(
                 component,
@@ -135,10 +153,17 @@ def execute(args: argparse.Namespace) -> dict:
         latest.branch != assessment.branch
         or latest.scratch_files != assessment.scratch_files
         or latest.assumptions != assessment.assumptions
+        or latest.root_device != assessment.root_device
+        or latest.root_inode != assessment.root_inode
     ):
         raise LifecycleError("cleanup changed before removal: inventory no longer matches preview")
-    for scratch in latest.scratch_files:
-        remove_contained_regular(latest.worktree, scratch)
+    with verified_worktree_root(
+        latest.worktree,
+        latest.root_device,
+        latest.root_inode,
+    ) as root_descriptor:
+        for scratch in latest.scratch_files:
+            remove_contained_regular(root_descriptor, scratch)
     run(["git", "worktree", "remove", str(latest.worktree)], cwd=main)
     run(["git", "branch", "-d", assessment.branch], cwd=main)
     report["removed"] = True

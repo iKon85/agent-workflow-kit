@@ -130,11 +130,47 @@ def sanitize_external_detail(text: str) -> str:
 
 def _check_text(check: dict) -> str:
     values = []
-    for key in ("name", "context", "title", "summary", "text"):
+    for key in ("name", "context", "description", "title", "summary", "text"):
         value = check.get(key)
         if isinstance(value, str):
             values.append(value)
     return " ".join(values)
+
+
+def _matching_actions_job(check: dict, jobs: list[dict]) -> dict | None:
+    """Return the one Actions job represented by this check, never a run sibling."""
+    candidates = [job for job in jobs if isinstance(job, dict)]
+    details_url = check.get("link") or check.get("detailsUrl") or check.get("targetUrl")
+    job_match = (
+        re.search(r"/job/(\d+)(?:/|$)", details_url)
+        if isinstance(details_url, str)
+        else None
+    )
+    if job_match is not None:
+        job_id = job_match.group(1)
+        matching_ids = [
+            job for job in candidates
+            if str(job.get("databaseId") or "") == job_id
+            or re.search(
+                rf"/job/{re.escape(job_id)}(?:/|$)",
+                str(job.get("url") or ""),
+            )
+        ]
+        return matching_ids[0] if len(matching_ids) == 1 else None
+
+    name = check_name(check)
+    matching_names = [
+        job for job in candidates if str(job.get("name") or "") == name
+    ]
+    return matching_names[0] if len(matching_names) == 1 else None
+
+
+def _job_database_id(job: dict) -> str:
+    database_id = job.get("databaseId")
+    if database_id is not None:
+        return str(database_id)
+    match = re.search(r"/job/(\d+)(?:/|$)", str(job.get("url") or ""))
+    return match.group(1) if match is not None else ""
 
 
 def infrastructure_failure_diagnosis(
@@ -146,7 +182,7 @@ def infrastructure_failure_diagnosis(
     if INFRA_FAILURE_RE.search(_check_text(check)):
         return "infrastructure failure (billing or runner unavailable)"
 
-    details_url = check.get("detailsUrl") or check.get("targetUrl")
+    details_url = check.get("link") or check.get("detailsUrl") or check.get("targetUrl")
     run_match = (
         re.search(r"/actions/runs/(\d+)(?:/|$)", details_url)
         if isinstance(details_url, str)
@@ -159,22 +195,28 @@ def infrastructure_failure_diagnosis(
     jobs_result = command_runner(
         ["gh", "run", "view", run_id, "--json", "jobs"]
     )
+    matching_job = None
     if jobs_result.returncode == 0:
         try:
             jobs = json.loads(jobs_result.stdout).get("jobs") or []
         except (AttributeError, json.JSONDecodeError):
             jobs = []
-        zero_step_failure = any(
-            str(job.get("conclusion") or "").lower()
+        matching_job = _matching_actions_job(check, jobs)
+        zero_step_failure = (
+            matching_job is not None
+            and str(matching_job.get("conclusion") or "").lower()
             in {"failure", "cancelled", "timed_out", "startup_failure"}
-            and not (job.get("steps") or [])
-            for job in jobs
-            if isinstance(job, dict)
+            and not (matching_job.get("steps") or [])
         )
         if zero_step_failure:
             return "infrastructure failure (failed Actions job had zero steps)"
 
-    log_result = command_runner(["gh", "run", "view", run_id, "--log-failed"])
+    job_id = _job_database_id(matching_job) if matching_job is not None else ""
+    if not job_id:
+        return ""
+    log_result = command_runner([
+        "gh", "run", "view", run_id, "--job", job_id, "--log-failed"
+    ])
     external = sanitize_external_detail(
         (log_result.stdout or "") + " " + (log_result.stderr or "")
     )
@@ -200,6 +242,36 @@ def _pr_gate_snapshot(pr: str, command_runner) -> dict:
         raise Stop("0c merge-gate", "invalid PR check response", str(error)) from error
 
 
+def _required_checks_snapshot(pr: str, command_runner) -> list[dict]:
+    result = command_runner([
+        "gh", "pr", "checks", pr, "--required", "--json",
+        "name,state,link,bucket,workflow",
+    ])
+    # gh uses 1 for failed checks and 8 for pending checks. Both still carry
+    # the authoritative JSON needed by this gate.
+    if result.returncode not in {0, 1, 8}:
+        raise Stop(
+            "0c merge-gate",
+            "cannot inspect required PR checks",
+            sanitize_external_detail(result.stderr or result.stdout),
+        )
+    try:
+        checks = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise Stop(
+            "0c merge-gate", "invalid required PR check response", str(error)
+        ) from error
+    if not isinstance(checks, list) or not all(
+        isinstance(check, dict) for check in checks
+    ):
+        raise Stop(
+            "0c merge-gate",
+            "invalid required PR check response",
+            "expected a JSON array of checks",
+        )
+    return checks
+
+
 def _failed_check_detail(failed: list[dict], command_runner) -> str:
     details = []
     for check in failed:
@@ -209,13 +281,6 @@ def _failed_check_detail(failed: list[dict], command_runner) -> str:
         suffix = f" — {diagnosis}" if diagnosis else ""
         details.append(f"{check_name(check)}{suffix}")
     return ", ".join(details)
-
-
-def _waiting_checks(snapshot: dict, checks: list[dict]) -> list[dict]:
-    waiting = pending_checks(checks)
-    if not checks and snapshot.get("mergeStateStatus") in {"BLOCKED", "UNKNOWN"}:
-        return [{"name": "GitHub merge gate"}]
-    return waiting
 
 
 def wait_for_merge_gate(
@@ -240,7 +305,7 @@ def wait_for_merge_gate(
         if snapshot.get("mergeable") == "CONFLICTING":
             raise Stop("0c merge-gate", "PR is CONFLICTING — rebase/resolve the branch")
 
-        checks = snapshot.get("statusCheckRollup") or []
+        checks = _required_checks_snapshot(pr, command_runner)
         failed = red_checks(checks)
         if failed:
             raise Stop(
@@ -249,7 +314,7 @@ def wait_for_merge_gate(
                 _failed_check_detail(failed, command_runner),
             )
 
-        waiting = _waiting_checks(snapshot, checks)
+        waiting = pending_checks(checks)
         if not waiting:
             return False
 
