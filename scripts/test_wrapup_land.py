@@ -29,6 +29,7 @@ def pr_snapshot(**overrides):
         "mergeable": "MERGEABLE",
         "mergeStateStatus": "CLEAN",
         "statusCheckRollup": [],
+        "baseRefName": "main",
     }
     snapshot.update(overrides)
     return snapshot
@@ -66,6 +67,39 @@ class WrapupCheckGateContract(unittest.TestCase):
     def setUp(self):
         self.wrapup = load_wrapup()
 
+    def test_required_check_names_come_from_active_base_branch_rules(self):
+        commands = []
+
+        def runner(cmd, **_kwargs):
+            commands.append(cmd)
+            if cmd[:3] == ["gh", "repo", "view"]:
+                return completed({"nameWithOwner": "acme/repo"})
+            if cmd[:2] == ["gh", "api"]:
+                return completed([
+                    {"type": "pull_request"},
+                    {
+                        "type": "required_status_checks",
+                        "parameters": {
+                            "required_status_checks": [
+                                {"context": "test", "integration_id": 1},
+                                {"context": "lint", "integration_id": 1},
+                            ],
+                        },
+                    },
+                ])
+            raise AssertionError(f"unexpected command: {cmd}")
+
+        self.assertEqual(
+            self.wrapup._configured_required_check_names(
+                pr_snapshot(baseRefName="release/next"), runner
+            ),
+            {"test", "lint"},
+        )
+        self.assertIn(
+            ["gh", "api", "repos/acme/repo/rules/branches/release%2Fnext"],
+            commands,
+        )
+
     def test_pending_checks_are_visible_then_green_checks_proceed(self):
         snapshots = iter([
             pr_snapshot(mergeable="UNKNOWN", mergeStateStatus="BLOCKED"),
@@ -95,6 +129,7 @@ class WrapupCheckGateContract(unittest.TestCase):
             clock=clock.monotonic,
             sleeper=clock.sleep,
             progress_stream=progress,
+            configured_required_names={"test"},
         )
 
         self.assertFalse(already_merged)
@@ -122,7 +157,9 @@ class WrapupCheckGateContract(unittest.TestCase):
 
         with self.assertRaises(self.wrapup.Stop) as stopped:
             self.wrapup.wait_for_merge_gate(
-                "42", command_runner=gate_runner([snapshot], checks)
+                "42",
+                command_runner=gate_runner([snapshot], checks),
+                configured_required_names={"test"},
             )
 
         self.assertEqual(stopped.exception.step, "0c merge-gate")
@@ -149,6 +186,7 @@ class WrapupCheckGateContract(unittest.TestCase):
                 clock=clock.monotonic,
                 sleeper=clock.sleep,
                 progress_stream=io.StringIO(),
+                configured_required_names={"test", "lint"},
             )
 
         self.assertIn("wait budget exceeded", stopped.exception.reason)
@@ -173,6 +211,7 @@ class WrapupCheckGateContract(unittest.TestCase):
             clock=clock.monotonic,
             sleeper=clock.sleep,
             progress_stream=io.StringIO(),
+            configured_required_names={"test"},
         )
 
         self.assertTrue(already_merged)
@@ -194,7 +233,9 @@ class WrapupCheckGateContract(unittest.TestCase):
             "link": "https://example.test",
         }]])
 
-        self.assertFalse(self.wrapup.wait_for_merge_gate("42", command_runner=runner))
+        self.assertFalse(self.wrapup.wait_for_merge_gate(
+            "42", command_runner=runner, configured_required_names={"test"}
+        ))
 
     def test_fresh_pr_waits_until_required_checks_become_visible(self):
         snapshots = [
@@ -218,11 +259,12 @@ class WrapupCheckGateContract(unittest.TestCase):
             clock=clock.monotonic,
             sleeper=clock.sleep,
             progress_stream=progress,
+            configured_required_names={"test"},
         ))
-        self.assertIn("GitHub required-check discovery", progress.getvalue())
+        self.assertIn("test (awaiting discovery)", progress.getvalue())
         self.assertIn("test", progress.getvalue())
 
-    def test_visible_optional_check_does_not_trigger_required_discovery_wait(self):
+    def test_visible_optional_check_cannot_mask_required_discovery(self):
         snapshot = pr_snapshot(
             mergeStateStatus="BLOCKED",
             statusCheckRollup=[{
@@ -232,10 +274,18 @@ class WrapupCheckGateContract(unittest.TestCase):
             }],
         )
 
-        self.assertFalse(self.wrapup.wait_for_merge_gate(
-            "42",
-            command_runner=gate_runner([snapshot], [[]]),
-        ))
+        clock = FakeClock()
+        with self.assertRaises(self.wrapup.Stop) as stopped:
+            self.wrapup.wait_for_merge_gate(
+                "42",
+                timeout_seconds=0,
+                command_runner=gate_runner([snapshot], [[]]),
+                clock=clock.monotonic,
+                sleeper=clock.sleep,
+                progress_stream=io.StringIO(),
+                configured_required_names={"test"},
+            )
+        self.assertIn("test (awaiting discovery)", stopped.exception.detail)
 
     def test_zero_step_failed_job_is_named_as_infrastructure_failure(self):
         snapshot = pr_snapshot(mergeStateStatus="BLOCKED")
@@ -266,7 +316,9 @@ class WrapupCheckGateContract(unittest.TestCase):
             )
 
         with self.assertRaises(self.wrapup.Stop) as stopped:
-            self.wrapup.wait_for_merge_gate("42", command_runner=runner)
+            self.wrapup.wait_for_merge_gate(
+                "42", command_runner=runner, configured_required_names={"test"}
+            )
 
         self.assertIn("test", stopped.exception.detail)
         self.assertIn("infrastructure failure", stopped.exception.detail)

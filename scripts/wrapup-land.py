@@ -28,6 +28,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -228,7 +229,7 @@ def infrastructure_failure_diagnosis(
 def _pr_gate_snapshot(pr: str, command_runner) -> dict:
     result = command_runner([
         "gh", "pr", "view", pr, "--json",
-        "state,mergeable,mergeStateStatus,statusCheckRollup",
+        "state,mergeable,mergeStateStatus,statusCheckRollup,baseRefName",
     ])
     if result.returncode != 0:
         raise Stop(
@@ -272,6 +273,46 @@ def _required_checks_snapshot(pr: str, command_runner) -> list[dict]:
     return checks
 
 
+def _configured_required_check_names(snapshot: dict, command_runner) -> set[str]:
+    branch = snapshot.get("baseRefName")
+    if not isinstance(branch, str) or not branch:
+        raise Stop("0c merge-gate", "PR response has no base branch")
+    repo_result = command_runner(["gh", "repo", "view", "--json", "nameWithOwner"])
+    if repo_result.returncode != 0:
+        raise Stop(
+            "0c merge-gate",
+            "cannot inspect repository identity",
+            sanitize_external_detail(repo_result.stderr or repo_result.stdout),
+        )
+    try:
+        repository = json.loads(repo_result.stdout)["nameWithOwner"]
+    except (KeyError, TypeError, json.JSONDecodeError) as error:
+        raise Stop("0c merge-gate", "invalid repository identity response", str(error)) from error
+    rules_result = command_runner([
+        "gh", "api",
+        f"repos/{quote(repository, safe='/')}/rules/branches/{quote(branch, safe='')}",
+    ])
+    if rules_result.returncode != 0:
+        raise Stop(
+            "0c merge-gate",
+            "cannot inspect required-check rules",
+            sanitize_external_detail(rules_result.stderr or rules_result.stdout),
+        )
+    try:
+        rules = json.loads(rules_result.stdout)
+    except json.JSONDecodeError as error:
+        raise Stop("0c merge-gate", "invalid required-check rules response", str(error)) from error
+    if not isinstance(rules, list):
+        raise Stop("0c merge-gate", "invalid required-check rules response", "expected a JSON array")
+    return {
+        check["context"]
+        for rule in rules
+        if isinstance(rule, dict) and rule.get("type") == "required_status_checks"
+        for check in (rule.get("parameters", {}).get("required_status_checks") or [])
+        if isinstance(check, dict) and isinstance(check.get("context"), str)
+    }
+
+
 def _failed_check_detail(failed: list[dict], command_runner) -> str:
     details = []
     for check in failed:
@@ -283,14 +324,17 @@ def _failed_check_detail(failed: list[dict], command_runner) -> str:
     return ", ".join(details)
 
 
-def _waiting_checks(snapshot: dict, required_checks: list[dict]) -> list[dict]:
+def _waiting_checks(
+    required_checks: list[dict],
+    configured_required_names: set[str],
+) -> list[dict]:
     waiting = pending_checks(required_checks)
-    if waiting or required_checks:
-        return waiting
-    visible_checks = snapshot.get("statusCheckRollup") or []
-    if not visible_checks and snapshot.get("mergeStateStatus") in {"BLOCKED", "UNKNOWN"}:
-        return [{"name": "GitHub required-check discovery"}]
-    return []
+    observed = {check_name(check) for check in required_checks}
+    waiting.extend(
+        {"name": f"{name} (awaiting discovery)"}
+        for name in sorted(configured_required_names - observed)
+    )
+    return waiting
 
 
 def wait_for_merge_gate(
@@ -302,6 +346,7 @@ def wait_for_merge_gate(
     clock=time.monotonic,
     sleeper=time.sleep,
     progress_stream=sys.stderr,
+    configured_required_names: set[str] | None = None,
 ) -> bool:
     """Wait for pending checks. Return True when the PR was already merged."""
     started = clock()
@@ -315,6 +360,10 @@ def wait_for_merge_gate(
         if snapshot.get("mergeable") == "CONFLICTING":
             raise Stop("0c merge-gate", "PR is CONFLICTING — rebase/resolve the branch")
 
+        if configured_required_names is None:
+            configured_required_names = _configured_required_check_names(
+                snapshot, command_runner
+            )
         checks = _required_checks_snapshot(pr, command_runner)
         failed = red_checks(checks)
         if failed:
@@ -324,7 +373,7 @@ def wait_for_merge_gate(
                 _failed_check_detail(failed, command_runner),
             )
 
-        waiting = _waiting_checks(snapshot, checks)
+        waiting = _waiting_checks(checks, configured_required_names)
         if not waiting:
             return False
 
