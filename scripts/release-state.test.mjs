@@ -7,8 +7,8 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import {
-  createCommandAdapter, githubReleaseArgs, inspectRelease, isMissingRelease,
-  npmTarballFilename, reconcileRelease,
+  createCommandAdapter, DEFAULT_VISIBILITY_DELAYS_MS, githubReleaseArgs, inspectRelease,
+  isMissingRelease, npmTarballFilename, reconcileRelease,
 } from './release-state.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,6 +26,7 @@ function adapter({
   githubInvisibleReads = 0,
   publishNpmError,
   createGithubError,
+  npmReadErrorAfterPublish,
 } = {}) {
   const events = [];
   let npmExists = npmPublished;
@@ -38,6 +39,7 @@ function adapter({
     npm: async () => {
       events.push('read npm');
       if (!npmExists) return null;
+      if (npmReadErrorAfterPublish) throw npmReadErrorAfterPublish;
       if (npmReadsUntilVisible > 0) {
         npmReadsUntilVisible -= 1;
         return null;
@@ -66,16 +68,24 @@ function adapter({
   };
 }
 
-function visibilityOptions(attempts, delays = []) {
+function visibilityOptions(attempts, delays = [], progress = []) {
   return {
     visibility: {
-      attempts,
-      initialDelayMs: 10,
-      backoffFactor: 2,
+      delaysMs: Array.from({ length: attempts - 1 }, (_, index) => 10 * (2 ** index)),
       sleep: async (delay) => delays.push(delay),
+      log: (message) => progress.push(message),
     },
   };
 }
+
+test('the default npm visibility window spans at least five minutes', () => {
+  assert.ok(
+    DEFAULT_VISIBILITY_DELAYS_MS.reduce((total, delay) => total + delay, 0) >= 300_000,
+  );
+  assert.deepEqual(DEFAULT_VISIBILITY_DELAYS_MS, [
+    1_000, 2_000, 4_000, 8_000, 16_000, 32_000, 64_000, 128_000, 256_000,
+  ]);
+});
 
 test('a fresh release publishes npm, verifies registry readback, then creates GitHub release', async () => {
   const fixture = adapter();
@@ -88,8 +98,9 @@ test('a fresh release publishes npm, verifies registry readback, then creates Gi
 test('npm visibility is retried with bounded backoff after a successful publish', async () => {
   const fixture = adapter({ npmInvisibleReads: 2 });
   const delays = [];
+  const progress = [];
   assert.deepEqual(
-    await reconcileRelease(fixture, visibilityOptions(4, delays)),
+    await reconcileRelease(fixture, visibilityOptions(4, delays, progress)),
     { status: 'released', identity },
   );
   assert.deepEqual(fixture.events, [
@@ -98,6 +109,12 @@ test('npm visibility is retried with bounded backoff after a successful publish'
     'create github', 'read github',
   ]);
   assert.deepEqual(delays, [10, 20]);
+  assert.deepEqual(progress, [
+    'npm visibility: attempt 1/4',
+    'npm visibility: attempt 2/4',
+    'npm visibility: attempt 3/4',
+    'GitHub visibility: attempt 1/4',
+  ]);
 });
 
 test('GitHub visibility is retried with bounded backoff after a successful create', async () => {
@@ -116,11 +133,17 @@ test('GitHub visibility is retried with bounded backoff after a successful creat
 test('permanent npm absence fails at the bound with post-publish phase evidence', async () => {
   const fixture = adapter({ npmInvisibleReads: 4 });
   const delays = [];
+  const progress = [];
   await assert.rejects(
-    reconcileRelease(fixture, visibilityOptions(3, delays)),
+    reconcileRelease(fixture, visibilityOptions(3, delays, progress)),
     /npm publish succeeded but package was not visible after 3 npm read attempts/,
   );
   assert.deepEqual(delays, [10, 20]);
+  assert.deepEqual(progress, [
+    'npm visibility: attempt 1/3',
+    'npm visibility: attempt 2/3',
+    'npm visibility: attempt 3/3',
+  ]);
   assert.equal(fixture.events.filter((event) => event === 'read npm').length, 4);
   assert.ok(!fixture.events.includes('create github'));
 });
@@ -156,6 +179,14 @@ test('an npm-published release resumes at GitHub without a second npm publish', 
   await reconcileRelease(fixture);
   assert.deepEqual(fixture.events, ['read npm', 'read github', 'create github', 'read github']);
   assert.ok(!fixture.events.includes('publish npm'));
+});
+
+test('a rerun after eventual npm visibility never publishes the version twice', async () => {
+  const fixture = adapter({ npmInvisibleReads: 2 });
+  await reconcileRelease(fixture, visibilityOptions(4));
+  await reconcileRelease(fixture, visibilityOptions(4));
+  assert.equal(fixture.events.filter((event) => event === 'publish npm').length, 1);
+  assert.equal(fixture.events.filter((event) => event === 'create github').length, 1);
 });
 
 test('an already-published release at parity is a read-only no-op', async () => {
@@ -253,6 +284,38 @@ test('a mismatching npm package blocks GitHub release creation', async () => {
     npmIdentity: { ...identity, manifestSha256: 'wrong' },
   });
   await assert.rejects(reconcileRelease(fixture), /npm manifestSha256 mismatch/);
+  assert.ok(!fixture.events.includes('create github'));
+});
+
+test('a post-publish npm mismatch hard-stops without retrying or creating GitHub', async () => {
+  const fixture = adapter({
+    npmIdentity: { ...identity, manifestSha256: 'wrong' },
+  });
+  const delays = [];
+  const progress = [];
+  await assert.rejects(
+    reconcileRelease(fixture, visibilityOptions(4, delays, progress)),
+    /npm manifestSha256 mismatch/,
+  );
+  assert.deepEqual(delays, []);
+  assert.deepEqual(progress, ['npm visibility: attempt 1/4']);
+  assert.equal(fixture.events.filter((event) => event === 'publish npm').length, 1);
+  assert.equal(fixture.events.filter((event) => event === 'read npm').length, 2);
+  assert.ok(!fixture.events.includes('create github'));
+});
+
+test('a post-publish non-missing registry error hard-stops without retrying', async () => {
+  const registryError = new Error('registry authentication failed');
+  const fixture = adapter({ npmReadErrorAfterPublish: registryError });
+  const delays = [];
+  const progress = [];
+  await assert.rejects(
+    reconcileRelease(fixture, visibilityOptions(4, delays, progress)),
+    (error) => error === registryError,
+  );
+  assert.deepEqual(delays, []);
+  assert.deepEqual(progress, ['npm visibility: attempt 1/4']);
+  assert.equal(fixture.events.filter((event) => event === 'publish npm').length, 1);
   assert.ok(!fixture.events.includes('create github'));
 });
 
