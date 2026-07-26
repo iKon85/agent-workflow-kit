@@ -3,8 +3,8 @@
 How the board-managed workflow skills (`to-prd`, `to-issues`, `board-to-waves`, …) address this project's GitHub-Projects board. A board stores its fields under opaque GraphQL IDs that differ per board, so they are recorded here rather than hardcoded in any skill.
 
 `/setup-workflow` writes this file in one of three states (see the sentinel on the first line):
-- **`state=filled`** — the IDs below were discovered from your board.
-- **`state=stub`** — no single board was found; fill the IDs by creating the board (below) and re-running `/setup-workflow`.
+- **`state=filled`** — the IDs below were discovered from your board (an existing one, or the one `/setup-workflow` offered to create for you).
+- **`state=stub`** — no single board was filled: you declined the creation offer, `gh` lacked the `project` scope, several boards were ambiguous, or creation failed. Create the board (below) and re-run `/setup-workflow`.
 - **`state=not-applicable`** (`mode=none`) — this project does not use a GitHub-Projects board.
 
 ## Board profile — fields the workflow skills use
@@ -105,6 +105,10 @@ the historical default `"Welle"`, so boards created before this key keep
 their titles unchanged; set it once to match your board's language.
 
 ## If the IDs are not yet filled (stub)
+
+**Let setup create the board.** Ensure `gh` has the scopes (`gh auth refresh -s project,read:project`) and re-run `/setup-workflow`: with no board and the scope present it *offers* to create one. On your yes it runs `scripts/board_bootstrap.py`, which creates the project plus the Status single-select (its options named after the `roles` map below) and the Wave / Cluster / Spec-Path / Plan-Path fields, reads the real IDs back, and rewrites this file at `state=filled`. Nothing is created without that explicit yes, and a failed run leaves this stub in place rather than a half-true profile.
+
+**Or build it by hand:**
 
 1. Create a GitHub-Projects (v2) board for this owner and add the fields above (at minimum a `Status` single-select with your stage options — the recommended stage names are `Idea, Triaged, Spec, In Progress, Review, Done`, matching the seeded `roles` defaults).
 2. Ensure `gh` has the scopes: `gh auth refresh -s project,read:project`.

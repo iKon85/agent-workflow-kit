@@ -57,6 +57,31 @@ def update_workflow_action(
     return "create" if pull_requests_allowed else "skip"
 
 
+def board_branch_action(tracker, boards_found, project_scope, user_choice):
+    """Reference decision table for Section D's board branch (#24).
+
+    tracker:      the Section A choice.
+    boards_found: how many owner projects the discovery read found, or None when
+                  the read itself failed.
+    project_scope: does `gh` carry the write scope board creation needs?
+    user_choice:  the answer to the creation offer ("yes" / "no" / None).
+
+    "discover" fills the profile from an existing board, "create" runs the
+    bootstrap helper after an explicit yes, "stub" is the retryable stub path.
+    Creation is offered on exactly one branch — no board, with the scope — and a
+    decline, a missing scope, ambiguity, or a failed read all stay on the stub.
+    """
+    if tracker != "github":
+        return "not-applicable"
+    if boards_found is None or boards_found > 1:
+        return "stub"
+    if boards_found == 1:
+        return "discover"
+    if not project_scope:
+        return "stub"
+    return "create" if user_choice == "yes" else "stub"
+
+
 def load_census_setup_effects():
     """Parse the shipped seed's executable census transition contract."""
     seed = (SKILL / "census.md").read_text(encoding="utf-8")
@@ -557,6 +582,68 @@ class SeedTemplatesValid(unittest.TestCase):
 
         self.assertIn("Board status is authoritative", seed)
         self.assertIn("Board status is authoritative", triage_skill)
+
+
+class BoardCreationOffer(unittest.TestCase):
+    """Section D offers board creation instead of refusing it (#24).
+
+    The mechanics live in `scripts/board_bootstrap.py` (spec:
+    `scripts/test_board_bootstrap.py`); what is pinned here is the prose
+    contract: an explicit user gate, one creation path, and every other branch
+    landing on the unchanged stub.
+    """
+
+    FIXTURES = [
+        # tracker, boards, scope, choice, expected
+        ("github", 0, True, "yes", "create"),
+        ("github", 0, True, "no", "stub"),
+        ("github", 0, True, None, "stub"),
+        ("github", 0, False, "yes", "stub"),
+        ("github", 1, True, None, "discover"),
+        ("github", 2, True, "yes", "stub"),
+        ("github", None, True, "yes", "stub"),
+        ("gitlab", 0, True, "yes", "not-applicable"),
+        ("local", 0, True, "yes", "not-applicable"),
+    ]
+
+    def test_decision_table(self):
+        for tracker, boards, scope, choice, expected in self.FIXTURES:
+            self.assertEqual(
+                board_branch_action(tracker, boards, scope, choice), expected,
+                f"{tracker}/{boards}/{scope}/{choice}",
+            )
+
+    def test_skill_offers_creation_on_both_surfaces(self):
+        for surface in (".claude", ".agents"):
+            skill = (REPO / surface / "skills/setup-workflow/SKILL.md").read_text(
+                encoding="utf-8")
+            for token in (
+                "python3 scripts/board_bootstrap.py create",
+                "--dry-run",
+                "never create a board without an explicit yes",
+                "Create it now",
+                "Not now",
+                "gh auth refresh -s project,read:project",
+                "state=filled",
+            ):
+                self.assertIn(token, skill, f"{surface} missing {token!r}")
+            # The refuted rationale must be gone: the CLI *can* provision the
+            # Status options via `--single-select-options`.
+            self.assertNotIn("cannot provision the Status options", skill)
+
+    def test_skill_routes_every_other_branch_to_the_unchanged_stub(self):
+        skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        fallback = skill.split("**Fallback", 1)
+        self.assertEqual(len(fallback), 2, "the stub fallback must survive")
+        for token in ("declined", "scope", "read failure", "state=stub", "Retryable"):
+            self.assertIn(token, fallback[1][:1200], f"stub path missing {token!r}")
+        self.assertIn("never hand-write a `state=filled` profile", skill)
+
+    def test_seed_documents_the_offer_and_keeps_the_manual_path(self):
+        seed = (SKILL / "board-sync.md").read_text(encoding="utf-8")
+        self.assertIn("board_bootstrap.py", seed)
+        self.assertIn("gh auth refresh -s project,read:project", seed)
+        self.assertIn("Re-run `/setup-workflow`", seed)
 
 
 class SentinelProtectsFilledProfile(unittest.TestCase):
