@@ -105,6 +105,19 @@ release contain the same artifact.
    and safe routes—never file content. Automated update pull
    requests carry the same availability summary and remain manual-merge only.
 
+   Read the required consumer migrations alongside the file delta. A release
+   that forces the Consumer to commit a decision registers it as declarative,
+   versioned data in the Kit's migration registry — never as release-note prose.
+   Preview and the terminal report expose the same structured record, so an
+   interactive run, a `--yes` run, `update --json`, and the automated update
+   pull request all name the same outstanding actions. Each action names the
+   workflow that resolves it, the Consumer file that carries the decision, and
+   the exact missing decision. `kit-update` only detects and reports it: it
+   never writes the decision, never infers a value, and never invents or
+   auto-accepts a pattern that would grant deletion authority. An empty but
+   explicit decision is a committed decision and clears the action; a missing
+   one keeps it pending on every rerun.
+
    For each conflicted kit-shipped file, always ask the user whether the local
    edit is a generic improvement or project-specific; never decide or act
    automatically. For a generic improvement retained as a bridge, run

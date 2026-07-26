@@ -377,7 +377,7 @@
       "ownerSkill": "kit-update",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "ea34bd16072783325c263b4afc4eefc39f0aabdbb53731b84500b46db69ef2c1",
+      "sha256": "b809e6aa576ba33981271ba6bf7332cac874ff728754796f41b847769a69d179",
       "mode": 420,
       "origin": "kit"
     },
@@ -1699,7 +1699,7 @@
       "ownerSkill": "kit-update",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "ea34bd16072783325c263b4afc4eefc39f0aabdbb53731b84500b46db69ef2c1",
+      "sha256": "b809e6aa576ba33981271ba6bf7332cac874ff728754796f41b847769a69d179",
       "mode": 420,
       "origin": "kit"
     },
@@ -2555,7 +2555,7 @@
       "path": "scripts/kit-update-pr.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "c28bbd5a45583a92eca12758c1d626e04bce820300178b54933340759d1690fd",
+      "sha256": "17084eede8601d7cf7dd9da85f7738d618111797933a362c93627058fbd335d4",
       "mode": 493,
       "origin": "kit"
     },

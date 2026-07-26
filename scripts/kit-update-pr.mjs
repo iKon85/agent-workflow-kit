@@ -42,17 +42,30 @@ export async function orchestrateUpdatePullRequest(options) {
   return { status: 'created', branch };
 }
 
-function pullRequestBody(stdout = '') {
-  const labels = ['newly available:', 'newly degraded:', 'newly blocked:', 'still unresolved:'];
-  const clean = stdout.replaceAll(/\x1b\[[0-9;]*m/g, '');
-  const summary = clean.split('\n')
-    .map((line) => line.trim())
+const AVAILABILITY_LABELS = [
+  'newly available:', 'newly degraded:', 'newly blocked:', 'still unresolved:',
+];
+const MIGRATION_LABELS = ['required migration:'];
+
+function summarize(lines, labels) {
+  return lines
     .filter((line) => labels.some((label) => line.includes(label)))
     .map((line) => line.slice(Math.min(...labels.map((label) => {
       const index = line.indexOf(label);
       return index < 0 ? line.length : index;
-    }))));
-  return [UPDATE_BODY, '## Availability', summary.join('\n') || 'No readiness availability changes reported.'].join('\n\n');
+    }))))
+    .join('\n');
+}
+
+function pullRequestBody(stdout = '') {
+  const lines = stdout.replaceAll(/\x1b\[[0-9;]*m/g, '').split('\n').map((line) => line.trim());
+  return [
+    UPDATE_BODY,
+    '## Availability',
+    summarize(lines, AVAILABILITY_LABELS) || 'No readiness availability changes reported.',
+    '## Required migrations',
+    summarize(lines, MIGRATION_LABELS) || 'No required consumer migrations reported.',
+  ].join('\n\n');
 }
 
 export function createSystemAdapters({
