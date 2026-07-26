@@ -16,6 +16,10 @@ export const HELPER_FILES = [
   // every board-specific value from docs/agents/board-sync.md through it, so it
   // MUST ship or they are broken-on-arrival. Library (imported, not run) → 0o644.
   { path: 'scripts/board_config.py', kind: 'script', mode: 0o644 },
+  // Offered board provisioning for /setup-workflow Section D: creates the
+  // project + Status/workflow fields, reads the opaque ids back, and writes the
+  // filled profile. Imports board_config (above). Invokable CLI → 0o755.
+  { path: 'scripts/board_bootstrap.py', kind: 'script', mode: 0o755 },
   // Pure Slices-table logic imported by board-sync.py for `anchor-sync` —
   // library (imported, not run) → 0o644. MUST ship or board-sync.py ImportErrors.
   { path: 'scripts/anchor_table.py', kind: 'script', mode: 0o644 },
@@ -127,6 +131,12 @@ export const HELPER_FILES = [
   { path: 'scripts/memory-lifecycle/setup.mjs', kind: 'script', mode: 0o644 },
   { path: 'assets/memory-templates/meta_decision_layer_choice.md', kind: 'template', mode: 0o644 },
   { path: 'assets/memory-templates/meta_memory_lifecycle.md', kind: 'template', mode: 0o644 },
+  // The one repository-relative glob dialect. Both capability cores below load
+  // it, so a consumer profile pattern selects the same paths for an advisory
+  // and for a cleanup decision. Also the reviewable migration check consumers
+  // run after setup or update, so a narrowed or widened pattern is named
+  // instead of silently changing deletion authority. Library + CLI → 0o755.
+  { path: 'scripts/profile_globs.py', kind: 'script', mode: 0o755 },
   // Profile-driven Worktree Lifecycle foundation. The setup adapter imports
   // core.py, while capabilities.json keeps the historical 8/8 denominator
   // explicit until the remaining hook and cleanup adapters are activated.

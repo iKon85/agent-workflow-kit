@@ -14,6 +14,7 @@ import {
 import {
   inspectRoutingProfile, reconcileRoutingProfile,
 } from '../lib/routingProfile.mjs';
+import { evaluateConsumerMigrations } from '../lib/consumerMigrations.mjs';
 
 const RELEASE_NAME = '@ikon85/agent-workflow-kit';
 
@@ -75,7 +76,14 @@ async function updatePackage(options) {
     if (!decisions.has(key)) decisions.set(key, await decide(action, path));
     return decisions.get(key);
   };
+  // Required consumer migrations are decisions the consumer still owes; `update`
+  // never writes the consumer's project layer, so the pre-apply reading is also
+  // the post-apply state. Detected once, rendered by every surface.
+  const requiredMigrations = await evaluateConsumerMigrations({
+    consumerRoot, kitVersion: pkg.kitVersion,
+  });
   const preview = await reconcile({ kitRoot, consumerRoot, decide: choosePreview, dryRun: true });
+  preview.requiredMigrations = requiredMigrations;
   let previewFailure;
   try {
     Object.assign(preview, await previewReadinessAdoption({
@@ -92,7 +100,7 @@ async function updatePackage(options) {
       failure: { phase: 'staging', consumerState: 'unchanged' },
     };
   }
-  if (dryRun) return { ...preview, state: 'preview', history };
+  if (dryRun) return { ...preview, state: 'preview', history, report: reportOf(preview) };
   if (preview.migrationConflicts?.length) {
     return terminal(preview, 'conflicted', history, transition);
   }
@@ -100,6 +108,7 @@ async function updatePackage(options) {
   const resolvedPreview = await resolvePreview({
     kitRoot, consumerRoot, preview, decisions, decide, transition,
   });
+  resolvedPreview.requiredMigrations = requiredMigrations;
   if (resolvedPreview.collisions.length) {
     return terminal(resolvedPreview, 'conflicted', history, transition);
   }
@@ -266,28 +275,28 @@ function hasUpstreamDelta(result) {
 
 async function terminal(result, state, history, transition) {
   await transition(state);
+  return { ...result, state, history, report: reportOf(result) };
+}
+
+function reportOf(result) {
   return {
-    ...result,
-    state,
-    history,
-    report: {
-      unchanged: result.unchanged.length,
-      added: result.added.length,
-      updated: result.updated.length,
-      deleted: result.deleted.length,
-      localModified: result.userModified.length,
-      conflicts: result.conflicts.length,
-      keptDeleted: result.keptDeleted.length,
-      paths: {
-        added: result.added,
-        updated: result.updated,
-        deleted: result.deleted,
-        localModified: result.userModified,
-        conflicts: result.conflicts.map(({ path }) => path),
-        keptDeleted: result.keptDeleted,
-      },
-      recommendation: updateRecommendation(result),
+    unchanged: result.unchanged.length,
+    added: result.added.length,
+    updated: result.updated.length,
+    deleted: result.deleted.length,
+    localModified: result.userModified.length,
+    conflicts: result.conflicts.length,
+    keptDeleted: result.keptDeleted.length,
+    paths: {
+      added: result.added,
+      updated: result.updated,
+      deleted: result.deleted,
+      localModified: result.userModified,
+      conflicts: result.conflicts.map(({ path }) => path),
+      keptDeleted: result.keptDeleted,
     },
+    recommendation: updateRecommendation(result),
+    requiredMigrations: result.requiredMigrations ?? [],
   };
 }
 

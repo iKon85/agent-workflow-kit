@@ -105,6 +105,19 @@ release contain the same artifact.
    and safe routes—never file content. Automated update pull
    requests carry the same availability summary and remain manual-merge only.
 
+   Read the required consumer migrations alongside the file delta. A release
+   that forces the Consumer to commit a decision registers it as declarative,
+   versioned data in the Kit's migration registry — never as release-note prose.
+   Preview and the terminal report expose the same structured record, so an
+   interactive run, a `--yes` run, `update --json`, and the automated update
+   pull request all name the same outstanding actions. Each action names the
+   workflow that resolves it, the Consumer file that carries the decision, and
+   the exact missing decision. `kit-update` only detects and reports it: it
+   never writes the decision, never infers a value, and never invents or
+   auto-accepts a pattern that would grant deletion authority. An empty but
+   explicit decision is a committed decision and clears the action; a missing
+   one keeps it pending on every rerun.
+
    For each conflicted kit-shipped file, always ask the user whether the local
    edit is a generic improvement or project-specific; never decide or act
    automatically. For a generic improvement retained as a bridge, run
@@ -131,7 +144,26 @@ release contain the same artifact.
    resume the transaction through the update API's `resumeFrom` option. Do not
    copy staged files into the consumer by hand.
 
-5. Check the optional project census after the update:
+5. Review the consumer profile's glob dialect after the update:
+
+   ```sh
+   python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json
+   ```
+
+   Every consumer-profile glob — Worktree Lifecycle `scratchPatterns` and
+   `wrapup.landingGeneratedArtifactPatterns`, Workflow Advisories
+   `baseline.sourceGlobs` and the `preRefactor`/`stopChecks` surface globs — is
+   matched by one shared repository-relative dialect. A pattern written for an
+   older matcher can narrow or widen. The check names each such pattern with
+   the witness path that proves the difference and marks the keys that carry
+   deletion authority; exit code 1 means at least one needs review. Report the
+   named patterns and let the user rewrite them. The updater never rewrites a
+   consumer pattern, and a widened deletion-authority pattern is never accepted
+   silently — an update must not expand what cleanup may remove. A missing or
+   disabled profile leaves nothing to review and does not invalidate the
+   update.
+
+6. Check the optional project census after the update:
 
    ```sh
    python3 .claude/hooks/drift-guard.py --census-status

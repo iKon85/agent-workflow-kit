@@ -13,8 +13,8 @@ NOT a board-wide scan, NOT a "grill-exit" event (no clean tool hook for that).
 Accepted gap: Bash redirect / tee / cp into `.handoff/` is not covered — the
 threat model is "skill/agent forgot", not an adversary; handoff writes via Write.
 
-Mechanism: self-filters to `.handoff/*.md`; extracts the issue (content anchor
-first, filename fallback); delegates graph coherence to
+Mechanism: self-filters to `.handoff/*.md`; extracts the issue (an own-repository
+content anchor first, then the filename); delegates graph coherence to
 scripts/execute-ready-check.py (`--mode handoff`) and census state/fingerprint
 evaluation to `scripts/census/index.mjs`. Deny = exit 2 + stderr (house pattern:
 enforce-worktree.py, block-secrets.py). A deliberate
@@ -39,8 +39,18 @@ from _hook_utils import log
 HOOK_NAME = "drift-guard"
 HANDLED_TOOLS = {"Write", "Edit", "MultiEdit"}
 HANDOFF_PATH_RE = re.compile(r"/\.handoff/[^/]*\.md$")
-ISSUE_ANCHOR_RE = re.compile(r"/issues/(\d+)")          # content-first: [#n](…/issues/n)
-FILENAME_ISSUE_RE = re.compile(r"(\d+)\.md$")           # fallback: <date>-<n>.md
+ISSUE_ANCHOR_RE = re.compile(r"/issues/(\d+)")          # any repo: [#n](…/issues/n)
+FILENAME_ISSUE_RE = re.compile(r"(\d+)\.md$")           # skill-controlled: <date>-<n>.md
+# Remote URL → host/owner/repo. Covers scp-style (`git@host:owner/repo.git`),
+# https and ssh:// forms; deeper namespaces and local paths deliberately do not
+# match — an unparsable remote falls back to the filename anchor.
+REMOTE_URL_RE = re.compile(
+    r"^(?:[a-z][a-z0-9+.-]*://)?(?:[^@/\s]+@)?(?P<host>[^/:\s]+)[/:]"
+    r"(?P<owner>[^/\s]+)/(?P<repo>[^/\s]+?)(?:\.git)?/?$",
+    re.IGNORECASE,
+)
+# Bounded diagnostics: a large drift reports its head plus a remainder counter.
+CENSUS_DELTA_LIMIT = 10
 # Override must be issue-scoped, rev-scoped, reasoned, by-user (Codex R1 — not the cheap `known`).
 GUARD_ACK_RE = re.compile(r"<!--\s*guard-ack:\s*#?\d+\s+r\d+\s+reason:.+\bby-user\s*-->",
                           re.IGNORECASE | re.DOTALL)
@@ -168,6 +178,42 @@ const hasOpen = uniqueReasons.some((reason) => reason.startsWith('proof:'))
     .some(({ status }) => status === CENSUS_VERDICTS.open);
 if (hasOpen) uniqueReasons.push('open');
 const delta = active === null ? null : diffCensus(active, fresh);
+// The guard already knows WHAT moved; report it instead of forcing a blocked
+// consumer to rebuild the diff from the kit internals.
+const pathHashes = (entries) => new Map(
+  (Array.isArray(entries) ? entries : []).map(({ path, hash }) => [path, hash]),
+);
+const diffEntries = (before, after) => {
+  const previous = pathHashes(before);
+  const next = pathHashes(after);
+  return {
+    added: [...next.keys()].filter((path) => !previous.has(path)).sort(),
+    changed: [...next.keys()]
+      .filter((path) => previous.has(path) && previous.get(path) !== next.get(path)).sort(),
+    removed: [...previous.keys()].filter((path) => !next.has(path)).sort(),
+  };
+};
+const familyIndex = (families) => new Map([
+  ...(families?.surfaces ?? []), ...(families?.behaviors ?? []),
+].map(({ name, status, type }) => [`${type}:${name}`, status]));
+const familyDelta = (before, after) => {
+  const previous = familyIndex(before);
+  const next = familyIndex(after);
+  return {
+    added: [...next.keys()].filter((key) => !previous.has(key)).sort(),
+    removed: [...previous.keys()].filter((key) => !next.has(key)).sort(),
+    statusChanged: [...next.keys()]
+      .filter((key) => previous.has(key) && previous.get(key) !== next.get(key)).sort()
+      .map((key) => `${key}: ${previous.get(key)} → ${next.get(key)}`),
+  };
+};
+const deltaReport = active === null ? null : {
+  denominator: {
+    added: delta.added, changed: delta.changed, removed: delta.removed,
+  },
+  evidence: diffEntries(active.evidence, fresh.evidence),
+  families: { ...familyDelta(active.families, fresh.families), open: delta.open },
+};
 const denominatorUnchanged = delta !== null
   && Object.values(delta).every((paths) => paths.length === 0);
 const familiesUnchanged = active !== null
@@ -184,6 +230,7 @@ const state = resolveCensusState({
 writeResult(JSON.stringify({
   builderVersion: CENSUS_BUILDER_VERSION,
   changeBinding: fresh.fingerprints.topology,
+  delta: deltaReport,
   fresh: {
     ...fresh,
     profileReport: {
@@ -367,18 +414,71 @@ def extract_content(payload: dict) -> str:
     return ""
 
 
-def extract_issue(payload: dict, content: str):
-    # Content anchor first, filename fallback. Deliberately NO branch fallback:
-    # a meta/tooling handoff carries no issue (handoff skill supports this) and
-    # must fail-open; a branch-based guess would mis-attribute the branch's issue
-    # and false-block. None here → should_block() allows (not the stale handoff we guard).
-    m = ISSUE_ANCHOR_RE.search(content or "")
-    if m:
-        return int(m.group(1))
+def own_repository_slugs(repo_root: Path) -> list[str]:
+    """Return the `host/owner/repo` slugs this repository's remotes point at."""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(repo_root), "config", "--get-regexp", r"^remote\..*\.url$"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if completed.returncode != 0:
+        return []
+    slugs = []
+    for line in completed.stdout.splitlines():
+        parts = line.split(None, 1)
+        if len(parts) != 2:
+            continue
+        match = REMOTE_URL_RE.match(parts[1].strip())
+        if match is None:
+            continue
+        slug = f"{match.group('host')}/{match.group('owner')}/{match.group('repo')}"
+        if slug not in slugs:
+            slugs.append(slug)
+    return slugs
+
+
+def own_issue_pattern(repo_root):
+    """Match only issue links of the repository that owns the handoff.
+
+    A handoff routinely links the upstream issues a session produced. Without
+    this restriction the first `/issues/<n>` in the prose wins, so a foreign
+    link hijacks the anchor and the guard reports an unrelated issue number.
+    """
+    if repo_root is None:
+        return None
+    slugs = own_repository_slugs(repo_root)
+    if not slugs:
+        return None
+    alternatives = "|".join(re.escape(slug) for slug in slugs)
+    return re.compile(rf"(?<![A-Za-z0-9.-])(?:{alternatives})/issues/(\d+)", re.IGNORECASE)
+
+
+def extract_issue(payload: dict, content: str, repo_root=None):
+    # Own-repository content anchor first, then the skill-controlled filename.
+    # The unrestricted content anchor only remains for a repository whose remote
+    # is unparsable — there the filename is the only trustworthy signal, and a
+    # handoff without one keeps today's behaviour. Deliberately NO branch
+    # fallback: a meta/tooling handoff carries no issue (handoff skill supports
+    # this) and must fail-open; a branch-based guess would mis-attribute the
+    # branch's issue and false-block. None here → should_block() allows (not the
+    # stale handoff we guard).
+    own = own_issue_pattern(repo_root)
+    if own is not None:
+        m = own.search(content or "")
+        if m:
+            return int(m.group(1))
     fp = (payload.get("tool_input") or {}).get("file_path", "")
     m = FILENAME_ISSUE_RE.search(fp)
     if m:
         return int(m.group(1))
+    if own is None:
+        m = ISSUE_ANCHOR_RE.search(content or "")
+        if m:
+            return int(m.group(1))
     return None
 
 
@@ -534,15 +634,89 @@ def evaluate_census(repo_root: Path, proof_timeout_ms=CENSUS_PROOF_TIMEOUT_MS) -
         "override_applied": override_applied,
         "change_binding": result["changeBinding"],
         "mechanical_false_positive": result["mechanicalFalsePositive"],
+        "delta": result.get("delta"),
     }
 
 
-def build_census_block_message(issue: int, result: dict) -> str:
+def _cap_entries(entries, limit: int):
+    if not isinstance(entries, list) or len(entries) <= limit:
+        return entries
+    return [*entries[:limit], f"…and {len(entries) - limit} more"]
+
+
+def cap_delta(delta, limit: int = CENSUS_DELTA_LIMIT):
+    """Keep a diagnostic delta readable — head plus an honest remainder count."""
+    if not isinstance(delta, dict):
+        return delta
+    capped = {}
+    for group, entries in delta.items():
+        if isinstance(entries, dict):
+            capped[group] = {key: _cap_entries(value, limit) for key, value in entries.items()}
+        else:
+            capped[group] = _cap_entries(entries, limit)
+    return capped
+
+
+def worktree_identity(path):
+    """Return (checkout root, shared git dir) or None when git cannot answer."""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "--show-toplevel", "--git-common-dir"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    lines = completed.stdout.splitlines()
+    if len(lines) != 2 or not lines[0] or not lines[1]:
+        return None
+    # `--git-common-dir` may answer relative to the directory git ran in.
+    toplevel = Path(os.path.realpath(lines[0]))
+    common = Path(os.path.realpath(Path(path) / lines[1]))
+    return toplevel, common
+
+
+def checkout_diagnostic_lines(census_root, cwd=None) -> list[str]:
+    """Name the checkout the census verdict describes.
+
+    The census root comes from the handoff TARGET path, not from the session's
+    working directory — handoff documents live in the main checkout so they
+    survive worktree cleanup. A census describes the tree it was scanned in, so
+    a refresh in another worktree legitimately does not count here; without this
+    diagnosis the block reads as simply wrong to a session working elsewhere.
+    """
+    if census_root is None:
+        return []
+    lines = [
+        f"  · evaluated checkout: {census_root}",
+        "    (derived from the handoff target path — a census refresh in another",
+        "     worktree does not count for this checkout)",
+    ]
+    try:
+        # A diagnostic must never cost the block: an unusable working directory
+        # only drops the extra sentence.
+        here = worktree_identity(Path.cwd() if cwd is None else Path(cwd))
+        there = worktree_identity(census_root)
+    except OSError:
+        return lines
+    if here and there and here[1] == there[1] and here[0] != there[0]:
+        lines += [
+            "  · your working directory is a different worktree of the same repository:",
+            f"    {here[0]} — refresh the evaluated checkout above, not this one",
+        ]
+    return lines
+
+
+def build_census_block_message(issue: int, result: dict, census_root=None, cwd=None) -> str:
     reasons = ", ".join(result.get("reasons", [])) or "activated census is stale"
     lines = [
         f"CENSUS — Build-Handoff für #{issue} BLOCKED ({result.get('state', 'refresh_required')}):",
         "",
         f"  · {reasons}",
+        *checkout_diagnostic_lines(census_root, cwd),
         "  · run `$census-update` and activate a verified current census",
     ]
     if result.get("overrides"):
@@ -557,24 +731,38 @@ def should_block(payload: dict):
     if not is_handoff_write(payload):
         return False, ""
     content = extract_content(payload)
-    issue = extract_issue(payload, content)
+    # The owning repository decides which issue links may anchor the handoff,
+    # so it is resolved before the anchor is extracted.
+    census_root = None
+    root_error = None
+    try:
+        census_root = resolve_handoff_repo_root(payload)
+    except Exception as error:
+        root_error = error
+    issue = extract_issue(payload, content, census_root)
     if issue is None:
         log(HOOK_NAME, "no identifiable issue target → fail-open allow")
         return False, ""
     intent = _infer_intent(content)
-    try:
-        census_root = resolve_handoff_repo_root(payload)
-        census = evaluate_census(census_root)
-    except Exception as error:
-        census = {
+
+    def unavailable(error):
+        return {
             "state": "failed",
             "block_handoff": intent == "build",
             "reasons": [f"target repository unavailable ({error})"],
             "overrides": [],
         }
+
+    if census_root is None:
+        census = unavailable(root_error)
+    else:
+        try:
+            census = evaluate_census(census_root)
+        except Exception as error:
+            census = unavailable(error)
     log(HOOK_NAME, f"census state={census['state']} reasons={census.get('reasons', [])}")
     if intent == "build" and census.get("block_handoff"):
-        return True, build_census_block_message(issue, census)
+        return True, build_census_block_message(issue, census, census_root)
     if GUARD_ACK_RE.search(content):
         log(HOOK_NAME, "guard-ack override present → allow graph gate only")
         return False, ""
@@ -608,7 +796,8 @@ def build_block_message(issue: int, intent: str, result: dict) -> str:
 
 
 def main() -> int:
-    if sys.argv[1:] == ["--census-status"]:
+    arguments = sys.argv[1:]
+    if arguments[:1] == ["--census-status"] and arguments[1:] in ([], ["--verbose"]):
         try:
             root = resolve_census_root_from_cwd(Path.cwd())
             result = evaluate_census(root)
@@ -617,6 +806,8 @@ def main() -> int:
                       "detail": f"target repository unavailable ({error})",
                       "reasons": ["repository"], "overrides": [],
                       "override_applied": False}
+        if arguments[1:] != ["--verbose"]:
+            result["delta"] = cap_delta(result.get("delta"))
         print(json.dumps(result, sort_keys=True))
         return 0
     try:
