@@ -2,7 +2,7 @@
 name: wrapup
 disable-model-invocation: true
 description: >-
-  Use ONLY when the user types /wrapup. Session-end "land & clean" for a
+  Use ONLY when the user directly types $wrapup or /wrapup. Session-end "land & clean" for a
   finished feature/fix worktree — merges the open PR,
   kills the worktree dev server, removes the worktree + local branch, and
   fast-forwards the main checkout so main is current again, then sweeps
@@ -24,15 +24,15 @@ Project extensions may specialize Project details, but cannot weaken Core user g
 
 # wrapup — land PR & tear down worktree
 
-Trigger: user types `/wrapup` (optionally with a PR number). **Manual only** — `disable-model-invocation: true`, no hook, no auto-invoke.
+Trigger: user makes a direct `$wrapup` or `/wrapup` invocation (optionally with a PR number). **Manual only** — `disable-model-invocation: true`, no hook, no auto-invoke.
 
 ## ⚠ Spec context
 
-The user's `/wrapup` input IS the explicit landing authorization for that run.
+The user's direct `$wrapup` or `/wrapup` input IS the explicit landing authorization for that run.
 It authorizes the normal merge flow whether Prod readiness is ready or degraded;
 it never authorizes the agent to invent or configure a deploy target. Never call
-this skill from a hook, another skill, or autonomously. There is no second merge
-confirmation; the pre-flight hard stops are non-negotiable.
+this skill from a hook or another skill. Natural-language requests, indirect skill
+chaining, and autonomous invocation do not authorize it. There is no second merge confirmation; the pre-flight hard stops are non-negotiable.
 
 ## Execution model — script does mechanics, the agent does judgment
 
@@ -62,12 +62,12 @@ conflicting instruction surfaces; never choose a target on the user's behalf.
 
 ### 2 · Retro gate (blocking, optional retro-exit — before anything is committed)
 One reminder, not a merge confirmation:
-> "Already ran a retro? **(a)** yes / continue → landing now. **(b)** you want one first → the retro starts now; afterwards, invoke `/wrapup` again — repo-file patches then travel in this PR."
+> "Already ran a retro? **(a)** yes / continue → landing now. **(b)** you want one first → the retro starts now; afterwards, invoke `$wrapup` or `/wrapup` again — repo-file patches then travel in this PR."
 
 (b) → **invoke the `retro` skill immediately in this run.** Retro is
 model-invocable and non-deploying, and every mutation still has its own approval
 gate. After retro finishes, **land nothing in this run**. Require a **fresh
-explicit `/wrapup` invocation** because retro may have changed the exact diff
+explicit `$wrapup` or `/wrapup` invocation** because retro may have changed the exact diff
 that the next merge authorization covers.
 
 General chaining rule: automatically chain only into a **model-invocable**,
@@ -118,5 +118,5 @@ STOP → diagnose in the main conversation, fix, re-run `land` (an already-merge
 <!-- readiness:end -->
 
 ## Out of scope
-- Live-verify / DoD: must happen **before** `/wrapup` — this skill lands, it does not verify.
+- Live-verify / DoD: must happen **before** `$wrapup` or `/wrapup` — this skill lands, it does not verify.
 - Other worktrees / their servers stay untouched.
