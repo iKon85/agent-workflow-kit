@@ -105,6 +105,11 @@ One call covers: push → PR create/reuse (+ drift markers merged into the body)
 
 STOP → diagnose in the main conversation, fix, re-run `land` (an already-merged PR resumes at teardown).
 
+If STOP says the canonical landing policy is missing or differs from the
+worktree, land the reviewed `docs/agents/workflow-capabilities.json` policy
+change as a small migration PR first. Never use the unmerged branch profile as
+deletion authority. Then update/rebase the dependent branch and rerun `land`.
+
 Landing provenance has one explicit relinquish route. If the STOP names an
 unfinished or drifted landing attempt and the ambiguous files cannot be restored
 to their frozen identities, run:

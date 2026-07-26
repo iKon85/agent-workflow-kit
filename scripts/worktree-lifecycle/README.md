@@ -73,6 +73,13 @@ active landing attempt is never overwritten. The claim-bound session route
 below captures its stricter baseline before project setup so a failed setup has
 an exact recovery boundary.
 
+Landing deletion authority comes only from the consumer profile already
+reviewed on canonical main. A missing policy is distinct from an explicit empty
+policy, and a worktree whose scratch or landing-generator policy differs from
+main stops before writing baseline or attempt evidence. Activate such policy
+changes in a small policy-migration PR first; a feature branch never grants
+itself broader cleanup authority.
+
 The landing adapter may carry exact scratch evidence only for current ignored
 files that match the consumer-owned
 `wrapup.landingGeneratedArtifactPatterns` profile and were absent from that

@@ -437,21 +437,45 @@ def load_worktree_cleanup_core():
     return module
 
 
+def load_canonical_landing_profile(core, wt: str, main_tree: str):
+    """Require one reviewed cleanup policy before writing or consuming evidence."""
+    canonical = core.load_profile(
+        Path(main_tree) / "docs/agents/workflow-capabilities.json"
+    )
+    candidate = core.load_profile(
+        Path(wt) / "docs/agents/workflow-capabilities.json"
+    )
+    if not canonical.landing_generated_artifact_policy_configured:
+        raise core.LifecycleError(
+            "canonical landing artifact policy is not configured; "
+            "land the reviewed workflow-capabilities policy migration first"
+        )
+    if (
+        not candidate.landing_generated_artifact_policy_configured
+        or candidate.landing_generated_artifact_patterns
+        != canonical.landing_generated_artifact_patterns
+        or candidate.scratch_patterns != canonical.scratch_patterns
+    ):
+        raise core.LifecycleError(
+            "worktree cleanup policy differs from canonical main; "
+            "land the reviewed workflow-capabilities policy migration first"
+        )
+    return canonical
+
+
 def landing_artifact_baseline_digest(wt: str, main_tree: str) -> str:
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
     core = load_worktree_cleanup_core()
     try:
-        core.load_profile(profile_path)
+        load_canonical_landing_profile(core, wt, main_tree)
         return core.load_artifact_baseline(Path(wt)).digest
     except core.LifecycleError as error:
         raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
 
 
 def landing_start_artifact_inventory(wt: str, main_tree: str) -> dict:
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
     core = load_worktree_cleanup_core()
     try:
-        profile = core.load_profile(profile_path)
+        profile = load_canonical_landing_profile(core, wt, main_tree)
         return core.landing_start_artifact_inventory(profile, Path(wt))
     except core.LifecycleError as error:
         raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
@@ -464,10 +488,9 @@ def landing_verified_scratch_evidence(
     expected_baseline_digest: str | None = None,
     landing_start_files: tuple[str, ...] = (),
 ) -> tuple[dict, ...]:
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
     core = load_worktree_cleanup_core()
     try:
-        profile = core.load_profile(profile_path)
+        profile = load_canonical_landing_profile(core, wt, main_tree)
         return core.verified_landing_scratch_evidence(
             profile,
             Path(wt),
@@ -484,10 +507,9 @@ def freeze_landing_artifact_evidence(
     *,
     push_succeeded: bool,
 ) -> tuple[dict, ...]:
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
     core = load_worktree_cleanup_core()
     try:
-        profile = core.load_profile(profile_path)
+        profile = load_canonical_landing_profile(core, wt, main_tree)
         return core.freeze_landing_artifact_evidence(
             profile,
             Path(wt),
@@ -498,10 +520,9 @@ def freeze_landing_artifact_evidence(
 
 
 def reopen_frozen_landing_attempt(wt: str, main_tree: str) -> tuple[dict, ...]:
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
     core = load_worktree_cleanup_core()
     try:
-        profile = core.load_profile(profile_path)
+        profile = load_canonical_landing_profile(core, wt, main_tree)
         return core.reopen_frozen_landing_attempt(profile, Path(wt))
     except core.LifecycleError as error:
         raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
@@ -523,10 +544,9 @@ def landing_verified_scratch_files(
     *,
     expected_baseline_digest: str | None = None,
 ) -> tuple[str, ...]:
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
     core = load_worktree_cleanup_core()
     try:
-        profile = core.load_profile(profile_path)
+        profile = load_canonical_landing_profile(core, wt, main_tree)
         return core.verified_landing_scratch_files(
             profile,
             Path(wt),
@@ -548,7 +568,7 @@ def ensure_worktree_removable(
         return None
     core = load_worktree_cleanup_core()
     try:
-        profile = core.load_profile(profile_path)
+        profile = load_canonical_landing_profile(core, wt, main_tree)
         kwargs = {"merge_target": "origin/main"}
         paths = (
             tuple(item["path"] for item in verified_scratch_evidence)
@@ -582,9 +602,8 @@ def remove_verified_worktree_scratch(
 ):
     """Re-verify and delete only assessed regular scratch files."""
     core = load_worktree_cleanup_core()
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
     try:
-        profile = core.load_profile(profile_path)
+        profile = load_canonical_landing_profile(core, wt, main_tree)
         evidence = verified_scratch_evidence
         paths = tuple(item["path"] for item in evidence) or verified_scratch_files
         latest = core.cleanup_assessment(

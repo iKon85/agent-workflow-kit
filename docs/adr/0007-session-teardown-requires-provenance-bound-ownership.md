@@ -77,5 +77,9 @@ from present-day similarity:
   writing evidence; after they are moved, all remaining current ignored and
   untracked files become protected. Corrupt evidence and active attempts are
   never backfilled.
+- Cleanup policy is deletion authority and therefore comes only from canonical
+  main. Missing policy and branch/main policy drift stop before baseline or
+  attempt writes; policy changes land separately before dependent feature
+  cleanup. An unmerged branch cannot expand its own deletion allowlist.
 - The lifecycle implementation is necessarily a small transaction protocol,
   with more states and race tests than a path-based cleanup script.

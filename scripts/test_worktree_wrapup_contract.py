@@ -325,6 +325,77 @@ class WorktreeCleanupContract(unittest.TestCase):
             )
             self.assertTrue(attempt["newAttempt"])
 
+    def test_missing_canonical_landing_policy_stops_before_baseline_or_attempt(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            core = wrapup.load_worktree_cleanup_core()
+            baseline_path = core.artifact_baseline_path(worktree)
+            baseline_path.unlink()
+            canonical_profile = main / "docs/agents/workflow-capabilities.json"
+            canonical = json.loads(canonical_profile.read_text(encoding="utf-8"))
+            del canonical["wrapup"]
+            canonical_profile.write_text(json.dumps(canonical), encoding="utf-8")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_start_artifact_inventory(
+                    str(worktree), str(main)
+                )
+
+            self.assertIn(
+                "canonical landing artifact policy is not configured",
+                stopped.exception.reason,
+            )
+            self.assertFalse(baseline_path.exists())
+            self.assertFalse(
+                baseline_path.with_name(core.LANDING_ATTEMPT_FILE).exists()
+            )
+
+    def test_worktree_cleanup_policy_cannot_widen_canonical_authority(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            candidate_path = worktree / "docs/agents/workflow-capabilities.json"
+            candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+            candidate["wrapup"]["landingGeneratedArtifactPatterns"].append("**")
+            candidate_path.write_text(json.dumps(candidate), encoding="utf-8")
+            core = wrapup.load_worktree_cleanup_core()
+            attempt_path = core.artifact_baseline_path(worktree).with_name(
+                core.LANDING_ATTEMPT_FILE
+            )
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.landing_start_artifact_inventory(
+                    str(worktree), str(main)
+                )
+
+            self.assertIn(
+                "worktree cleanup policy differs from canonical main",
+                stopped.exception.reason,
+            )
+            self.assertFalse(attempt_path.exists())
+
+    def test_explicit_empty_landing_policy_is_distinct_from_missing(self):
+        wrapup = load_wrapup()
+        core = wrapup.load_worktree_cleanup_core()
+        with tempfile.TemporaryDirectory() as tmp:
+            profile_path = Path(tmp) / "workflow-capabilities.json"
+            document = {
+                "worktreeLifecycle": {"enabled": True},
+                "wrapup": {"landingGeneratedArtifactPatterns": []},
+            }
+            profile_path.write_text(json.dumps(document), encoding="utf-8")
+            configured = core.load_profile(profile_path)
+            del document["wrapup"]
+            profile_path.write_text(json.dumps(document), encoding="utf-8")
+            missing = core.load_profile(profile_path)
+
+            self.assertTrue(
+                configured.landing_generated_artifact_policy_configured
+            )
+            self.assertEqual(configured.landing_generated_artifact_patterns, ())
+            self.assertFalse(missing.landing_generated_artifact_policy_configured)
+
     def test_abandon_archives_drifted_frozen_attempt_without_touching_files(self):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
@@ -402,10 +473,16 @@ class WorktreeCleanupContract(unittest.TestCase):
         calls = []
 
         class FakeCore:
+            LifecycleError = RuntimeError
+
             @staticmethod
             def load_profile(path):
                 calls.append(("profile", path))
-                return {"enabled": True}
+                return SimpleNamespace(
+                    landing_generated_artifact_policy_configured=True,
+                    landing_generated_artifact_patterns=(),
+                    scratch_patterns=(),
+                )
 
             @staticmethod
             def cleanup_assessment(profile, main, target, merge_target=None):
@@ -422,7 +499,7 @@ class WorktreeCleanupContract(unittest.TestCase):
                     wrapup.ensure_worktree_removable(str(main / "wt"), str(main))
 
         self.assertIn("shared cleanup guard", stopped.exception.reason)
-        self.assertEqual(calls[1][-1], "origin/main")
+        self.assertEqual(calls[-1][-1], "origin/main")
 
     def test_real_build_and_python_check_after_baseline_are_cleaned_by_land(self):
         wrapup = load_wrapup()

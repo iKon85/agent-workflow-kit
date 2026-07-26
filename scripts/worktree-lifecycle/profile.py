@@ -26,6 +26,7 @@ class WorktreeProfile:
     setup_entry: str
     risky_command_patterns: tuple[str, ...]
     scratch_patterns: tuple[str, ...]
+    landing_generated_artifact_policy_configured: bool
     landing_generated_artifact_patterns: tuple[str, ...]
 
     def branch_name(self, issue: str, slug: str, branch_type: str) -> str:
@@ -61,7 +62,12 @@ def load_profile(path: Path) -> WorktreeProfile:
         wrapup = {}
     if not isinstance(wrapup, dict):
         raise LifecycleError("invalid wrapup profile")
-    generated_patterns = wrapup.get("landingGeneratedArtifactPatterns") or ()
+    generated_policy_configured = "landingGeneratedArtifactPatterns" in wrapup
+    generated_patterns = (
+        wrapup["landingGeneratedArtifactPatterns"]
+        if generated_policy_configured
+        else ()
+    )
     if (
         not isinstance(generated_patterns, (list, tuple))
         or not all(isinstance(pattern, str) and pattern for pattern in generated_patterns)
@@ -88,6 +94,7 @@ def load_profile(path: Path) -> WorktreeProfile:
             r"\bgit\s+(?:commit|push)\b",
         )),
         scratch_patterns=tuple(raw.get("scratchPatterns") or ()),
+        landing_generated_artifact_policy_configured=generated_policy_configured,
         landing_generated_artifact_patterns=tuple(generated_patterns),
     )
 
