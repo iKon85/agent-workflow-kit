@@ -82,18 +82,27 @@ python3 scripts/worktree-lifecycle/session.py teardown --anchor <n> --owner <run
 ```
 
 Only `create` can add an inventory row, and it refuses any branch or path that
-already existed. `seal` records the final exact branch OIDs. Inspection reports
-ancestry, one-to-one stable patch equivalence, unique content, and ambiguity
-separately. Empty commits, non-ancestry merge commits, duplicate patch IDs,
-open or unreadable PR evidence, dirt, protected names, and identity drift stop
-the whole teardown before mutation.
+already existed. After setup it captures the shared ignored-artifact creation
+baseline and records that baseline's digest in the receipt. Session inspection
+therefore accepts generated scratch only when the exact path matches the
+profile and is absent from the creation baseline; missing, changed, or
+incoherent provenance stops. `seal` records the final exact branch OIDs.
+Inspection reports ancestry, one-to-one stable patch equivalence, unique
+content, and ambiguity separately. Empty commits, non-ancestry merge commits,
+duplicate patch IDs, open or unreadable PR evidence, dirt, protected names,
+stale registrations, recreated removed targets, and identity drift stop the
+whole teardown before mutation.
 
 Teardown re-runs that complete assessment, archives every recovery OID in the
-receipt before its first mutation, removes ordinary clean worktrees without
-force, then compare-deletes only the recorded local refs with
+receipt before its first mutation, and revalidates canonical main, the active
+claim and receipt, profile protection, PR state, branch OID, worktree
+registration/root identity, dirt, and the exact scratch inventory immediately
+before each target mutation. After ordinary worktree removal it rechecks the
+ref-side gates, then compare-deletes only the recorded local refs with
 `git update-ref -d <ref> <expected-oid>`. A concurrent ref move therefore
-survives. Generic cleanup and sweep never consume this ownership route and
-never infer authority over a foreign branch.
+survives, while a partial run keeps its recovery OIDs and can resume. Generic
+cleanup and sweep never consume this ownership route and never infer authority
+over a foreign branch.
 
 Claude hook wiring and any Codex adaptation consume this same profile and core.
 An adapter may change only the surface event envelope; it must preserve the

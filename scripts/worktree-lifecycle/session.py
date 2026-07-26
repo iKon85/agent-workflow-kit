@@ -17,13 +17,16 @@ from typing import Any
 from cleanup import pr_state
 from core import (
     LifecycleError,
+    capture_artifact_baseline,
     classify_cleanup,
     collect_cleanup_facts,
     load_profile,
+    load_artifact_baseline,
     main_worktree,
     registered_worktrees,
     remove_contained_regular,
     run,
+    verified_landing_scratch_files,
     verified_worktree_root,
 )
 from setup import execute_step
@@ -225,6 +228,11 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             created_oid = resolve_ref(main, f"refs/heads/{branch}")
             if created_oid != target_base:
                 raise LifecycleError("new session branch did not retain the recorded base OID")
+            artifact_baseline = capture_artifact_baseline(target)
+            if artifact_baseline.setup_head != created_oid:
+                raise LifecycleError(
+                    "artifact provenance baseline does not match the created OID"
+                )
             metadata = target.stat()
             entry = {
                 "branch": branch,
@@ -234,17 +242,23 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                 "expectedOid": None,
                 "rootDevice": metadata.st_dev,
                 "rootInode": metadata.st_ino,
+                "artifactBaselineDigest": artifact_baseline.digest,
                 "removed": False,
             }
             receipt["targets"].append(entry)
             write_receipt(path, receipt)
         except Exception:
-            run(["git", "worktree", "remove", "--force", str(target)], cwd=main, check=False)
-            run(
-                ["git", "update-ref", "-d", f"refs/heads/{branch}", target_base],
+            removed = run(
+                ["git", "worktree", "remove", str(target)],
                 cwd=main,
                 check=False,
             )
+            if removed.returncode == 0:
+                run(
+                    ["git", "update-ref", "-d", f"refs/heads/{branch}", target_base],
+                    cwd=main,
+                    check=False,
+                )
             raise
     return {"branch": branch, "worktree": str(target), "createdOid": created_oid}
 
@@ -445,16 +459,43 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
         current_oid = resolve_ref(main, f"refs/heads/{branch}")
         target_exists = target.exists()
         linked_path = linked.get(branch)
-        if entry.get("removed") or (current_oid is None and not target_exists and linked_path is None):
+        fully_absent = current_oid is None and not target_exists and linked_path is None
+        if entry.get("removed"):
+            if fully_absent:
+                rows.append({
+                    "branch": branch,
+                    "worktree": str(target),
+                    "expectedOid": entry.get("expectedOid"),
+                    "currentOid": current_oid,
+                    "integration": "already-removed",
+                    "commits": [],
+                    "reasons": [],
+                    "removable": True,
+                    "scratchFiles": [],
+                })
+            else:
+                rows.append({
+                    "branch": branch,
+                    "worktree": str(target),
+                    "expectedOid": entry.get("expectedOid"),
+                    "currentOid": current_oid,
+                    "integration": "ambiguous",
+                    "commits": [],
+                    "reasons": ["removed target was recreated"],
+                    "removable": False,
+                    "scratchFiles": [],
+                })
+            continue
+        if fully_absent:
             rows.append({
                 "branch": branch,
                 "worktree": str(target),
                 "expectedOid": entry.get("expectedOid"),
                 "currentOid": current_oid,
-                "integration": "already-removed",
+                "integration": "ambiguous",
                 "commits": [],
-                "reasons": [],
-                "removable": True,
+                "reasons": ["owned target disappeared outside session teardown"],
+                "removable": False,
                 "scratchFiles": [],
             })
             continue
@@ -482,25 +523,51 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
 
         scratch: list[str] = []
         if target_exists or linked_path is not None:
-            if linked_path != target.resolve():
+            if not target_exists and linked_path is not None:
+                reasons.append(
+                    "worktree directory is missing while Git registration remains"
+                )
+            elif linked_path != target.resolve():
                 reasons.append("worktree registration no longer matches receipt")
             elif target_exists:
+                metadata = target.stat()
+                if (metadata.st_dev, metadata.st_ino) != (
+                    entry["rootDevice"], entry["rootInode"]
+                ):
+                    reasons.append("worktree root identity changed")
+                verified_scratch: tuple[str, ...] = ()
+                try:
+                    baseline = load_artifact_baseline(target)
+                    if (
+                        baseline.digest != entry.get("artifactBaselineDigest")
+                        or baseline.setup_head != entry["createdOid"]
+                    ):
+                        raise LifecycleError(
+                            "artifact provenance baseline changed or is incoherent"
+                        )
+                    verified_scratch = verified_landing_scratch_files(
+                        profile,
+                        target,
+                        expected_baseline_digest=entry["artifactBaselineDigest"],
+                    )
+                except (LifecycleError, KeyError) as error:
+                    reasons.append(f"artifact provenance baseline stop: {error}")
                 facts = collect_cleanup_facts(
                     main,
                     target,
                     merge_target=args.main,
                     pr_state=state,
                 )
-                cleanup = classify_cleanup(profile, facts)
+                cleanup = classify_cleanup(
+                    profile,
+                    facts,
+                    verified_scratch_files=verified_scratch,
+                )
                 reasons.extend(
                     reason for reason in cleanup.reasons
                     if not reason.startswith("unmerged branch:")
                 )
                 scratch = list(cleanup.scratch_files)
-                if (facts.root_device, facts.root_inode) != (
-                    entry["rootDevice"], entry["rootInode"]
-                ):
-                    reasons.append("worktree root identity changed")
         rows.append({
             "branch": branch,
             "worktree": str(target),
@@ -526,6 +593,63 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
 
 def inspect(main: Path, args: argparse.Namespace) -> dict[str, Any]:
     return assess(main, args)[2]
+
+
+def revalidate_target(
+    main: Path,
+    args: argparse.Namespace,
+    receipt_path_value: Path,
+    receipt: dict[str, Any],
+    entry: dict[str, Any],
+    main_oid: str,
+) -> dict[str, Any]:
+    if resolve_commit(main, args.main) != main_oid:
+        raise LifecycleError("canonical main moved before target mutation")
+    current_path, current_receipt, report = assess(main, args)
+    if current_path != receipt_path_value or current_receipt != receipt:
+        raise LifecycleError("active claim or teardown receipt changed before mutation")
+    row = next(
+        (candidate for candidate in report["targets"]
+         if candidate["branch"] == entry["branch"]),
+        None,
+    )
+    if row is None:
+        raise LifecycleError("exact receipt target disappeared before mutation")
+    if not row["removable"] or row["integration"] == "already-removed":
+        detail = ", ".join(row["reasons"]) or row["integration"]
+        raise LifecycleError(
+            f"target changed before mutation: {entry['branch']}: {detail}"
+        )
+    return row
+
+
+def revalidate_ref_cleanup(
+    main: Path,
+    args: argparse.Namespace,
+    receipt_path_value: Path,
+    receipt: dict[str, Any],
+    entry: dict[str, Any],
+    main_oid: str,
+) -> None:
+    if resolve_commit(main, args.main) != main_oid:
+        raise LifecycleError("canonical main moved before branch cleanup")
+    current_path, current_receipt = read_receipt(main, args.anchor, args.owner)
+    if current_path != receipt_path_value or current_receipt != receipt:
+        raise LifecycleError("active claim or teardown receipt changed before branch cleanup")
+    branch = entry["branch"]
+    if resolve_ref(main, f"refs/heads/{branch}") != entry["expectedOid"]:
+        raise LifecycleError(f"unexpected OID before branch cleanup: {branch}")
+    profile = load_profile(Path(entry["profile"]))
+    if branch in profile.protected_branches:
+        raise LifecycleError(f"protected branch before cleanup: {branch}")
+    if pr_state(args.gh_command, main, branch) == "open":
+        raise LifecycleError(f"open PR before branch cleanup: {branch}")
+    target = Path(entry["worktree"])
+    linked = worktree_branches(main)
+    if target.exists() or branch in linked:
+        raise LifecycleError(
+            f"worktree still exists or is registered before branch cleanup: {branch}"
+        )
 
 
 def teardown(main: Path, args: argparse.Namespace) -> dict[str, Any]:
@@ -557,22 +681,50 @@ def teardown(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             if row["integration"] == "already-removed":
                 entry["removed"] = True
                 continue
+            row = revalidate_target(
+                main,
+                args,
+                path,
+                receipt,
+                entry,
+                preview["mainOid"],
+            )
+            if row["scratchFiles"] != by_branch[entry["branch"]]["scratchFiles"]:
+                raise LifecycleError(
+                    f"scratch inventory changed before target mutation: "
+                    f"{entry['branch']}"
+                )
             target = Path(entry["worktree"])
             if target.exists():
-                facts = collect_cleanup_facts(
-                    main,
-                    target,
-                    merge_target=args.main,
-                    pr_state="none",
-                )
                 with verified_worktree_root(
                     target,
-                    facts.root_device,
-                    facts.root_inode,
+                    entry["rootDevice"],
+                    entry["rootInode"],
                 ) as descriptor:
                     for scratch in row["scratchFiles"]:
                         remove_contained_regular(descriptor, scratch)
+                after_scratch = revalidate_target(
+                    main,
+                    args,
+                    path,
+                    receipt,
+                    entry,
+                    preview["mainOid"],
+                )
+                if after_scratch["scratchFiles"]:
+                    raise LifecycleError(
+                        f"scratch inventory changed before worktree removal: "
+                        f"{entry['branch']}"
+                    )
                 run(["git", "worktree", "remove", str(target)], cwd=main)
+            revalidate_ref_cleanup(
+                main,
+                args,
+                path,
+                receipt,
+                entry,
+                preview["mainOid"],
+            )
             result = run(
                 [
                     "git", "update-ref", "-d", f"refs/heads/{entry['branch']}",

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod, copyFile, mkdtemp, mkdir, readFile, rename, rm, writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -25,6 +27,7 @@ async function fixture() {
   await git(repo, 'config', 'user.name', 'Test User');
   await git(repo, 'config', 'user.email', 'test@example.invalid');
   await writeFile(join(repo, 'seed.txt'), 'seed\n');
+  await writeFile(join(repo, '.gitignore'), '.worktrees/\ndist-kit/\n');
   await mkdir(join(repo, 'docs/agents'), { recursive: true });
   await writeFile(join(repo, 'docs/agents/workflow-capabilities.json'), JSON.stringify({
     version: 1,
@@ -38,6 +41,9 @@ async function fixture() {
       protectedBranches: ['main'],
       setupSteps: [],
       scratchPatterns: [],
+    },
+    wrapup: {
+      landingGeneratedArtifactPatterns: ['dist-kit/**'],
     },
   }));
   await git(repo, 'add', '.');
@@ -66,6 +72,37 @@ async function fakeGh(root, name, { stdout = '[]\n', exitCode = 0 } = {}) {
   return path;
 }
 
+async function mutatingGh(root, name, trigger, mutation, triggerStdout = '[]') {
+  const path = join(root, name);
+  const count = join(root, `${name}.count`);
+  await writeFile(
+    path,
+    `#!/usr/bin/env bash
+value=0
+if [[ -f "$GH_COUNT_FILE" ]]; then value="$(cat "$GH_COUNT_FILE")"; fi
+value=$((value + 1))
+printf '%s' "$value" > "$GH_COUNT_FILE"
+if [[ "$value" -eq "$GH_TRIGGER" ]]; then
+  eval "$GH_MUTATION"
+  printf '%s' "$GH_TRIGGER_STDOUT"
+  exit 0
+fi
+printf '%s' '[]'
+`,
+  );
+  await chmod(path, 0o755);
+  return {
+    path,
+    env: {
+      ...process.env,
+      GH_COUNT_FILE: count,
+      GH_TRIGGER: String(trigger),
+      GH_MUTATION: mutation,
+      GH_TRIGGER_STDOUT: triggerStdout,
+    },
+  };
+}
+
 async function session(repo, action, ...args) {
   const result = await command('python3', [
     SESSION,
@@ -84,6 +121,8 @@ test('session receipt removes only its patch-equivalent target and leaves a fore
 
   const begun = await session(repo, 'begin', '--base', 'main');
   const created = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '101', 'owned', 'feat');
+  const createdReceipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
+  assert.match(createdReceipt.targets[0].artifactBaselineDigest, /^[0-9a-f]{64}$/);
   await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
   await git(created.worktree, 'add', 'owned.txt');
   await git(created.worktree, 'commit', '-m', 'owned change');
@@ -107,6 +146,225 @@ test('session receipt removes only its patch-equivalent target and leaves a fore
   const archived = JSON.parse(await readFile(begun.receipt, 'utf8'));
   assert.equal(archived.state, 'complete');
   assert.equal(archived.targets[0].recoveryOid, ownedOid);
+});
+
+test('session teardown accepts only generated files absent from its creation baseline', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+
+  await session(repo, 'begin', '--base', 'main');
+  const created = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '114', 'generated', 'feat');
+  await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
+  await git(created.worktree, 'add', 'owned.txt');
+  await git(created.worktree, 'commit', '-m', 'owned change');
+  const ownedOid = (await git(created.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await mkdir(join(created.worktree, 'dist-kit'), { recursive: true });
+  await writeFile(join(created.worktree, 'dist-kit/package.tgz'), 'generated\n');
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', ownedOid);
+
+  const preview = await session(repo, 'inspect', '--main', 'main', '--gh-command', 'false');
+  assert.equal(preview.removable, true);
+  assert.deepEqual(preview.targets[0].scratchFiles, ['dist-kit/package.tgz']);
+  await session(repo, 'teardown', '--main', 'main', '--gh-command', 'false');
+  assert.equal(await git(repo, 'show-ref', '--verify', 'refs/heads/main').then(() => true), true);
+});
+
+test('a missing session artifact baseline is a cleanup hard stop', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+
+  await session(repo, 'begin', '--base', 'main');
+  const created = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '121', 'missing-baseline', 'feat');
+  await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
+  await git(created.worktree, 'add', 'owned.txt');
+  await git(created.worktree, 'commit', '-m', 'owned change');
+  const ownedOid = (await git(created.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', ownedOid);
+  const gitDir = (await git(created.worktree, 'rev-parse', '--absolute-git-dir')).stdout.trim();
+  await rm(join(gitDir, 'awkit-artifact-baseline-v1.json'));
+
+  const preview = await session(repo, 'inspect', '--main', 'main', '--gh-command', 'false');
+  assert.equal(preview.removable, false);
+  assert.match(preview.targets[0].reasons.join('\n'), /artifact provenance baseline/);
+});
+
+test('a mutated session artifact baseline is a cleanup hard stop', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+
+  await session(repo, 'begin', '--base', 'main');
+  const created = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '122', 'mutated-baseline', 'feat');
+  await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
+  await git(created.worktree, 'add', 'owned.txt');
+  await git(created.worktree, 'commit', '-m', 'owned change');
+  const ownedOid = (await git(created.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', ownedOid);
+  const gitDir = (await git(created.worktree, 'rev-parse', '--absolute-git-dir')).stdout.trim();
+  const baselinePath = join(gitDir, 'awkit-artifact-baseline-v1.json');
+  const baseline = JSON.parse(await readFile(baselinePath, 'utf8'));
+  baseline.sha256 = '0'.repeat(64);
+  await writeFile(baselinePath, JSON.stringify(baseline));
+
+  const preview = await session(repo, 'inspect', '--main', 'main', '--gh-command', 'false');
+  assert.equal(preview.removable, false);
+  assert.match(preview.targets[0].reasons.join('\n'), /artifact provenance baseline/);
+});
+
+test('a removed receipt target that is recreated is a hard stop', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+
+  const begun = await session(repo, 'begin', '--base', 'main');
+  const created = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '115', 'recreated', 'feat');
+  await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
+  await git(created.worktree, 'add', 'owned.txt');
+  await git(created.worktree, 'commit', '-m', 'owned change');
+  const ownedOid = (await git(created.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', ownedOid);
+  await session(repo, 'teardown', '--main', 'main', '--gh-command', 'false');
+
+  const archived = JSON.parse(await readFile(begun.receipt, 'utf8'));
+  await git(repo, 'branch', archived.targets[0].branch, archived.targets[0].recoveryOid);
+  const preview = await session(repo, 'inspect', '--main', 'main', '--gh-command', 'false');
+  assert.equal(preview.removable, false);
+  assert.match(preview.targets[0].reasons.join('\n'), /removed target was recreated/);
+});
+
+test('a missing worktree directory with stale Git registration is a hard stop', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+
+  await session(repo, 'begin', '--base', 'main');
+  const created = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '116', 'stale', 'feat');
+  await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
+  await git(created.worktree, 'add', 'owned.txt');
+  await git(created.worktree, 'commit', '-m', 'owned change');
+  const ownedOid = (await git(created.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', ownedOid);
+  await rm(created.worktree, { recursive: true });
+
+  const preview = await session(repo, 'inspect', '--main', 'main', '--gh-command', 'false');
+  assert.equal(preview.removable, false);
+  assert.match(preview.targets[0].reasons.join('\n'), /directory is missing.*registration remains/);
+});
+
+test('later-target dirt stops immediately while completed target recovery stays resumable', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  await git(repo, 'remote', 'add', 'origin', join(root, 'remote.git'));
+
+  const begun = await session(repo, 'begin', '--base', 'main');
+  const first = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '117', 'first', 'feat');
+  const second = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '118', 'second', 'feat');
+  for (const [created, name] of [[first, 'first'], [second, 'second']]) {
+    await writeFile(join(created.worktree, `${name}.txt`), `${name}\n`);
+    await git(created.worktree, 'add', `${name}.txt`);
+    await git(created.worktree, 'commit', '-m', `${name} change`);
+  }
+  const firstOid = (await git(first.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  const secondOid = (await git(second.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', firstOid);
+  await git(repo, 'cherry-pick', secondOid);
+
+  const gh = await mutatingGh(
+    root,
+    'gh-dirty-later',
+    10,
+    `printf '%s\\n' late > '${join(second.worktree, 'late.txt')}'`,
+  );
+  await assert.rejects(
+    command('python3', [
+      SESSION, 'teardown', '--anchor', '42', '--owner', 'run-alpha',
+      '--main', 'main', '--gh-command', gh.path,
+    ], repo, { env: gh.env }),
+    /dirty worktree/,
+  );
+
+  await assert.rejects(git(repo, 'show-ref', '--verify', 'refs/heads/feat/117-first'));
+  assert.match(
+    (await git(repo, 'show-ref', '--verify', 'refs/heads/feat/118-second')).stdout,
+    /feat\/118-second/,
+  );
+  const receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
+  assert.equal(receipt.state, 'tearing-down');
+  assert.equal(receipt.targets[0].removed, true);
+  assert.equal(receipt.targets[0].recoveryOid, firstOid);
+  assert.equal(receipt.targets[1].removed, false);
+  assert.equal(receipt.targets[1].recoveryOid, secondOid);
+});
+
+test('a PR opened after worktree removal stops the compare-delete and preserves recovery', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+  await git(repo, 'remote', 'add', 'origin', join(root, 'remote.git'));
+
+  const begun = await session(repo, 'begin', '--base', 'main');
+  const created = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '119', 'late-pr', 'feat');
+  await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
+  await git(created.worktree, 'add', 'owned.txt');
+  await git(created.worktree, 'commit', '-m', 'owned change');
+  const ownedOid = (await git(created.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', ownedOid);
+
+  const gh = await mutatingGh(
+    root,
+    'gh-open-after-worktree',
+    5,
+    ':',
+    '[{"number":19,"state":"OPEN","mergedAt":null}]',
+  );
+  await assert.rejects(
+    command('python3', [
+      SESSION, 'teardown', '--anchor', '42', '--owner', 'run-alpha',
+      '--main', 'main', '--gh-command', gh.path,
+    ], repo, { env: gh.env }),
+    /open PR before branch cleanup/,
+  );
+  assert.match(
+    (await git(repo, 'show-ref', '--verify', 'refs/heads/feat/119-late-pr')).stdout,
+    /feat\/119-late-pr/,
+  );
+  const receipt = JSON.parse(await readFile(begun.receipt, 'utf8'));
+  assert.equal(receipt.state, 'tearing-down');
+  assert.equal(receipt.targets[0].removed, false);
+  assert.equal(receipt.targets[0].recoveryOid, ownedOid);
+});
+
+test('a replacement worktree root never inherits the receipt identity', async (t) => {
+  const { root, repo } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await plantClaim(repo);
+
+  await session(repo, 'begin', '--base', 'main');
+  const created = await session(repo, 'create', '--profile', 'docs/agents/workflow-capabilities.json', '120', 'root-race', 'feat');
+  await writeFile(join(created.worktree, 'owned.txt'), 'owned\n');
+  await git(created.worktree, 'add', 'owned.txt');
+  await git(created.worktree, 'commit', '-m', 'owned change');
+  const ownedOid = (await git(created.worktree, 'rev-parse', 'HEAD')).stdout.trim();
+  await session(repo, 'seal');
+  await git(repo, 'cherry-pick', ownedOid);
+
+  const displaced = `${created.worktree}-displaced`;
+  await rename(created.worktree, displaced);
+  await mkdir(created.worktree);
+  await copyFile(join(displaced, '.git'), join(created.worktree, '.git'));
+  const preview = await session(repo, 'inspect', '--main', 'main', '--gh-command', 'false');
+  assert.equal(preview.removable, false);
+  assert.match(preview.targets[0].reasons.join('\n'), /worktree root identity changed/);
 });
 
 test('an empty commit has no provable patch identity and stops teardown', async (t) => {
