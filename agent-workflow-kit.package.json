@@ -2795,7 +2795,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "2f5cf2e78994a041652c00a4032ff3615a88fdcbce364245aba9cd1ba3a7c62e",
+      "sha256": "3e771ba089bf7bf46df6f782d645d901cb4c34069944c7de897f635d0ea0f8e7",
       "mode": 420,
       "origin": "kit"
     },

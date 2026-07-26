@@ -382,6 +382,8 @@ class WorktreeCleanupContract(unittest.TestCase):
         self.assertTrue(core.path_glob_matches("dist-kit/a", "dist-kit/**"))
         self.assertTrue(core.path_glob_matches("dist-kit/a/b", "dist-kit/**"))
         self.assertFalse(core.path_glob_matches("dist-kit/a/b", "dist-kit/*"))
+        self.assertTrue(core.path_glob_matches("cache/7.tmp", "cache/[0-9].tmp"))
+        self.assertFalse(core.path_glob_matches("cache/x.tmp", "cache/[0-9].tmp"))
 
     def test_active_profile_delegates_removal_safety_to_shared_assessment(self):
         wrapup = load_wrapup()

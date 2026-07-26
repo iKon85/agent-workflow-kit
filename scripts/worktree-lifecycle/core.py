@@ -8,6 +8,7 @@ import re
 import stat
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
+from fnmatch import fnmatchcase
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from time import time
@@ -83,28 +84,32 @@ def durable_replace(source: Path, destination: Path, *, label: str) -> None:
 
 
 def path_glob_matches(path: str, pattern: str) -> bool:
-    """Match repository-relative POSIX paths: * stays in a segment; ** crosses /."""
-    expression: list[str] = ["^"]
-    index = 0
-    while index < len(pattern):
-        char = pattern[index]
-        if char == "*":
-            if index + 1 < len(pattern) and pattern[index + 1] == "*":
-                index += 2
-                if index < len(pattern) and pattern[index] == "/":
-                    expression.append("(?:.*/)?")
-                    index += 1
-                else:
-                    expression.append(".*")
-                continue
-            expression.append("[^/]*")
-        elif char == "?":
-            expression.append("[^/]")
+    """Match POSIX path segments while retaining fnmatch bracket compatibility."""
+    path_parts = PurePosixPath(path).parts
+    pattern_parts = PurePosixPath(pattern).parts
+    memo: dict[tuple[int, int], bool] = {}
+
+    def matches(path_index: int, pattern_index: int) -> bool:
+        key = (path_index, pattern_index)
+        if key in memo:
+            return memo[key]
+        if pattern_index == len(pattern_parts):
+            result = path_index == len(path_parts)
+        elif pattern_parts[pattern_index] == "**":
+            result = matches(path_index, pattern_index + 1) or (
+                path_index < len(path_parts)
+                and matches(path_index + 1, pattern_index)
+            )
         else:
-            expression.append(re.escape(char))
-        index += 1
-    expression.append("$")
-    return re.fullmatch("".join(expression), path) is not None
+            result = (
+                path_index < len(path_parts)
+                and fnmatchcase(path_parts[path_index], pattern_parts[pattern_index])
+                and matches(path_index + 1, pattern_index + 1)
+            )
+        memo[key] = result
+        return result
+
+    return matches(0, 0)
 
 @dataclass(frozen=True)
 class RepoFacts:
