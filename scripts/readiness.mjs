@@ -90,10 +90,14 @@ async function runbookVerdict(root, evidence) {
 
 async function projectExtensionVerdict(root, evidence) {
   try {
-    const result = await inspectProjectSkillExtension({ root, skill: evidence.skill });
-    return result.state === 'active' ? 'valid' : 'absent';
-  } catch {
-    return 'invalid';
+    const result = await inspectProjectSkillExtension({
+      root,
+      skill: evidence.skill,
+      activation: evidence.activation,
+    });
+    return { verdict: result.state === 'active' ? 'valid' : 'absent' };
+  } catch (error) {
+    return { verdict: 'invalid', diagnostic: error.message };
   }
 }
 
@@ -174,8 +178,11 @@ async function evidenceVerdict(root, evidence) {
 export async function evaluateCapability({ root, capability, decision }) {
   const prod = capability.evidence.type === 'prod-section'
     ? await prodEvidence(root, capability.evidence.paths) : null;
-  const evidence = prod?.verdict ?? await evidenceVerdict(root, capability.evidence);
-  const diagnostics = prod?.diagnostics?.length ? { diagnostics: prod.diagnostics } : {};
+  const evaluated = prod ?? await evidenceVerdict(root, capability.evidence);
+  const evidence = typeof evaluated === 'string' ? evaluated : evaluated.verdict;
+  const diagnostics = evaluated?.diagnostics?.length
+    ? { diagnostics: evaluated.diagnostics }
+    : (evaluated?.diagnostic ? { diagnostic: evaluated.diagnostic } : {});
   if (evidence === 'invalid') return { state: 'invalid', clearDecision: false, ...diagnostics };
   if (evidence === 'valid') return { state: 'ready', clearDecision: Boolean(decision) };
   if (decision === 'pending') return { state: 'pending', clearDecision: false, ...diagnostics };

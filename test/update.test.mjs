@@ -556,6 +556,70 @@ test('update transactionally adopts new safe stubs and reports behavior availabi
   }
 });
 
+test('readiness policy deactivates a preserved legacy empty Project recipe', async () => {
+  const path = 'docs/agents/skills/orchestrate-wave.md';
+  const oldReadiness = {
+    readiness: { contractVersion: 1, capabilities: {
+      orchestrateWaveRecipe: {
+        evidence: { type: 'sentinel', paths: [path], allowLegacy: true },
+      },
+    } },
+    skills: {
+      'orchestrate-wave': {
+        readiness: { optionalBlocks: { projectRecipe: 'orchestrateWaveRecipe' } },
+      },
+    },
+  };
+  const nextReadiness = structuredClone(oldReadiness);
+  nextReadiness.readiness.capabilities.orchestrateWaveRecipe = {
+    evidence: {
+      type: 'project-extension',
+      skill: 'orchestrate-wave',
+      paths: [path],
+      activation: {
+        mode: 'all-sections-filled',
+        sections: ['§Setup', '§Landing'],
+      },
+    },
+  };
+  const legacyRecipe = [
+    '<!-- setup-workflow: state=filled -->',
+    '<!-- agent-workflow-kit: project-extension/v1; skill=orchestrate-wave -->',
+    '# Project layer',
+    '',
+    '## §Setup',
+    '',
+    '## §Landing',
+    '',
+  ].join('\n');
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, oldReadiness);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, path), legacyRecipe);
+    await setKitReadiness(kit, nextReadiness);
+
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify,
+    });
+
+    assert.equal(result.state, 'applied');
+    assert.equal(await readFile(join(consumer, path), 'utf8'), legacyRecipe);
+    assert.deepEqual(result.availability.newlyDegraded, [
+      'orchestrate-wave.projectRecipe',
+    ]);
+    assert.ok(result.availability.stillUnresolved.includes(
+      'orchestrateWaveRecipe:missing',
+    ));
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('dry-run previews readiness adoption without creating the candidate stub', async () => {
   const oldReadiness = { readiness: { contractVersion: 1, capabilities: {} }, skills: {} };
   const nextReadiness = {

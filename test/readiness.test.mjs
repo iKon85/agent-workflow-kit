@@ -28,11 +28,14 @@ async function writeEvidence(root, evidence, valid) {
     : evidence.paths[0];
   if (evidence.type === 'project-extension') {
     const version = valid ? 'v1' : 'v2';
+    const sections = (evidence.activation?.sections ?? ['Project'])
+      .map((name) => `## ${name}\nConfigured.`)
+      .join('\n\n');
     return write(
       root,
       path,
-      `<!-- agent-workflow-kit: project-extension/${version}; skill=${evidence.skill}; ` +
-      'activation=all-sections-filled -->\n# Project layer\n\n## Setup\nConfigured.\n',
+      `<!-- agent-workflow-kit: project-extension/${version}; skill=${evidence.skill} -->\n` +
+      `# Project layer\n\n${sections}\n`,
     );
   }
   if (evidence.type === 'sentinel') {
@@ -85,15 +88,21 @@ test('capability evidence and decisions resolve with fixed precedence', async ()
 test('structured Project-extension readiness uses the runtime activation contract', async () => {
   const root = await makeEmptyDir();
   const path = 'docs/agents/skills/orchestrate-wave.md';
-  const marker =
-    '<!-- agent-workflow-kit: project-extension/v1; skill=orchestrate-wave; ' +
-    'activation=all-sections-filled -->';
+  const marker = '<!-- agent-workflow-kit: project-extension/v1; skill=orchestrate-wave -->';
   const manifest = {
     readiness: {
       contractVersion: 1,
       capabilities: {
         orchestrateWaveRecipe: {
-          evidence: { type: 'project-extension', skill: 'orchestrate-wave' },
+          evidence: {
+            type: 'project-extension',
+            skill: 'orchestrate-wave',
+            paths: [path],
+            activation: {
+              mode: 'all-sections-filled',
+              sections: ['§Setup', '§Landing'],
+            },
+          },
         },
       },
     },
@@ -120,6 +129,15 @@ test('structured Project-extension readiness uses the runtime activation contrac
     await write(
       root,
       path,
+      `${marker}\n# Recipe\n\n## §Setup\nRun setup.\n`,
+    );
+    result = await checkSkill({ root, skill: 'orchestrate-wave', manifest });
+    assert.equal(result.verdict, 'degraded');
+    assert.equal(result.capabilities.orchestrateWaveRecipe.state, 'missing');
+
+    await write(
+      root,
+      path,
       `${marker}\n# Recipe\n\n## §Setup\nRun setup.\n\n## §Landing\nRun landing.\n`,
     );
     result = await checkSkill({ root, skill: 'orchestrate-wave', manifest });
@@ -127,6 +145,19 @@ test('structured Project-extension readiness uses the runtime activation contrac
     assert.equal(result.capabilities.orchestrateWaveRecipe.state, 'ready');
     assert.deepEqual(result.activeBlocks, ['projectRecipe']);
     assert.deepEqual(result.inactiveBlocks, []);
+
+    await write(
+      root,
+      path,
+      '<!-- agent-workflow-kit: project-extension/v2; skill=orchestrate-wave -->\n',
+    );
+    result = await checkSkill({ root, skill: 'orchestrate-wave', manifest });
+    assert.equal(result.capabilities.orchestrateWaveRecipe.state, 'invalid');
+    assert.match(
+      result.capabilities.orchestrateWaveRecipe.diagnostic,
+      /unsupported schema.*expected project-extension\/v1/,
+    );
+    assert.deepEqual(result.activeBlocks, []);
   } finally {
     await cleanup(root);
   }

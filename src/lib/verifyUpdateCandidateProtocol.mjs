@@ -2,6 +2,10 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CONSUMER_INSTALL_ROLE, CONSUMER_ORIGIN, filesForInstallRole } from './manifest.mjs';
 import { validateCandidateManifestPath } from './updateCandidate.mjs';
+import {
+  projectSkillExtensionPath,
+  validateProjectSkillActivation,
+} from './projectSkillExtension.mjs';
 import { readComposedSkillRegistry } from './skillRegistry.mjs';
 
 const READINESS_MANIFEST_PATH = '.claude/skills/skill-manifest.json';
@@ -50,6 +54,17 @@ function validateReadinessManifest(manifest) {
         validateCandidateManifestPath(path);
       } catch {
         throw new Error(`candidate invariant schema: unsafe capability path ${name}`);
+      }
+    }
+    if (evidence.type === 'project-extension') {
+      try {
+        const expected = projectSkillExtensionPath(evidence.skill);
+        if (evidence.paths.length !== 1 || evidence.paths[0] !== expected) {
+          throw new Error('path mismatch');
+        }
+        validateProjectSkillActivation(evidence.activation, expected);
+      } catch {
+        throw new Error(`candidate invariant schema: invalid capability evidence ${name}`);
       }
     }
   }

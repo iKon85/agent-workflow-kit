@@ -33,8 +33,8 @@ node scripts/readiness.mjs check --skill orchestrate-wave --json
 
 - `ready`: continue silently with the required tracker/board context and the
   active `projectRecipe` block.
-- `degraded`: required tracker and managed-board evidence is ready, so keep the
-  complete generic orchestration fallback active, omit only `projectRecipe`,
+- `degraded`: `orchestrateWaveRecipe=invalid` means `STOP` before tracker access
+  and report its diagnostic; otherwise use generic fallback without `projectRecipe`,
   and emit exactly one concise summary: `Readiness degraded — inactive block
   projectRecipe (orchestrateWaveRecipe: <state>); using the generic
   orchestration fallback. Run /setup-workflow, configure

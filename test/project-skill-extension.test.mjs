@@ -36,9 +36,11 @@ test('a versioned Project extension resolves under its canonical skill identity'
 
 test('an all-sections extension stays inactive until every section has instructions', async () => {
   const root = await workspace();
-  const marker =
-    '<!-- agent-workflow-kit: project-extension/v1; skill=orchestrate-wave; ' +
-    'activation=all-sections-filled -->';
+  const marker = '<!-- agent-workflow-kit: project-extension/v1; skill=orchestrate-wave -->';
+  const activation = {
+    mode: 'all-sections-filled',
+    sections: ['§Setup', '§Landing'],
+  };
   try {
     await write(
       root,
@@ -57,7 +59,34 @@ test('an all-sections extension stays inactive until every section has instructi
       ].join('\n'),
     );
     assert.deepEqual(
-      await inspectProjectSkillExtension({ root, skill: 'orchestrate-wave' }),
+      await inspectProjectSkillExtension({ root, skill: 'orchestrate-wave', activation }),
+      {
+        state: 'inactive',
+        reason: 'sections-unfilled',
+        schemaVersion: 1,
+        path: 'docs/agents/skills/orchestrate-wave.md',
+        missingSections: ['§Setup', '§Landing'],
+      },
+    );
+
+    await write(
+      root,
+      'docs/agents/skills/orchestrate-wave.md',
+      [
+        marker,
+        '# Project layer',
+        '',
+        '## §Setup',
+        '```sh',
+        '```',
+        '',
+        '## §Landing',
+        'Run `<command>`.',
+        '',
+      ].join('\n'),
+    );
+    assert.deepEqual(
+      await inspectProjectSkillExtension({ root, skill: 'orchestrate-wave', activation }),
       {
         state: 'inactive',
         reason: 'sections-unfilled',
@@ -77,13 +106,36 @@ test('an all-sections extension stays inactive until every section has instructi
         '## §Setup',
         'Run `npm install --no-package-lock`.',
         '',
+      ].join('\n'),
+    );
+    assert.deepEqual(
+      await inspectProjectSkillExtension({ root, skill: 'orchestrate-wave', activation }),
+      {
+        state: 'inactive',
+        reason: 'sections-unfilled',
+        schemaVersion: 1,
+        path: 'docs/agents/skills/orchestrate-wave.md',
+        missingSections: ['§Landing'],
+      },
+    );
+
+    await write(
+      root,
+      'docs/agents/skills/orchestrate-wave.md',
+      [
+        marker,
+        '# Project layer',
+        '',
+        '## §Setup',
+        'Run `npm install --no-package-lock`.',
+        '',
         '## §Landing',
         'Use `scripts/wrapup-land.py`.',
         '',
       ].join('\n'),
     );
     assert.deepEqual(
-      await inspectProjectSkillExtension({ root, skill: 'orchestrate-wave' }),
+      await inspectProjectSkillExtension({ root, skill: 'orchestrate-wave', activation }),
       {
         state: 'active',
         schemaVersion: 1,
@@ -142,6 +194,20 @@ test('unknown schema, mismatched identity, and non-regular files block actionabl
     await assert.rejects(
       inspectProjectSkillExtension({ root, skill: 'tdd' }),
       /identity mismatch.*expected skill=tdd/,
+    );
+    await write(
+      root,
+      'docs/agents/skills/tdd.md',
+      '<!-- agent-workflow-kit: project-extension/v1; skill=tdd -->\n' +
+      '# Policy\n\n## Commands\nOne.\n\n## Commands\nTwo.\n',
+    );
+    await assert.rejects(
+      inspectProjectSkillExtension({
+        root,
+        skill: 'tdd',
+        activation: { mode: 'all-sections-filled', sections: ['Commands'] },
+      }),
+      /duplicate section Commands/,
     );
     await rm(join(root, 'docs/agents/skills/tdd.md'));
     await mkdir(join(root, 'docs/agents/skills/tdd.md'));

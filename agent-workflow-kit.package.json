@@ -447,7 +447,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "36570dfccd6dcfa41774e56fd8e31c794a31da72a609753291cf29f87d2636d6",
+      "sha256": "b75a89d13e862556e334957aecdc6cd228944d4c32cfc9a179cefac58824a89b",
       "mode": 420,
       "origin": "kit"
     },
@@ -667,7 +667,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "bd49ff2891ce9614d9ede0eee16353f6a3cfaca06952a8b8da065d72d689d1a2",
+      "sha256": "4ced75934cb409903344f196253e99c1166d7c8705d92c477bfeda92f8a9cadf",
       "mode": 420,
       "origin": "kit"
     },
@@ -687,7 +687,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "f21e7e2e7e91ecc4b8dc9ab4bfbbf5c813fdb1241be02bbaafa7a7730409abe3",
+      "sha256": "437040fb65e7acaa7d2e566f6074db2f1061569202c4acf3119ae7ffa30b2023",
       "mode": 420,
       "origin": "kit"
     },
@@ -1769,7 +1769,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "672d251912886ac4e44f2a60fd3a35ee82c44e86bef4c19ae40d506eb1cf1427",
+      "sha256": "b75a89d13e862556e334957aecdc6cd228944d4c32cfc9a179cefac58824a89b",
       "mode": 420,
       "origin": "kit"
     },
@@ -2009,7 +2009,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "bd49ff2891ce9614d9ede0eee16353f6a3cfaca06952a8b8da065d72d689d1a2",
+      "sha256": "4ced75934cb409903344f196253e99c1166d7c8705d92c477bfeda92f8a9cadf",
       "mode": 420,
       "origin": "kit"
     },
@@ -2029,7 +2029,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "f21e7e2e7e91ecc4b8dc9ab4bfbbf5c813fdb1241be02bbaafa7a7730409abe3",
+      "sha256": "437040fb65e7acaa7d2e566f6074db2f1061569202c4acf3119ae7ffa30b2023",
       "mode": 420,
       "origin": "kit"
     },
@@ -2107,7 +2107,7 @@
       "path": ".claude/skills/skill-manifest.json",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "fca5d38d0940ccac71cc143b418901ea8097af35c7d8e069d9679b540f7a2151",
+      "sha256": "d2f918149db5d75cc389279afc93516d7c12aca790ddb49de23b198d055c8377",
       "mode": 420,
       "origin": "kit"
     },
@@ -2667,7 +2667,7 @@
       "path": "scripts/project-skill-extension.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "12b7c381774a3db6c0d99ec855337a928b70bbe612012bb06f546afb397efc87",
+      "sha256": "9b038bfef135ba2f8487ced43b863631ddbcb3772700a87b6208f0e95b5213e9",
       "mode": 493,
       "origin": "kit"
     },
@@ -2675,7 +2675,7 @@
       "path": "scripts/readiness.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "d0398f466a1f799c6c820991dec5b0db271350ab1d55e4cb33394bc23a433f29",
+      "sha256": "123424eb742767891440e8e52a36ec2e4e624a571a4cb829a18aca37527dea22",
       "mode": 493,
       "origin": "kit"
     },
@@ -2899,7 +2899,7 @@
       "path": "src/lib/projectSkillExtension.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "6ee1102e0fc7fbbc25dcc58dd17e22402f3691c1af23cf93b74cf3c8222eaa6c",
+      "sha256": "62e50f0800cf7ca74ed959047680a7608bdfcc148e6689c80ac94e58bfa766b5",
       "mode": 420,
       "origin": "kit"
     },

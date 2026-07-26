@@ -4,37 +4,56 @@ import { firstLineState } from './sentinel.mjs';
 
 const SKILL_NAME = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const MARKER_PREFIX = '<!-- agent-workflow-kit: project-extension/';
-const MARKER =
-  /^<!-- agent-workflow-kit: project-extension\/([^;]+); skill=([a-z0-9-]+)(?:; activation=([a-z0-9-]+))? -->$/;
-const ACTIVATIONS = new Set(['all-sections-filled']);
+const MARKER = /^<!-- agent-workflow-kit: project-extension\/([^;]+); skill=([a-z0-9-]+) -->$/;
 
 function meaningfulSectionBody(lines) {
-  return lines
+  const body = lines
     .join('\n')
-    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+  if (/<[^>\n]+>/.test(body)) return '';
+  return body
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line && !/^#{1,6}\s+/.test(line))
+    .filter((line) => line && !/^#{1,6}\s+/.test(line) && !/^```/.test(line))
     .join('\n')
     .trim();
 }
 
-function unfilledSections(body) {
-  const sections = [];
+function sectionBodies(body, path) {
+  const sections = new Map();
   let current = null;
   for (const line of body.split('\n')) {
     const heading = /^##\s+(.+?)\s*$/.exec(line);
     if (heading) {
-      current = { name: heading[1], lines: [] };
-      sections.push(current);
+      if (sections.has(heading[1])) {
+        throw new Error(`Project extension has duplicate section ${heading[1]} at ${path}`);
+      }
+      current = [];
+      sections.set(heading[1], current);
     } else if (current) {
-      current.lines.push(line);
+      current.push(line);
     }
   }
-  if (!sections.length) return ['(no sections declared)'];
-  return sections
-    .filter(({ lines }) => !meaningfulSectionBody(lines))
-    .map(({ name }) => name);
+  return sections;
+}
+
+export function validateProjectSkillActivation(activation, path) {
+  if (activation === undefined) return null;
+  if (!activation || typeof activation !== 'object' || Array.isArray(activation)
+      || activation.mode !== 'all-sections-filled'
+      || !Array.isArray(activation.sections) || !activation.sections.length
+      || activation.sections.some((section) =>
+        typeof section !== 'string' || !section.trim())
+      || new Set(activation.sections).size !== activation.sections.length) {
+    throw new Error(`Project extension activation policy is invalid at ${path}`);
+  }
+  return activation.sections;
+}
+
+function unfilledSections(body, requiredSections, path) {
+  const sections = sectionBodies(body, path);
+  return requiredSections.filter((name) =>
+    !sections.has(name) || !meaningfulSectionBody(sections.get(name)));
 }
 
 export function projectSkillExtensionPath(skill) {
@@ -44,8 +63,9 @@ export function projectSkillExtensionPath(skill) {
   return `docs/agents/skills/${skill}.md`;
 }
 
-export async function inspectProjectSkillExtension({ root, skill }) {
+export async function inspectProjectSkillExtension({ root, skill, activation }) {
   const path = projectSkillExtensionPath(skill);
+  const requiredSections = validateProjectSkillActivation(activation, path);
   const absolute = join(root, path);
   let state;
   try {
@@ -81,14 +101,8 @@ export async function inspectProjectSkillExtension({ root, skill }) {
       `found skill=${match[2]}`,
     );
   }
-  const activation = match[3];
-  if (activation && !ACTIVATIONS.has(activation)) {
-    throw new Error(
-      `Project extension has unsupported activation at ${path}: ${activation}`,
-    );
-  }
-  if (activation === 'all-sections-filled') {
-    const missingSections = unfilledSections(body);
+  if (requiredSections) {
+    const missingSections = unfilledSections(body, requiredSections, path);
     if (missingSections.length) {
       return {
         state: 'inactive',

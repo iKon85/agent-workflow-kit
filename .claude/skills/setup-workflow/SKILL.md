@@ -72,12 +72,13 @@ supported as legacy v0 and are never rewritten merely to add the marker.
 Setup and update preserve every extension byte-for-byte unless a future,
 declared schema migration explicitly includes it.
 
-Structured extensions whose Core contract requires every named section may add
-`activation=all-sections-filled` to the same marker. The shared inspector then
-keeps the extension inactive until every `##` section contains real
-instructions; headings, HTML comments, markers, and explanatory prose outside
-the sections do not activate it. Existing v1 extensions without an activation
-field retain their ordinary non-empty-file behavior.
+Structured extensions whose Core contract requires every named section declare
+an `all-sections-filled` activation policy and the exact section denominator in
+the Kit readiness catalog. Runtime inspection and readiness both consume that
+same policy, including for a preserved legacy Consumer file. Headings, HTML
+comments, empty fences, placeholders, markers, and explanatory prose outside
+the governed sections do not activate it. Existing v1 extensions without a
+Core activation policy retain their ordinary non-empty-file behavior.
 
 Use an extension for Project language, commands, policy, and capability data
 that the Core skill already knows how to apply. It is additive and cannot
@@ -429,11 +430,12 @@ These are **structured-but-empty** crusts that `/retro` grows; do not ask the us
 
 - `docs/agents/skills/spec-self-critique.md` — seed the 12 per-point headings from [spec-self-critique-seed.md](./spec-self-critique-seed.md) so `/retro` has stable append anchors and `spec-self-critique` finds its project layer (suppressing the "layer absent" warning) without inventing project content.
 - `docs/agents/skills/orchestrate-wave.md` — seed the named `§`-section headings from [orchestrate-wave-seed.md](./orchestrate-wave-seed.md) so the `orchestrate-wave` skill's Phase-0 probe finds its project layer. The sections ship **empty** (the exact commands / tunnel / login can't be guessed) → the skill treats an unfilled seed as "layer absent" and runs its generic fallback until the project fills them. A filled section is a manual project-maintenance edit, not something this run invents.
-- The `orchestrate-wave` seed declares
-  `activation=all-sections-filled`: every named `§` section must contain real
-  project instructions before either the runtime inspector or readiness may
-  activate `projectRecipe`. A comment-only seed remains an intentional generic
-  fallback even when its setup sentinel is `state=filled`.
+- The `orchestrateWaveRecipe` readiness capability declares
+  `all-sections-filled` plus the seven named `§` sections. Every one must
+  contain real project instructions before either the runtime inspector or
+  readiness may activate `projectRecipe`. A comment-only or legacy seed remains
+  an intentional generic fallback even when its setup sentinel is
+  `state=filled`.
 - `docs/conventions/spec-completeness.md` — seed **one valid** `## Self-Critique-Check` block (Trigger/Check/Korrektur) from [spec-completeness-seed.md](./spec-completeness-seed.md). A convention file *without* a valid block makes `spec-self-critique` point 8 warn — an empty file is worse than none.
 
 > **Handoff drift-guard (`.claude/hooks/drift-guard.py`).** The repo ships a PreToolUse hook that blocks a `.handoff/*.md` Write when the linked issue's rooted graph is not execute-ready (it delegates all coherence to `scripts/execute-ready-check.py --mode handoff`). It self-filters to `.handoff/*.md` and fires **only once handoff docs exist** — a freshly scaffolded project carries the guard but has nothing to guard yet (silently inoperative until the first `.handoff/` write). This scaffold only **documents** the interplay; it does **not** build new mechanics. Once the project starts emitting handoffs, writes land in `.handoff/` and the guard activates automatically.

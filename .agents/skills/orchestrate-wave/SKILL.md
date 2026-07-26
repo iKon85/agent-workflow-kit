@@ -1,6 +1,14 @@
 ---
 name: orchestrate-wave
-"description": "Use when the user hands you a whole WAVE / cluster of pre-planned, file-disjoint slices and wants you to ORCHESTRATE building, verifying AND landing it end-to-end — often AFK / \"ultracode\". Triggers: \"orchestriere Welle #N\" (or any wording that delegates wave-landing responsibility to you), \"ultracode diese Welle / diesen Cluster\", or a wave-anchor issue (a cluster/umbrella issue with file-disjoint sub-issues whose specs are already locked) handed over to land. NOT for a single slice (just `implement` it), NOT for finding/clustering a wave (that's `board-to-waves`), NOT for planning specs (that's `grill-with-docs`/`to-issues`)."
+description: >-
+  Use when the user hands you a whole WAVE / cluster of pre-planned, file-disjoint
+  slices and wants you to ORCHESTRATE building, verifying AND landing it end-to-end —
+  often AFK / "ultracode". Triggers: "orchestriere Welle #N" (or any wording that
+  delegates wave-landing responsibility to you), "ultracode diese Welle / diesen
+  Cluster", or a wave-anchor issue (a cluster/umbrella issue with file-disjoint
+  sub-issues whose specs are already locked) handed over to land. NOT for a single
+  slice (just `implement` it), NOT for finding/clustering a wave (that's `board-to-waves`),
+  NOT for planning specs (that's `grill-with-docs`/`to-issues`).
 ---
 
 # Orchestrate Wave
@@ -25,8 +33,8 @@ node scripts/readiness.mjs check --skill orchestrate-wave --json
 
 - `ready`: continue silently with the required tracker/board context and the
   active `projectRecipe` block.
-- `degraded`: required tracker and managed-board evidence is ready, so keep the
-  complete generic orchestration fallback active, omit only `projectRecipe`,
+- `degraded`: `orchestrateWaveRecipe=invalid` means `STOP` before tracker access
+  and report its diagnostic; otherwise use generic fallback without `projectRecipe`,
   and emit exactly one concise summary: `Readiness degraded — inactive block
   projectRecipe (orchestrateWaveRecipe: <state>); using the generic
   orchestration fallback. Run /setup-workflow, configure
