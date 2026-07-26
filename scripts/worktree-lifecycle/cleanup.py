@@ -4,12 +4,22 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
+import os
+import stat
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
-from core import LifecycleError, cleanup_assessment, collect_sweep, load_profile, main_worktree, run
+from core import (
+    LifecycleError,
+    classify_cleanup,
+    collect_cleanup_facts,
+    collect_sweep,
+    load_profile,
+    main_worktree,
+    run,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,6 +68,43 @@ def pr_state(gh_command: str, main: Path, branch: str) -> str:
     return "none"
 
 
+def collect_assessment(profile, main: Path, worktree: Path, gh_command: str):
+    facts = collect_cleanup_facts(
+        main,
+        worktree,
+    )
+    state = pr_state(gh_command, main, facts.branch)
+    return classify_cleanup(profile, replace(facts, pr_state=state))
+
+
+def remove_contained_regular(root: Path, relative: str) -> None:
+    path = PurePosixPath(relative)
+    if path.is_absolute() or not path.parts or any(part in {"", ".", ".."} for part in path.parts):
+        raise LifecycleError(f"unsafe scratch path: {relative}")
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    descriptors = []
+    try:
+        current = os.open(root, directory_flags)
+        descriptors.append(current)
+        for component in path.parts[:-1]:
+            current = os.open(
+                component,
+                directory_flags | no_follow,
+                dir_fd=current,
+            )
+            descriptors.append(current)
+        metadata = os.stat(path.name, dir_fd=current, follow_symlinks=False)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise LifecycleError(f"scratch path is not a regular file: {relative}")
+        os.unlink(path.name, dir_fd=current)
+    except OSError as error:
+        raise LifecycleError(f"scratch path changed before removal: {relative}") from error
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
 def execute(args: argparse.Namespace) -> dict:
     main = main_worktree(Path.cwd())
     profile_path = Path(args.profile)
@@ -66,16 +113,8 @@ def execute(args: argparse.Namespace) -> dict:
     profile = load_profile(profile_path)
     if not args.worktree:
         raise LifecycleError("worktree is required")
-    assessment = cleanup_assessment(
-        profile,
-        main,
-        Path(args.worktree),
-        pr_state=pr_state(args.gh_command, main, run(
-            ["git", "-C", str(Path(args.worktree).resolve()), "branch", "--show-current"],
-            cwd=main,
-            check=False,
-        ).stdout.strip()),
-    )
+    worktree = Path(args.worktree)
+    assessment = collect_assessment(profile, main, worktree, args.gh_command)
     report = {
         "worktree": str(assessment.worktree),
         "branch": assessment.branch,
@@ -89,10 +128,18 @@ def execute(args: argparse.Namespace) -> dict:
         return report
     if not assessment.removable:
         raise LifecycleError("; ".join(assessment.reasons))
-    command = ["git", "worktree", "remove"]
-    if assessment.scratch_files:
-        command.append("--force")
-    run([*command, str(assessment.worktree)], cwd=main)
+    latest = collect_assessment(profile, main, worktree, args.gh_command)
+    if not latest.removable:
+        raise LifecycleError(f"cleanup changed before removal: {'; '.join(latest.reasons)}")
+    if (
+        latest.branch != assessment.branch
+        or latest.scratch_files != assessment.scratch_files
+        or latest.assumptions != assessment.assumptions
+    ):
+        raise LifecycleError("cleanup changed before removal: inventory no longer matches preview")
+    for scratch in latest.scratch_files:
+        remove_contained_regular(latest.worktree, scratch)
+    run(["git", "worktree", "remove", str(latest.worktree)], cwd=main)
     run(["git", "branch", "-d", assessment.branch], cwd=main)
     report["removed"] = True
     return report

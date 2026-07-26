@@ -44,6 +44,11 @@ scratch is named in the report but does not block removal. The assessment reads
 `wrapup-land.py` invokes this same assessment after a merge and before killing
 processes or removing the worktree.
 
+Explicit removal re-collects facts immediately before mutation, requires the
+same removable inventory, deletes only the exact contained regular scratch
+files from that inventory, and uses ordinary `git worktree remove`. It never
+bypasses Git's final concurrent-change check with force removal.
+
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal
 facts, and counts merged remote branches separately. It never removes a

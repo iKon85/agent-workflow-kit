@@ -146,7 +146,6 @@ def cleanup_assessment(
             target,
             merge_target=merge_target,
             pr_state=pr_state,
-            scratch_patterns=profile.scratch_patterns,
         ),
     )
 
@@ -157,7 +156,6 @@ def collect_cleanup_facts(
     *,
     merge_target: str | None = None,
     pr_state: str = "none",
-    scratch_patterns: tuple[str, ...] = (),
 ) -> CleanupFacts:
     worktree = target.resolve()
     branch = run(
@@ -180,15 +178,16 @@ def collect_cleanup_facts(
         cwd=main,
         check=False,
     ).stdout.splitlines())
-    for pattern in scratch_patterns:
-        untracked.update(run(
-            [
-                "git", "-C", str(worktree), "ls-files", "--others", "--ignored",
-                "--exclude-standard", "--", f":(glob){pattern}",
-            ],
-            cwd=main,
-            check=False,
-        ).stdout.splitlines())
+    untracked.update(run(
+        [
+            "git", "-C", str(worktree), "ls-files", "--others", "--ignored",
+            "--exclude-standard",
+        ],
+        cwd=main,
+        check=False,
+    ).stdout.splitlines())
+    # ANNAHMEN.md is governed separately: its bytes are returned before removal.
+    untracked.discard("ANNAHMEN.md")
     merged = False
     if branch:
         main_branch = merge_target or run(
@@ -364,7 +363,6 @@ def collect_sweep_facts(
                 path,
                 merge_target=main_branch,
                 pr_state=pr_state,
-                scratch_patterns=profile.scratch_patterns,
             ) if path is not None else None,
         ))
     for path in detached:
