@@ -469,6 +469,37 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.39.0 — self-explaining guards, one glob dialect, a board you can create
+
+Nothing in this release requires a consumer action. `kit-update` reconciles it.
+
+- **`kit-update` tells you what you still owe.** A versioned registry of
+  required consumer migrations is evaluated against your repository and named in
+  the preview and in the terminal report — interactively, under `--yes`, as JSON
+  via `update --json`, and in the automated update pull request. It reports a
+  decision you owe; it never writes a cleanup policy for you.
+- **`setup-workflow` can create the GitHub-Projects board.** When your tracker
+  is GitHub and no board exists, setup now *offers* to provision one — Status
+  with its stage options plus the workflow fields — and writes the board profile
+  from a read-back of what was actually created. It asks first, and a decline
+  leaves the previous stub path byte-unchanged.
+- **One repository-relative glob dialect.** Worktree Lifecycle and Workflow
+  Advisories now match consumer profile globs through the same matcher, so an
+  advisory and a deletion decision can never disagree about which paths a
+  pattern selects. A review command classifies your installed patterns and
+  reports, with a concrete witness path, any whose match set narrows or widens.
+- **A merged worktree is never stranded.** A landing attempt that started before
+  canonical cleanup policy changed now has a supported recovery route, and a
+  landing journal written by the previous contract version is classified as
+  legacy rather than as corruption — with the exact safe command named in the
+  stop. Both routes revalidate frozen evidence against canonical policy and
+  delete strictly less than the ordinary path.
+- **Guards say what happened and where.** A drift-blocked handoff now names the
+  checkout it evaluated (and says so explicitly when your working directory is a
+  sibling worktree of the same repository), a census status reports *what*
+  drifted rather than only *that* something did, and a handoff anchored on an
+  issue link no longer adopts an issue from a foreign repository.
+
 ### 0.38.0
 
 - added: `docs/adr/0007-session-teardown-requires-provenance-bound-ownership.md`
