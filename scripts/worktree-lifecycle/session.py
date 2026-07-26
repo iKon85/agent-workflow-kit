@@ -11,6 +11,7 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 from typing import Any
@@ -91,6 +92,142 @@ def receipt_path(main: Path, anchor: str, claim_oid: str) -> Path:
     return common_git_dir(main) / "agent-workflow-kit" / "session-teardown" / (
         f"{anchor}-{claim_oid}.json"
     )
+
+
+def ownership_proof_ref(claim_oid: str, branch: str) -> str:
+    branch_digest = sha256(branch.encode("utf-8")).hexdigest()
+    return (
+        "refs/agent-workflow-kit/session-owned/"
+        f"{claim_oid}/{branch_digest}"
+    )
+
+
+def validated_proof_ref(receipt: dict[str, Any], entry: dict[str, Any]) -> str:
+    expected = ownership_proof_ref(receipt["claimOid"], entry["branch"])
+    if entry.get("proofRef") != expected:
+        raise LifecycleError("session ownership proof identity is incoherent")
+    return expected
+
+
+def acquire_owned_branch(
+    main: Path,
+    branch: str,
+    proof_ref: str,
+    target_oid: str,
+    claim_ref: str,
+    claim_oid: str,
+) -> bool:
+    transaction = (
+        "start\n"
+        f"verify {claim_ref} {claim_oid}\n"
+        f"create refs/heads/{branch} {target_oid}\n"
+        f"create {proof_ref} {target_oid}\n"
+        "prepare\n"
+        "commit\n"
+    )
+    result = subprocess.run(
+        ["git", "update-ref", "--stdin"],
+        cwd=main,
+        input=transaction,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def delete_owned_refs_prepared(
+    main: Path,
+    branch: str,
+    proof_ref: str,
+    expected_oid: str,
+    proof_oid: str,
+    claim_ref: str,
+    claim_oid: str,
+    *,
+    remove_worktree: Path | None = None,
+    main_ref: str | None = None,
+    main_oid: str | None = None,
+    root_identity: tuple[int, int] | None = None,
+) -> bool:
+    process = subprocess.Popen(
+        ["git", "update-ref", "--stdin"],
+        cwd=main,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert process.stdin is not None
+    assert process.stdout is not None
+    commands = [
+        "start",
+        f"verify {claim_ref} {claim_oid}",
+    ]
+    if main_ref is not None and main_oid is not None:
+        commands.append(f"verify {main_ref} {main_oid}")
+    commands.extend([
+        f"delete refs/heads/{branch} {expected_oid}",
+        f"delete {proof_ref} {proof_oid}",
+        "prepare",
+    ])
+    try:
+        process.stdin.write("\n".join(commands) + "\n")
+        process.stdin.flush()
+        responses = [process.stdout.readline().strip(), process.stdout.readline().strip()]
+        if responses != ["start: ok", "prepare: ok"]:
+            process.stdin.close()
+            process.wait()
+            return False
+        linked = worktree_branches(main)
+        if (
+            (remove_worktree is None and branch in linked)
+            or (
+                remove_worktree is not None
+                and linked.get(branch) != remove_worktree.resolve()
+            )
+        ):
+            process.stdin.write("abort\n")
+            process.stdin.flush()
+            process.stdin.close()
+            process.wait()
+            return False
+        if remove_worktree is not None:
+            try:
+                metadata = remove_worktree.lstat()
+            except OSError:
+                metadata = None
+            if (
+                metadata is None
+                or not stat.S_ISDIR(metadata.st_mode)
+                or root_identity is None
+                or (metadata.st_dev, metadata.st_ino) != root_identity
+            ):
+                process.stdin.write("abort\n")
+                process.stdin.flush()
+                process.stdin.close()
+                process.wait()
+                return False
+            removed = run(
+                ["git", "worktree", "remove", str(remove_worktree)],
+                cwd=main,
+                check=False,
+            )
+            if removed.returncode != 0:
+                process.stdin.write("abort\n")
+                process.stdin.flush()
+                process.stdin.close()
+                process.wait()
+                return False
+        process.stdin.write("commit\n")
+        process.stdin.flush()
+        process.stdin.close()
+        return process.wait() == 0
+    except (BrokenPipeError, OSError):
+        if process.poll() is None:
+            process.kill()
+        process.wait()
+        return False
 
 
 @contextmanager
@@ -196,6 +333,12 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
         configured_path = profile_path(main, args.profile)
         profile = load_profile(configured_path)
         branch = profile.branch_name(args.issue, args.slug, args.branch_type)
+        if run(
+            ["git", "check-ref-format", "--branch", branch],
+            cwd=main,
+            check=False,
+        ).returncode != 0:
+            raise LifecycleError("generated session branch is not a valid branch name")
         target = contained_target(
             main,
             profile.relative_path(args.issue, args.slug, args.branch_type),
@@ -214,12 +357,17 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
         )
         if target_base is None or not is_ancestor(main, receipt["baseOid"], target_base):
             raise LifecycleError("target base is unresolved or incoherent with the receipt base")
+        proof_ref = ownership_proof_ref(receipt["claimOid"], branch)
+        if resolve_ref(main, proof_ref) is not None:
+            raise LifecycleError("session ownership proof pre-existed this run")
 
         entry = {
             "state": "provisional",
+            "acquisitionState": "pending",
             "branch": branch,
             "worktree": str(target),
             "profile": str(configured_path),
+            "proofRef": proof_ref,
             "createdOid": target_base,
             "expectedOid": target_base,
             "rootDevice": None,
@@ -227,15 +375,29 @@ def create_target(main: Path, args: argparse.Namespace) -> dict[str, Any]:
             "artifactBaselineDigest": None,
             "removed": False,
         }
-        # Journal ownership before git creates either the ref or worktree. A
-        # crash or failed setup can therefore never turn our target into a
-        # pre-existing foreign-looking orphan on retry.
+        # Pre-journal the deterministic proof identity, then acquire the branch
+        # and proof ref in one Git ref transaction. The proof, rather than this
+        # provisional row alone, is the durable ownership authority.
         receipt["targets"].append(entry)
         write_receipt(path, receipt)
-        failure_class = "worktree-add"
+        failure_class = "ref-acquisition"
         try:
+            if not acquire_owned_branch(
+                main,
+                branch,
+                proof_ref,
+                target_base,
+                f"refs/tags/wave-active/{args.anchor}",
+                receipt["claimOid"],
+            ):
+                entry["acquisitionState"] = "failed"
+                write_receipt(path, receipt)
+                raise LifecycleError("session branch ownership acquisition failed")
+            entry["acquisitionState"] = "acquired"
+            write_receipt(path, receipt)
+            failure_class = "worktree-add"
             run(
-                ["git", "worktree", "add", str(target), "-b", branch, target_base],
+                ["git", "worktree", "add", str(target), branch],
                 cwd=main,
             )
             failure_class = "root-journal"
@@ -447,6 +609,32 @@ def _archive_recovered_target(
     write_receipt(path, receipt)
 
 
+def _revalidate_creation_safety(
+    main: Path,
+    args: argparse.Namespace,
+    path: Path,
+    receipt: dict[str, Any],
+    entry: dict[str, Any],
+) -> None:
+    branch = entry["branch"]
+    expected_oid = entry["createdOid"]
+    proof_ref = validated_proof_ref(receipt, entry)
+    # The PR query is deliberately before the final receipt/claim read: a
+    # command that races either ownership input is detected before mutation.
+    if pr_state(args.gh_command, main, branch) == "open":
+        raise LifecycleError(f"open PR during creation recovery: {branch}")
+    current_path, current_receipt = read_receipt(main, args.anchor, args.owner)
+    if current_path != path or current_receipt != receipt:
+        raise LifecycleError("active claim or recovery receipt changed")
+    profile = load_profile(Path(entry["profile"]))
+    if branch in profile.protected_branches:
+        raise LifecycleError(f"protected branch during creation recovery: {branch}")
+    if resolve_ref(main, f"refs/heads/{branch}") != expected_oid:
+        raise LifecycleError(f"unexpected OID during creation recovery: {branch}")
+    if resolve_ref(main, proof_ref) != expected_oid:
+        raise LifecycleError(f"session ownership proof changed: {branch}")
+
+
 def _recover_creation_entry(
     main: Path,
     args: argparse.Namespace,
@@ -464,17 +652,37 @@ def _recover_creation_entry(
 
     branch = entry["branch"]
     target = Path(entry["worktree"])
-    profile = load_profile(Path(entry["profile"]))
-    if branch in profile.protected_branches:
-        raise LifecycleError(f"protected branch during creation recovery: {branch}")
-    if pr_state(args.gh_command, main, branch) == "open":
-        raise LifecycleError(f"open PR during creation recovery: {branch}")
+    proof_ref = validated_proof_ref(receipt, entry)
 
     current_oid = resolve_ref(main, f"refs/heads/{branch}")
     expected_oid = entry["createdOid"]
+    proof_oid = resolve_ref(main, proof_ref)
     linked = worktree_branches(main)
     linked_path = linked.get(branch)
     target_present = os.path.lexists(target)
+    if entry.get("acquisitionState") == "failed":
+        if (
+            current_oid is not None
+            or proof_oid is not None
+            or target_present
+            or linked_path is not None
+        ):
+            raise LifecycleError(
+                f"failed acquisition collided with foreign target: {branch}"
+            )
+        _archive_recovered_target(path, receipt, entry, archive_reason)
+        return
+    if proof_oid is None:
+        if target_present or linked_path is not None:
+            raise LifecycleError(
+                f"session ownership proof is missing while a worktree remains: {branch}"
+            )
+        # A failed transaction may leave a foreign branch at the intended
+        # name. It is never adopted or deleted without the proof ref.
+        _archive_recovered_target(path, receipt, entry, archive_reason)
+        return
+    if proof_oid != expected_oid:
+        raise LifecycleError(f"session ownership proof changed: {branch}")
     if current_oid is not None and current_oid != expected_oid:
         raise LifecycleError(
             f"unexpected OID during creation recovery: {branch}: "
@@ -485,15 +693,20 @@ def _recover_creation_entry(
             f"session ref disappeared while its worktree remains: {branch}"
         )
     if current_oid is None and not target_present and linked_path is None:
-        _archive_recovered_target(path, receipt, entry, archive_reason)
-        return
-    if current_oid == expected_oid and not target_present and linked_path is None:
-        deleted = run(
-            ["git", "update-ref", "-d", f"refs/heads/{branch}", expected_oid],
-            cwd=main,
-            check=False,
+        raise LifecycleError(
+            f"session ref disappeared while its ownership proof remains: {branch}"
         )
-        if deleted.returncode != 0:
+    if current_oid == expected_oid and not target_present and linked_path is None:
+        _revalidate_creation_safety(main, args, path, receipt, entry)
+        if not delete_owned_refs_prepared(
+            main,
+            branch,
+            proof_ref,
+            expected_oid,
+            entry["createdOid"],
+            f"refs/tags/wave-active/{args.anchor}",
+            receipt["claimOid"],
+        ):
             raise LifecycleError(
                 f"compare-delete failed during branch-only creation recovery: {branch}"
             )
@@ -613,10 +826,12 @@ def _recover_creation_entry(
             )
 
     if tracked_evidence != _tracked_evidence_at_created_oid():
+        _revalidate_creation_safety(main, args, path, receipt, entry)
         current_tracked = _tracked_evidence(target)
         if current_tracked == tracked_evidence:
             paths = tracked_evidence["paths"]
             if paths:
+                _revalidate_creation_safety(main, args, path, receipt, entry)
                 restored = run(
                     [
                         "git", "restore", f"--source={expected_oid}",
@@ -631,12 +846,14 @@ def _recover_creation_entry(
                     )
         elif current_tracked != _tracked_evidence_at_created_oid():
             raise LifecycleError("tracked setup changes changed after failed setup")
+    _revalidate_creation_safety(main, args, path, receipt, entry)
     with verified_worktree_root(
         target,
         entry["rootDevice"],
         entry["rootInode"],
     ) as descriptor:
         for relative in setup_created:
+            _revalidate_creation_safety(main, args, path, receipt, entry)
             expected = next(
                 item for item in entry["setupCreatedFiles"]
                 if item["path"] == relative
@@ -645,26 +862,23 @@ def _recover_creation_entry(
     latest = collect_cleanup_facts(main, target, pr_state="none")
     if latest.tracked_files or latest.untracked_files:
         raise LifecycleError("creation recovery inventory changed before removal")
-    removed = run(
-        ["git", "worktree", "remove", str(target)],
-        cwd=main,
-        check=False,
-    )
-    if removed.returncode != 0:
+    _revalidate_creation_safety(main, args, path, receipt, entry)
+    if not delete_owned_refs_prepared(
+        main,
+        branch,
+        proof_ref,
+        expected_oid,
+        entry["createdOid"],
+        f"refs/tags/wave-active/{args.anchor}",
+        receipt["claimOid"],
+        remove_worktree=target,
+        root_identity=(entry["rootDevice"], entry["rootInode"]),
+    ):
         raise LifecycleError(
-            "ordinary worktree removal failed during creation recovery"
+            f"locked worktree/ref removal failed during creation recovery: {branch}"
         )
     if os.path.lexists(target) or branch in worktree_branches(main):
         raise LifecycleError("worktree still exists after creation recovery")
-    if resolve_ref(main, f"refs/heads/{branch}") != expected_oid:
-        raise LifecycleError(f"unexpected OID before creation ref cleanup: {branch}")
-    deleted = run(
-        ["git", "update-ref", "-d", f"refs/heads/{branch}", expected_oid],
-        cwd=main,
-        check=False,
-    )
-    if deleted.returncode != 0:
-        raise LifecycleError(f"compare-delete failed during creation recovery: {branch}")
     _archive_recovered_target(path, receipt, entry, archive_reason)
 
 
@@ -752,6 +966,9 @@ def seal(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                 check=False,
             ).returncode != 0:
                 raise LifecycleError(f"session branch moved outside its created history: {branch}")
+            proof_ref = validated_proof_ref(receipt, entry)
+            if resolve_ref(main, proof_ref) != entry["createdOid"]:
+                raise LifecycleError(f"session ownership proof changed before seal: {branch}")
             entry["expectedOid"] = expected
             entry["state"] = "sealed"
         receipt["state"] = "sealed"
@@ -908,9 +1125,16 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
         target = Path(entry["worktree"])
         reasons: list[str] = []
         current_oid = resolve_ref(main, f"refs/heads/{branch}")
-        target_exists = target.exists()
+        proof_ref = validated_proof_ref(receipt, entry)
+        proof_oid = resolve_ref(main, proof_ref)
+        target_exists = os.path.lexists(target)
         linked_path = linked.get(branch)
-        fully_absent = current_oid is None and not target_exists and linked_path is None
+        fully_absent = (
+            current_oid is None
+            and proof_oid is None
+            and not target_exists
+            and linked_path is None
+        )
         if entry.get("removed"):
             if fully_absent:
                 rows.append({
@@ -937,6 +1161,22 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
                     "scratchFiles": [],
                 })
             continue
+        if (
+            fully_absent
+            and entry.get("teardownPhase") == "ref-deletion-pending"
+        ):
+            rows.append({
+                "branch": branch,
+                "worktree": str(target),
+                "expectedOid": entry.get("expectedOid"),
+                "currentOid": current_oid,
+                "integration": "already-removed",
+                "commits": [],
+                "reasons": [],
+                "removable": True,
+                "scratchFiles": [],
+            })
+            continue
         if fully_absent:
             rows.append({
                 "branch": branch,
@@ -956,6 +1196,8 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
                 f"unexpected OID: expected {expected_oid or '<unsealed>'}, "
                 f"found {current_oid or '<missing>'}"
             )
+        if proof_oid != entry.get("createdOid"):
+            reasons.append("session ownership proof is missing or changed")
         profile = load_profile(Path(entry["profile"]))
         if branch in profile.protected_branches:
             reasons.append(f"protected branch: {branch}")
@@ -978,6 +1220,8 @@ def assess(main: Path, args: argparse.Namespace) -> tuple[Path, dict[str, Any], 
                 reasons.append(
                     "worktree directory is missing while Git registration remains"
                 )
+            elif target_exists and (target.is_symlink() or not target.is_dir()):
+                reasons.append("worktree root type changed")
             elif linked_path != target.resolve():
                 reasons.append("worktree registration no longer matches receipt")
             elif target_exists:
@@ -1071,7 +1315,42 @@ def revalidate_target(
         raise LifecycleError(
             f"target changed before mutation: {entry['branch']}: {detail}"
         )
+    # assess queries PR state after reading the receipt. Close that race with a
+    # final claim/receipt, profile, PR and ref/proof pass.
+    revalidate_owned_safety(
+        main, args, receipt_path_value, receipt, entry,
+        expected_oid=entry["expectedOid"],
+        error_suffix="target mutation",
+    )
     return row
+
+
+def revalidate_owned_safety(
+    main: Path,
+    args: argparse.Namespace,
+    receipt_path_value: Path,
+    receipt: dict[str, Any],
+    entry: dict[str, Any],
+    *,
+    expected_oid: str,
+    error_suffix: str,
+) -> None:
+    branch = entry["branch"]
+    if pr_state(args.gh_command, main, branch) == "open":
+        raise LifecycleError(f"open PR before {error_suffix}: {branch}")
+    current_path, current_receipt = read_receipt(main, args.anchor, args.owner)
+    if current_path != receipt_path_value or current_receipt != receipt:
+        raise LifecycleError(
+            f"active claim or teardown receipt changed before {error_suffix}"
+        )
+    profile = load_profile(Path(entry["profile"]))
+    if branch in profile.protected_branches:
+        raise LifecycleError(f"protected branch before {error_suffix}: {branch}")
+    if resolve_ref(main, f"refs/heads/{branch}") != expected_oid:
+        raise LifecycleError(f"unexpected OID before {error_suffix}: {branch}")
+    proof_ref = validated_proof_ref(receipt, entry)
+    if resolve_ref(main, proof_ref) != entry["createdOid"]:
+        raise LifecycleError(f"session ownership proof changed before {error_suffix}: {branch}")
 
 
 def revalidate_ref_cleanup(
@@ -1084,28 +1363,57 @@ def revalidate_ref_cleanup(
 ) -> None:
     if resolve_commit(main, args.main) != main_oid:
         raise LifecycleError("canonical main moved before branch cleanup")
-    current_path, current_receipt = read_receipt(main, args.anchor, args.owner)
-    if current_path != receipt_path_value or current_receipt != receipt:
-        raise LifecycleError("active claim or teardown receipt changed before branch cleanup")
     branch = entry["branch"]
-    if resolve_ref(main, f"refs/heads/{branch}") != entry["expectedOid"]:
-        raise LifecycleError(f"unexpected OID before branch cleanup: {branch}")
-    profile = load_profile(Path(entry["profile"]))
-    if branch in profile.protected_branches:
-        raise LifecycleError(f"protected branch before cleanup: {branch}")
-    if pr_state(args.gh_command, main, branch) == "open":
-        raise LifecycleError(f"open PR before branch cleanup: {branch}")
+    revalidate_owned_safety(
+        main, args, receipt_path_value, receipt, entry,
+        expected_oid=entry["expectedOid"],
+        error_suffix="branch cleanup",
+    )
     target = Path(entry["worktree"])
     linked = worktree_branches(main)
-    if target.exists() or branch in linked:
+    target_present = os.path.lexists(target)
+    if target_present:
+        metadata = target.lstat()
+        if (
+            not stat.S_ISDIR(metadata.st_mode)
+            or
+            linked.get(branch) != target.resolve()
+            or (metadata.st_dev, metadata.st_ino)
+            != (entry["rootDevice"], entry["rootInode"])
+        ):
+            raise LifecycleError(
+                f"worktree identity changed before branch cleanup: {branch}"
+            )
+    elif branch in linked:
         raise LifecycleError(
-            f"worktree still exists or is registered before branch cleanup: {branch}"
+            f"worktree registration changed before branch cleanup: {branch}"
         )
+    elif entry.get("teardownPhase") != "ref-deletion-pending":
+        raise LifecycleError(f"owned worktree disappeared before branch cleanup: {branch}")
+
+
+def canonical_ref(repo: Path, rev: str) -> str | None:
+    result = run(
+        ["git", "rev-parse", "--symbolic-full-name", rev],
+        cwd=repo,
+        check=False,
+    )
+    value = result.stdout.strip()
+    return value if result.returncode == 0 and value.startswith("refs/") else None
+
+
+def immutable_oid(value: str) -> bool:
+    return len(value) == 40 and all(character in "0123456789abcdef" for character in value)
 
 
 def teardown(main: Path, args: argparse.Namespace) -> dict[str, Any]:
     with receipt_lock(main, args.anchor):
         path, receipt, preview = assess(main, args)
+        main_ref = canonical_ref(main, args.main)
+        if main_ref is None and not immutable_oid(args.main):
+            raise LifecycleError(
+                "canonical main must be a ref or immutable full commit OID"
+            )
         if not preview["removable"]:
             blockers = [
                 f"{row['branch']}: {', '.join(row['reasons'])}"
@@ -1146,7 +1454,7 @@ def teardown(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                     f"{entry['branch']}"
                 )
             target = Path(entry["worktree"])
-            if target.exists():
+            if os.path.lexists(target):
                 with verified_worktree_root(
                     target,
                     entry["rootDevice"],
@@ -1167,7 +1475,6 @@ def teardown(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                         f"scratch inventory changed before worktree removal: "
                         f"{entry['branch']}"
                     )
-                run(["git", "worktree", "remove", str(target)], cwd=main)
             revalidate_ref_cleanup(
                 main,
                 args,
@@ -1176,19 +1483,37 @@ def teardown(main: Path, args: argparse.Namespace) -> dict[str, Any]:
                 entry,
                 preview["mainOid"],
             )
-            result = run(
-                [
-                    "git", "update-ref", "-d", f"refs/heads/{entry['branch']}",
-                    entry["expectedOid"],
-                ],
-                cwd=main,
-                check=False,
+            entry["teardownPhase"] = "ref-deletion-pending"
+            write_receipt(path, receipt)
+            revalidate_ref_cleanup(
+                main,
+                args,
+                path,
+                receipt,
+                entry,
+                preview["mainOid"],
             )
-            if result.returncode != 0:
+            if not delete_owned_refs_prepared(
+                main,
+                entry["branch"],
+                entry["proofRef"],
+                entry["expectedOid"],
+                entry["createdOid"],
+                f"refs/tags/wave-active/{args.anchor}",
+                receipt["claimOid"],
+                remove_worktree=target if os.path.lexists(target) else None,
+                main_ref=main_ref,
+                main_oid=preview["mainOid"],
+                root_identity=(
+                    (entry["rootDevice"], entry["rootInode"])
+                    if os.path.lexists(target) else None
+                ),
+            ):
                 raise LifecycleError(
-                    f"concurrent branch move stopped cleanup: {entry['branch']}"
+                    f"locked worktree/ref cleanup stopped: {entry['branch']}"
                 )
             entry["removed"] = True
+            entry["teardownPhase"] = "removed"
             write_receipt(path, receipt)
         receipt["state"] = "complete"
         write_receipt(path, receipt)

@@ -2819,7 +2819,7 @@
       "path": "scripts/worktree-lifecycle/session.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "184ad0ebde83c320c7c730164646ef9b8852a18bdcf86d27d872b95639bbb89b",
+      "sha256": "192763281c29045d2634794e56a443312208842e67235ed2d2fed88c5e227e4f",
       "mode": 493,
       "origin": "kit"
     },
