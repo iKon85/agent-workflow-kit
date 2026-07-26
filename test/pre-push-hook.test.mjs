@@ -102,3 +102,19 @@ test('deletion-only evidence still rejects protected branch and tag deletion', a
     assert.match(result.stderr, /protected/i);
   }
 });
+
+test('protected deletion in a mixed push rejects before the product suite', async () => {
+  const inputs = [
+    row('(delete)', ZERO_SHA, 'refs/heads/main', REMOTE_SHA)
+      + row('refs/heads/fix/271-review', LOCAL_SHA, 'refs/heads/fix/271-review', REMOTE_SHA),
+    row('(delete)', ZERO_SHA, 'refs/tags/v0.37.0', REMOTE_SHA)
+      + row('refs/heads/new-feature', LOCAL_SHA, 'refs/heads/new-feature', ZERO_SHA),
+  ];
+
+  for (const stdin of inputs) {
+    const result = await runHook(stdin);
+    assert.notEqual(result.code, 0);
+    assert.deepEqual(result.npmCalls, []);
+    assert.match(result.stderr, /protected/i);
+  }
+});

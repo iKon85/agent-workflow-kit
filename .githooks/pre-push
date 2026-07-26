@@ -56,11 +56,12 @@ while IFS= read -r update || [[ -n "$update" ]]; do
   fi
 done
 
+if [[ -n "$protected_deletion" ]]; then
+  echo "❌ refusing deletion of protected ref: $protected_deletion" >&2
+  exit 1
+fi
+
 if [[ "$has_evidence" == true && "$malformed" == false && "$all_deletions" == true ]]; then
-  if [[ -n "$protected_deletion" ]]; then
-    echo "❌ refusing deletion of protected ref: $protected_deletion" >&2
-    exit 1
-  fi
   echo "✅ deletion-only push passed protected-ref safety; full suite skipped."
   exit 0
 fi
