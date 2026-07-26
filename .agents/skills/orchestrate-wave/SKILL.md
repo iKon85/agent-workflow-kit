@@ -146,8 +146,8 @@ replace the ~30-second heartbeat; otherwise the standing heartbeat remains requi
    points there). Bring its branch to current `main`:
    `git -C <wave> merge --ff-only origin/main` (if your repo guards destructive
    git, ff-merge is the safe path — not `reset --hard`). Install dependencies with
-   your package manager after (the lockfile may have moved). A gitignored plan doc
-   survives the merge.
+   your package manager after (the lockfile may have moved). A plan doc the repository
+   ignores survives the merge; a tracked one may not (`/setup-workflow` offers those rules).
 5. **Run project setup steps (`§Setup`)** the later verify needs — e.g. a DB
    tunnel or service the live-verify depends on. Absent layer → start whatever your
    live-verify environment requires before Phase 4.
@@ -332,8 +332,8 @@ written · merge order documented.
 - **Release this run's slice claims.** A landed slice's PR supersedes its claim;
   for a pulled or abandoned slice remove the claim this run planted (unassign +
   `claim released` comment) so it stays grabbable. Foreign ones stay untouched.
-- **Before removing any slice worktree, read its `ANNAHMEN.md`** (an assumptions
-  log, gitignored at worktree-root) and propagate each build-time assumption marker
+- **Before removing any slice worktree, read its `ANNAHMEN.md`** (an assumptions log at
+  the worktree root, **expected** to be ignored by git — `/setup-workflow` offers that rule) and propagate each build-time assumption marker
   to the sibling issue it carries. A hand-driven multi-PR / migration landing does
   NOT run `wrapup`'s assumption-propagation step — this is the only place it
   happens; `worktree remove` deletes the log.

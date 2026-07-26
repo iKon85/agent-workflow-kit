@@ -469,6 +469,31 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.40.0 — planning ignore rules are offered, never installed
+
+Nothing in this release requires a consumer action. `kit-update` reconciles it.
+
+Several skills used to state as fact that `PLAN.md`, `PLAN-REVIEW-LOG.md` and
+`ANNAHMEN.md` are gitignored and live on disk only. In your repository that was
+simply untrue: neither `init` nor `update` has ever touched your `.gitignore`,
+and no installed file added those rules — so planning worktrees looked
+permanently dirty, cleanup refused to remove them, and a plan document could be
+committed by accident.
+
+- **The prose is honest now.** The affected skills say the artifacts are
+  *expected* to be ignored and name who can add the rule, instead of asserting
+  an installed guarantee.
+- **`/setup-workflow` offers the rules.** It previews the exact lines, asks
+  first, and appends one idempotent marker block. Declining changes nothing; a
+  re-run is a byte-identical no-op; a block you edited yourself is reported, not
+  repaired; an artifact already tracked by git is reported separately, because
+  an ignore rule cannot untrack it.
+- **`.gitignore` stays yours.** It has no manifest entry, no baseline hash and
+  no three-way reconcile — a file the kit cannot reconcile is one it must not
+  write uninvited. Ordinary `update` reconciliation never reaches the seeder.
+  Decision record:
+  [`docs/adr/0008-planning-ignore-rules-are-offered-never-installed.md`](docs/adr/0008-planning-ignore-rules-are-offered-never-installed.md).
+
 ### 0.39.0 — self-explaining guards, one glob dialect, a board you can create
 
 Nothing in this release requires a consumer action. `kit-update` reconciles it.

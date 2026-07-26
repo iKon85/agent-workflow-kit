@@ -58,6 +58,24 @@ the core proves the target is unsafe.
 | `enforce-worktree-discipline.py` | PreToolUse | routes issue-branch creation through the configured setup entry |
 | `slice-handoff-hint.py` | UserPromptSubmit | names the configured setup entry for a defined slice |
 
+## Planning-artifact ignore rules
+
+`plan-artifacts.json` is the kit-owned declaration of the planning artefacts the
+shipped skills write (`PLAN.md`, `PLAN-REVIEW-LOG.md`, `ANNAHMEN.md`).
+`ignore_seed.py` turns that declaration into an offer, never an installation:
+`preview` reports what an approval would append and writes nothing, and `apply`
+appends exactly one marker block. `.gitignore` is a consumer file the kit does
+not own, so only an explicit approved `/setup-workflow` step may run `apply`;
+`init` and `update` reconciliation never reach it (ADR 0008).
+
+The append never rewrites, reorders, or removes an existing line. A repository
+that already ignores every artefact reports `nothing-to-do`, a re-run after an
+approval is a byte-identical no-op, and a marker block the consumer has since
+edited reports `blocked` rather than being repaired. An artefact already tracked
+in git is named separately — an ignore rule cannot untrack it, and the helper
+never runs `git rm`. Only after such an approval does the `scratchPatterns`
+derivation have real ignored planning artefacts to read.
+
 ## Cleanup
 
 `cleanup.py` previews by default. Removal refuses protected, tracked-dirty,

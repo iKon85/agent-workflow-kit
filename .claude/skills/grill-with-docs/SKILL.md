@@ -40,7 +40,7 @@ For a cross-cutting plan, run `python3 .claude/hooks/drift-guard.py --census-sta
 
 ## Plan-lock — writing PLAN.md
 
-Once all decisions are made (plan locked, before sign-off/handoff) and the session runs in a **worktree** → write the locked plan as `PLAN.md` to the worktree root (gitignored since, doesn't travel over git — consistent with CLAUDE.md "plan inside the worktree"). This way the locked plan survives a session cut and `to-prd` finds its default source. Continuing same-session work **without** a worktree stays allowed (conversation = source); but for a deliberate **session cut** before `to-prd`, `PLAN.md` is mandatory. (The `-codex` variant already writes `PLAN.md` anyway.)
+Once all decisions are made (plan locked, before sign-off/handoff) and the session runs in a **worktree** → write the locked plan as `PLAN.md` to the worktree root. `PLAN.md` is **expected** to be ignored by git so it never travels over git — the kit never edits your `.gitignore` by itself, but `/setup-workflow` offers to add that rule (consistent with CLAUDE.md "plan inside the worktree"). This way the locked plan survives a session cut and `to-prd` finds its default source. Continuing same-session work **without** a worktree stays allowed (conversation = source); but for a deliberate **session cut** before `to-prd`, `PLAN.md` is mandatory. (The `-codex` variant already writes `PLAN.md` anyway.)
 
 </plan-lock>
 

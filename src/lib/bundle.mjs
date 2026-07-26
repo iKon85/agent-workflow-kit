@@ -147,6 +147,12 @@ export const HELPER_FILES = [
   { path: 'scripts/worktree-lifecycle/session.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/worktree-lifecycle/capabilities.json', kind: 'doc', mode: 0o644 },
   { path: 'scripts/worktree-lifecycle/README.md', kind: 'doc', mode: 0o644 },
+  // Offered planning-artifact ignore rules for /setup-workflow Section A11.
+  // `.gitignore` is consumer-owned, so only an approved setup step may append
+  // the block — init/update reconciliation never reach this. plan-artifacts.json
+  // is the kit-owned declaration it reads. Invokable CLI → 0o755.
+  { path: 'scripts/worktree-lifecycle/plan-artifacts.json', kind: 'doc', mode: 0o644 },
+  { path: 'scripts/worktree-lifecycle/ignore_seed.py', kind: 'script', mode: 0o755 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
   // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
   // hooks ImportError on arrival.

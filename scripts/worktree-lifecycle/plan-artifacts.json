@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "path": "PLAN.md",
+      "writtenBy": [
+        "grill-me",
+        "grill-with-docs",
+        "codex-review",
+        "grill-me-codex",
+        "grill-with-docs-codex",
+        "codex-build",
+        "orchestrate-wave"
+      ],
+      "why": "the locked plan a planning session hands to the implementing session"
+    },
+    {
+      "path": "PLAN-REVIEW-LOG.md",
+      "writtenBy": [
+        "codex-review",
+        "grill-me-codex",
+        "grill-with-docs-codex",
+        "codex-build"
+      ],
+      "why": "the append-only cross-model review transcript of that plan"
+    },
+    {
+      "path": "ANNAHMEN.md",
+      "writtenBy": [
+        "tdd",
+        "orchestrate-wave",
+        "wrapup"
+      ],
+      "why": "the build-time assumption-drift log wrapup propagates before teardown"
+    }
+  ]
+}

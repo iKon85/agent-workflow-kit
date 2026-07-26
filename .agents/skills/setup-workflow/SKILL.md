@@ -37,6 +37,7 @@ This is a prompt-driven skill, not a deterministic script. Explore, present what
 | `docs/agents/workflow-capabilities.json` + capability assets | consumer-owned Worktree Lifecycle, Memory Lifecycle, Workflow Advisories, and Safety Guardrails choices (Sections A4–A7) |
 | `.claude/settings.json` | additive activation of the advisory kit-origin Edit/Write hint (Section A8) |
 | user-local routing profile | familiar agent surfaces + switching autonomy (Section A9; never package- or repository-owned) |
+| `.gitignore` | **offered only** — one previewed, append-only marker block with the ignore rules for the planning artifacts the skills write (Section A11) |
 
 ## Idempotency contract — read before writing anything
 
@@ -404,6 +405,55 @@ generic preserve/Explicit-fork routes. Never infer capability from username,
 machine, checkout path, repository name, credentials, or current GitHub login.
 Even a valid capability authorizes local preparation only; a pull request,
 push, publish, or merge remains a separate explicit approval.
+
+### 2j. Section A11 — Planning-artifact ignore rules (offered)
+
+> The planning skills write `PLAN.md`, `PLAN-REVIEW-LOG.md`, and `ANNAHMEN.md`
+> into a session worktree. `.gitignore` is the consumer's file: the kit does not
+> own it and never touches it during `init` or `update`, so those artifacts are
+> ignored only if this repository already says so. Without the rules every
+> planning worktree reports a permanently dirty tree, the Worktree Lifecycle
+> cleanup refuses to remove it, and a plan doc can be committed by accident.
+
+Read the current state first. The preview is read-only and writes nothing:
+
+```bash
+python3 scripts/worktree-lifecycle/ignore_seed.py preview
+```
+
+- `nothing-to-do` — this repository already ignores every declared artifact.
+  Report it and ask nothing.
+- `blocked` — the marker block exists but no longer covers everything. That
+  block is consumer-owned: name the uncovered artifacts, let the user edit
+  `.gitignore` themselves, and never repair or rewrite it.
+- `append` — show the exact lines the preview printed, the whole marker block
+  verbatim and nothing summarized, then ask: *"Should setup add these ignore
+  rules to `.gitignore`?"*
+
+Offer exactly two choices:
+
+- **Add the rules** — run the seeder once. It appends that one marker block and
+  touches nothing else:
+
+```bash
+python3 scripts/worktree-lifecycle/ignore_seed.py apply
+```
+
+- **Not now** — write nothing. Explain that the planning skills still work, that
+  the artifacts will keep showing up as untracked changes, and that re-running
+  `/setup-workflow` offers this again.
+
+The write is append-only inside one idempotent marker block: it never rewrites,
+reorders, or removes an existing line; a re-run after an approval is a
+byte-identical no-op; and a decline leaves the file exactly as it was. An
+artifact already committed to history is reported separately — an ignore rule
+cannot untrack it, and setup never runs `git rm`. Only this explicit, approved
+step may write `.gitignore`; `init` and `update` reconciliation never reach the
+seeder.
+
+Report `appended · nothing to do (already ignored) · declined · blocked
+(consumer-edited block)`. After an approval — and only then — the Section A4
+`scratchPatterns` derivation has real ignored planning artefacts to read.
 
 ### 3. Section B — Triage labels
 
