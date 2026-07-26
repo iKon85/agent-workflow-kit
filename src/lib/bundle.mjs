@@ -127,6 +127,12 @@ export const HELPER_FILES = [
   { path: 'scripts/memory-lifecycle/setup.mjs', kind: 'script', mode: 0o644 },
   { path: 'assets/memory-templates/meta_decision_layer_choice.md', kind: 'template', mode: 0o644 },
   { path: 'assets/memory-templates/meta_memory_lifecycle.md', kind: 'template', mode: 0o644 },
+  // The one repository-relative glob dialect. Both capability cores below load
+  // it, so a consumer profile pattern selects the same paths for an advisory
+  // and for a cleanup decision. Also the reviewable migration check consumers
+  // run after setup or update, so a narrowed or widened pattern is named
+  // instead of silently changing deletion authority. Library + CLI → 0o755.
+  { path: 'scripts/profile_globs.py', kind: 'script', mode: 0o755 },
   // Profile-driven Worktree Lifecycle foundation. The setup adapter imports
   // core.py, while capabilities.json keeps the historical 8/8 denominator
   // explicit until the remaining hook and cleanup adapters are activated.

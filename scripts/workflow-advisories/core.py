@@ -1,12 +1,36 @@
 """Profile-driven decision core for non-blocking Workflow Advisories."""
 from __future__ import annotations
 
-import fnmatch
+import importlib.util
 import json
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+PROFILE_GLOBS_MODULE = "_agent_workflow_kit_profile_globs"
+
+
+def load_profile_globs():
+    """Load the one shared repository-relative glob dialect exactly once."""
+    module = sys.modules.get(PROFILE_GLOBS_MODULE)
+    if module is not None:
+        return module
+    path = Path(__file__).resolve().parents[1] / "profile_globs.py"
+    spec = importlib.util.spec_from_file_location(PROFILE_GLOBS_MODULE, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load the shared profile glob dialect from {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[PROFILE_GLOBS_MODULE] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+# Consumer profile globs are matched here exactly as Worktree Lifecycle matches
+# its own: one dialect, so an advisory and a deletion decision can never
+# disagree about which repository-relative paths a pattern selects.
+path_glob_matches = load_profile_globs().path_glob_matches
 
 
 @dataclass(frozen=True)
@@ -87,7 +111,8 @@ def baseline_decision(profile: dict, payload: dict, root: Path, branch: str) -> 
     raw_path = payload.get("tool_input", {}).get("file_path")
     relative = _repo_relative(root, raw_path) if raw_path else None
     if not relative or not any(
-        fnmatch.fnmatch(relative, pattern) for pattern in config.get("sourceGlobs", [])
+        path_glob_matches(relative, pattern)
+        for pattern in config.get("sourceGlobs", [])
     ):
         return Decision(None, "PreToolUse")
     manifest = root / config.get("manifestPath", ".agent/baseline.json")
@@ -119,7 +144,7 @@ def pre_refactor_decision(profile: dict, payload: dict, root: Path) -> Decision:
     seen: set[tuple[str, ...]] = set()
     for surface in config.get("surfaces", []):
         if not any(
-            fnmatch.fnmatch(path, pattern)
+            path_glob_matches(path, pattern)
             for path in changed
             for pattern in surface.get("globs", [])
         ):
@@ -170,7 +195,7 @@ def stop_check_decision(profile: dict, payload: dict, root: Path) -> Decision:
     seen: set[tuple[str, ...]] = set()
     for surface in config.get("surfaces", []):
         if not any(
-            fnmatch.fnmatch(path, pattern)
+            path_glob_matches(path, pattern)
             for path in changed
             for pattern in surface.get("globs", [])
         ):

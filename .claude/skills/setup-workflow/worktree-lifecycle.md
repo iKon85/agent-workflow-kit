@@ -99,10 +99,39 @@ If an existing enabled profile lacks the key, report one actionable setup
 decision and leave the project layer unchanged until the consumer confirms the
 derived list.
 
-Patterns use repository-relative POSIX semantics: `*` stays within one segment,
-while `**` crosses `/`; a leading `**/` also matches the repository root.
+## Profile glob dialect
+
+Every consumer-profile glob in this kit — Worktree Lifecycle and Workflow
+Advisories alike — is matched by the one shared dialect in
+`scripts/profile_globs.py`. There is no second matcher and no per-capability
+variant:
+
+- `*` matches any run of characters inside one path segment, never `/`.
+- `?` matches exactly one character inside one path segment.
+- `[seq]` and `[!seq]` are per-segment character classes; `/` is always a
+  separator and never a class member.
+- `**` as a complete segment matches zero or more segments, so a leading `**/`
+  also matches the repository root and `dir/**` also matches `dir` itself.
+- Matching is always case-sensitive, on every host filesystem.
+- A pattern must match the whole repository-relative path.
+
 Thus `**/__pycache__/**` covers root and nested caches, while `dist-kit/*` does
 not cover `dist-kit/a/b`.
+
+When adopting an existing profile, or after any kit update, review it before
+trusting its patterns:
+
+```bash
+python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json
+```
+
+The check names every pattern whose match set narrows or widens against that
+key's legacy matcher, prints the concrete witness path that proves the
+difference, and marks the keys that carry deletion authority. Exit code 1 means
+at least one pattern needs review. Report the named patterns and let the
+consumer rewrite them; never migrate a pattern automatically and never treat a
+widened deletion-authority pattern as an accepted default. The check reads the
+profile and never edits it.
 
 The shipped read-only inventory is
 `python3 scripts/worktree-lifecycle/cleanup.py sweep`. The same profile powers

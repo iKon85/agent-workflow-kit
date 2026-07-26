@@ -131,7 +131,26 @@ release contain the same artifact.
    resume the transaction through the update API's `resumeFrom` option. Do not
    copy staged files into the consumer by hand.
 
-5. Check the optional project census after the update:
+5. Review the consumer profile's glob dialect after the update:
+
+   ```sh
+   python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json
+   ```
+
+   Every consumer-profile glob — Worktree Lifecycle `scratchPatterns` and
+   `wrapup.landingGeneratedArtifactPatterns`, Workflow Advisories
+   `baseline.sourceGlobs` and the `preRefactor`/`stopChecks` surface globs — is
+   matched by one shared repository-relative dialect. A pattern written for an
+   older matcher can narrow or widen. The check names each such pattern with
+   the witness path that proves the difference and marks the keys that carry
+   deletion authority; exit code 1 means at least one needs review. Report the
+   named patterns and let the user rewrite them. The updater never rewrites a
+   consumer pattern, and a widened deletion-authority pattern is never accepted
+   silently — an update must not expand what cleanup may remove. A missing or
+   disabled profile leaves nothing to review and does not invalidate the
+   update.
+
+6. Check the optional project census after the update:
 
    ```sh
    python3 .claude/hooks/drift-guard.py --census-status

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
 import stat
+import sys
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from fnmatch import fnmatchcase
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from time import time
@@ -29,6 +30,28 @@ _BRANCH_CHANGE_RE = re.compile(r"\b(?:git\s+(?:checkout|switch)|gh\s+pr\s+(?:mer
 _BRANCH_CREATE_RE = re.compile(r"\bgit\s+(?:checkout|switch)\s+-[bc]\s+(\S+)")
 ARTIFACT_BASELINE_FILE = "awkit-artifact-baseline-v1.json"
 LANDING_ATTEMPT_FILE = "awkit-landing-attempt-v1.json"
+PROFILE_GLOBS_MODULE = "_agent_workflow_kit_profile_globs"
+
+
+def load_profile_globs():
+    """Load the one shared repository-relative glob dialect exactly once."""
+    module = sys.modules.get(PROFILE_GLOBS_MODULE)
+    if module is not None:
+        return module
+    path = Path(__file__).resolve().parents[1] / "profile_globs.py"
+    spec = importlib.util.spec_from_file_location(PROFILE_GLOBS_MODULE, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load the shared profile glob dialect from {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[PROFILE_GLOBS_MODULE] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+# Consumer profile globs are matched here exactly as Workflow Advisories
+# matches its own: one dialect, so an advisory and a deletion decision can
+# never disagree about which repository-relative paths a pattern selects.
+path_glob_matches = load_profile_globs().path_glob_matches
 
 
 class BaselineBackfillDeferred(LifecycleError):
@@ -87,34 +110,6 @@ def durable_replace(source: Path, destination: Path, *, label: str) -> None:
     except OSError as error:
         raise LifecycleError(f"cannot {label}: {error}") from error
 
-
-def path_glob_matches(path: str, pattern: str) -> bool:
-    """Match POSIX path segments while retaining fnmatch bracket compatibility."""
-    path_parts = PurePosixPath(path).parts
-    pattern_parts = PurePosixPath(pattern).parts
-    memo: dict[tuple[int, int], bool] = {}
-
-    def matches(path_index: int, pattern_index: int) -> bool:
-        key = (path_index, pattern_index)
-        if key in memo:
-            return memo[key]
-        if pattern_index == len(pattern_parts):
-            result = path_index == len(path_parts)
-        elif pattern_parts[pattern_index] == "**":
-            result = matches(path_index, pattern_index + 1) or (
-                path_index < len(path_parts)
-                and matches(path_index + 1, pattern_index)
-            )
-        else:
-            result = (
-                path_index < len(path_parts)
-                and fnmatchcase(path_parts[path_index], pattern_parts[pattern_index])
-                and matches(path_index + 1, pattern_index + 1)
-            )
-        memo[key] = result
-        return result
-
-    return matches(0, 0)
 
 @dataclass(frozen=True)
 class RepoFacts:
