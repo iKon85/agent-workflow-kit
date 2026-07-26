@@ -62,6 +62,33 @@ every linked worktree and local branch, reports issue/PR/merge/age/removal
 facts, and counts merged remote branches separately. It never removes a
 worktree or branch.
 
+## Session-owned teardown
+
+`session.py` is the narrower orchestration route. It binds one receipt in the
+Git common directory to the active `wave-active/<anchor>` annotated claim:
+
+```sh
+python3 scripts/worktree-lifecycle/session.py begin --anchor <n> --owner <run> --base <wave-head>
+python3 scripts/worktree-lifecycle/session.py create --anchor <n> --owner <run> --base <current-wave-head> <issue> <slug> <type>
+python3 scripts/worktree-lifecycle/session.py seal --anchor <n> --owner <run>
+python3 scripts/worktree-lifecycle/session.py inspect --anchor <n> --owner <run> --main origin/main
+python3 scripts/worktree-lifecycle/session.py teardown --anchor <n> --owner <run> --main origin/main
+```
+
+Only `create` can add an inventory row, and it refuses any branch or path that
+already existed. `seal` records the final exact branch OIDs. Inspection reports
+ancestry, one-to-one stable patch equivalence, unique content, and ambiguity
+separately. Empty commits, non-ancestry merge commits, duplicate patch IDs,
+open or unreadable PR evidence, dirt, protected names, and identity drift stop
+the whole teardown before mutation.
+
+Teardown re-runs that complete assessment, archives every recovery OID in the
+receipt before its first mutation, removes ordinary clean worktrees without
+force, then compare-deletes only the recorded local refs with
+`git update-ref -d <ref> <expected-oid>`. A concurrent ref move therefore
+survives. Generic cleanup and sweep never consume this ownership route and
+never infer authority over a foreign branch.
+
 Claude hook wiring and any Codex adaptation consume this same profile and core.
 An adapter may change only the surface event envelope; it must preserve the
 core verdict and message.

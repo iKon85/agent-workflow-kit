@@ -447,7 +447,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "b64529b6449a99a013a97be21826a3ced210ec03458dfd980d3a5e0c257e5238",
+      "sha256": "02862cd5e7e07a5f06dad89792fcebd0a6c17cf2216a27c7e0f724026fdda53a",
       "mode": 420,
       "origin": "kit"
     },
@@ -1769,7 +1769,7 @@
       "ownerSkill": "orchestrate-wave",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "b64529b6449a99a013a97be21826a3ced210ec03458dfd980d3a5e0c257e5238",
+      "sha256": "02862cd5e7e07a5f06dad89792fcebd0a6c17cf2216a27c7e0f724026fdda53a",
       "mode": 420,
       "origin": "kit"
     },
@@ -2779,7 +2779,7 @@
       "path": "scripts/worktree-lifecycle/capabilities.json",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "e80501bd86bbdb0ba296fc6b172442d8ad128f43e571777698657491279e4305",
+      "sha256": "689910f11b51a5f2938989a82378332375e614f2684fe4cc48db7a4ce5c12f4b",
       "mode": 420,
       "origin": "kit"
     },
@@ -2811,8 +2811,16 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "fa2cf9d58e73ead7d816339f43485cef6b04a9fc08a9d6a15538657269a8efb9",
+      "sha256": "7dedfaeee291e8e9efad6b01d2130fcd5f88dd1b40692107e0350b6183ff392d",
       "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "scripts/worktree-lifecycle/session.py",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "7487bf1639ccefade7402e8e0a2cd411874487888bba5b4d6d2f813c6da887c7",
+      "mode": 493,
       "origin": "kit"
     },
     {

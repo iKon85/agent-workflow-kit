@@ -143,6 +143,9 @@ test('shipped Worktree Lifecycle census accounts for all eight historical rows',
     );
     assert.ok(capability.artifact, `${capability.historicalPath} needs a shipped artifact`);
     await readFile(resolve(capability.artifact));
+    for (const artifact of capability.supportingArtifacts ?? []) {
+      await readFile(resolve(artifact));
+    }
   }
 });
 
@@ -150,5 +153,6 @@ test('portable setup core ships as one complete helper unit', () => {
   const shipped = new Set(HELPER_FILES.map(({ path }) => path));
   assert.equal(shipped.has('scripts/worktree-lifecycle/core.py'), true);
   assert.equal(shipped.has('scripts/worktree-lifecycle/setup.py'), true);
+  assert.equal(shipped.has('scripts/worktree-lifecycle/session.py'), true);
   assert.equal(shipped.has('scripts/worktree-lifecycle/capabilities.json'), true);
 });
