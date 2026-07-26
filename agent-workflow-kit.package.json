@@ -667,7 +667,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "4ced75934cb409903344f196253e99c1166d7c8705d92c477bfeda92f8a9cadf",
+      "sha256": "bd49ff2891ce9614d9ede0eee16353f6a3cfaca06952a8b8da065d72d689d1a2",
       "mode": 420,
       "origin": "kit"
     },
@@ -687,7 +687,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "697ef6f6cdb749bf0646b2add95d4d3246df39c48ca6d9ade063a775690ce462",
+      "sha256": "f21e7e2e7e91ecc4b8dc9ab4bfbbf5c813fdb1241be02bbaafa7a7730409abe3",
       "mode": 420,
       "origin": "kit"
     },
@@ -2009,7 +2009,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "4ced75934cb409903344f196253e99c1166d7c8705d92c477bfeda92f8a9cadf",
+      "sha256": "bd49ff2891ce9614d9ede0eee16353f6a3cfaca06952a8b8da065d72d689d1a2",
       "mode": 420,
       "origin": "kit"
     },
@@ -2029,7 +2029,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "697ef6f6cdb749bf0646b2add95d4d3246df39c48ca6d9ade063a775690ce462",
+      "sha256": "f21e7e2e7e91ecc4b8dc9ab4bfbbf5c813fdb1241be02bbaafa7a7730409abe3",
       "mode": 420,
       "origin": "kit"
     },
@@ -2107,7 +2107,7 @@
       "path": ".claude/skills/skill-manifest.json",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "290cc3e847a10cb10b4ecb17cf0d45be0f60f95e96b7a70417b3e8da0a32e23c",
+      "sha256": "fca5d38d0940ccac71cc143b418901ea8097af35c7d8e069d9679b540f7a2151",
       "mode": 420,
       "origin": "kit"
     },
@@ -2675,7 +2675,7 @@
       "path": "scripts/readiness.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "26514c49316aa29fdeeb74fca0655cd7aa801f37e3c81cbd2551bb158138ebe8",
+      "sha256": "d0398f466a1f799c6c820991dec5b0db271350ab1d55e4cb33394bc23a433f29",
       "mode": 493,
       "origin": "kit"
     },
@@ -2899,7 +2899,7 @@
       "path": "src/lib/projectSkillExtension.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "2d8708b230bd9d34474c613cfffc89bdbd11cc128837cdaeab12fc06acea2b04",
+      "sha256": "6ee1102e0fc7fbbc25dcc58dd17e22402f3691c1af23cf93b74cf3c8222eaa6c",
       "mode": 420,
       "origin": "kit"
     },

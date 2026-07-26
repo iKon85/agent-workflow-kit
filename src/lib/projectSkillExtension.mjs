@@ -4,7 +4,38 @@ import { firstLineState } from './sentinel.mjs';
 
 const SKILL_NAME = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const MARKER_PREFIX = '<!-- agent-workflow-kit: project-extension/';
-const MARKER = /^<!-- agent-workflow-kit: project-extension\/([^;]+); skill=([a-z0-9-]+) -->$/;
+const MARKER =
+  /^<!-- agent-workflow-kit: project-extension\/([^;]+); skill=([a-z0-9-]+)(?:; activation=([a-z0-9-]+))? -->$/;
+const ACTIVATIONS = new Set(['all-sections-filled']);
+
+function meaningfulSectionBody(lines) {
+  return lines
+    .join('\n')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !/^#{1,6}\s+/.test(line))
+    .join('\n')
+    .trim();
+}
+
+function unfilledSections(body) {
+  const sections = [];
+  let current = null;
+  for (const line of body.split('\n')) {
+    const heading = /^##\s+(.+?)\s*$/.exec(line);
+    if (heading) {
+      current = { name: heading[1], lines: [] };
+      sections.push(current);
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+  if (!sections.length) return ['(no sections declared)'];
+  return sections
+    .filter(({ lines }) => !meaningfulSectionBody(lines))
+    .map(({ name }) => name);
+}
 
 export function projectSkillExtensionPath(skill) {
   if (typeof skill !== 'string' || !SKILL_NAME.test(skill)) {
@@ -49,6 +80,24 @@ export async function inspectProjectSkillExtension({ root, skill }) {
       `Project extension identity mismatch at ${path}; expected skill=${skill}, ` +
       `found skill=${match[2]}`,
     );
+  }
+  const activation = match[3];
+  if (activation && !ACTIVATIONS.has(activation)) {
+    throw new Error(
+      `Project extension has unsupported activation at ${path}: ${activation}`,
+    );
+  }
+  if (activation === 'all-sections-filled') {
+    const missingSections = unfilledSections(body);
+    if (missingSections.length) {
+      return {
+        state: 'inactive',
+        reason: 'sections-unfilled',
+        schemaVersion: 1,
+        path,
+        missingSections,
+      };
+    }
   }
   const content = lines.filter(
     (line) => line && line !== markerLine && !line.startsWith('<!-- setup-workflow:'),

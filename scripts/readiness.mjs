@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { firstLineState } from '../src/lib/sentinel.mjs';
 import { CONSUMER_MANIFEST_NAME, readManifest, writeManifest } from '../src/lib/manifest.mjs';
+import { inspectProjectSkillExtension } from '../src/lib/projectSkillExtension.mjs';
 import { readComposedSkillRegistry } from '../src/lib/skillRegistry.mjs';
 
 const SOURCE_MANIFEST = '.claude/skills/skill-manifest.json';
@@ -87,6 +88,15 @@ async function runbookVerdict(root, evidence) {
   return 'invalid';
 }
 
+async function projectExtensionVerdict(root, evidence) {
+  try {
+    const result = await inspectProjectSkillExtension({ root, skill: evidence.skill });
+    return result.state === 'active' ? 'valid' : 'absent';
+  } catch {
+    return 'invalid';
+  }
+}
+
 function section(text, heading) {
   if (text === null) return null;
   const lines = text.split('\n');
@@ -148,6 +158,7 @@ async function prodEvidence(root, paths) {
 async function evidenceVerdict(root, evidence) {
   if (evidence.type === 'prod-section') return (await prodEvidence(root, evidence.paths)).verdict;
   if (evidence.type === 'runbook-reference') return runbookVerdict(root, evidence);
+  if (evidence.type === 'project-extension') return projectExtensionVerdict(root, evidence);
   const verdicts = await Promise.all((evidence.paths ?? []).map(async (path) => {
     const text = await readText(root, path);
     if (evidence.type === 'sentinel') return sentinelVerdict(text, evidence.allowLegacy);

@@ -12,7 +12,7 @@
       "projectReleaseProfile": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "validator": "project-release" } },
       "securityAuditRunbook": { "evidence": { "type": "runbook-reference", "paths": ["docs/agents/skills/security-audit.md"], "allowLegacy": true } },
       "prodTarget": { "evidence": { "type": "prod-section", "paths": ["CLAUDE.md", "AGENTS.md"] } },
-      "orchestrateWaveRecipe": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/orchestrate-wave.md"], "allowLegacy": true } },
+      "orchestrateWaveRecipe": { "evidence": { "type": "project-extension", "skill": "orchestrate-wave", "paths": ["docs/agents/skills/orchestrate-wave.md"] } },
       "specCritiqueLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/spec-self-critique.md"], "allowLegacy": true } },
       "codeReviewLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/code-review.md"], "allowLegacy": true } },
       "verifySpikeLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/verify-spike.md"], "allowLegacy": true } },

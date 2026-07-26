@@ -34,6 +34,67 @@ test('a versioned Project extension resolves under its canonical skill identity'
   }
 });
 
+test('an all-sections extension stays inactive until every section has instructions', async () => {
+  const root = await workspace();
+  const marker =
+    '<!-- agent-workflow-kit: project-extension/v1; skill=orchestrate-wave; ' +
+    'activation=all-sections-filled -->';
+  try {
+    await write(
+      root,
+      'docs/agents/skills/orchestrate-wave.md',
+      [
+        marker,
+        '# Project layer',
+        '',
+        'Explanatory boilerplate does not activate the recipe.',
+        '',
+        '## §Setup',
+        '<!-- Add setup instructions. -->',
+        '',
+        '## §Landing',
+        '',
+      ].join('\n'),
+    );
+    assert.deepEqual(
+      await inspectProjectSkillExtension({ root, skill: 'orchestrate-wave' }),
+      {
+        state: 'inactive',
+        reason: 'sections-unfilled',
+        schemaVersion: 1,
+        path: 'docs/agents/skills/orchestrate-wave.md',
+        missingSections: ['§Setup', '§Landing'],
+      },
+    );
+
+    await write(
+      root,
+      'docs/agents/skills/orchestrate-wave.md',
+      [
+        marker,
+        '# Project layer',
+        '',
+        '## §Setup',
+        'Run `npm install --no-package-lock`.',
+        '',
+        '## §Landing',
+        'Use `scripts/wrapup-land.py`.',
+        '',
+      ].join('\n'),
+    );
+    assert.deepEqual(
+      await inspectProjectSkillExtension({ root, skill: 'orchestrate-wave' }),
+      {
+        state: 'active',
+        schemaVersion: 1,
+        path: 'docs/agents/skills/orchestrate-wave.md',
+      },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('absent and setup stubs are inactive while legacy non-empty layers remain compatible', async () => {
   const root = await workspace();
   try {
