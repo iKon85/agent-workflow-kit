@@ -26,6 +26,8 @@ class WorktreeProfile:
     setup_entry: str
     risky_command_patterns: tuple[str, ...]
     scratch_patterns: tuple[str, ...]
+    landing_generated_artifact_policy_configured: bool
+    landing_generated_artifact_patterns: tuple[str, ...]
 
     def branch_name(self, issue: str, slug: str, branch_type: str) -> str:
         return _render(self.branch_template, issue, slug, branch_type)
@@ -47,14 +49,29 @@ def _render(template: str, issue: str, slug: str, branch_type: str) -> str:
         raise LifecycleError(f"invalid worktree template: {error}") from error
 
 
-def load_profile(path: Path) -> WorktreeProfile:
+def _load_profile_document(document: Any) -> WorktreeProfile:
     try:
-        document = json.loads(path.read_text(encoding="utf-8"))
         raw = document["worktreeLifecycle"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+    except (KeyError, TypeError) as error:
         raise LifecycleError(f"cannot load worktree lifecycle profile: {error}") from error
     if raw.get("enabled") is not True:
         raise LifecycleError("worktree lifecycle is not enabled")
+    wrapup = document.get("wrapup")
+    if wrapup is None:
+        wrapup = {}
+    if not isinstance(wrapup, dict):
+        raise LifecycleError("invalid wrapup profile")
+    generated_policy_configured = "landingGeneratedArtifactPatterns" in wrapup
+    generated_patterns = (
+        wrapup["landingGeneratedArtifactPatterns"]
+        if generated_policy_configured
+        else ()
+    )
+    if (
+        not isinstance(generated_patterns, (list, tuple))
+        or not all(isinstance(pattern, str) and pattern for pattern in generated_patterns)
+    ):
+        raise LifecycleError("invalid wrapup landingGeneratedArtifactPatterns")
     main = tuple(raw.get("mainBranches") or ("main", "master"))
     return WorktreeProfile(
         root=raw.get("worktreeRoot", ".worktrees"),
@@ -76,7 +93,25 @@ def load_profile(path: Path) -> WorktreeProfile:
             r"\bgit\s+(?:commit|push)\b",
         )),
         scratch_patterns=tuple(raw.get("scratchPatterns") or ()),
+        landing_generated_artifact_policy_configured=generated_policy_configured,
+        landing_generated_artifact_patterns=tuple(generated_patterns),
     )
+
+
+def load_profile(path: Path) -> WorktreeProfile:
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError) as error:
+        raise LifecycleError(f"cannot load worktree lifecycle profile: {error}") from error
+    return _load_profile_document(document)
+
+
+def load_profile_text(text: str) -> WorktreeProfile:
+    try:
+        document = json.loads(text)
+    except (json.JSONDecodeError, TypeError) as error:
+        raise LifecycleError(f"cannot load worktree lifecycle profile: {error}") from error
+    return _load_profile_document(document)
 
 
 def run(

@@ -95,6 +95,15 @@ BEHAVIORAL_PARITY = {
         "Program-PRD",
         "program sync",
     ),
+    "session-owned teardown": (
+        "session.py begin",
+        "session.py create",
+        "refuses reused/pre-existing targets",
+        "seal the receipt",
+        "compare-deleted",
+        "foreign targets",
+        "recovery-OID evidence",
+    ),
     "program authorization continuity": (
         "explicit whole-Program mandate",
         "all planned Waves",

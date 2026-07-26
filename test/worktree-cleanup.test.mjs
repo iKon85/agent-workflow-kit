@@ -145,6 +145,33 @@ printf '%s\\n' '[]'
   );
 });
 
+test('cleanup preserves a same-path scratch replacement between assessments', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(worktree, 'PLAN.md'), '# assessed plan\n');
+  await git(root, 'remote', 'add', 'origin', root);
+  const count = join(root, 'mock-gh-replacement-count');
+  const mockGh = join(root, 'mock-gh-replacement-race');
+  await writeFile(mockGh, `#!/bin/sh
+value="$(cat '${count}' 2>/dev/null || printf 0)"
+value=$((value + 1))
+printf '%s\\n' "$value" > '${count}'
+if [ "$value" -eq 2 ]; then
+  rm '${join(worktree, 'PLAN.md')}'
+  printf '%s\\n' 'replacement' > '${join(worktree, 'PLAN.md')}'
+fi
+printf '%s\\n' '[]'
+`);
+  await run('chmod', ['+x', mockGh]);
+
+  await assert.rejects(run('python3', [
+    CLEANUP, '--profile', profile, '--gh-command', mockGh, '--remove', worktree,
+  ], { cwd: root }), /inventory no longer matches preview/);
+
+  assert.equal(await readFile(join(worktree, 'PLAN.md'), 'utf8'), 'replacement\n');
+  assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
+});
+
 test('cleanup rejects a profile-matched scratch symlink without touching its target', async (t) => {
   const { root, profile, worktree } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -152,12 +179,45 @@ test('cleanup rejects a profile-matched scratch symlink without touching its tar
   await writeFile(outside, 'preserve\n');
   await run('ln', ['-s', outside, join(worktree, 'PLAN.md')]);
 
+  const preview = JSON.parse((await run('python3', [
+    CLEANUP, '--profile', profile, worktree,
+  ], { cwd: root })).stdout);
+
+  assert.equal(preview.removable, false);
+  assert.match(preview.reasons.join('\n'), /not a regular file/);
   await assert.rejects(run('python3', [
     CLEANUP, '--profile', profile, '--remove', worktree,
   ], { cwd: root }), /not a regular file/);
-
   assert.equal(await readFile(outside, 'utf8'), 'preserve\n');
   assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
+});
+
+test('cleanup preview refuses scratch overlapping landing-generated patterns without evidence', async (t) => {
+  const { root, profile, worktree } = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const configured = JSON.parse(await readFile(profile, 'utf8'));
+  configured.worktreeLifecycle.scratchPatterns.push('dist-kit/**');
+  configured.wrapup = { landingGeneratedArtifactPatterns: ['dist-kit/**'] };
+  await writeFile(profile, JSON.stringify(configured));
+  await mkdir(join(worktree, 'dist-kit'));
+  await writeFile(join(worktree, 'dist-kit/output.tgz'), 'ambiguous\n');
+  await writeFile(join(worktree, 'PLAN.md'), '# preserve until all evidence is valid\n');
+
+  const preview = JSON.parse((await run('python3', [
+    CLEANUP, '--profile', profile, worktree,
+  ], { cwd: root })).stdout);
+
+  assert.equal(preview.removable, false);
+  assert.deepEqual(preview.scratchFiles, ['PLAN.md', 'dist-kit/output.tgz']);
+  assert.match(preview.reasons.join('\n'), /landing-generated scratch evidence is missing/);
+  await assert.rejects(run('python3', [
+    CLEANUP, '--profile', profile, '--remove', worktree,
+  ], { cwd: root }), /landing-generated scratch evidence is missing/);
+  assert.equal(
+    await readFile(join(worktree, 'PLAN.md'), 'utf8'),
+    '# preserve until all evidence is valid\n',
+  );
+  assert.equal(await readFile(join(worktree, 'dist-kit/output.tgz'), 'utf8'), 'ambiguous\n');
 });
 
 test('cleanup rejects a worktree root replaced by a symlink after revalidation', async (t) => {

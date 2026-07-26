@@ -161,6 +161,28 @@ The complete workflow for creating, identifying, enforcing, and cleaning up an
 isolated worktree. Setup and enforcement are one capability even when different
 agent hooks expose parts of it.
 
+## Teardown provenance
+
+Durable evidence that a cleanup candidate was created by one specific lifecycle
+and is still the same object that lifecycle observed. Provenance binds the
+owning action, its time boundary, and object identity; a matching name, path,
+content, patch, or generated-file pattern is not ownership.
+_Avoid_: Cleanup inventory, Matching path, Merged branch
+
+## Ownership proof
+
+An atomic, durable grant showing that a lifecycle acquired an object rather
+than merely intending to create it. A receipt may describe intent before the
+grant, but cleanup authority begins only with the proof.
+_Avoid_: Receipt row, Absence check, Expected branch
+
+## Lifecycle receipt
+
+A persistent state-transition journal that makes an interrupted lifecycle
+resumable or explicitly classifiable without inferring ownership from current
+repository state. It is not a disposable list of worktrees or files.
+_Avoid_: Cleanup list, Session log
+
 ## Safety guardrail
 
 An independently activatable rule that prevents or detects an unsafe agent or

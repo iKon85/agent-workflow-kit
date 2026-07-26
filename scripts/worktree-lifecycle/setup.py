@@ -10,6 +10,9 @@ import zlib
 from pathlib import Path
 
 from core import (
+    BaselineBackfillDeferred,
+    capture_artifact_baseline,
+    ensure_artifact_baseline,
     LifecycleError,
     load_profile,
     local_branch_exists,
@@ -137,6 +140,17 @@ def create(args: argparse.Namespace) -> Path:
         ensure_reusable_base(
             main, repo=target, rev="HEAD", base=args.base, label=f"worktree {target}"
         )
+        try:
+            ensure_artifact_baseline(
+                target,
+                reject_ignored_patterns=profile.landing_generated_artifact_patterns,
+            )
+        except BaselineBackfillDeferred as error:
+            print(
+                "Baseline backfill deferred; preserve the worktree, remove generated "
+                f"blockers or commit/stash tracked work, then retry: {error}",
+                file=sys.stderr,
+            )
         print(f"Worktree already exists: {target} ({branch})")
         return target
 
@@ -157,6 +171,7 @@ def create(args: argparse.Namespace) -> Path:
                 issue=args.issue,
                 branch=branch,
             )
+        capture_artifact_baseline(target)
     except Exception:
         remove_failed_worktree(main, target, branch, not branch_existed)
         raise

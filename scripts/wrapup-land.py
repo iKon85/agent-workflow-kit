@@ -437,18 +437,189 @@ def load_worktree_cleanup_core():
     return module
 
 
-def ensure_worktree_removable(wt: str, main_tree: str):
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
-    if not profile_path.is_file():
-        return None
+def load_candidate_landing_profile(core, wt: str):
+    """Let the committed worktree policy nominate evidence without deletion."""
+    result = core.run(
+        [
+            "git", "show",
+            "HEAD:docs/agents/workflow-capabilities.json",
+        ],
+        cwd=Path(wt),
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise core.LifecycleError(
+            f"committed landing profile cannot be read from worktree HEAD: {detail}"
+        )
+    candidate = core.load_profile_text(result.stdout)
+    if not candidate.landing_generated_artifact_policy_configured:
+        raise core.LifecycleError(
+            "worktree landing artifact policy is not configured; "
+            "run setup-workflow and commit the explicit policy decision first"
+        )
+    return candidate
+
+
+def load_canonical_landing_profile(core, wt: str, main_tree: str):
+    """Authorize deletion only after the candidate policy is canonical."""
+    candidate = load_candidate_landing_profile(core, wt)
+    result = core.run(
+        [
+            "git", "show",
+            "origin/main:docs/agents/workflow-capabilities.json",
+        ],
+        cwd=Path(main_tree),
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise core.LifecycleError(
+            f"canonical landing profile cannot be read from origin/main: {detail}"
+        )
+    canonical = core.load_profile_text(result.stdout)
+    if not canonical.landing_generated_artifact_policy_configured:
+        raise core.LifecycleError(
+            "merged canonical landing artifact policy is not configured"
+        )
+    if (
+        candidate.landing_generated_artifact_patterns
+        != canonical.landing_generated_artifact_patterns
+        or candidate.scratch_patterns != canonical.scratch_patterns
+    ):
+        raise core.LifecycleError(
+            "worktree cleanup policy differs from merged canonical origin/main"
+        )
+    attempt_path = core.artifact_baseline_path(Path(wt)).with_name(
+        core.LANDING_ATTEMPT_FILE
+    )
+    if not os.path.lexists(attempt_path):
+        raise core.LifecycleError(
+            "landing attempt is missing before canonical cleanup authorization"
+        )
+    attempt = core.landing_start_artifact_inventory(candidate, Path(wt))
+    if (
+        attempt["policyDigest"]
+        != core.landing_cleanup_policy_digest(canonical)
+    ):
+        raise core.LifecycleError(
+            "landing attempt cleanup policy differs from merged canonical origin/main"
+        )
+    return canonical
+
+
+def landing_artifact_baseline_digest(wt: str, main_tree: str) -> str:
     core = load_worktree_cleanup_core()
     try:
-        profile = core.load_profile(profile_path)
-        assessment = core.cleanup_assessment(
+        load_candidate_landing_profile(core, wt)
+        return core.load_artifact_baseline(Path(wt)).digest
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+
+
+def landing_start_artifact_inventory(wt: str, main_tree: str) -> dict:
+    core = load_worktree_cleanup_core()
+    try:
+        profile = load_candidate_landing_profile(core, wt)
+        return core.landing_start_artifact_inventory(profile, Path(wt))
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+
+
+def landing_verified_scratch_evidence(
+    wt: str,
+    main_tree: str,
+    *,
+    expected_baseline_digest: str | None = None,
+    landing_start_files: tuple[str, ...] = (),
+) -> tuple[dict, ...]:
+    core = load_worktree_cleanup_core()
+    try:
+        profile = load_candidate_landing_profile(core, wt)
+        return core.verified_landing_scratch_evidence(
             profile,
-            Path(main_tree),
             Path(wt),
-            merge_target="origin/main",
+            expected_baseline_digest=expected_baseline_digest,
+            landing_start_files=landing_start_files,
+        )
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+
+
+def freeze_landing_artifact_evidence(
+    wt: str,
+    main_tree: str,
+    *,
+    push_succeeded: bool,
+) -> tuple[dict, ...]:
+    core = load_worktree_cleanup_core()
+    try:
+        profile = load_candidate_landing_profile(core, wt)
+        return core.freeze_landing_artifact_evidence(
+            profile,
+            Path(wt),
+            push_succeeded=push_succeeded,
+        )
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+
+
+def reopen_frozen_landing_attempt(wt: str, main_tree: str) -> tuple[dict, ...]:
+    core = load_worktree_cleanup_core()
+    try:
+        profile = load_candidate_landing_profile(core, wt)
+        return core.reopen_frozen_landing_attempt(profile, Path(wt))
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+
+
+def abandon_unfinished_landing_attempt(wt: str, main_tree: str) -> str:
+    core = load_worktree_cleanup_core()
+    try:
+        return str(core.abandon_unfinished_landing_attempt(Path(wt)))
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+
+
+def landing_verified_scratch_files(
+    wt: str,
+    main_tree: str,
+    *,
+    expected_baseline_digest: str | None = None,
+) -> tuple[str, ...]:
+    core = load_worktree_cleanup_core()
+    try:
+        profile = load_candidate_landing_profile(core, wt)
+        return core.verified_landing_scratch_files(
+            profile,
+            Path(wt),
+            expected_baseline_digest=expected_baseline_digest,
+        )
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+
+
+def ensure_worktree_removable(
+    wt: str,
+    main_tree: str,
+    *,
+    verified_scratch_files: tuple[str, ...] = (),
+    verified_scratch_evidence: tuple[dict, ...] = (),
+):
+    core = load_worktree_cleanup_core()
+    try:
+        profile = load_canonical_landing_profile(core, wt, main_tree)
+        kwargs = {"merge_target": "origin/main"}
+        paths = (
+            tuple(item["path"] for item in verified_scratch_evidence)
+            or verified_scratch_files
+        )
+        if paths:
+            kwargs["verified_scratch_files"] = paths
+        if verified_scratch_evidence:
+            kwargs["verified_scratch_evidence"] = verified_scratch_evidence
+        assessment = core.cleanup_assessment(
+            profile, Path(main_tree), Path(wt), **kwargs
         )
     except core.LifecycleError as error:
         raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
@@ -459,6 +630,69 @@ def ensure_worktree_removable(wt: str, main_tree: str):
             "; ".join(assessment.reasons),
         )
     return assessment
+
+
+def remove_verified_worktree_scratch(
+    wt: str,
+    main_tree: str,
+    assessment,
+    *,
+    verified_scratch_files: tuple[str, ...] = (),
+    verified_scratch_evidence: tuple[dict, ...] = (),
+):
+    """Re-verify and delete only assessed regular scratch files."""
+    core = load_worktree_cleanup_core()
+    try:
+        profile = load_canonical_landing_profile(core, wt, main_tree)
+        evidence = verified_scratch_evidence
+        paths = tuple(item["path"] for item in evidence) or verified_scratch_files
+        latest = core.cleanup_assessment(
+            profile,
+            Path(main_tree),
+            Path(wt),
+            merge_target="origin/main",
+            verified_scratch_files=paths,
+            verified_scratch_evidence=evidence,
+        )
+        if latest.reasons:
+            raise core.LifecycleError(
+                "cleanup changed before removal: " + "; ".join(latest.reasons)
+            )
+        if (
+            latest.branch != assessment.branch
+            or latest.scratch_files != assessment.scratch_files
+            or latest.assumptions != assessment.assumptions
+            or latest.root_device != assessment.root_device
+            or latest.root_inode != assessment.root_inode
+            or latest.scratch_evidence != assessment.scratch_evidence
+        ):
+            raise core.LifecycleError(
+                "cleanup changed before removal: inventory no longer matches preview"
+            )
+        with core.verified_worktree_root(
+            latest.worktree,
+            latest.root_device,
+            latest.root_inode,
+        ) as root_descriptor:
+            core.remove_authorized_scratch(
+                profile,
+                root_descriptor,
+                latest.scratch_files,
+                latest.scratch_evidence,
+            )
+        final = core.cleanup_assessment(
+            profile,
+            Path(main_tree),
+            Path(wt),
+            merge_target="origin/main",
+        )
+        if final.reasons:
+            raise core.LifecycleError(
+                "cleanup changed after scratch removal: " + "; ".join(final.reasons)
+            )
+        return final
+    except core.LifecycleError as error:
+        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
 
 
 # ---------- drift log (ANNAHMEN.md) ----------
@@ -702,9 +936,39 @@ def cmd_land(args) -> dict:
 
     # drift markers from the build-time log — mechanical, no gate
     markers: list[dict] = []
+    artifact_baseline_digest: str | None = None
+    landing_start_files: tuple[str, ...] = ()
+    landing_attempt: dict | None = None
+    generated_evidence: tuple[dict, ...] = ()
     if wt_exists:
         if git(["status", "--porcelain"], cwd=wt, check=True).stdout.strip():
             raise Stop("land", "worktree dirty — run `commit` first", wt)
+        if getattr(args, "abandon_unfinished_attempt", False):
+            return {
+                "landing_attempt_abandoned": abandon_unfinished_landing_attempt(
+                    wt, main_tree
+                ),
+                "files_removed": [],
+                "next": (
+                    "current files remain protected; classify or move blockers, "
+                    "then rerun land"
+                ),
+            }
+        landing_attempt = landing_start_artifact_inventory(wt, main_tree)
+        if landing_attempt["state"] == "started" and not landing_attempt["newAttempt"]:
+            raise Stop(
+                "cleanup",
+                "unfinished landing generator attempt has no frozen output evidence; "
+                "classify its files, then rerun with --abandon-unfinished-attempt",
+            )
+        landing_start_files = tuple(landing_attempt["generatedFiles"])
+        if landing_start_files:
+            raise Stop(
+                "cleanup",
+                "landing-start generated paths are consumer-owned and protected: "
+                + ", ".join(landing_start_files),
+            )
+        artifact_baseline_digest = landing_attempt["baselineDigest"]
         annahmen = Path(wt) / "ANNAHMEN.md"
         if annahmen.is_file():
             markers, malformed = parse_annahmen(annahmen.read_text(), default_section)
@@ -716,9 +980,25 @@ def cmd_land(args) -> dict:
 
     # Step 0b — push
     if wt_exists:
-        p = git(["push", "-u", "origin", branch], cwd=wt)
-        if p.returncode != 0:
-            raise Stop("0b push", "push rejected", (p.stderr or p.stdout).strip()[-2000:])
+        assert landing_attempt is not None
+        if landing_attempt["state"] == "frozen" and landing_attempt["pushSucceeded"]:
+            generated_evidence = freeze_landing_artifact_evidence(
+                wt, main_tree, push_succeeded=True
+            )
+        else:
+            if landing_attempt["state"] == "frozen":
+                # Validate every previously frozen identity before a retry can
+                # invoke the generator-capable pre-push hook.
+                reopen_frozen_landing_attempt(wt, main_tree)
+            p = git(["push", "-u", "origin", branch], cwd=wt)
+            generated_evidence = freeze_landing_artifact_evidence(
+                wt, main_tree, push_succeeded=p.returncode == 0
+            )
+            if p.returncode != 0:
+                raise Stop(
+                    "0b push", "push rejected",
+                    (p.stderr or p.stdout).strip()[-2000:],
+                )
 
     # Step 0c — ensure PR + final body
     p = run(["gh", "pr", "view", branch, "--json", "number,state,body"])
@@ -789,12 +1069,26 @@ def cmd_land(args) -> dict:
     # Step 2 — kill the worktree's dev server, then Step 4 — teardown
     if wt_exists:
         git(["fetch", "origin", "main"], cwd=main_tree, check=True)
-        cleanup = ensure_worktree_removable(wt, main_tree)
+        generated = tuple(item["path"] for item in generated_evidence)
+        cleanup = ensure_worktree_removable(
+            wt,
+            main_tree,
+            verified_scratch_files=generated,
+            verified_scratch_evidence=generated_evidence,
+        )
         report["cleanup_guard"] = {
             "active": cleanup is not None,
             "assumptions_read": bool(cleanup and cleanup.assumptions),
+            "landing_generated_files": list(generated),
         }
         report["killed_processes"] = kill_worktree_processes(wt)
+        if cleanup is not None:
+            cleanup = remove_verified_worktree_scratch(
+                wt,
+                main_tree,
+                cleanup,
+                verified_scratch_evidence=generated_evidence,
+            )
         p = git(["worktree", "remove", wt], cwd=main_tree)
         if p.returncode != 0:
             raise Stop("4 worktree-remove", "git worktree remove refused — no --force; "
@@ -922,6 +1216,14 @@ def main() -> int:
     l.add_argument("--body-file", help="final PR body (create or overwrite)")
     l.add_argument("--anchor", help="wave-anchor issue # (derived via parent-of when omitted)")
     l.add_argument("--skip-malformed-drift", action="store_true")
+    l.add_argument(
+        "--abandon-unfinished-attempt",
+        action="store_true",
+        help=(
+            "archive an interrupted pre-freeze landing attempt without deleting "
+            "or claiming its ambiguous files"
+        ),
+    )
     args = ap.parse_args()
 
     try:

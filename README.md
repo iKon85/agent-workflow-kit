@@ -425,6 +425,15 @@ Explicit fork with its own identity and update line instead.
 
 ## Upgrade notes
 
+### 0.38.0 — explicit landing-artifact policy
+
+Existing consumers must run `setup-workflow` once after `kit-update`, review
+the generated `wrapup.landingGeneratedArtifactPatterns` decision in
+`docs/agents/workflow-capabilities.json`, and commit that profile change.
+Until the explicit policy is committed, `wrapup-land` fails closed before
+landing instead of assuming that no generated artifact is eligible for
+session-owned cleanup.
+
 ### 0.33.0 — capability-gated orchestration
 
 `kit-update` reconciles this release for you. These notes matter only if you
@@ -453,6 +462,33 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 0.38.0
+
+- added: `docs/adr/0007-session-teardown-requires-provenance-bound-ownership.md`
+- added: `scripts/worktree-lifecycle/session.py`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `docs/agents/workflow-capabilities.json`
+- changed: `package.json`
+- changed: `scripts/test_orchestrate_wave_contract.py`
+- changed: `scripts/test_worktree_wrapup_contract.py`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/capabilities.json`
+- changed: `scripts/worktree-lifecycle/cleanup.py`
+- changed: `scripts/worktree-lifecycle/core.py`
+- changed: `scripts/worktree-lifecycle/profile.py`
+- changed: `scripts/worktree-lifecycle/setup.py`
+- changed: `scripts/wrapup-land.py`
+- changed: `src/lib/bundle.mjs`
 
 ### 0.37.0
 

@@ -65,6 +65,84 @@ test('generic consumer creates a configured worktree without a port allocator', 
   assert.match((await git(worktree, 'branch', '--show-current')).stdout, /feat\/123-portable/);
 });
 
+test('reusing an exact clean legacy worktree backfills a conservative baseline', async (t) => {
+  const { root, repo } = await makeRepo();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(repo, '.gitignore'), '.sandboxes/\nbuild-cache/\n');
+  await git(repo, 'add', '.gitignore');
+  await git(repo, 'commit', '-m', 'ignore build cache');
+  const profile = join(repo, 'workflow-capabilities.json');
+  await writeFile(profile, JSON.stringify({
+    worktreeLifecycle: {
+      enabled: true,
+      worktreeRoot: '.sandboxes',
+      branchTemplate: '{type}/{issue}-{slug}',
+      pathTemplate: '{type}-{issue}-{slug}',
+      mainBranches: ['main'],
+      setupSteps: [],
+    },
+  }));
+  const args = [
+    SETUP, '--profile', profile, '--base', 'main', '124', 'legacy', 'feat',
+  ];
+  await run('python3', args, { cwd: repo });
+  const worktree = join(repo, '.sandboxes/feat-124-legacy');
+  const gitDir = (await git(worktree, 'rev-parse', '--absolute-git-dir')).stdout.trim();
+  await rm(join(gitDir, 'awkit-artifact-baseline-v1.json'));
+  await mkdir(join(worktree, 'build-cache'));
+  await writeFile(join(worktree, 'build-cache/existing.bin'), 'consumer\n');
+
+  const reused = await run('python3', args, { cwd: repo });
+  const baseline = JSON.parse(
+    await readFile(join(gitDir, 'awkit-artifact-baseline-v1.json'), 'utf8'),
+  );
+  assert.match(reused.stdout, /already exists/);
+  assert.deepEqual(baseline.initialIgnoredFiles, ['build-cache/existing.bin']);
+  assert.deepEqual(baseline.initialUntrackedFiles, ['build-cache/existing.bin']);
+});
+
+test('reusing a dirty legacy worktree defers baseline backfill without stopping', async (t) => {
+  const { root, repo } = await makeRepo();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(repo, '.gitignore'), '.sandboxes/\n');
+  await git(repo, 'add', '.gitignore');
+  await git(repo, 'commit', '-m', 'ignore worktrees');
+  const profile = join(repo, 'workflow-capabilities.json');
+  await writeFile(profile, JSON.stringify({
+    worktreeLifecycle: {
+      enabled: true,
+      worktreeRoot: '.sandboxes',
+      branchTemplate: '{type}/{issue}-{slug}',
+      pathTemplate: '{type}-{issue}-{slug}',
+      mainBranches: ['main'],
+      setupSteps: [],
+    },
+  }));
+  const args = [
+    SETUP, '--profile', profile, '--base', 'main', '125', 'dirty-legacy', 'feat',
+  ];
+  await run('python3', args, { cwd: repo });
+  const worktree = join(repo, '.sandboxes/feat-125-dirty-legacy');
+  const gitDir = (await git(worktree, 'rev-parse', '--absolute-git-dir')).stdout.trim();
+  await rm(join(gitDir, 'awkit-artifact-baseline-v1.json'));
+  await writeFile(join(worktree, 'README.md'), '# work in progress\n');
+
+  const reused = await run('python3', args, { cwd: repo });
+
+  assert.match(reused.stdout, /already exists/);
+  await assert.rejects(readFile(join(gitDir, 'awkit-artifact-baseline-v1.json'), 'utf8'));
+  assert.equal(await readFile(join(worktree, 'README.md'), 'utf8'), '# work in progress\n');
+
+  await writeFile(join(worktree, 'README.md'), '# fixture\n');
+  const retried = await run('python3', args, { cwd: repo });
+  assert.match(retried.stdout, /already exists/);
+  assert.equal(
+    JSON.parse(await readFile(join(gitDir, 'awkit-artifact-baseline-v1.json'), 'utf8'))
+      .initialUntrackedFiles.length,
+    0,
+  );
+});
+
 test('frozen Testreporter profile preserves branch, setup order, and deterministic port output', async (t) => {
   const { root, repo } = await makeRepo();
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -143,6 +221,9 @@ test('shipped Worktree Lifecycle census accounts for all eight historical rows',
     );
     assert.ok(capability.artifact, `${capability.historicalPath} needs a shipped artifact`);
     await readFile(resolve(capability.artifact));
+    for (const artifact of capability.supportingArtifacts ?? []) {
+      await readFile(resolve(artifact));
+    }
   }
 });
 
@@ -150,5 +231,6 @@ test('portable setup core ships as one complete helper unit', () => {
   const shipped = new Set(HELPER_FILES.map(({ path }) => path));
   assert.equal(shipped.has('scripts/worktree-lifecycle/core.py'), true);
   assert.equal(shipped.has('scripts/worktree-lifecycle/setup.py'), true);
+  assert.equal(shipped.has('scripts/worktree-lifecycle/session.py'), true);
   assert.equal(shipped.has('scripts/worktree-lifecycle/capabilities.json'), true);
 });

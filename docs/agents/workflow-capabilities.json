@@ -7,12 +7,22 @@
     "branchRegex": "^(?:feat|fix|chore|docs)/(?P<issue>\\d+)-",
     "mainBranches": ["main"],
     "protectedBranches": ["main"],
-    "scratchPatterns": ["PLAN.md", "PLAN-REVIEW-LOG.md"],
+    "scratchPatterns": [
+      "PLAN.md",
+      "PLAN-REVIEW-LOG.md",
+      ".claude/logs/**"
+    ],
     "setupEntry": "python3 scripts/worktree-lifecycle/setup.py",
     "setupSteps": [],
     "riskyCommandPatterns": [
       "\\b(?:npm|pnpm|yarn)\\s+(?:run\\s+)?(?:test|typecheck|build)\\b",
       "\\bgit\\s+(?:commit|push)\\b"
+    ]
+  },
+  "wrapup": {
+    "landingGeneratedArtifactPatterns": [
+      "dist-kit/**",
+      "**/__pycache__/**"
     ]
   }
 }
