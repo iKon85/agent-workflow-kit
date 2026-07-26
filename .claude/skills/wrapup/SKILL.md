@@ -107,9 +107,10 @@ STOP → diagnose in the main conversation, fix, re-run `land` (an already-merge
 
 Before merge, the committed worktree policy only nominates exact landing
 evidence. After merge, cleanup reloads `docs/agents/workflow-capabilities.json`
-from canonical `origin/main`; only the identical merged scratch and generator
-policy authorizes deletion. A mismatch is a hard STOP that preserves every
-file—never bypass it with the unmerged branch profile.
+from canonical `origin/main`; only the identical merged, attempt-bound scratch
+and generator policy authorizes each evidence path and deletion. A mismatch is
+a hard STOP that preserves every file—never bypass it with the unmerged branch
+profile.
 
 Landing provenance has one explicit relinquish route. If the STOP names an
 unfinished or drifted landing attempt and the ambiguous files cannot be restored

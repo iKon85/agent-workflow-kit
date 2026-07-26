@@ -241,6 +241,16 @@ def _baseline_digest(payload: dict[str, Any]) -> str:
     return sha256(encoded).hexdigest()
 
 
+def landing_cleanup_policy_digest(profile: WorktreeProfile) -> str:
+    """Bind one attempt to the exact ordered policy that nominated its files."""
+    return _baseline_digest({
+        "scratchPatterns": list(profile.scratch_patterns),
+        "landingGeneratedArtifactPatterns": list(
+            profile.landing_generated_artifact_patterns
+        ),
+    })
+
+
 def capture_artifact_baseline(
     worktree: Path,
     *,
@@ -456,7 +466,7 @@ def landing_start_artifact_inventory(
                     "contractVersion", "worktree", "branch", "rootDevice",
                     "rootInode", "baselineDigest", "generatedFiles",
                     "generatedEvidence", "state", "authorizedEvidence",
-                    "pushSucceeded",
+                    "pushSucceeded", "policyDigest",
                 )
             }
             digest = document["sha256"]
@@ -464,8 +474,13 @@ def landing_start_artifact_inventory(
             raise LifecycleError(
                 f"landing-attempt provenance is incoherent: {error}"
             ) from error
+        if payload["policyDigest"] != landing_cleanup_policy_digest(profile):
+            raise LifecycleError(
+                "landing cleanup policy changed after attempt start; "
+                "abandon the unfinished attempt before retrying"
+            )
         if (
-            payload["contractVersion"] != 1
+            payload["contractVersion"] != 2
             or payload["worktree"] != str(worktree.resolve())
             or payload["branch"] != baseline.branch
             or (payload["rootDevice"], payload["rootInode"])
@@ -487,6 +502,7 @@ def landing_start_artifact_inventory(
             "state": payload["state"],
             "authorizedEvidence": payload["authorizedEvidence"],
             "pushSucceeded": payload["pushSucceeded"],
+            "policyDigest": payload["policyDigest"],
             "newAttempt": False,
         }
     current = set(ignored_file_inventory(worktree))
@@ -509,9 +525,10 @@ def landing_start_artifact_inventory(
         "state": "started",
         "authorizedEvidence": [],
         "pushSucceeded": False,
+        "policyDigest": landing_cleanup_policy_digest(profile),
     }
     payload = {
-        "contractVersion": 1,
+        "contractVersion": 2,
         "worktree": str(worktree.resolve()),
         "branch": baseline.branch,
         "rootDevice": baseline.root_device,
@@ -610,7 +627,7 @@ def freeze_landing_artifact_evidence(
         for key in (
             "contractVersion", "worktree", "branch", "rootDevice",
             "rootInode", "baselineDigest", "generatedFiles",
-            "generatedEvidence",
+            "generatedEvidence", "policyDigest",
         )
     }
     payload.update({
@@ -642,7 +659,7 @@ def reopen_frozen_landing_attempt(
         for key in (
             "contractVersion", "worktree", "branch", "rootDevice",
             "rootInode", "baselineDigest", "generatedFiles",
-            "generatedEvidence",
+            "generatedEvidence", "policyDigest",
         )
     }
     payload.update({
@@ -660,7 +677,6 @@ def reopen_frozen_landing_attempt(
 
 
 def abandon_unfinished_landing_attempt(
-    profile: WorktreeProfile,
     worktree: Path,
 ) -> Path:
     """Archive an ambiguous started attempt without claiming or deleting files."""
@@ -671,14 +687,18 @@ def abandon_unfinished_landing_attempt(
         if path.is_symlink() or not path.is_file():
             raise LifecycleError("landing-attempt provenance is not a regular file")
         document = json.loads(path.read_text(encoding="utf-8"))
+        contract_version = document["contractVersion"]
+        keys = [
+            "contractVersion", "worktree", "branch", "rootDevice",
+            "rootInode", "baselineDigest", "generatedFiles",
+            "generatedEvidence", "state", "authorizedEvidence",
+            "pushSucceeded",
+        ]
+        if contract_version == 2:
+            keys.append("policyDigest")
         payload = {
             key: document[key]
-            for key in (
-                "contractVersion", "worktree", "branch", "rootDevice",
-                "rootInode", "baselineDigest", "generatedFiles",
-                "generatedEvidence", "state", "authorizedEvidence",
-                "pushSucceeded",
-            )
+            for key in keys
         }
         digest = document["sha256"]
         metadata = os.lstat(worktree)
@@ -688,7 +708,7 @@ def abandon_unfinished_landing_attempt(
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
         raise LifecycleError(f"landing-attempt provenance is incoherent: {error}") from error
     if (
-        payload["contractVersion"] != 1
+        payload["contractVersion"] not in {1, 2}
         or payload["worktree"] != str(worktree.resolve())
         or payload["branch"] != branch
         or not stat.S_ISDIR(metadata.st_mode)
@@ -1041,6 +1061,10 @@ def remove_authorized_scratch(
             for pattern in profile.scratch_patterns
         )
         expected = evidence_by_path.get(relative)
+        if not generated and not profile_authorized:
+            raise LifecycleError(
+                f"canonical cleanup policy does not authorize scratch: {relative}"
+            )
         if generated and expected is None:
             raise LifecycleError(
                 f"landing-generated scratch evidence is missing: {relative}"
@@ -1073,6 +1097,19 @@ def bind_cleanup_scratch_evidence(
     }
     if len(evidence_by_path) != len(verified_generator_evidence):
         raise LifecycleError("scratch evidence is incoherent")
+    unauthorized_evidence = sorted(
+        relative
+        for relative in evidence_by_path
+        if not any(
+            path_glob_matches(relative, pattern)
+            for pattern in profile.landing_generated_artifact_patterns
+        )
+    )
+    if unauthorized_evidence:
+        raise LifecycleError(
+            "generator evidence is outside canonical landing policy: "
+            + ", ".join(unauthorized_evidence)
+        )
     scratch = set(assessment.scratch_files)
     if not set(evidence_by_path).issubset(scratch):
         raise LifecycleError("scratch evidence is outside the assessed inventory")

@@ -77,9 +77,11 @@ Before merge, the committed worktree profile may only nominate exact,
 identity-bound landing candidates; it authorizes no deletion. After merge and
 `fetch origin/main`, cleanup reloads the profile directly from canonical
 `origin/main`, requires its scratch and generator policies to equal the
-worktree candidate, and only then authorizes mutation. A missing policy is
-distinct from an explicit empty policy. An unmerged or transient branch policy
-therefore cannot grant itself broader cleanup authority.
+worktree candidate and the policy digest frozen at attempt start, and only then
+authorizes mutation. Every supplied generator-evidence path is independently
+checked against that canonical generator policy. A missing policy is distinct
+from an explicit empty policy. An unmerged or transient branch policy therefore
+cannot grant itself broader cleanup authority.
 
 The landing adapter may carry exact scratch evidence only for current ignored
 files that match the consumer-owned

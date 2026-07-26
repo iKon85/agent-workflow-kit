@@ -439,9 +439,20 @@ def load_worktree_cleanup_core():
 
 def load_candidate_landing_profile(core, wt: str):
     """Let the committed worktree policy nominate evidence without deletion."""
-    candidate = core.load_profile(
-        Path(wt) / "docs/agents/workflow-capabilities.json"
+    result = core.run(
+        [
+            "git", "show",
+            "HEAD:docs/agents/workflow-capabilities.json",
+        ],
+        cwd=Path(wt),
+        check=False,
     )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise core.LifecycleError(
+            f"committed landing profile cannot be read from worktree HEAD: {detail}"
+        )
+    candidate = core.load_profile_text(result.stdout)
     if not candidate.landing_generated_artifact_policy_configured:
         raise core.LifecycleError(
             "worktree landing artifact policy is not configured; "
@@ -478,6 +489,21 @@ def load_canonical_landing_profile(core, wt: str, main_tree: str):
     ):
         raise core.LifecycleError(
             "worktree cleanup policy differs from merged canonical origin/main"
+        )
+    attempt_path = core.artifact_baseline_path(Path(wt)).with_name(
+        core.LANDING_ATTEMPT_FILE
+    )
+    if not os.path.lexists(attempt_path):
+        raise core.LifecycleError(
+            "landing attempt is missing before canonical cleanup authorization"
+        )
+    attempt = core.landing_start_artifact_inventory(candidate, Path(wt))
+    if (
+        attempt["policyDigest"]
+        != core.landing_cleanup_policy_digest(canonical)
+    ):
+        raise core.LifecycleError(
+            "landing attempt cleanup policy differs from merged canonical origin/main"
         )
     return canonical
 
@@ -548,11 +574,9 @@ def reopen_frozen_landing_attempt(wt: str, main_tree: str) -> tuple[dict, ...]:
 
 
 def abandon_unfinished_landing_attempt(wt: str, main_tree: str) -> str:
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
     core = load_worktree_cleanup_core()
     try:
-        profile = core.load_profile(profile_path)
-        return str(core.abandon_unfinished_landing_attempt(profile, Path(wt)))
+        return str(core.abandon_unfinished_landing_attempt(Path(wt)))
     except core.LifecycleError as error:
         raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
 
@@ -582,9 +606,6 @@ def ensure_worktree_removable(
     verified_scratch_files: tuple[str, ...] = (),
     verified_scratch_evidence: tuple[dict, ...] = (),
 ):
-    profile_path = Path(main_tree) / "docs/agents/workflow-capabilities.json"
-    if not profile_path.is_file():
-        return None
     core = load_worktree_cleanup_core()
     try:
         profile = load_canonical_landing_profile(core, wt, main_tree)

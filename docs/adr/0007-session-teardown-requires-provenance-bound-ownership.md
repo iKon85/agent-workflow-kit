@@ -80,7 +80,9 @@ from present-day similarity:
 - Before merge, a committed worktree policy may nominate only exact,
   identity-bound cleanup candidates; it authorizes no deletion. After merge,
   the profile is reloaded directly from canonical `origin/main` and must match
-  the candidate scratch and generator policy before any mutation. Missing
-  policy, an unmerged widening, or branch/canonical drift preserves every file.
+  both the candidate and attempt-bound policy digest before any mutation.
+  Generator evidence is also reauthorized path-by-path against that canonical
+  policy. Missing policy, an unmerged widening, or branch/canonical drift
+  preserves every file.
 - The lifecycle implementation is necessarily a small transaction protocol,
   with more states and race tests than a path-based cleanup script.

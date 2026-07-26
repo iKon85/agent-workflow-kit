@@ -180,6 +180,7 @@ class WorktreeCleanupContract(unittest.TestCase):
             main, worktree = create_merged_worktree(
                 Path(tmp), scratch_patterns=["PLAN.md"]
             )
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             (worktree / "PLAN.md").write_text("plan\n", encoding="utf-8")
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
@@ -211,6 +212,7 @@ class WorktreeCleanupContract(unittest.TestCase):
             main, worktree = create_merged_worktree(
                 Path(tmp), scratch_patterns=["PLAN.md"]
             )
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             plan = worktree / "PLAN.md"
             plan.write_text("assessed\n", encoding="utf-8")
             assessment = wrapup.ensure_worktree_removable(
@@ -229,6 +231,7 @@ class WorktreeCleanupContract(unittest.TestCase):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
             generated.write_text("generated\n", encoding="utf-8")
@@ -249,6 +252,7 @@ class WorktreeCleanupContract(unittest.TestCase):
             main, worktree = create_merged_worktree(
                 Path(tmp), scratch_patterns=["dist-kit/**"]
             )
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
             generated.write_text("generated\n", encoding="utf-8")
@@ -362,6 +366,8 @@ class WorktreeCleanupContract(unittest.TestCase):
             candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
             candidate["wrapup"]["landingGeneratedArtifactPatterns"].append("**")
             candidate_path.write_text(json.dumps(candidate), encoding="utf-8")
+            command(["git", "add", "docs/agents/workflow-capabilities.json"], worktree)
+            command(["git", "commit", "-m", "widen candidate policy"], worktree)
             core = wrapup.load_worktree_cleanup_core()
             attempt_path = core.artifact_baseline_path(worktree).with_name(
                 core.LANDING_ATTEMPT_FILE
@@ -376,6 +382,83 @@ class WorktreeCleanupContract(unittest.TestCase):
                 stopped.exception.reason,
             )
             self.assertTrue(attempt_path.exists())
+
+    def test_policy_drift_during_attempt_cannot_claim_preexisting_consumer_file(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            victim = worktree / "consumer/victim.txt"
+            victim.parent.mkdir(parents=True)
+            victim.write_text("preserve\n", encoding="utf-8")
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            candidate_path = worktree / "docs/agents/workflow-capabilities.json"
+            candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+            candidate["wrapup"]["landingGeneratedArtifactPatterns"].append(
+                "consumer/**"
+            )
+            candidate_path.write_text(json.dumps(candidate), encoding="utf-8")
+            command(["git", "add", "docs/agents/workflow-capabilities.json"], worktree)
+            command(["git", "commit", "-m", "widen active attempt policy"], worktree)
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.freeze_landing_artifact_evidence(
+                    str(worktree), str(main), push_succeeded=True
+                )
+
+            self.assertIn(
+                "landing cleanup policy changed after attempt start",
+                stopped.exception.reason,
+            )
+            self.assertEqual(victim.read_text(encoding="utf-8"), "preserve\n")
+
+    def test_canonical_cleanup_rejects_generator_evidence_outside_policy(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            victim = worktree / "consumer/victim.txt"
+            victim.parent.mkdir(parents=True)
+            victim.write_text("preserve\n", encoding="utf-8")
+            core = wrapup.load_worktree_cleanup_core()
+            baseline = core.load_artifact_baseline(worktree)
+            with core.verified_worktree_root(
+                worktree, baseline.root_device, baseline.root_inode
+            ) as descriptor:
+                evidence = (
+                    core.contained_regular_identity(
+                        descriptor, "consumer/victim.txt"
+                    ),
+                )
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.ensure_worktree_removable(
+                    str(worktree),
+                    str(main),
+                    verified_scratch_evidence=evidence,
+                )
+
+            self.assertIn(
+                "generator evidence is outside canonical landing policy",
+                stopped.exception.detail,
+            )
+            self.assertEqual(victim.read_text(encoding="utf-8"), "preserve\n")
+
+    def test_missing_local_main_profile_cannot_disable_canonical_guard(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            wrapup.freeze_landing_artifact_evidence(
+                str(worktree), str(main), push_succeeded=True
+            )
+            (main / "docs/agents/workflow-capabilities.json").unlink()
+
+            assessment = wrapup.ensure_worktree_removable(
+                str(worktree), str(main)
+            )
+
+            self.assertIsNotNone(assessment)
+            self.assertEqual(assessment.reasons, ())
 
     def test_explicit_empty_landing_policy_is_distinct_from_missing(self):
         wrapup = load_wrapup()
@@ -606,6 +689,7 @@ class WorktreeCleanupContract(unittest.TestCase):
             main, worktree = create_merged_worktree(
                 Path(tmp), scratch_patterns=[".claude/logs/**"]
             )
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             log = worktree / ".claude/logs/session.log"
             log.parent.mkdir(parents=True)
             log.write_text("assessed\n", encoding="utf-8")
@@ -685,6 +769,7 @@ class WorktreeCleanupContract(unittest.TestCase):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
             generated.write_text("package", encoding="utf-8")
@@ -708,6 +793,7 @@ class WorktreeCleanupContract(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             main, worktree = create_merged_worktree(root)
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             foreign = root / "foreign.txt"
             foreign.write_text("keep", encoding="utf-8")
             generated = worktree / "dist-kit/package.tgz"
@@ -728,6 +814,7 @@ class WorktreeCleanupContract(unittest.TestCase):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
             generated.write_text("package", encoding="utf-8")
@@ -761,6 +848,7 @@ class WorktreeCleanupContract(unittest.TestCase):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
             main, worktree = create_merged_worktree(Path(tmp))
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
             generated = worktree / "dist-kit/package.tgz"
             generated.parent.mkdir(parents=True)
             generated.write_text("generator-owned", encoding="utf-8")
@@ -925,6 +1013,7 @@ class WorktreeCleanupContract(unittest.TestCase):
             ambiguous = worktree / "dist-kit/ambiguous.tgz"
             ambiguous.parent.mkdir(parents=True)
             ambiguous.write_text("unknown owner", encoding="utf-8")
+            (main / "docs/agents/workflow-capabilities.json").unlink()
 
             archive = Path(wrapup.abandon_unfinished_landing_attempt(
                 str(worktree), str(main)
