@@ -454,6 +454,48 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.37.0
+
+- added: `scripts/test_anchor_table.py`
+- added: `scripts/test_wrapup_land.py`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/orchestrate-wave-seed.md`
+- changed: `.agents/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/hooks/migration-snapshot-reminder.py`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/orchestrate-wave-seed.md`
+- changed: `.claude/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.claude/skills/skill-manifest.json`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `docs/agents/workflow-capabilities.json`
+- changed: `scripts/anchor_table.py`
+- changed: `scripts/project-skill-extension.mjs`
+- changed: `scripts/readiness.mjs`
+- changed: `scripts/release-state.mjs`
+- changed: `scripts/release-state.test.mjs`
+- changed: `scripts/test_board_sync_create_idempotency.py`
+- changed: `scripts/test_board_sync_wave_title.py`
+- changed: `scripts/test_census_backstop.py`
+- changed: `scripts/test_orchestrate_wave_contract.py`
+- changed: `scripts/test_retro_wrapup_contract.py`
+- changed: `scripts/workflow-advisories/core.py`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/cleanup.py`
+- changed: `scripts/worktree-lifecycle/core.py`
+- changed: `scripts/worktree-lifecycle/profile.py`
+- changed: `scripts/wrapup-land.py`
+- changed: `src/cli.mjs`
+- changed: `src/lib/manifest.mjs`
+- changed: `src/lib/projectSkillExtension.mjs`
+- changed: `src/lib/updateCandidate.mjs`
+- changed: `src/lib/updateDecisions.mjs`
+- changed: `src/lib/verifyUpdateCandidateProtocol.mjs`
+
 ### 0.36.5
 
 - changed: `src/lib/updateCandidate.mjs`
