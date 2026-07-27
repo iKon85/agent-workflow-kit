@@ -65,7 +65,8 @@ The workflow board is [Agent Workflow Kit](https://github.com/users/iKon85/proje
     "wavePrefix": "Welle"
   },
   "wrapup": {
-    "remoteBranchSweep": true
+    "remoteBranchSweep": true,
+    "censusTrackingIssue": false
   }
 }
 ```

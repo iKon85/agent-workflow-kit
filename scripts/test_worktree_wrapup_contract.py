@@ -575,6 +575,67 @@ class ResumeByRecheckContract(unittest.TestCase):
         self.assertTrue(second["merged"])
 
 
+class CensusFindingNeverGates(unittest.TestCase):
+    """A stale census is durable work at session end, never a gate (#321).
+
+    Topology drift is repo-wide and usually not caused by the pull request at
+    hand, so the landing has to complete with `refresh_required` present — and
+    a step that cannot answer at all may not stop it either.
+    """
+
+    def _landed(self, tmp: Path, wrapup, verdict):
+        main, _ = make_repo(tmp)
+        branch = "feat/321-census"
+        worktree = add_worktree(main, tmp / "census-tree", branch)
+        integrate(main, worktree, branch)
+        with patch.object(wrapup, "census_status", side_effect=verdict):
+            report = run_land(wrapup, main, land_args(branch), hub=FakeHub(wrapup.run))
+        return main, worktree, report
+
+    def test_a_stale_census_is_reported_and_the_landing_still_completes(self):
+        wrapup = load_wrapup()
+        stale = {"state": "refresh_required", "reasons": ["topology"],
+                 "override_applied": False}
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree, report = self._landed(
+                Path(tmp), wrapup, lambda _checkout: stale
+            )
+
+            self.assertTrue(report["merged"])
+            self.assertEqual(report["worktree_removed"], str(worktree))
+            self.assertEqual(report["census"]["state"], "refresh_required")
+            self.assertFalse(report["census"]["blocking"])
+            self.assertEqual(report["census"]["evaluated_checkout"], str(main))
+
+    def test_the_verdict_is_read_for_the_main_checkout_not_the_worktree(self):
+        wrapup = load_wrapup()
+        asked = []
+
+        def verdict(checkout):
+            asked.append(checkout)
+            return {"state": "current", "reasons": []}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            main, _worktree, report = self._landed(Path(tmp), wrapup, verdict)
+
+            self.assertEqual(asked, [str(main)])
+            self.assertNotIn("census", report)
+
+    def test_a_census_step_that_raises_cannot_stop_the_landing(self):
+        wrapup = load_wrapup()
+
+        def verdict(_checkout):
+            raise RuntimeError("census engine exploded")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            _main, worktree, report = self._landed(Path(tmp), wrapup, verdict)
+
+            self.assertTrue(report["merged"])
+            self.assertEqual(report["worktree_removed"], str(worktree))
+            self.assertNotIn("census", report)
+            self.assertTrue(any("census" in warning for warning in report["warnings"]))
+
+
 class ModuleContract(unittest.TestCase):
     """The provenance half is gone from the executable surface, counted."""
 

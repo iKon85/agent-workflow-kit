@@ -587,7 +587,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "c6855a479c030f93be30f6fb65b36b8ca317251f9627fd3f6f0f994d9a8b64fb",
+      "sha256": "3332296c656fc44ac65ddbbe619795bfc18c81478ddf8c621f78cbf8189fd4b5",
       "mode": 420,
       "origin": "kit"
     },
@@ -997,7 +997,7 @@
       "ownerSkill": "wrapup",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "31ad9f1c767f3e222d2f4b563b3dd0c52160b20ab54fc674d76c099bad81a2f5",
+      "sha256": "0d1763e42d60c9661d60640e5eef0874c5a4931181bfa669effdb917f00c3c1b",
       "mode": 420,
       "origin": "kit"
     },
@@ -1929,7 +1929,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "c6855a479c030f93be30f6fb65b36b8ca317251f9627fd3f6f0f994d9a8b64fb",
+      "sha256": "3332296c656fc44ac65ddbbe619795bfc18c81478ddf8c621f78cbf8189fd4b5",
       "mode": 420,
       "origin": "kit"
     },
@@ -2347,7 +2347,7 @@
       "ownerSkill": "wrapup",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "31ad9f1c767f3e222d2f4b563b3dd0c52160b20ab54fc674d76c099bad81a2f5",
+      "sha256": "0d1763e42d60c9661d60640e5eef0874c5a4931181bfa669effdb917f00c3c1b",
       "mode": 420,
       "origin": "kit"
     },
@@ -2587,7 +2587,7 @@
       "path": "scripts/marker_lib.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "015a22041ee7a66609123c1944e915a869f208789914811674c0c350e07a7b11",
+      "sha256": "ca969bb04d307778ad6ee465b6e59df5761d419e5c348c202829fba0c93c5f90",
       "mode": 420,
       "origin": "kit"
     },
@@ -2867,7 +2867,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "8d3901ae791b2969434c1522b8defdac4d699ed21acb8059e05ed2528bf68926",
+      "sha256": "03afc3db6096b4b9dae68168045bc6e0672f57b6fad8eff0963271418ea5493c",
       "mode": 493,
       "origin": "kit"
     },

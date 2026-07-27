@@ -104,7 +104,7 @@ Run **from the main tree** (the script refuses inside the worktree — an in-wor
 ```bash
 python3 scripts/wrapup-land.py land --branch "<branch>" --title "<title>" --body-file /tmp/wrapup-pr-body.md
 ```
-One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (pending/null-conclusion checks poll for up to 20 minutes with progress on stderr; terminal red / `CONFLICTING` / timeout = STOP; known zero-step billing or runner failures are named `infrastructure failure`; an already-`MERGED` PR resumes at teardown) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` listeners only, own shell ancestry excluded) → teardown classification + scratch removal → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → integration-branch `--ff-only` pull + branch retirement by authority → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program).
+One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (pending/null-conclusion checks poll for up to 20 minutes with progress on stderr; terminal red / `CONFLICTING` / timeout = STOP; known zero-step billing or runner failures are named `infrastructure failure`; an already-`MERGED` PR resumes at teardown) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` listeners only, own shell ancestry excluded) → teardown classification + scratch removal → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → integration-branch `--ff-only` pull + branch retirement by authority → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program) → **census freshness** (Step 5f, see below).
 
 STOP → diagnose in the main conversation, fix, re-run `land`. Re-running is the
 only recovery route there is: every step re-reads present state (is the remote
@@ -142,6 +142,23 @@ Two refusals name a state landing cannot repair for you: a **detached HEAD**
 (attach a branch in that worktree first) and an **unborn branch** (make the
 first commit first).
 
+Step 5f gives the census freshness verdict a session-end home. It reads
+`drift-guard.py --census-status` **for the main checkout** — the tree the next
+session starts from — because a census describes the tree it was scanned in: a
+refresh committed inside a worktree is visible in that one working tree only, so
+a worktree-green verdict must never stand in for a stale main checkout. `current`
+and `no_census` leave no trace at all; only `refresh_required` speaks, as a
+`census` block in the report that names the verdict, its reasons, the **evaluated
+checkout**, and the recovery route — run `$census-update` there and land the
+refresh as a dedicated pull request of its own, never a census file mirrored
+between checkouts. It is a finding, never a gate: topology drift is repo-wide and
+usually not caused by the PR at hand, so the landing completes regardless, and a
+census step that cannot answer degrades to one warning. Opt in with
+`wrapup.censusTrackingIssue` in the board profile to also open one
+marker-identified tracking issue — a later session updates that same issue
+instead of minting a duplicate, and an ambiguous or unreachable lookup writes
+nothing and says why.
+
 The dev-server kill is `.dev-ports`-scoped and never signals on doubt: only a
 listener on a port this worktree declares, whose working directory is inside
 it, is signalled — pinned by `pidfd` so a recycled PID cannot be hit. Anything
@@ -150,7 +167,7 @@ else on those ports is a STOP naming the process, not a kill.
 ### 6 · Post-merge (agent)
 - **Sibling propagation:** for each `drift_markers` entry in the land report, append the note to the target issue's `vor_bau` section + re-stamp its `plan_revision`. Log-based markers → **write directly, then show what was written where** (mandatory report — visibility moved from a pre-gate into the report, decision 2026-07-06); fallback candidates the user hasn't confirmed yet → confirm first. Program context widens the target set to unbuilt wave-stubs/leaves and the Program-PRD itself — same append-only mechanism. **Exception:** appends to the Program-PRD or unbuilt wave-stubs do **not** re-stamp `plan_revision` — that stays reserved for structural wave-plan edits via the `to-waves` escalation path; a mere drift note must not stale-block published stubs.
 - **Anchor close:** report says `anchor_complete: true` → `gh issue close <anchor> -c "Wave complete — all slices merged via PR #<pr>."` and verify board status Done. The guard keeps anchors away from every auto-close — this verified close is the only close path; without it the anchor stays silently open after the last slice. **Then re-run the upward propagation**: the land-time `program-sync` ran BEFORE this close, so on a wave-completing slice the Wellenplan still shows 🔄 and the Phasen-Gate stays unchecked — after the board shows Done, run `python3 scripts/board-sync.py program-sync <program-prd#>` once more (the report's `program_sync.program` names it; skip when the report says the parent is not a program). Board auto-rules can lag the close (Close→Done race) — verify Done first, that's what the token reads.
-- **Report**, concise, from the land JSON: PR merged · issue close (auto/manual) · worktree removed · branch deleted · sweep counts local/remote · anchor synced + complete/pending · program propagation (`program_sync`: Wellenplan refreshed / gates checked / skipped) · propagation writes (what → where) · `main` at `<sha>`.
+- **Report**, concise, from the land JSON: PR merged · issue close (auto/manual) · worktree removed · branch deleted · sweep counts local/remote · anchor synced + complete/pending · program propagation (`program_sync`: Wellenplan refreshed / gates checked / skipped) · propagation writes (what → where) · census finding when the report carries one (verdict + evaluated checkout + recovery route + tracking issue; silent otherwise) · `main` at `<sha>`.
 
 <!-- readiness:block deployReport -->
 - **Deploy-aware report:** read the coherent `## Prod` block; before merging,

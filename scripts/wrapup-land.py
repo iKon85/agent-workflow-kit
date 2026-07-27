@@ -55,6 +55,8 @@ from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from marker_lib import marker_value  # noqa: E402
+
 # Secret pattern mirrors the historical /wrapup Step-0a grep (era).
 SECRET_RE = re.compile(
     r"BEGIN [A-Z ]*PRIVATE KEY|(api[_-]?key|secret|password|access[_-]?token|bearer)\s*[:=]",
@@ -96,6 +98,34 @@ INFRA_FAILURE_RE = re.compile(
 LIFECYCLE_PROFILE = "docs/agents/workflow-capabilities.json"
 CLASSIFY_MODULE = "_wrapup_teardown_classify"
 LIFECYCLE_PROFILE_MODULE = "_wrapup_lifecycle_profile"
+
+# Census freshness is consumed read-only from the drift guard; this file owns no
+# census logic of its own.
+CENSUS_HOOK = ".claude/hooks/drift-guard.py"
+CENSUS_STALE = "refresh_required"
+CENSUS_ABSENT = "no_census"
+CENSUS_UNREADABLE = "unreadable"
+CENSUS_ISSUE_LIMIT = 1000
+CENSUS_TRACKING_KIND = "census-refresh-source"
+CENSUS_TRACKING_SLUG = "census-refresh"
+CENSUS_TRACKING_TITLE = "census: the activated census needs a refresh"
+CENSUS_CHECKOUT_NOTE = (
+    "a census describes the tree it was scanned in — a refresh committed in a "
+    "worktree is visible in that working tree only"
+)
+CENSUS_RECOVERY = (
+    "run `$census-update` in the evaluated checkout and land the refresh as a "
+    "dedicated pull request of its own — never mirror the census file from "
+    "another checkout"
+)
+CENSUS_NOT_A_GATE = (
+    "this finding never blocks a landing: topology drift is repo-wide and is "
+    "usually not caused by the pull request that just merged"
+)
+CENSUS_OVERRIDE_NOTE = (
+    "a change-local override greened the handoff gate; the verdict itself still "
+    "asks for a refresh"
+)
 
 
 class Stop(Exception):
@@ -1635,6 +1665,162 @@ def remote_branch_tip(main_tree: str, branch: str) -> str:
     return result.stdout.split()[0]
 
 
+# ---------- census freshness (session-end finding, never a gate) ----------
+
+def census_status(checkout: str) -> dict:
+    """Read ONE named checkout's census freshness verdict, read-only.
+
+    A census describes the tree it was scanned in, and the drift guard resolves
+    its census root from the working directory it is called in. The checkout is
+    therefore named here rather than inherited: the verdict that matters at
+    session end belongs to the tree the next session starts from, and a
+    worktree-green verdict must never stand in for it.
+
+    A checkout without the hook, or without a census, answers `no_census` — the
+    kit's ordinary silent degradation. Only an unreadable answer is
+    `unavailable`, which the caller reports without ever acting on it.
+    """
+    hook = Path(checkout) / CENSUS_HOOK
+    if not hook.is_file():
+        return {"state": CENSUS_ABSENT, "reasons": []}
+    completed = run([sys.executable, str(hook), "--census-status"], cwd=checkout)
+    if completed.returncode != 0:
+        return {"state": CENSUS_UNREADABLE,
+                "reasons": [(completed.stderr or completed.stdout).strip()[-300:]]}
+    try:
+        verdict = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        return {"state": CENSUS_UNREADABLE, "reasons": [str(error)]}
+    if not isinstance(verdict, dict):
+        return {"state": CENSUS_UNREADABLE, "reasons": ["verdict is not an object"]}
+    return verdict
+
+
+def render_census_finding(verdict: dict, checkout: str) -> str:
+    """State the verdict, its cause, the checkout it describes, and the route out."""
+    reasons = ", ".join(str(reason) for reason in verdict.get("reasons") or [])
+    lines = [
+        f"CENSUS — session-end finding ({verdict.get('state')}):",
+        f"  · {reasons or 'the activated census is stale'}",
+        f"  · evaluated checkout: {checkout}",
+        f"    ({CENSUS_CHECKOUT_NOTE})",
+        f"  · recovery: {CENSUS_RECOVERY}",
+        f"  · {CENSUS_NOT_A_GATE}",
+    ]
+    if verdict.get("override_applied"):
+        lines.append(f"  · {CENSUS_OVERRIDE_NOTE}")
+    return "\n".join(lines)
+
+
+def census_tracking_issues(main_tree: str) -> tuple[list[int], str]:
+    """Every OPEN issue carrying the tracking marker, plus a lookup error.
+
+    Identity is the marker, never the title. Closed issues are history: a
+    refresh that was already resolved must not wedge the next one out of a
+    tracker of its own.
+    """
+    listed = run(["gh", "issue", "list", "--state", "open",
+                  "--limit", str(CENSUS_ISSUE_LIMIT), "--json", "number,body"],
+                 cwd=main_tree)
+    if listed.returncode != 0:
+        return [], (listed.stderr or listed.stdout).strip()[-500:]
+    try:
+        payload = json.loads(listed.stdout)
+    except json.JSONDecodeError as error:
+        return [], f"unreadable issue list: {error}"
+    if not isinstance(payload, list):
+        return [], "unreadable issue list: not an array"
+    return [
+        int(issue["number"]) for issue in payload
+        if marker_value(issue.get("body") or "", CENSUS_TRACKING_KIND)
+        == CENSUS_TRACKING_SLUG
+    ], ""
+
+
+def track_census_finding(main_tree: str, finding: str) -> dict:
+    """Open or refresh the one tracking issue so the finding outlives the session.
+
+    Idempotent by identity: no open match creates one through the board command,
+    exactly one match is rewritten with the current verdict, and several matches
+    write nothing and name them — guessing which one is the tracker is how a
+    duplicate becomes permanent.
+    """
+    numbers, error = census_tracking_issues(main_tree)
+    if error:
+        return {"action": "none", "issue": None, "ok": False, "error": error}
+    if len(numbers) > 1:
+        named = ", ".join(f"#{number}" for number in numbers)
+        return {"action": "none", "issue": None, "ok": False,
+                "error": f"several open issues carry the tracking marker: {named}"}
+    body = (f"<!-- {CENSUS_TRACKING_KIND}: {CENSUS_TRACKING_SLUG} -->\n\n"
+            f"{finding}\n")
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".md", delete=False, encoding="utf-8"
+    ) as handle:
+        handle.write(body)
+        body_file = handle.name
+    try:
+        if numbers:
+            written = run(["gh", "issue", "edit", str(numbers[0]),
+                           "--body-file", body_file], cwd=main_tree)
+            return _census_tracking_result("updated", numbers[0], written)
+        created = run([sys.executable, str(Path(__file__).parent / "board-sync.py"),
+                       "create", "--title", CENSUS_TRACKING_TITLE,
+                       "--body-file", body_file], cwd=main_tree)
+        return _census_tracking_result(
+            "created", _created_issue_number(created.stdout), created)
+    finally:
+        Path(body_file).unlink(missing_ok=True)
+
+
+def _census_tracking_result(action: str, issue, completed) -> dict:
+    ok = completed.returncode == 0
+    return {
+        "action": action if ok else "none",
+        "issue": issue,
+        "ok": ok,
+        "error": None if ok else (completed.stderr or completed.stdout).strip()[-500:],
+    }
+
+
+def _created_issue_number(stdout: str):
+    """Read the number back out of the board command's own `#<n> <url>` line."""
+    for line in stdout.splitlines():
+        head = line.strip().split(" ", 1)[0]
+        if head.startswith("#") and head[1:].isdigit():
+            return int(head[1:])
+    return None
+
+
+def census_step(main_tree: str, profile: dict, report: dict) -> None:
+    """Give the freshness verdict a home at session end.
+
+    `current` and `no_census` leave no trace at all — the same silent
+    degradation the rest of the kit practises. Only `refresh_required` speaks,
+    and it speaks as a finding: the landing has already happened and topology
+    drift is repo-wide, so blocking here would punish an unrelated change.
+    """
+    verdict = census_status(main_tree)
+    state = verdict.get("state")
+    if state == CENSUS_UNREADABLE:
+        detail = "; ".join(str(reason) for reason in verdict.get("reasons") or [])
+        report["warnings"].append(
+            f"census status unreadable for {main_tree}: {detail}")
+        return
+    if state != CENSUS_STALE:
+        return
+    finding = {
+        "state": state,
+        "evaluated_checkout": main_tree,
+        "reasons": list(verdict.get("reasons") or []),
+        "blocking": False,
+        "finding": render_census_finding(verdict, main_tree),
+    }
+    report["census"] = finding
+    if profile.get("wrapup", {}).get("censusTrackingIssue"):
+        finding["tracking"] = track_census_finding(main_tree, finding["finding"])
+
+
 def cmd_land(args) -> dict:
     report: dict = {"stops": [], "warnings": [], "skipped": []}
     main_tree, branches = worktree_map()
@@ -1885,6 +2071,16 @@ def cmd_land(args) -> dict:
                     "error": None if pwet.returncode == 0
                     else (pwet.stderr or pwet.stdout).strip()[-1000:],
                 }
+
+    # Step 5f — census freshness. The verdict is read for the main checkout,
+    # because that is the tree the next session starts from; a stale one becomes
+    # a named finding (and optionally durable work) instead of dying with this
+    # session. It is a diagnostic, so nothing it can do may stop a landing that
+    # already merged — hence the blanket catch.
+    try:
+        census_step(main_tree, profile, report)
+    except Exception as error:  # noqa: BLE001 — a diagnostic never gates a landing
+        report["warnings"].append(f"census step skipped: {error}")
 
     report["main_sha"] = git(["log", "--oneline", "-1"], cwd=main_tree,
                              check=True).stdout.strip()

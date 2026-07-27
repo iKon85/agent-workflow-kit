@@ -24,6 +24,8 @@ How the board-managed workflow skills (`to-prd`, `to-issues`, `board-to-waves`, 
 
 The optional `wrapup` block is a wrapup-only switch, not a board field: `wrapup.remoteBranchSweep` (default `false`) gates `wrapup` Step 5d's remote-branch sweep — `false`/missing (the shipped default) means Step 5d only reports the count of stale merged-PR remotes it found; `true` lets it actually `git push origin --delete` them. Flip it to `true` once you trust the sweep in your repo.
 
+`wrapup.censusTrackingIssue` (default `false`) is the second switch in that block. It gates `wrapup` Step 5f's tracking issue: `false`/missing (the shipped default) means a stale census verdict is reported as a session-end finding only; `true` additionally opens — or, on a later session, updates — one marker-identified tracking issue so the finding survives the session. The finding itself never blocks a landing either way, and the recovery route stays a dedicated pull request, never a census file mirrored between checkouts.
+
 <!-- board-sync:profile -->
 ```json
 {
@@ -75,7 +77,8 @@ The optional `wrapup` block is a wrapup-only switch, not a board field: `wrapup.
     "wavePrefix": "Wave"
   },
   "wrapup": {
-    "remoteBranchSweep": false
+    "remoteBranchSweep": false,
+    "censusTrackingIssue": false
   }
 }
 ```

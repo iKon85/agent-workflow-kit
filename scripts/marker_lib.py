@@ -9,6 +9,9 @@ from collections.abc import Callable
 
 
 MARKER_KINDS = frozenset({
+    # The census refresh tracker: one open issue per repository, so a second
+    # session updates the issue the first one opened.
+    "census-refresh-source",
     "prd-source-id",
     "program-leaf-source",
     "program-stub-source",
