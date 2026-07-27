@@ -93,6 +93,15 @@ test('(b) preserves placeholders, hex colors, shell comments', () => {
   assert.equal(scrub('use #<n> and #<anker>'), 'use #<n> and #<anker>');
   assert.equal(scrub('bg #0f172a text #dc2626'), 'bg #0f172a text #dc2626');
   assert.equal(scrub('color #1e293b;'), 'color #1e293b;');
+  // an ALL-DIGIT hex prefix used to donate 3-5 digits to the issue-ref match,
+  // and the connective rule then ate the CSS `:` with them
+  assert.equal(scrub('  --door-text:#454E60;'), '  --door-text:#454E60;');
+  assert.equal(scrub('  --door-bg:#272E3E;'), '  --door-bg:#272E3E;');
+  assert.equal(scrub('a { background:#123456; }'), 'a { background:#123456; }');
+  assert.equal(scrub('  --door-text: #454E60;'), '  --door-text: #454E60;');
+  assert.equal(scrub('  --door-bg: #272E3E;'), '  --door-bg: #272E3E;');
+  assert.equal(scrub('a { background: #123456; }'), 'a { background: #123456; }');
+  assert.equal(scrub('linear-gradient(#123456, #0f172a)'), 'linear-gradient(#123456, #0f172a)');
   assert.equal(scrub('# noqa: E402'), '# noqa: E402');
   assert.equal(scrub('<issue-number> form'), '<issue-number> form');
   // a code interpolation that looks ref-ish must survive
@@ -113,6 +122,24 @@ test('(b-prov) ref-only provenance parens are consumed whole', () => {
 
 test('(b-prov) mixed provenance+issue paren still consumed', () => {
   assert.equal(scrub('coherence (Welle 26 / Slice 1g, #983) before'), 'coherence before');
+});
+
+test('(b-prov) the space-separated ADR spelling is stripped like the hyphenated one', () => {
+  // Both spellings are the same citation; only the hyphenated one used to be
+  // stripped, so `(ADR 0009)` shipped to consumers as an unresolvable ref.
+  assert.equal(scrub('Deletion authority is decided at teardown (ADR-0009).'),
+    'Deletion authority is decided at teardown.');
+  assert.equal(scrub('Deletion authority is decided at teardown (ADR 0009).'),
+    'Deletion authority is decided at teardown.');
+  // still folds into a mixed citation paren
+  assert.equal(scrub('the seam (ADR 0008, #983) holds'), 'the seam holds');
+});
+
+test('(b-prov) NEGATIVE: space-separated ADR in bare prose survives verbatim', () => {
+  assert.equal(scrub('contradicts ADR 0007 — but worth reopening'),
+    'contradicts ADR 0007 — but worth reopening');
+  assert.equal(scrub('Contradicts ADR 0007 (event-sourced orders) — but'),
+    'Contradicts ADR 0007 (event-sourced orders) — but');
 });
 
 test('(b-prov) NEGATIVE: bare prose / examples survive verbatim', () => {

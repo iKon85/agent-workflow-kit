@@ -1,11 +1,11 @@
 """Worktree Lifecycle profile loading and low-level git operations.
 
 The profile carries **structural facts only** — worktree root, naming
-templates, the protected branches, the setup sequence (ADR 0009). Deletion
-policy has exactly one configuration surface, the ignore mechanism, so no
-pattern list is read here. Keys this loader does not know are ignored in
-silence: a profile written for an older kit keeps working, and an obsolete key
-produces no warning noise.
+templates, the protected branches, the setup sequence. Deletion policy has
+exactly one configuration surface, the ignore mechanism, so no pattern list is
+read here. Keys this loader does not know are ignored in silence: a profile
+written for an older kit keeps working, and an obsolete key produces no warning
+noise.
 
 Two branch templates exist because two kinds of work land. `branchTemplate`
 names the branch of an issue-anchored slice; `contentBranchTemplate` names the

@@ -13,7 +13,8 @@ Deny classes (each with a negative fixture below):
   - email addresses
   - absolute home paths (`/home/<user>`)
   - residual issue refs (`#NNN`) / hard-rule refs (`HRn`)
-  - unresolvable provenance cross-refs (`ADR-####` / `Welle N` / `Slice N`),
+  - unresolvable provenance cross-refs (`ADR-####` / `ADR ####` / `Welle N` /
+    `Slice N`),
     with a documented fixture/example allowlist (PROVENANCE_FIXTURE_SUFFIXES)
   - `../` cross-skill reaches (skills/scripts/docs — except a static top-level
     script import into the shipped `src/lib` deep-module seam, and CLI `src`
@@ -73,7 +74,9 @@ HARD_DENY = [
 # parser examples — not project provenance. Keep in sync with scrub.mjs's PROV
 # class (which strips citation-shaped provenance from every other body/script).
 PROVENANCE_DENY = [
-    ("ADR ref", re.compile(r"\bADR-\d{3,4}\b")),
+    # both spellings — `ADR-0009` and `ADR 0009` are the same citation, and the
+    # hyphen-only pattern let the spaced form escape scrub AND this backstop.
+    ("ADR ref", re.compile(r"\bADR[ -]\d{3,4}\b")),
     ("Welle ref", re.compile(r"\bWelle \d+\b")),
     ("Slice ref", re.compile(r"\bSlice \d+[a-z]?\b")),
 ]
@@ -237,6 +240,10 @@ class AuditCatchesEachClass(unittest.TestCase):
 
     def test_adr_ref(self):
         self.assertTrue(any("ADR ref" in v for v in self._body("per ADR-0034 rule")))
+
+    def test_adr_ref_space_separated(self):
+        """`ADR 0034` is the same unresolvable citation as `ADR-0034`."""
+        self.assertTrue(any("ADR ref" in v for v in self._body("per ADR 0034 rule")))
 
     def test_welle_ref(self):
         self.assertTrue(any("Welle ref" in v for v in self._body("built in Welle 52")))

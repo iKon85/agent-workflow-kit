@@ -104,13 +104,13 @@ approved step may write `.gitignore`.
 ## Scratch classification and sweep
 
 Reconcile **no** pattern list. Deletion policy has exactly one configuration
-surface, the ignore mechanism (ADR 0009): a file is Scratch — deletable at
-teardown — precisely when the repository's own exclude sources classify it as
-ignored. Making a file deletable therefore means ignoring it, which is what the
-offered planning-artifact rules above do. Setup never derives, writes, or
-reviews a deletion pattern, and a profile that still carries one from an older
-kit keeps it as consumer data: the loader ignores unknown keys in silence, so
-there is nothing to migrate and nothing to warn about.
+surface, the ignore mechanism: a file is Scratch — deletable at teardown —
+precisely when the repository's own exclude sources classify it as ignored.
+Making a file deletable therefore means ignoring it, which is what the offered
+planning-artifact rules above do. Setup never derives, writes, or reviews a
+deletion pattern, and a profile that still carries one from an older kit keeps
+it as consumer data: the loader ignores unknown keys in silence, so there is
+nothing to migrate and nothing to warn about.
 
 ## Branch templates
 

@@ -216,9 +216,9 @@ Worktree Lifecycle for this repository?"* Offer exactly **Yes**, **Later**, and
   `enabled: false`; retain the profile, setup policy, and unknown keys.
 
 Reconcile no deletion-pattern list at any state. Deletion policy has exactly
-one configuration surface, the ignore mechanism (ADR 0009), so a profile that
-still carries a pattern key from an older kit keeps it verbatim as consumer
-data: it is ignored in silence, never rewritten and never reported.
+one configuration surface, the ignore mechanism, so a profile that still
+carries a pattern key from an older kit keeps it verbatim as consumer data: it
+is ignored in silence, never rewritten and never reported.
 
 Whenever a profile already carries Workflow Advisories globs — on **Yes** over
 an existing section and on **Existing** — run
@@ -455,7 +455,7 @@ seeder.
 Report `appended · nothing to do (already ignored) · declined · blocked
 (consumer-edited block)`. After an approval — and only then — those artefacts
 are Scratch, because being ignored is the whole of what makes a file deletable
-at teardown (ADR 0009).
+at teardown.
 
 ### 3. Section B — Triage labels
 
@@ -609,7 +609,7 @@ ownership rules from [worktree-lifecycle.md](./worktree-lifecycle.md),
 [safety-guardrails.md](./safety-guardrails.md) transactionally.
 The profile carries structural facts only; it holds no deletion policy, because
 the ignore mechanism is the single surface that decides what teardown may
-remove (ADR 0009).
+remove.
 
 For Memory Lifecycle, use only the deterministic setup helper from Section A5.
 Do not copy templates with shell commands or edit the capability profile by
