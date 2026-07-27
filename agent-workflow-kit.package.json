@@ -2627,7 +2627,7 @@
       "path": "scripts/pr-body-check.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "864dad50be7904cf0c1d70956352c70d2195a350a5a6875de6b866c494f16612",
+      "sha256": "7fa67a672d6f6986b0fba99e78157d51225ab91f61b691a4cc184d316b521882",
       "mode": 493,
       "origin": "kit"
     },
