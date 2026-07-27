@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.43.0",
+  "kitVersion": "0.44.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -2699,7 +2699,7 @@
       "path": "scripts/release-delta-guard.mjs",
       "kind": "script",
       "installRole": "maintainer",
-      "sha256": "4fb460aade566493273bd98ffad7d5293f1087c611a11a4b323d541c1123932e",
+      "sha256": "486c9d162a97fbfb64d456135916fdaa4551f7226a17cea57b425258e5d224e1",
       "mode": 420,
       "origin": "kit"
     },

@@ -501,6 +501,34 @@ Explicit fork with its own identity and update line instead.
 
 ## Upgrade notes
 
+### 0.44.0 — teardown classifies, and the package ships less
+
+**Action required only if your profile configured teardown patterns.**
+
+`worktreeLifecycle.scratchPatterns` and `wrapup.landingGeneratedArtifactPatterns`
+are gone, with no migration. Teardown now classifies what it may delete from the
+repository's own ignore rules at the moment it acts, so the ignore mechanism is
+the single place deletion policy is configured. A profile still carrying either
+key simply keeps it, unread — nothing breaks, but the key no longer does
+anything. Move whatever those patterns protected into `.gitignore` (to make it
+deletable scratch) or out of the ignore rules (to make it a blocker).
+
+Two consequences worth knowing before your next `/wrapup`:
+
+- A gitignored file that is not `.env*` is deletable at teardown. That is the
+  deliberate trade for having no pattern list to maintain.
+- The session-teardown CLI `scripts/worktree-lifecycle/session.py` is removed,
+  along with both of its recovery flags. Re-running the command is the recovery
+  route; there is no attempt journal to repair. Worktree creation now goes
+  through `scripts/worktree-lifecycle/setup.py`.
+
+**The long "removed:" list in the release notes below is mostly narrower
+packaging, not deleted features.** Tests, this repository's own ADRs and
+research notes, and its build tooling stopped being published into
+`node_modules`; none of them was ever installed into a consumer repo by `init`,
+and every one of the 338 installed files is unchanged in scope. The only entry
+that removes something consumers could have used is `session.py`.
+
 ### 0.38.0 — explicit landing-artifact policy
 
 **Superseded — no action required.** A later release removed the pattern keys
@@ -550,6 +578,135 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 0.44.0
+
+- added: `scripts/worktree-lifecycle/classify.py`
+- removed: `docs/adr/0001-consumer-divergence-policy.md`
+- removed: `docs/adr/0002-capability-gated-orchestration.md`
+- removed: `docs/adr/0003-kit-core-and-project-extension-lifecycle.md`
+- removed: `docs/adr/0004-release-intent-is-a-version-tag.md`
+- removed: `docs/adr/0005-to-issues-is-the-planning-facade.md`
+- removed: `docs/adr/0006-routing-knowledge-access-and-policy-are-separate.md`
+- removed: `docs/adr/0007-session-teardown-requires-provenance-bound-ownership.md`
+- removed: `docs/adr/0008-planning-ignore-rules-are-offered-never-installed.md`
+- removed: `docs/adr/0009-teardown-authority-is-stateless-repository-classification.md`
+- removed: `docs/adr/0010-model-roster-replaces-the-optimization-dial.md`
+- removed: `docs/agents/board-sync.md`
+- removed: `docs/agents/code-review.md`
+- removed: `docs/agents/workflow-capabilities.json`
+- removed: `docs/research/agent-task-taxonomy-benchmark-coverage.md`
+- removed: `docs/research/benchlm-routing-source.md`
+- removed: `docs/research/consumer-owned-protocol-files.md`
+- removed: `docs/research/frontend-agent-benchmarks.md`
+- removed: `docs/research/model-effort-routing-benchmarks.md`
+- removed: `docs/research/provider-neutral-agent-routing.md`
+- removed: `docs/research/wave-152-consumer-acceptance.md`
+- removed: `docs/research/wave-43-script-hook-census.md`
+- removed: `scripts/build-kit.mjs`
+- removed: `scripts/build-kit.test.mjs`
+- removed: `scripts/census-contract.test.mjs`
+- removed: `scripts/census/census.test.mjs`
+- removed: `scripts/census/state.test.mjs`
+- removed: `scripts/census/transaction.test.mjs`
+- removed: `scripts/check-kit-staleness.mjs`
+- removed: `scripts/check-kit-staleness.test.mjs`
+- removed: `scripts/codex-exec-scenarios/fake-codex.mjs`
+- removed: `scripts/codex-exec.test.mjs`
+- removed: `scripts/grill-census-wiring-guard.mjs`
+- removed: `scripts/grill-census-wiring-guard.test.mjs`
+- removed: `scripts/kit-release.test.mjs`
+- removed: `scripts/kit-update-pr.test.mjs`
+- removed: `scripts/lib/audit-refs.mjs`
+- removed: `scripts/lib/scrub.mjs`
+- removed: `scripts/lib/scrub.test.mjs`
+- removed: `scripts/memory-lifecycle/memory-lifecycle.test.mjs`
+- removed: `scripts/portability_profile_scan.py`
+- removed: `scripts/release-delta-guard.test.mjs`
+- removed: `scripts/release-parity.test.mjs`
+- removed: `scripts/release-state.test.mjs`
+- removed: `scripts/test_anchor_table.py`
+- removed: `scripts/test_board_bootstrap.py`
+- removed: `scripts/test_board_sync.py`
+- removed: `scripts/test_board_sync_create_idempotency.py`
+- removed: `scripts/test_board_sync_wave_title.py`
+- removed: `scripts/test_census_backstop.py`
+- removed: `scripts/test_census_forward_contract.py`
+- removed: `scripts/test_census_update_contract.test.mjs`
+- removed: `scripts/test_codex_adapter_sync_contract.py`
+- removed: `scripts/test_dist_kit_smoke.py`
+- removed: `scripts/test_drift_guard_diagnostics.py`
+- removed: `scripts/test_issue_claim_contract.py`
+- removed: `scripts/test_kit_docs_language_census.py`
+- removed: `scripts/test_marker_lib.py`
+- removed: `scripts/test_orchestrate_wave_contract.py`
+- removed: `scripts/test_pr_body_check.py`
+- removed: `scripts/test_profile_globs.py`
+- removed: `scripts/test_program_planning_contract.py`
+- removed: `scripts/test_release_authorization_contract.py`
+- removed: `scripts/test_render_anchor.py`
+- removed: `scripts/test_retro_wrapup_contract.py`
+- removed: `scripts/test_skill_code_review_seed.py`
+- removed: `scripts/test_skill_codex_exec_lifecycle.py`
+- removed: `scripts/test_skill_frontmatter_lint.py`
+- removed: `scripts/test_skill_gh_lint.py`
+- removed: `scripts/test_skill_language_census.py`
+- removed: `scripts/test_skill_optional_readiness.py`
+- removed: `scripts/test_skill_portability_lint.py`
+- removed: `scripts/test_skill_precommit_template.py`
+- removed: `scripts/test_skill_publish_audit.py`
+- removed: `scripts/test_skill_readiness_contract.py`
+- removed: `scripts/test_skill_readiness_preflight.py`
+- removed: `scripts/test_skill_required_readiness.py`
+- removed: `scripts/test_skill_selfcontainment_lint.py`
+- removed: `scripts/test_skill_setup_workflow_seeds.py`
+- removed: `scripts/test_skill_stale_name_lint.py`
+- removed: `scripts/test_skill_surface_refs.py`
+- removed: `scripts/test_skill_trailing_artifact_lint.py`
+- removed: `scripts/test_tdd_contract.py`
+- removed: `scripts/test_worktree_ignore_seed.py`
+- removed: `scripts/test_worktree_setup_base_guard.py`
+- removed: `scripts/test_worktree_wrapup_contract.py`
+- removed: `scripts/test_wrapup_land.py`
+- removed: `scripts/worktree-lifecycle/session.py`
+- changed: `.agents/skills/grill-me/SKILL.md`
+- changed: `.agents/skills/grill-with-docs/SKILL.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/board-sync.md`
+- changed: `.agents/skills/setup-workflow/workflow-advisories.md`
+- changed: `.agents/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.agents/skills/to-issues/SKILL.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/skills/grill-me-codex/SKILL.md`
+- changed: `.claude/skills/grill-me/SKILL.md`
+- changed: `.claude/skills/grill-with-docs-codex/SKILL.md`
+- changed: `.claude/skills/grill-with-docs/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/board-sync.md`
+- changed: `.claude/skills/setup-workflow/workflow-advisories.md`
+- changed: `.claude/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.claude/skills/to-issues/SKILL.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `package.json`
+- changed: `scripts/marker_lib.py`
+- changed: `scripts/profile_globs.py`
+- changed: `scripts/release-delta-guard.mjs`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/capabilities.json`
+- changed: `scripts/worktree-lifecycle/cleanup.py`
+- changed: `scripts/worktree-lifecycle/core.py`
+- changed: `scripts/worktree-lifecycle/ignore_seed.py`
+- changed: `scripts/worktree-lifecycle/profile.py`
+- changed: `scripts/worktree-lifecycle/setup.py`
+- changed: `scripts/wrapup-land.py`
+- changed: `src/consumer-migrations.json`
+- changed: `src/lib/bundle.mjs`
 
 ### 0.43.0
 

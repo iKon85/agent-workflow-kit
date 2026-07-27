@@ -31,9 +31,20 @@ function mergeDeltas(...deltas) {
   ]));
 }
 
-export function recommendBump(delta, { minorRemovals = [] } = {}) {
+/**
+ * Recommend the smallest bump the delta justifies.
+ *
+ * `initialDevelopment` is Semver's major-version-zero rule: while the package
+ * is still `0.y.z` there is no stable public contract to break, so a removal
+ * that would demand a major on a released package demands a minor here. The
+ * protection that matters at 0.x survives either way — a removal can never be
+ * a patch. Callers pass the BASE version's major, so the recommendation cannot
+ * be softened by choosing the target version.
+ */
+export function recommendBump(delta, { minorRemovals = [], initialDevelopment = false } = {}) {
   const minorRemovalSet = new Set(minorRemovals);
-  if (delta.removed.some((path) => !minorRemovalSet.has(path))) return 'major';
+  const breaking = delta.removed.some((path) => !minorRemovalSet.has(path));
+  if (breaking) return initialDevelopment ? 'minor' : 'major';
   if (delta.added.length || delta.removed.length) return 'minor';
   return delta.changed.length ? 'patch' : null;
 }
@@ -90,7 +101,10 @@ export function assessRelease(input) {
     (path) => (STUB_TARGETS.includes(path) || isPublishExcluded(path))
       && !bundleDelta.removed.includes(path),
   );
-  const recommendedBump = recommendBump(delta, { minorRemovals: payloadOnlyRemovals });
+  const recommendedBump = recommendBump(delta, {
+    minorRemovals: payloadOnlyRemovals,
+    initialDevelopment: Number(input.baseVersion.split('.')[0]) === 0,
+  });
   const actual = bumpKind(input.baseVersion, input.currentVersion);
   const rank = { patch: 1, minor: 2, major: 3 };
   if (hasDelta(delta) && input.currentVersion !== input.baseVersion && !actual) {
