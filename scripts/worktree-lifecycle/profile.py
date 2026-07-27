@@ -52,7 +52,7 @@ class WorktreeProfile:
 
     def content_branch_name(self, slug: str, branch_type: str) -> str:
         """Name the issue-less branch of a Content-route session."""
-        return _render(self.content_branch_template, slug=slug, type=branch_type)
+        return render_content_branch(self.content_branch_template, slug, branch_type)
 
     def relative_path(self, issue: str, slug: str, branch_type: str) -> Path:
         name = _render(self.path_template, issue=issue, slug=slug, type=branch_type)
@@ -69,6 +69,17 @@ def _render(template: str, **values: str) -> str:
         return template.format(**values)
     except (KeyError, IndexError, ValueError) as error:
         raise LifecycleError(f"invalid worktree template: {error}") from error
+
+
+def render_content_branch(template: str, slug: str, branch_type: str) -> str:
+    """Render one issue-less content branch name — the placeholder policy's home.
+
+    A caller that reads the template out of a raw profile document (wrapup's
+    Content route does, because it must work whether or not the worktree
+    lifecycle itself is enabled) renders it here, so `{issue}` is refused in
+    exactly one place instead of two.
+    """
+    return _render(template, slug=slug, type=branch_type)
 
 
 def _load_profile_document(document: Any) -> WorktreeProfile:

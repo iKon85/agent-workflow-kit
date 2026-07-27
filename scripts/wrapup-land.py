@@ -7,10 +7,15 @@ git/gh step of landing a slice runs here deterministically; judgment
 sibling propagation) stays with the calling agent.
 
 Subcommands
-  preflight   read-only context report (run in the worktree being landed)
-  commit      .env hard block + secret grep + git commit (run in the worktree)
-  land        push → PR → body-check → merge → teardown → sweeps → anchor-sync
-              (run FROM the main tree; refuses to run inside the worktree)
+  preflight       read-only context report (run in the worktree being landed)
+  commit          .env hard block + secret grep + git commit (run in the worktree)
+  land            push → PR → body-check → merge → teardown → sweeps → anchor-sync
+                  (run FROM the main tree; refuses to run inside the worktree)
+  content-claim   read-only: infer the durable content a planning session left
+                  dirty in the main checkout, each path with its blob hash
+  content-commit  land a confirmed claim of that content on a collision-checked
+                  issue-less branch — explicit pathspecs only, bystanders
+                  untouched, no teardown half (run in the main checkout)
 
 Any born, attached worktree is first-class: a direct /wrapup invocation is the
 teardown authorization (ADR 0009), including for worktrees an external tool
@@ -38,10 +43,13 @@ import json
 import os
 import re
 import signal
+import stat
 import subprocess
 import sys
+import tempfile
 import time
-from pathlib import Path
+from collections import Counter
+from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 from urllib.parse import quote
 
@@ -96,16 +104,18 @@ class Stop(Exception):
         self.step, self.reason, self.detail = step, reason, detail
 
 
-def run(cmd: list[str], cwd: str | None = None, check: bool = False) -> subprocess.CompletedProcess:
-    p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+def run(cmd: list[str], cwd: str | None = None, check: bool = False,
+        env: dict | None = None) -> subprocess.CompletedProcess:
+    p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env)
     if check and p.returncode != 0:
         raise Stop(cmd[0], f"command failed: {' '.join(cmd)}",
                    (p.stderr or p.stdout).strip()[-2000:])
     return p
 
 
-def git(args: list[str], cwd: str | None = None, check: bool = False) -> subprocess.CompletedProcess:
-    return run(["git", *args], cwd=cwd, check=check)
+def git(args: list[str], cwd: str | None = None, check: bool = False,
+        env: dict | None = None) -> subprocess.CompletedProcess:
+    return run(["git", *args], cwd=cwd, check=check, env=env)
 
 
 # ---------- PR check gate ----------
@@ -495,6 +505,23 @@ def load_lifecycle_profile_module():
     return load_module(LIFECYCLE_PROFILE_MODULE, path, "profile")
 
 
+def lifecycle_settings(repo_root: str) -> dict:
+    """The consumer's Worktree Lifecycle block, or {} when there is none.
+
+    Read raw rather than through the module's loader: these structural facts —
+    branch names, branch templates — are needed whether or not the consumer
+    enabled the worktree lifecycle itself.
+    """
+    try:
+        document = json.loads(
+            (Path(repo_root) / LIFECYCLE_PROFILE).read_text(encoding="utf-8")
+        )
+        candidate = document.get("worktreeLifecycle")
+    except (OSError, json.JSONDecodeError, AttributeError, TypeError):
+        return {}
+    return candidate if isinstance(candidate, dict) else {}
+
+
 def branch_policy(repo_root: str) -> tuple[str, tuple[str, ...]]:
     """Return (integration branch, protected branches) from the consumer profile.
 
@@ -503,15 +530,7 @@ def branch_policy(repo_root: str) -> tuple[str, tuple[str, ...]]:
     default, which is the single place in the kit that names a branch at all.
     """
     defaults = load_lifecycle_profile_module().DEFAULT_MAIN_BRANCHES
-    raw: dict = {}
-    try:
-        document = json.loads(
-            (Path(repo_root) / LIFECYCLE_PROFILE).read_text(encoding="utf-8")
-        )
-        candidate = document.get("worktreeLifecycle")
-        raw = candidate if isinstance(candidate, dict) else {}
-    except (OSError, json.JSONDecodeError, AttributeError, TypeError):
-        raw = {}
+    raw = lifecycle_settings(repo_root)
     integration = tuple(raw.get("mainBranches") or defaults)
     protected = tuple(raw.get("protectedBranches") or integration)
     return integration[0], protected
@@ -877,6 +896,421 @@ def cmd_commit(args) -> dict:
                    (p.stderr + "\n" + p.stdout).strip()[-3000:])
     sha = git(["rev-parse", "HEAD"], check=True).stdout.strip()
     return {"committed": True, "sha": sha, "allowed_matches": bool(hits)}
+
+
+# ---------- Content route (ADR 0009: durable content, no worktree) ----------
+#
+# A planning session has no worktree and no slice. What it produced — an ADR, a
+# glossary update, a research note — sits dirty in the main checkout on the
+# protected branch, and this is its landing door. Inference proposes; the user's
+# explicit, hash-carrying claim decides; every claimed path is re-read
+# immediately before staging; everything else in that tree is a bystander and
+# comes out untouched. There is no teardown half here: the route lands and
+# stops. It is invoked, never chained — no other route falls back into it.
+
+CONTENT_CLAIM_STEP = "content claim"
+CONTENT_STEP = "content commit"
+CONTENT_RETURN_STEP = "content return"
+CONTENT_CANDIDATE_LIMIT = 200
+CONTENT_TOP_DIRECTORY_LIMIT = 5
+
+
+class Claimed(NamedTuple):
+    """One path with the blob identity it carried when it was read."""
+
+    path: str
+    oid: str
+    mode: str
+
+    def as_record(self) -> dict:
+        return {"path": self.path, "oid": self.oid, "mode": self.mode}
+
+
+def content_context(step: str) -> tuple[str, str, tuple[str, ...]]:
+    """The route's three preconditions, each a named refusal.
+
+    It lands what a planning session left in the main checkout, so a worktree
+    and an unprotected branch both belong to the ordinary route, and a detached
+    or unborn HEAD is a state no landing can repair for you.
+    """
+    main_tree, _ = worktree_map()
+    here = git(["rev-parse", "--show-toplevel"], check=True).stdout.strip()
+    if os.path.realpath(here) != os.path.realpath(main_tree):
+        raise Stop(
+            step, "the Content route lands from the main checkout",
+            f"cwd={here} is a worktree — a slice lands through preflight/commit/land",
+        )
+    branch = require_landable_head(step, here)
+    _, protected = branch_policy(main_tree)
+    if branch not in protected:
+        raise Stop(
+            step, f"{branch} is not a protected branch",
+            "the Content route lands what a planning session left on the protected "
+            "branch; this branch lands through the ordinary route",
+        )
+    return main_tree, branch, protected
+
+
+def _zsplit(payload: str) -> list[str]:
+    return [part for part in payload.split("\0") if part]
+
+
+def content_sources(main_checkout: str, step: str) -> tuple[list[str], list[str]]:
+    """Split the dirty tree into claimable paths and named unclaimable ones.
+
+    Teardown classification lives in worktree-lifecycle/classify.py and stays
+    there. This asks a different question — what durable content is dirty — and
+    reads the two plumbing lists that answer it directly, so the kit keeps
+    exactly one porcelain-status parser and this is not a second one.
+    """
+    paths, unclaimable = [], []
+    fields = iter(_zsplit(
+        git(["diff", "--name-status", "-z", "HEAD"], cwd=main_checkout, check=True).stdout
+    ))
+    for letter in fields:
+        path = next(fields, "")
+        if not path:
+            raise Stop(step, "malformed git diff record", letter)
+        if letter[:1] in {"R", "C"}:
+            renamed = next(fields, "")
+            unclaimable.append(
+                f"{path} → {renamed} — a staged rename lands through the ordinary route"
+            )
+        elif letter[:1] == "D":
+            unclaimable.append(f"{path} — a deletion is not durable content this route lands")
+        else:
+            paths.append(path)
+    paths.extend(_zsplit(
+        git(["ls-files", "--others", "--exclude-standard", "-z"],
+            cwd=main_checkout, check=True).stdout
+    ))
+    return paths, unclaimable
+
+
+def content_oid(main_checkout: str, path: str, *, write: bool = False) -> str:
+    """The blob OID git itself would record for this path, filters included."""
+    args = ["hash-object", *(["-w"] if write else []), "--", path]
+    result = git(args, cwd=main_checkout)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def _blob_mode(metadata) -> str:
+    return "100755" if metadata.st_mode & 0o111 else "100644"
+
+
+def _content_candidate(main_checkout: str, path: str) -> tuple[Claimed | None, str]:
+    """Judge one dirty path: a claimable candidate, or the reason it is not."""
+    if ENV_PATH_RE.search(path):
+        return None, "a .env* file never lands through any route"
+    try:
+        metadata = os.lstat(Path(main_checkout) / path)
+    except OSError as error:
+        return None, f"cannot be read ({error.strerror})"
+    if stat.S_ISLNK(metadata.st_mode):
+        return None, "a symlink is not durable content this route lands"
+    if not stat.S_ISREG(metadata.st_mode):
+        return None, "not a regular file"
+    oid = content_oid(main_checkout, path)
+    if not oid:
+        return None, "git cannot hash it"
+    return Claimed(path, oid, _blob_mode(metadata)), ""
+
+
+def _content_summary(paths: list[str]) -> str:
+    """Bounded: the count plus the top directories, never a path dump."""
+    counts = Counter(str(PurePosixPath(path).parent) for path in paths)
+    top = sorted(counts.items(), key=lambda pair: (-pair[1], pair[0]))
+    listed = ", ".join(
+        f"{'./' if name == '.' else name + '/'} ({count} files)"
+        for name, count in top[:CONTENT_TOP_DIRECTORY_LIMIT]
+    )
+    return (
+        f"{len(paths)} dirty paths in {len(counts)} directories: {listed} — ignore or "
+        "remove the bulk, then run the claim again"
+    )
+
+
+def content_candidates(main_checkout: str, step: str) -> tuple[list[Claimed], list[str]]:
+    """Infer the durable content a session left dirty. Inference only proposes."""
+    paths, unclaimable = content_sources(main_checkout, step)
+    if len(paths) > CONTENT_CANDIDATE_LIMIT:
+        raise Stop(
+            step, "the dirty tree is too large to infer durable content from",
+            _content_summary(paths),
+        )
+    candidates = []
+    for path in sorted(paths):
+        entry, problem = _content_candidate(main_checkout, path)
+        if entry is None:
+            unclaimable.append(f"{path} — {problem}")
+        else:
+            candidates.append(entry)
+    return candidates, sorted(unclaimable)
+
+
+def load_claim(path: str) -> list[Claimed]:
+    """Read the confirmed claim: concrete paths, each with the hash it carried.
+
+    The recorded hash is what makes the claim verifiable, so a record without
+    one is a refusal — re-hashing at staging time would confirm nothing. A
+    record's `mode` travels for a lossless round-trip of the claim report and
+    is never the identity: content is, and the file lands with the mode it has.
+    """
+    try:
+        document = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise Stop(CONTENT_STEP, "the claim file cannot be read", str(error)) from error
+    records = document.get("claimed") if isinstance(document, dict) else document
+    if not isinstance(records, list) or not records:
+        raise Stop(CONTENT_STEP, "the claim names no path",
+                   'expected {"claimed": [{"path": ..., "oid": ...}, ...]}')
+    claim = []
+    for record in records:
+        path_value = record.get("path") if isinstance(record, dict) else None
+        oid_value = record.get("oid") if isinstance(record, dict) else None
+        if not isinstance(path_value, str) or not isinstance(oid_value, str) or not oid_value:
+            raise Stop(
+                CONTENT_STEP, "every claimed path needs the hash it was claimed with",
+                json.dumps(record, ensure_ascii=False)[:200],
+            )
+        claim.append(Claimed(path_value, oid_value, str(record.get("mode") or "")))
+    return claim
+
+
+def _is_ignored(main_checkout: str, path: str) -> bool:
+    """Git's own exclude sources decide what is Scratch (ADR 0009 §1)."""
+    return git(["check-ignore", "-q", "--", path], cwd=main_checkout).returncode == 0
+
+
+def verify_claim(main_checkout: str, claim: list[Claimed], candidates: list[Claimed]):
+    """Match the claim against the tree as it is right now.
+
+    A hard block stops the whole route. A path whose content moved since the
+    claim is dropped and named instead — a claim confirms exactly what the user
+    read, so a changed file was never confirmed, and the rest still lands.
+    """
+    inferred = {entry.path: entry for entry in candidates}
+    survivors, dropped, seen = [], [], set()
+    for entry in claim:
+        if ENV_PATH_RE.search(entry.path):
+            raise Stop(CONTENT_STEP, "a .env* path was claimed — never commit one",
+                       entry.path)
+        if entry.path in seen:
+            continue
+        seen.add(entry.path)
+        current = inferred.get(entry.path)
+        if current is None:
+            if _is_ignored(main_checkout, entry.path):
+                raise Stop(
+                    CONTENT_STEP,
+                    "an ignored path was claimed — ignored content is scratch, never "
+                    "durable content",
+                    entry.path,
+                )
+            dropped.append(f"{entry.path} — no longer dirty durable content here")
+        elif current.oid != entry.oid:
+            dropped.append(
+                f"{entry.path} — changed between the claim and staging "
+                f"({entry.oid[:7]} → {current.oid[:7]})"
+            )
+        else:
+            survivors.append(current)
+    if not survivors:
+        raise Stop(CONTENT_STEP, "nothing left to land — every claimed path dropped",
+                   "\n".join(dropped))
+    return survivors, dropped
+
+
+def stage_content(main_checkout: str, claimed: list[Claimed]) -> str:
+    """Write exactly the claimed paths into a private index; return the tree.
+
+    Neither the repository index nor the working tree is touched here: the index
+    is a throwaway file seeded from HEAD, and each entry is written by the blob
+    OID the claim was verified against. No pathspec walk exists to widen, so
+    `git add -A`, `git add .` and `git commit -a` are unreachable from this
+    route rather than merely unused.
+    """
+    with tempfile.TemporaryDirectory() as scratch:
+        environment = dict(os.environ, GIT_INDEX_FILE=str(Path(scratch) / "index"))
+        git(["read-tree", "HEAD"], cwd=main_checkout, check=True, env=environment)
+        for entry in claimed:
+            written = content_oid(main_checkout, entry.path, write=True)
+            if written != entry.oid:
+                raise Stop(
+                    CONTENT_STEP, f"{entry.path} changed while it was being staged",
+                    f"{entry.oid[:7]} → {written[:7] or 'unreadable'}; run the claim again",
+                )
+            git(["update-index", "--add", "--cacheinfo",
+                 f"{entry.mode},{entry.oid},{entry.path}"],
+                cwd=main_checkout, check=True, env=environment)
+        return git(["write-tree"], cwd=main_checkout, check=True,
+                   env=environment).stdout.strip()
+
+
+def verify_staged_tree(main_checkout: str, tree: str, claimed: list[Claimed]) -> None:
+    """Assert the staged tree carries exactly the claim — by name and by OID."""
+    changed = sorted(_zsplit(
+        git(["diff-tree", "-r", "--name-only", "-z", "HEAD", tree],
+            cwd=main_checkout, check=True).stdout
+    ))
+    expected = sorted(entry.path for entry in claimed)
+    if changed != expected:
+        raise Stop(CONTENT_STEP, "the staged tree is not exactly the claim",
+                   f"staged {changed} against the claim {expected}")
+    for entry in claimed:
+        listed = git(["ls-tree", "--full-name", tree, "--", entry.path],
+                     cwd=main_checkout, check=True).stdout.split()
+        if listed[:3] != [entry.mode, "blob", entry.oid]:
+            raise Stop(CONTENT_STEP, f"{entry.path} is staged as a different object",
+                       " ".join(listed[:3]) or "absent from the staged tree")
+
+
+def content_secret_gate(main_checkout: str, tree: str, allow_matches: bool) -> list[str]:
+    """The ordinary secret scan, run on exactly the diff this route will commit."""
+    patch = git(["diff-tree", "-p", "HEAD", tree], cwd=main_checkout, check=True).stdout
+    hits = secret_hits_in(patch)
+    if hits and not allow_matches:
+        raise Stop(
+            CONTENT_STEP,
+            "possible secrets in the claimed content — review; false positive → re-run "
+            "with --allow-matches, real secret → resolve first",
+            "\n".join(hits[:40]),
+        )
+    return hits
+
+
+def content_branch_name(main_checkout: str, slug: str, branch_type: str) -> str:
+    """Render the issue-less branch from the profile's content template."""
+    module = load_lifecycle_profile_module()
+    template = (lifecycle_settings(main_checkout).get("contentBranchTemplate")
+                or module.DEFAULT_CONTENT_BRANCH_TEMPLATE)
+    try:
+        branch = module.render_content_branch(template, slug, branch_type)
+    except module.LifecycleError as error:
+        raise Stop(CONTENT_STEP, "the content branch template cannot be rendered",
+                   str(error)) from error
+    if git(["check-ref-format", "--branch", branch], cwd=main_checkout).returncode != 0:
+        raise Stop(CONTENT_STEP, f"{branch} is not a valid branch name",
+                   "choose another slug or branch type")
+    return branch
+
+
+def check_content_collision(main_checkout: str, branch: str) -> list[str]:
+    """A branch that exists anywhere is a collision — never reuse, never overwrite."""
+    advice = "the Content route never reuses or overwrites a branch — choose another slug"
+    if branch_tip(main_checkout, branch):
+        raise Stop(CONTENT_STEP, f"branch {branch} already exists locally", advice)
+    listed = git(["ls-remote", "--heads", "origin", branch], cwd=main_checkout)
+    if listed.returncode != 0:
+        return [
+            f"the remote could not be queried, so the collision check for {branch} was "
+            f"local only: {sanitize_external_detail(listed.stderr or listed.stdout)}"
+        ]
+    if listed.stdout.strip():
+        raise Stop(CONTENT_STEP, f"branch {branch} already exists on the remote", advice)
+    return []
+
+
+def cut_content_branch(main_checkout: str, branch: str, tree: str, message: str,
+                       claimed: list[Claimed]) -> str:
+    """Cut the branch onto the verified tree, refreshing only the claimed paths."""
+    paths = [entry.path for entry in claimed]
+    parent = git(["rev-parse", "HEAD"], cwd=main_checkout, check=True).stdout.strip()
+    commit = git(["commit-tree", tree, "-p", parent, "-m", message],
+                 cwd=main_checkout, check=True).stdout.strip()
+    git(["switch", "-c", branch], cwd=main_checkout, check=True)
+    git(["update-ref", "-m", f"wrapup content route: {branch}", "HEAD", commit, parent],
+        cwd=main_checkout, check=True)
+    git(["reset", "-q", "HEAD", "--", *paths], cwd=main_checkout, check=True)
+    if git(["rev-parse", "HEAD"], cwd=main_checkout, check=True).stdout.strip() != commit:
+        raise Stop(CONTENT_STEP, f"{branch} does not carry the verified commit", commit)
+    if git(["diff", "--quiet", "HEAD", "--", *paths], cwd=main_checkout).returncode != 0:
+        raise Stop(CONTENT_STEP, "the claimed paths are still dirty after the commit",
+                   f"{branch} at {commit[:7]} — inspect before running the claim again")
+    return commit
+
+
+def return_to_protected(main_checkout: str, protected_branch: str, branch: str,
+                        commit: str) -> str:
+    """Return the checkout to the protected branch, or stop naming the blocker."""
+    result = git(["switch", protected_branch], cwd=main_checkout)
+    if result.returncode != 0:
+        raise Stop(
+            CONTENT_RETURN_STEP,
+            f"cannot return the main checkout to {protected_branch} — nothing was "
+            "forced and nothing was stashed",
+            f"the content is safe on {branch} at {commit[:7]}, and the main checkout is "
+            f"still on {branch}: " + (result.stderr or result.stdout).strip()[-1000:],
+        )
+    return protected_branch
+
+
+def content_pr_reference(anchor: str | None, body_file: str | None):
+    """`Part of` the anchor — a planning session's content never closes one."""
+    warnings: list[str] = []
+    if body_file:
+        try:
+            body = Path(body_file).read_text(encoding="utf-8")
+        except OSError as error:
+            raise Stop(CONTENT_STEP, "the PR body file cannot be read", str(error)) from error
+        targets = declared_close_targets(body)
+        if targets:
+            raise Stop(
+                CONTENT_STEP,
+                "the PR body declares a close keyword — a planning session's content "
+                "never closes its anchor",
+                "declared: " + ", ".join(f"#{target}" for target in targets),
+            )
+    if not anchor:
+        return None, warnings
+    marker = (load_profile().get("prMarkers") or {}).get("partOf")
+    if not marker:
+        warnings.append("the board profile names no partOf marker, so no anchor "
+                        "reference was rendered")
+        return None, warnings
+    return f"{marker} #{anchor}", warnings
+
+
+def cmd_content_claim(args) -> dict:
+    """Read-only: propose the durable content, each path with its hash."""
+    main_checkout, branch, _ = content_context(CONTENT_CLAIM_STEP)
+    candidates, unclaimable = content_candidates(main_checkout, CONTENT_CLAIM_STEP)
+    return {
+        "main_checkout": main_checkout,
+        "branch": branch,
+        "candidates": [entry.as_record() for entry in candidates],
+        "unclaimable": unclaimable,
+        "next": "confirm the durable paths with the user, then run content-commit "
+                "--claim-file with exactly those records",
+    }
+
+
+def cmd_content_commit(args) -> dict:
+    """Land the confirmed claim: verify, cut, commit, return. No teardown half."""
+    main_checkout, protected_branch, _ = content_context(CONTENT_STEP)
+    claim = load_claim(args.claim_file)
+    candidates, _ = content_candidates(main_checkout, CONTENT_STEP)
+    claimed, dropped = verify_claim(main_checkout, claim, candidates)
+    tree = stage_content(main_checkout, claimed)
+    verify_staged_tree(main_checkout, tree, claimed)
+    hits = content_secret_gate(main_checkout, tree, args.allow_matches)
+    reference, warnings = content_pr_reference(args.anchor, args.body_file)
+    branch = content_branch_name(main_checkout, args.slug, args.type)
+    warnings += check_content_collision(main_checkout, branch)
+    commit = cut_content_branch(main_checkout, branch, tree, args.message, claimed)
+    returned = return_to_protected(main_checkout, protected_branch, branch, commit)
+    return {
+        "branch": branch,
+        "commit": commit,
+        "returned_to": returned,
+        "claimed": [entry.path for entry in claimed],
+        "dropped": dropped,
+        "allowed_matches": bool(hits),
+        "pr_reference": reference,
+        "warnings": warnings,
+        "next": f"open and merge the PR with `land --branch {branch}` — it finds no "
+                "worktree and tears nothing down",
+    }
 
 
 # ---------- branch deletion authority (ADR 0009 §3) ----------
@@ -1484,14 +1918,34 @@ def build_parser() -> argparse.ArgumentParser:
     l.add_argument("--skip-malformed-drift", action="store_true")
     # No recovery flag exists: an interrupted landing is resumed by re-running
     # `land`, which re-checks present state at every step (ADR 0009).
+    sub.add_parser("content-claim",
+                   help="read-only: infer durable content in the main checkout")
+    c2 = sub.add_parser("content-commit",
+                        help="land a confirmed content claim (run in the main checkout)")
+    c2.add_argument("--claim-file", required=True,
+                    help="the confirmed claim: the content-claim records the user picked")
+    c2.add_argument("-m", "--message", required=True)
+    c2.add_argument("--slug", required=True, help="branch slug for the content branch")
+    c2.add_argument("--type", required=True, help="branch type for the content branch")
+    c2.add_argument("--anchor", help="anchor issue # the content belongs to")
+    c2.add_argument("--body-file", help="PR body to check (a close keyword is refused)")
+    c2.add_argument("--allow-matches", action="store_true",
+                    help="proceed despite secret-grep matches (after human review)")
     return ap
 
 
 def main() -> int:
     args = build_parser().parse_args()
 
+    handlers = {
+        "preflight": cmd_preflight,
+        "commit": cmd_commit,
+        "land": cmd_land,
+        "content-claim": cmd_content_claim,
+        "content-commit": cmd_content_commit,
+    }
     try:
-        result = {"preflight": cmd_preflight, "commit": cmd_commit, "land": cmd_land}[args.cmd](args)
+        result = handlers[args.cmd](args)
         print(json.dumps({"ok": True, "cmd": args.cmd, **result}, ensure_ascii=False, indent=2))
         return 0
     except Stop as s:

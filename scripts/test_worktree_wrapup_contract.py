@@ -115,7 +115,7 @@ class FakeHub:
     def count(self, *prefix) -> int:
         return len([call for call in self.calls if call[:len(prefix)] == list(prefix)])
 
-    def __call__(self, args, cwd=None, check=False):
+    def __call__(self, args, cwd=None, check=False, env=None):
         args = list(args)
         self.calls.append(args)
         if args[:3] == ["gh", "pr", "view"]:
@@ -144,7 +144,7 @@ class FakeHub:
             return _ok(args, json.dumps({"state": "CLOSED"}))
         if args and args[0] == sys.executable:
             return _ok(args)
-        return self.real_run(args, cwd=cwd, check=check)
+        return self.real_run(args, cwd=cwd, check=check, env=env)
 
 
 def land_args(branch, **overrides):
@@ -416,10 +416,10 @@ class ProcessKillContract(unittest.TestCase):
     def _with_listener(self, wrapup, worktree: Path, pid: int):
         real_run = wrapup.run
 
-        def runner(args, cwd=None, check=False):
+        def runner(args, cwd=None, check=False, env=None):
             if list(args)[:2] == ["lsof", "-ti"]:
                 return _ok(args, f"{pid}\n")
-            return real_run(args, cwd=cwd, check=check)
+            return real_run(args, cwd=cwd, check=check, env=env)
 
         return patch.object(wrapup, "run", side_effect=runner)
 

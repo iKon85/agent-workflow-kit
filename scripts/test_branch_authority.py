@@ -84,11 +84,11 @@ class FakePlatform:
         self.installed = installed
         self.calls: list[list[str]] = []
 
-    def __call__(self, args, cwd=None, check=False):
+    def __call__(self, args, cwd=None, check=False, env=None):
         args = list(args)
         self.calls.append(args)
         if args[0] != "gh":
-            return self.real_run(args, cwd=cwd, check=check)
+            return self.real_run(args, cwd=cwd, check=check, env=env)
         if not self.installed:
             raise FileNotFoundError(2, "No such file or directory", "gh")
         if not self.authenticated:

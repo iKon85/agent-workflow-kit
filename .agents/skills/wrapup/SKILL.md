@@ -9,10 +9,13 @@ description: >-
   merged-branch leftovers (local + stale remote whose PR is merged). If the
   slice isn't landed yet, it first makes it landable (Step 0): commits a dirty
   tree (after an .env/secret check), pushes, and opens the PR — reusing one if
-  it already exists. User-triggered only (never auto-invoke, never hook). Aborts
-  hard only on: the main checkout or a protected branch, a detached or unborn
-  HEAD, a detected .env/secret, a rejected push, a conflicting PR, terminal red
-  checks, or checks still pending after the bounded wait budget.
+  it already exists. Second route (no worktree, no slice): durable content dirty
+  in the main checkout lands via one confirmed, hash-verified file claim on an
+  issue-less branch — bystanders untouched, no teardown. User-triggered
+  only (never auto-invoke, never hook). Aborts hard only on: the worktree flow
+  on the main checkout or a protected branch, a detached or unborn HEAD, a
+  detected .env/secret, a rejected push, a conflicting PR, terminal red checks,
+  or checks still pending after the bounded wait budget.
 ---
 
 <!-- project-extension:protocol-v1:start -->
@@ -156,6 +159,35 @@ else on those ports is a STOP naming the process, not a kill.
   is running or live unless the configured trigger and observed evidence prove
   it; keep unknown timing explicit.
 <!-- readiness:end -->
+
+## Content route — durable content without a worktree
+
+**Explicit invocation only, never a fallback from the flow above.** Use it when `$wrapup` or `/wrapup` runs in the **main checkout on a protected branch** and the session produced durable content — a decision record, a glossary update, a research note — with no worktree and no slice. A session that has a worktree always takes the flow above. Authorization is unchanged: the user's direct invocation, nothing else.
+
+### C1 · Infer (read-only)
+```bash
+python3 scripts/wrapup-land.py content-claim
+```
+Reports every dirty path that could be durable content, each with the blob hash it carries **right now**, plus `unclaimable` — deletions, renames, symlinks, `.env*` — named instead of hidden. Ignored paths are scratch and never appear. A dirty tree too large to reason about stops with a bounded summary (count plus top directories), never a path dump.
+
+### C2 · Claim (the one gate — agent judgment)
+Show the candidates and let the **user confirm an explicit file list**. Inference proposes; the claim decides. Write exactly the confirmed records — `path` and `oid` copied verbatim — to a claim file:
+```json
+{"claimed": [{"path": "docs/decisions/lifecycle.md", "oid": "<from content-claim>"}]}
+```
+
+### C3 · Land
+```bash
+python3 scripts/wrapup-land.py content-commit --claim-file /tmp/wrapup-claim.json \
+  -m "<commit message>" --type "<branch type>" --slug "<slug>" [--anchor <n>] [--body-file <body>]
+```
+The branch name comes from the profile's content branch template (issue-less by construction — a planning session has no issue number); the type is one of the profile's own branch prefixes. One call covers: re-read every claimed path (a path whose content moved since the claim is **dropped and named** in the report, the rest still lands; every claimed path gone → STOP) → `.env*` hard block plus the ordinary secret scan on exactly the diff to be committed → stage the claim into a private index and verify the resulting tree by name **and** object id → collision-check the branch locally **and** on the remote → commit → return the main checkout to the protected branch.
+
+Everything not in the claim is a bystander and is never read, staged, or written — including changes the user had already staged. The route has no wholesale staging step to widen, so the ordinary dirty-tree commit cannot be reached from here at all. It never closes an anchor: `--anchor` renders the board profile's `prMarkers.partOf` reference, and a `--body-file` that declares a close keyword is refused. There is no teardown half — no worktree to remove, no branch to retire.
+
+Then land it like any other branch: `land --branch <branch> --title … --body-file …` finds no worktree and tears nothing down.
+
+STOPs name their cause and force nothing: a claimed `.env*` or ignored path, a claim whose every path drifted, a secret in the claimed content, a branch that already exists locally or on the remote, and a **blocked return switch** — a conflicting checkout leaves the main checkout on the content branch and says so; the content is safe in the commit, and nothing is stashed or forced.
 
 ## Out of scope
 - Live-verify / DoD: must happen **before** `$wrapup` or `/wrapup` — this skill lands, it does not verify.
