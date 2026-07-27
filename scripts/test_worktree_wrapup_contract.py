@@ -51,7 +51,7 @@ def create_merged_worktree(
     command(["git", "config", "user.name", "Test"], main)
     command(["git", "config", "user.email", "test@example.invalid"], main)
     (main / ".gitignore").write_text(
-        ".worktrees/\ndist-kit/\n__pycache__/\n.claude/logs/\nconsumer/\n",
+        ".worktrees/\ndist-kit/\n__pycache__/\n.claude/logs/\nconsumer/\nnode_modules/\n",
         encoding="utf-8",
     )
     profile = main / "docs/agents/workflow-capabilities.json"
@@ -773,6 +773,35 @@ class WorktreeCleanupContract(unittest.TestCase):
             self.assertFalse(worktree.exists())
             self.assertTrue(second["merged"])
 
+    def test_pnpm_symlink_farm_reaches_guarded_land_idempotently(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(
+                Path(tmp), scratch_patterns=["node_modules/**"]
+            )
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            wrapup.freeze_landing_artifact_evidence(
+                str(worktree), str(main), push_succeeded=True
+            )
+            package = (
+                worktree
+                / "node_modules/.pnpm/example@1.0.0/node_modules/example"
+            )
+            package.mkdir(parents=True)
+            (package / "index.js").write_text(
+                "export default 1;\n", encoding="utf-8"
+            )
+            (worktree / "node_modules/example").symlink_to(
+                ".pnpm/example@1.0.0/node_modules/example"
+            )
+
+            first = run_land(wrapup, main, land_args())
+            second = run_land(wrapup, main, land_args())
+
+            self.assertEqual(first["worktree_removed"], str(worktree))
+            self.assertFalse(worktree.exists())
+            self.assertTrue(second["merged"])
+
     def test_append_after_profile_log_assessment_is_preserved_and_stops(self):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:
@@ -933,6 +962,66 @@ class WorktreeCleanupContract(unittest.TestCase):
             self.assertIn("dist-kit/late.tgz", stopped.exception.reason)
             self.assertTrue(generated.exists())
             self.assertTrue(late.exists())
+
+    def test_late_profile_scratch_symlink_stops_before_assessed_links_are_removed(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(
+                Path(tmp), scratch_patterns=["node_modules/**"]
+            )
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            packages = worktree / "node_modules/.pnpm"
+            first_target = packages / "first@1.0.0/node_modules/first"
+            first_target.mkdir(parents=True)
+            first = worktree / "node_modules/first"
+            first.symlink_to(".pnpm/first@1.0.0/node_modules/first")
+            assessment = wrapup.ensure_worktree_removable(
+                str(worktree), str(main)
+            )
+            late_target = packages / "late@1.0.0/node_modules/late"
+            late_target.mkdir(parents=True)
+            late = worktree / "node_modules/late"
+            late.symlink_to(".pnpm/late@1.0.0/node_modules/late")
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.remove_verified_worktree_scratch(
+                    str(worktree), str(main), assessment
+                )
+
+            self.assertIn(
+                "inventory no longer matches preview", stopped.exception.reason
+            )
+            self.assertTrue(first.is_symlink())
+            self.assertTrue(late.is_symlink())
+
+    def test_changed_internal_symlink_target_identity_stops_cleanup(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            main, worktree = create_merged_worktree(
+                Path(tmp), scratch_patterns=["PLAN.md"]
+            )
+            wrapup.landing_start_artifact_inventory(str(worktree), str(main))
+            link = worktree / "PLAN.md"
+            link.symlink_to("change.txt")
+            assessment = wrapup.ensure_worktree_removable(
+                str(worktree), str(main)
+            )
+            tracked_target = worktree / "change.txt"
+            original = tracked_target.read_text(encoding="utf-8")
+            replacement = worktree / "replacement.tmp"
+            replacement.write_text(original, encoding="utf-8")
+            os.replace(replacement, tracked_target)
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                wrapup.remove_verified_worktree_scratch(
+                    str(worktree), str(main), assessment
+                )
+
+            self.assertIn(
+                "inventory no longer matches preview", stopped.exception.reason
+            )
+            self.assertTrue(link.is_symlink())
+            self.assertEqual(tracked_target.read_text(encoding="utf-8"), original)
 
     def test_same_path_generated_replacement_is_preserved_by_frozen_evidence(self):
         wrapup = load_wrapup()
