@@ -20,24 +20,35 @@
  * whitespace in untouched text is preserved verbatim.
  *
  * Negatives that MUST survive (tested): `#<n>` / `<issue-number>` placeholders,
- * hex colors (`#0f172a`, `#dc2626`), shell comments (`# foo`), code `#{issue}`
- * interpolations and `()`. The `{3,5}`-digit bound on issue refs is what keeps
- * those out of the match set.
+ * hex colors (`#0f172a`, `#dc2626`, and the all-digit `#454E60` / `#123456`),
+ * shell comments (`# foo`), code `#{issue}` interpolations and `()`. The
+ * `{3,5}`-digit bound on issue refs plus the trailing `\b` are what keep those
+ * out of the match set: a hex whose digits run into a letter or into a 6th digit
+ * can no longer donate a 3-5 digit prefix to the match. The residual, inherent
+ * collision is a 3- or 4-character ALL-DIGIT hex (`#123`, `#1234`) — that is
+ * character-for-character an issue ref and no rule can tell them apart.
  *
  * The fail-closed publish audit (Step 13) is the backstop: any residual ref or
  * private token fails the build, so an imperfect scrub never leaks silently.
  */
 
-const ISSUES = String.raw`#\d{3,5}(?:\s*/\s*#?\d{3,5})*`;   // issue ref, incl. slash-joined
-const REF = String.raw`(?:#\d{3,5}|HR\d+)(?:/\d+)*`;        // issue OR HR, compound
+// Issue ref, incl. slash-joined. The trailing `\b` is load-bearing: without it
+// `#454E60` / `#123456` (all-digit hex colors) donate their first 3-5 digits to
+// the match, and rule (b1b) then eats the CSS `:` with them (`--door-text:#454E60`
+// → `--door-textE60`). `\b` requires the digit run to END the token, so a hex that
+// continues into a letter or a 6th digit no longer matches at all.
+const ISSUES = String.raw`#\d{3,5}\b(?:\s*/\s*#?\d{3,5}\b)*`;
+const REF = String.raw`(?:#\d{3,5}\b|HR\d+)(?:/\d+)*`;      // issue OR HR, compound
 // Provenance cross-refs a kit consumer cannot resolve (no docs/adr, no wave
 // history). Stripped ONLY in citation position (a ref-only parenthetical) so
 // bare-prose fixtures/examples ("Welle 1 covers 9 slices", "contradicts
 // ADR-0007 — but", the `Welle 7 — X` parser example) survive untouched — those
 // are NOT citation-shaped. Kept in sync with the publish audit's PROVENANCE_DENY.
-const PROV = String.raw`(?:ADR-\d{3,4}|Welle \d+|Slice \d+[a-z]?)`;
+// BOTH ADR spellings count: `ADR-0009` and `ADR 0009` are the same citation, and
+// accepting only the hyphen let the spaced form ship unresolvable to consumers.
+const PROV = String.raw`(?:ADR[ -]\d{3,4}|Welle \d+|Slice \d+[a-z]?)`;
 // Any internal ref token — the union consumed inside a ref-only parenthetical.
-const ANYREF = String.raw`(?:#\d{3,5}|HR\d+(?:/\d+)*|${PROV})`;
+const ANYREF = String.raw`(?:#\d{3,5}\b|HR\d+(?:/\d+)*|${PROV})`;
 
 // (a) -----------------------------------------------------------------------
 function privateTokens(s) {

@@ -126,7 +126,7 @@ replace the ~30-second heartbeat; otherwise the standing heartbeat remains requi
 
 1. **Read everything**: the anchor body, every sub-issue body (each has a Handoff
    block: scope, blast-radius, live-verify, PR line), and the locked plan /
-   plan-review doc in the planning worktree (file-exact).
+   plan-review doc the handoff points at, file-exact when one is on disk.
 2. **Select exact commands or the generic fallback.** If the readiness result
    activated `projectRecipe`, use the loaded filled recipe wherever a phase below
    points at a `§`-section. Otherwise use each phase's generic fallback; the
@@ -141,9 +141,10 @@ replace the ~30-second heartbeat; otherwise the standing heartbeat remains requi
    LOCAL annotated tag, so two sessions racing one wave cannot both win. Either
    `acquired: false` or a work signal you did not create means another session
    owns the wave — **STOP**, report the returned `claim.owner` plus the exact
-   branch/worktree, touch nothing. After acquisition, begin the claim-bound teardown receipt with `python3 scripts/worktree-lifecycle/session.py begin --anchor <anchor> --owner <claim-owner> --base <wave-HEAD>`; claim and receipt stay local — never push them.
-4. **Wave worktree**: reuse the planning worktree (never re-create; the handoff
-   points there). Bring its branch to current `main`:
+   branch/worktree, touch nothing. The claim stays local — never push it.
+4. **Wave worktree**: reuse the planning worktree when the handoff names one,
+   never re-creating it; planning binds to no worktree, so a wave may need one
+   cut with your worktree helper. Bring its branch to current `main`:
    `git -C <wave> merge --ff-only origin/main` (if your repo guards destructive
    git, ff-merge is the safe path — not `reset --hard`). Install dependencies with
    your package manager after (the lockfile may have moved). A plan doc the repository
@@ -195,8 +196,7 @@ disjoint wave, conflict hub first. Dispatch only `FREI` slices: re-read
 `frontier <anchor#>` before each wave and clear changed edges only via `dep-remove`.
 Before each slice, bind **(a) inline vs delegate** and **(b) tier + effort** under
 Standing rules. Tiny mechanical work may stay inline.
-For Path A/B, create each new worktree through the active receipt: `python3 scripts/worktree-lifecycle/session.py create --anchor <anchor> --owner <claim-owner> --base <wave-HEAD> --profile <profile> <slice-issue> <slug> <type>`.
-It refuses reused/pre-existing targets; never replace this ownership proof with raw `git worktree add`.
+For Path A/B, create each new worktree with your project's worktree helper — in this kit `python3 scripts/worktree-lifecycle/setup.py --profile <profile> --base <wave-HEAD> <slice-issue> <slug> <type>`, which rolls the worktree and branch back if project setup fails.
 - **Claim each slice issue at builder launch — the wave claim is not a slice
   claim.** It guards the anchor on this machine only; the slice issue is the
   grabbable unit a second machine or cloud agent sees. Before dispatch, skip and
@@ -358,8 +358,8 @@ written · merge order documented.
 - A skill edited during the wave → sync its dual-surface mirror in the SAME PR
   using the tool named by `§Landing` when present; mirror parity remains a pre-PR
   gate.
-- After reading every `ANNAHMEN.md`, seal the receipt, inspect it against fetched canonical `main`, then run its `teardown`; only ancestry/one-to-one patch-equivalent exact owned OIDs are compare-deleted, while foreign targets, unique/ambiguous content, changed OIDs, dirty/protected worktrees, and open/unknown PR evidence stop.
-- Keep the completed receipt as recovery-OID evidence; only then release this run's wave claim.
+- After reading every `ANNAHMEN.md`, tear each landed slice worktree down from the repository's current state: tracked changes, non-ignored untracked files, an unmerged branch, or a protected branch stop that one worktree and name the cause.
+- Only once every worktree decision is made, release this run's wave claim.
 
 **Done when:** no orphan process · this run's wave claim removed · this run's
 unlanded slice claims released · ANNAHMEN propagated ·

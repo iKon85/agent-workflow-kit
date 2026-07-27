@@ -133,7 +133,9 @@ For a cross-cutting plan, run `python3 .claude/hooks/drift-guard.py --census-sta
 
 When the decision tree is resolved, the glossary/ADRs are updated, and we're aligned, **write the agreed plan to `PLAN.md`** (use the canonical terms from `CONTEXT.md`), then run Act 2:
 
-> **Where to write it:** `PLAN.md` + `PLAN-REVIEW-LOG.md` are per-session scratch — write them in the working directory the implementing session will actually use, and invoke the wrapper from that directory. A project may gitignore these files, so don't rely on git to carry them across checkouts/worktrees. In worktree-based repos, create the issue worktree BEFORE this write and plan inside it.
+> **Where to write it:** `PLAN.md` + `PLAN-REVIEW-LOG.md` are per-session scratch — write them where this session already runs, and invoke the wrapper from that directory. Planning creates no worktree: a worktree isolates a build, so it belongs to the implementing session, which creates it when the build starts. A project may gitignore these files, so don't rely on git to carry them across checkouts/worktrees; being ignored is also what makes them scratch, deletable at teardown and needing no cleanup step of their own.
+>
+> **Durable output is the opposite case:** the `CONTEXT.md` and ADR updates this grill wrote inline, plus any research notes, are ordinary work and have to reach a commit. Land them with `$wrapup` — a planning session with no worktree takes its Content route, which claims an explicitly confirmed file list and opens the ordinary PR, with no teardown half. Never leave the documentation this grill just sharpened behind as an uncommitted session leftover.
 
 ```markdown
 # Plan: <task>

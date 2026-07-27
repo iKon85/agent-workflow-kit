@@ -39,13 +39,12 @@
     {
       "historicalPath": "scripts/cleanup-worktrees.sh",
       "artifact": "scripts/worktree-lifecycle/cleanup.py",
-      "supportingArtifacts": ["scripts/worktree-lifecycle/session.py"],
+      "supportingArtifacts": ["scripts/worktree-lifecycle/classify.py"],
       "primitives": [
         "profile",
         "git-facts",
         "cleanup-safety",
-        "claim-bound-session-receipt",
-        "patch-equivalence",
+        "stateless-classification",
         "compare-and-delete"
       ]
     }

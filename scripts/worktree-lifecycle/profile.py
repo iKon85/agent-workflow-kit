@@ -1,4 +1,21 @@
-"""Worktree Lifecycle profile loading and low-level git operations."""
+"""Worktree Lifecycle profile loading and low-level git operations.
+
+The profile carries **structural facts only** — worktree root, naming
+templates, the protected branches, the setup sequence. Deletion policy has
+exactly one configuration surface, the ignore mechanism, so no pattern list is
+read here. Keys this loader does not know are ignored in silence: a profile
+written for an older kit keeps working, and an obsolete key produces no warning
+noise.
+
+Two branch templates exist because two kinds of work land. `branchTemplate`
+names the branch of an issue-anchored slice; `contentBranchTemplate` names the
+issue-less branch a session cuts for durable content, so it renders `{type}`
+and `{slug}` only and refuses `{issue}` outright rather than inventing a number.
+
+`DEFAULT_MAIN_BRANCHES` is the single place in the kit that names an
+integration branch at all; every command, test, and message resolves the name
+through the profile instead of assuming it.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +26,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+DEFAULT_MAIN_BRANCHES = ("main", "master")
+DEFAULT_CONTENT_BRANCH_TEMPLATE = "{type}/{slug}"
+
 
 class LifecycleError(RuntimeError):
     """A safe, user-visible lifecycle refusal."""
@@ -18,6 +38,7 @@ class LifecycleError(RuntimeError):
 class WorktreeProfile:
     root: str
     branch_template: str
+    content_branch_template: str
     path_template: str
     main_branches: tuple[str, ...]
     protected_branches: tuple[str, ...]
@@ -25,15 +46,16 @@ class WorktreeProfile:
     branch_regex: str
     setup_entry: str
     risky_command_patterns: tuple[str, ...]
-    scratch_patterns: tuple[str, ...]
-    landing_generated_artifact_policy_configured: bool
-    landing_generated_artifact_patterns: tuple[str, ...]
 
     def branch_name(self, issue: str, slug: str, branch_type: str) -> str:
-        return _render(self.branch_template, issue, slug, branch_type)
+        return _render(self.branch_template, issue=issue, slug=slug, type=branch_type)
+
+    def content_branch_name(self, slug: str, branch_type: str) -> str:
+        """Name the issue-less branch of a Content-route session."""
+        return render_content_branch(self.content_branch_template, slug, branch_type)
 
     def relative_path(self, issue: str, slug: str, branch_type: str) -> Path:
-        name = _render(self.path_template, issue, slug, branch_type)
+        name = _render(self.path_template, issue=issue, slug=slug, type=branch_type)
         return Path(self.root) / name
 
     def issue_from_branch(self, branch: str) -> str | None:
@@ -41,12 +63,23 @@ class WorktreeProfile:
         return match.groupdict().get("issue") if match else None
 
 
-def _render(template: str, issue: str, slug: str, branch_type: str) -> str:
-    values = {"issue": issue, "slug": slug, "type": branch_type}
+def _render(template: str, **values: str) -> str:
+    """Render a profile template from exactly the placeholders it may use."""
     try:
         return template.format(**values)
-    except (KeyError, ValueError) as error:
+    except (KeyError, IndexError, ValueError) as error:
         raise LifecycleError(f"invalid worktree template: {error}") from error
+
+
+def render_content_branch(template: str, slug: str, branch_type: str) -> str:
+    """Render one issue-less content branch name — the placeholder policy's home.
+
+    A caller that reads the template out of a raw profile document (wrapup's
+    Content route does, because it must work whether or not the worktree
+    lifecycle itself is enabled) renders it here, so `{issue}` is refused in
+    exactly one place instead of two.
+    """
+    return _render(template, slug=slug, type=branch_type)
 
 
 def _load_profile_document(document: Any) -> WorktreeProfile:
@@ -56,26 +89,13 @@ def _load_profile_document(document: Any) -> WorktreeProfile:
         raise LifecycleError(f"cannot load worktree lifecycle profile: {error}") from error
     if raw.get("enabled") is not True:
         raise LifecycleError("worktree lifecycle is not enabled")
-    wrapup = document.get("wrapup")
-    if wrapup is None:
-        wrapup = {}
-    if not isinstance(wrapup, dict):
-        raise LifecycleError("invalid wrapup profile")
-    generated_policy_configured = "landingGeneratedArtifactPatterns" in wrapup
-    generated_patterns = (
-        wrapup["landingGeneratedArtifactPatterns"]
-        if generated_policy_configured
-        else ()
-    )
-    if (
-        not isinstance(generated_patterns, (list, tuple))
-        or not all(isinstance(pattern, str) and pattern for pattern in generated_patterns)
-    ):
-        raise LifecycleError("invalid wrapup landingGeneratedArtifactPatterns")
-    main = tuple(raw.get("mainBranches") or ("main", "master"))
+    main = tuple(raw.get("mainBranches") or DEFAULT_MAIN_BRANCHES)
     return WorktreeProfile(
         root=raw.get("worktreeRoot", ".worktrees"),
         branch_template=raw.get("branchTemplate", "{type}/{issue}-{slug}"),
+        content_branch_template=raw.get(
+            "contentBranchTemplate", DEFAULT_CONTENT_BRANCH_TEMPLATE,
+        ),
         path_template=raw.get("pathTemplate", "{type}-{issue}-{slug}"),
         main_branches=main,
         protected_branches=tuple(raw.get("protectedBranches") or main),
@@ -92,9 +112,6 @@ def _load_profile_document(document: Any) -> WorktreeProfile:
             r"\b(?:npm|pnpm|yarn)\s+(?:run\s+)?(?:test|typecheck|build)\b",
             r"\bgit\s+(?:commit|push)\b",
         )),
-        scratch_patterns=tuple(raw.get("scratchPatterns") or ()),
-        landing_generated_artifact_policy_configured=generated_policy_configured,
-        landing_generated_artifact_patterns=tuple(generated_patterns),
     )
 
 

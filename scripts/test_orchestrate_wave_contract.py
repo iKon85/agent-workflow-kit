@@ -95,14 +95,15 @@ BEHAVIORAL_PARITY = {
         "Program-PRD",
         "program sync",
     ),
-    "session-owned teardown": (
-        "session.py begin",
-        "session.py create",
-        "refuses reused/pre-existing targets",
-        "seal the receipt",
-        "compare-deleted",
-        "foreign targets",
-        "recovery-OID evidence",
+    # ADR-0009 replaced the claim-bound teardown receipt with stateless
+    # classification.  What the wave still owns is the wave CLAIM (a different
+    # concept, src/lib/waveClaim.mjs) plus reading every ANNAHMEN.md before the
+    # worktree goes away.
+    "stateless wave teardown": (
+        "wave-active/<anchor>",
+        "claim stays local — never push it",
+        "After reading every `ANNAHMEN.md`",
+        "release this run's wave claim",
     ),
     "program authorization continuity": (
         "explicit whole-Program mandate",
@@ -145,6 +146,20 @@ class OrchestrateWaveContract(unittest.TestCase):
                     self.assertIn(" ".join(fragment.split()), prose)
 
         self.assertNotRegex(self.skill, re.compile(r"/home/|#[0-9]{3,}"))
+
+    def test_no_surface_dispatches_the_deleted_teardown_receipt_cli(self):
+        """ADR-0009 removed the receipt CLI; the wave claim beside it survives.
+
+        The two lived in one clause, so an over-broad deletion would silently
+        take the claim protocol the orchestration itself depends on with it.
+        """
+        for skill in (CLAUDE_SKILL, CODEX_SKILL):
+            with self.subTest(skill=skill.name):
+                prose = skill.read_text(encoding="utf-8")
+                self.assertNotIn("worktree-lifecycle/session.py", prose)
+                self.assertIn("claimWave", prose)
+                self.assertIn("wave-active/<anchor>", prose)
+                self.assertIn("releaseWaveClaim", prose)
 
     def test_builder_commands_finish_in_the_foreground(self):
         prose = " ".join(self.builder.split())

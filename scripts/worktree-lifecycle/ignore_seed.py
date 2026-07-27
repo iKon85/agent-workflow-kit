@@ -5,7 +5,7 @@ The shipped skills write `PLAN.md`, `PLAN-REVIEW-LOG.md`, and `ANNAHMEN.md`
 into a session worktree, but `.gitignore` is a consumer file the kit does not
 own: `init` and `update` never touch it. This helper is the one place that
 closes that gap, and it closes it only when a user explicitly approves the
-offer inside `/setup-workflow` (ADR 0008).
+offer inside `/setup-workflow`.
 
 Contract:
 

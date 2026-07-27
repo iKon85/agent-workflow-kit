@@ -78,8 +78,9 @@ project commands from the tools already present, then asks before activating.
 
 `baseline.sourceGlobs`, `preRefactor.surfaces[].globs`, and
 `stopChecks.surfaces[].globs` are matched by the one shared dialect in
-`scripts/profile_globs.py` — the same matcher Worktree Lifecycle uses for its
-scratch and landing-artifact policies. There is no second matcher and no
+`scripts/profile_globs.py`. They are the only consumer-profile globs the kit
+reads: Worktree Lifecycle carries no pattern list, because the ignore mechanism
+is the single deletion-policy surface. There is no second matcher and no
 per-capability variant:
 
 - `*` matches any run of characters inside one path segment, never `/`.

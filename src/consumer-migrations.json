@@ -1,19 +1,4 @@
 {
   "schemaVersion": 1,
-  "migrations": [
-    {
-      "id": "wrapup-landing-artifact-policy",
-      "requiredFrom": "0.38.0",
-      "title": "Explicit landing-artifact policy",
-      "workflow": "setup-workflow",
-      "decision": "wrapup.landingGeneratedArtifactPatterns",
-      "detect": {
-        "type": "json-key",
-        "path": "docs/agents/workflow-capabilities.json",
-        "key": ["wrapup", "landingGeneratedArtifactPatterns"]
-      },
-      "consequence": "wrapup-land fails closed before landing until the decision is committed.",
-      "remediation": "Run setup-workflow, review the wrapup.landingGeneratedArtifactPatterns decision it writes into docs/agents/workflow-capabilities.json, and commit that profile change. kit-update never chooses cleanup patterns for you."
-    }
-  ]
+  "migrations": []
 }

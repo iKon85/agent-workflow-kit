@@ -75,12 +75,7 @@ class MatcherContract(unittest.TestCase):
 
 
 class SharedMatcherContract(unittest.TestCase):
-    """Both shipped cores resolve to the one shared matcher, not a copy."""
-
-    def test_both_cores_share_one_matcher_object(self):
-        advisories = load("profile_globs_advisories_core", ADVISORIES_CORE)
-        lifecycle = load_lifecycle_core()
-        self.assertIs(advisories.path_glob_matches, lifecycle.path_glob_matches)
+    """The one shipped matcher lives in the dialect module, never in a copy."""
 
     def test_the_shared_matcher_comes_from_the_shipped_dialect_module(self):
         advisories = load("profile_globs_advisories_core", ADVISORIES_CORE)
@@ -88,18 +83,18 @@ class SharedMatcherContract(unittest.TestCase):
         self.assertEqual(Path(shared.__file__).resolve(), DIALECT_MODULE.resolve())
         self.assertIs(advisories.path_glob_matches, shared.path_glob_matches)
 
-    def test_both_cores_name_the_same_shared_module(self):
-        advisories = load("profile_globs_advisories_core", ADVISORIES_CORE)
-        lifecycle = load_lifecycle_core()
-        self.assertEqual(
-            advisories.PROFILE_GLOBS_MODULE, lifecycle.PROFILE_GLOBS_MODULE,
-        )
-
     def test_neither_core_keeps_a_second_matcher(self):
         for core in (ADVISORIES_CORE, LIFECYCLE_CORE):
             body = core.read_text(encoding="utf-8")
             self.assertNotIn("fnmatch.fnmatch(", body)
             self.assertNotIn("def path_glob_matches", body)
+
+    def test_the_lifecycle_core_matches_no_glob_at_all(self):
+        """Deletion policy has one surface, the ignore mechanism — so the
+        Worktree Lifecycle core reads no consumer glob to decide anything."""
+        lifecycle = load_lifecycle_core()
+        self.assertFalse(hasattr(lifecycle, "path_glob_matches"))
+        self.assertNotIn("glob", LIFECYCLE_CORE.read_text(encoding="utf-8"))
 
 
 class AdvisorySurfaceContract(unittest.TestCase):
@@ -191,22 +186,25 @@ class ProfileScan(unittest.TestCase):
 
     def test_scan_reaches_every_shipped_glob_key(self):
         self.assertEqual(self.locations(), [
-            "worktreeLifecycle.scratchPatterns[0]",
-            "worktreeLifecycle.scratchPatterns[1]",
-            "wrapup.landingGeneratedArtifactPatterns[0]",
             "workflowAdvisories.baseline.sourceGlobs[0]",
             "workflowAdvisories.preRefactor.surfaces[0].globs[0]",
             "workflowAdvisories.stopChecks.surfaces[0].globs[0]",
         ])
 
-    def test_cleanup_keys_are_marked_as_deletion_authority(self):
-        authority = {
-            finding.location: finding.deletion_authority
-            for finding in dialect.scan_profile(self.document)
-        }
-        self.assertTrue(authority["worktreeLifecycle.scratchPatterns[0]"])
-        self.assertTrue(authority["wrapup.landingGeneratedArtifactPatterns[0]"])
-        self.assertFalse(authority["workflowAdvisories.baseline.sourceGlobs[0]"])
+    def test_removed_lifecycle_pattern_keys_are_not_scanned(self):
+        """Deletion policy has one surface, the ignore mechanism (ADR-0009 §6),
+        so a profile still carrying the removed keys is inert here too."""
+        body = DIALECT_MODULE.read_text(encoding="utf-8")
+        for key in ("scratchPatterns", "landingGeneratedArtifactPatterns"):
+            self.assertNotIn(key, body)
+        self.assertEqual(dialect.scan_profile({
+            "worktreeLifecycle": {"scratchPatterns": ["*.log"]},
+            "wrapup": {"landingGeneratedArtifactPatterns": ["dist-kit/**"]},
+        }), ())
+
+    def test_no_remaining_glob_claims_deletion_authority(self):
+        for finding in dialect.scan_profile(self.document):
+            self.assertFalse(hasattr(finding, "deletion_authority"))
 
     def test_advisory_globs_carry_the_case_normalizing_legacy(self):
         legacy = {
@@ -217,13 +215,9 @@ class ProfileScan(unittest.TestCase):
             dialect.CASE_NARROWS,
             legacy["workflowAdvisories.baseline.sourceGlobs[0]"],
         )
-        self.assertNotIn(
-            dialect.CASE_NARROWS,
-            legacy["worktreeLifecycle.scratchPatterns[0]"],
-        )
 
     def test_malformed_sections_are_skipped_without_raising(self):
-        self.assertEqual(dialect.scan_profile({"worktreeLifecycle": []}), ())
+        self.assertEqual(dialect.scan_profile({"workflowAdvisories": []}), ())
         self.assertEqual(dialect.scan_profile("not a profile"), ())
 
 
@@ -243,29 +237,32 @@ class MigrationReport(unittest.TestCase):
             return result
 
     def test_stable_profile_exits_zero(self):
+        # Every remaining key carries the case-normalizing advisory legacy, so
+        # a stable literal is one no host can fold: caseless and wildcard-free.
         result = self.run_check({
-            "worktreeLifecycle": {"scratchPatterns": ["PLAN.md"]},
+            "workflowAdvisories": {"baseline": {"sourceGlobs": ["123/456"]}},
         })
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_changed_pattern_exits_one_and_names_witness_and_authority(self):
+    def test_changed_pattern_exits_one_and_names_its_witness(self):
         result = self.run_check({
-            "wrapup": {"landingGeneratedArtifactPatterns": ["**/__pycache__/**"]},
+            "workflowAdvisories": {"baseline": {"sourceGlobs": ["**/__pycache__/**"]}},
         })
         self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn("wrapup.landingGeneratedArtifactPatterns[0]", result.stdout)
+        self.assertIn("workflowAdvisories.baseline.sourceGlobs[0]", result.stdout)
         self.assertIn(dialect.WIDENS, result.stdout)
         self.assertIn("__pycache__", result.stdout)
-        self.assertIn("deletion authority", result.stdout)
 
     def test_json_output_is_machine_readable(self):
         result = self.run_check(
-            {"worktreeLifecycle": {"scratchPatterns": ["*.log"]}}, "--json",
+            {"workflowAdvisories": {"baseline": {"sourceGlobs": ["dist-kit/*"]}}},
+            "--json",
         )
         report = json.loads(result.stdout)
         self.assertEqual(report["reviewed"], 1)
         self.assertEqual(report["changed"], 1)
-        self.assertEqual(report["findings"][0]["effects"], [dialect.NARROWS])
+        self.assertIn(dialect.NARROWS, report["findings"][0]["effects"])
+        self.assertNotIn("deletionAuthority", report["findings"][0])
 
     def test_unreadable_profile_exits_two(self):
         result = subprocess.run(

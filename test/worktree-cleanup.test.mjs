@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -20,7 +20,7 @@ async function fixture() {
   await git(root, 'config', 'user.email', 'test@example.invalid');
   await git(root, 'config', 'user.name', 'Test User');
   await writeFile(join(root, 'tracked.txt'), 'base\n');
-  await writeFile(join(root, '.gitignore'), 'ANNAHMEN.md\nPLAN*.md\n');
+  await writeFile(join(root, '.gitignore'), 'ANNAHMEN.md\nPLAN*.md\n.env*\n');
   await mkdir(join(root, 'docs/agents'), { recursive: true });
   const profile = join(root, 'docs/agents/workflow-capabilities.json');
   await writeFile(profile, JSON.stringify({
@@ -33,7 +33,6 @@ async function fixture() {
       branchRegex: '^(?:feat|fix)/(?P<issue>\\d+)-',
       mainBranches: ['main'],
       protectedBranches: ['main'],
-      scratchPatterns: ['PLAN.md', 'PLAN-REVIEW-LOG.md'],
       setupSteps: [],
     },
   }));
@@ -51,7 +50,7 @@ test('cleanup refuses a dirty worktree without removing or mutating it', async (
 
   await assert.rejects(run('python3', [
     CLEANUP, '--profile', profile, '--remove', worktree,
-  ], { cwd: root }), /dirty/);
+  ], { cwd: root }), /tracked-change/);
 
   assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
   assert.equal(await readFile(join(worktree, 'tracked.txt'), 'utf8'), 'dirty\n');
@@ -71,7 +70,7 @@ test('cleanup refuses a clean branch whose commit is not merged into main', asyn
   assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
 });
 
-test('cleanup classifies profile-declared untracked scratch as removable and names it', async (t) => {
+test('cleanup classifies ignored files as scratch and names them', async (t) => {
   const { root, profile, worktree } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
   await writeFile(join(worktree, 'PLAN.md'), '# local plan\n');
@@ -96,39 +95,6 @@ test('explicit cleanup removes a merged worktree whose only dirt is reported scr
 
   assert.deepEqual(removed.scratchFiles, ['PLAN.md']);
   assert.equal(removed.removed, true);
-  assert.doesNotMatch((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
-});
-
-test('guarded cleanup removes a pnpm-style internal node_modules symlink farm', async (t) => {
-  const { root, profile, worktree } = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const configured = JSON.parse(await readFile(profile, 'utf8'));
-  configured.worktreeLifecycle.scratchPatterns.push('node_modules/**');
-  await writeFile(profile, JSON.stringify(configured));
-  await writeFile(
-    join(worktree, '.gitignore'),
-    'ANNAHMEN.md\nPLAN*.md\nnode_modules/\n',
-  );
-  await git(worktree, 'add', '.gitignore');
-  await git(worktree, 'commit', '-m', 'ignore dependencies');
-  await git(root, 'merge', '--ff-only', 'feat/88-cleanup');
-  const packageRoot = join(
-    worktree,
-    'node_modules/.pnpm/example@1.0.0/node_modules/example',
-  );
-  await mkdir(packageRoot, { recursive: true });
-  await writeFile(join(packageRoot, 'index.js'), 'export default 1;\n');
-  await symlink(
-    '.pnpm/example@1.0.0/node_modules/example',
-    join(worktree, 'node_modules/example'),
-  );
-
-  const removed = JSON.parse((await run('python3', [
-    CLEANUP, '--profile', profile, '--remove', worktree,
-  ], { cwd: root })).stdout);
-
-  assert.equal(removed.removed, true);
-  assert.ok(removed.scratchFiles.includes('node_modules/example'));
   assert.doesNotMatch((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
 });
 
@@ -178,7 +144,10 @@ printf '%s\\n' '[]'
   );
 });
 
-test('cleanup preserves a same-path scratch replacement between assessments', async (t) => {
+test('cleanup deletes a same-path scratch replacement — the documented residual risk', async (t) => {
+  // ADR-0009 accepts this window deliberately: between assessment and deletion
+  // a file could in principle be replaced. Pinning it here keeps the trade-off
+  // visible instead of letting identity-freezing machinery grow back unnoticed.
   const { root, profile, worktree } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
   await writeFile(join(worktree, 'PLAN.md'), '# assessed plan\n');
@@ -197,15 +166,16 @@ printf '%s\\n' '[]'
 `);
   await run('chmod', ['+x', mockGh]);
 
-  await assert.rejects(run('python3', [
+  const removed = JSON.parse((await run('python3', [
     CLEANUP, '--profile', profile, '--gh-command', mockGh, '--remove', worktree,
-  ], { cwd: root }), /inventory no longer matches preview/);
+  ], { cwd: root })).stdout);
 
-  assert.equal(await readFile(join(worktree, 'PLAN.md'), 'utf8'), 'replacement\n');
-  assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
+  assert.equal(removed.removed, true);
+  assert.deepEqual(removed.scratchFiles, ['PLAN.md']);
+  assert.doesNotMatch((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
 });
 
-test('cleanup rejects a profile-matched scratch symlink without touching its target', async (t) => {
+test('cleanup rejects an escaping ignored symlink without touching its target', async (t) => {
   const { root, profile, worktree } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
   const outside = join(root, 'outside.txt');
@@ -217,109 +187,34 @@ test('cleanup rejects a profile-matched scratch symlink without touching its tar
   ], { cwd: root })).stdout);
 
   assert.equal(preview.removable, false);
-  assert.match(preview.reasons.join('\n'), /symlink target is absolute/);
+  assert.match(preview.reasons.join('\n'), /ignored-symlink/);
   await assert.rejects(run('python3', [
     CLEANUP, '--profile', profile, '--remove', worktree,
-  ], { cwd: root }), /symlink target is absolute/);
+  ], { cwd: root }), /absolute target/);
   assert.equal(await readFile(outside, 'utf8'), 'preserve\n');
   assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
 });
 
-test('cleanup rejects a profile-matched relative symlink that escapes the worktree', async (t) => {
+test('cleanup refuses an ignored .env the main checkout does not carry', async (t) => {
   const { root, profile, worktree } = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
-  const configured = JSON.parse(await readFile(profile, 'utf8'));
-  configured.worktreeLifecycle.scratchPatterns.push('node_modules/**');
-  await writeFile(profile, JSON.stringify(configured));
-  await writeFile(
-    join(worktree, '.gitignore'),
-    'ANNAHMEN.md\nPLAN*.md\nnode_modules/\n',
-  );
-  await git(worktree, 'add', '.gitignore');
-  await git(worktree, 'commit', '-m', 'ignore dependencies');
-  await git(root, 'merge', '--ff-only', 'feat/88-cleanup');
-  const outside = join(root, 'outside-package');
-  await mkdir(outside);
-  await writeFile(join(outside, 'index.js'), 'preserve\n');
-  await mkdir(join(worktree, 'node_modules'));
-  await symlink('../../outside-package', join(worktree, 'node_modules/example'));
+  await writeFile(join(worktree, '.env'), 'LOCAL_ONLY=1\n');
+  await writeFile(join(worktree, 'PLAN.md'), '# preserve everything until .env is resolved\n');
 
   const preview = JSON.parse((await run('python3', [
     CLEANUP, '--profile', profile, worktree,
   ], { cwd: root })).stdout);
 
   assert.equal(preview.removable, false);
-  assert.match(preview.reasons.join('\n'), /symlink target escapes worktree/);
+  assert.match(preview.reasons.join('\n'), /\[env-file\]/);
   await assert.rejects(run('python3', [
     CLEANUP, '--profile', profile, '--remove', worktree,
-  ], { cwd: root }), /symlink target escapes worktree/);
-  assert.equal(await readFile(join(outside, 'index.js'), 'utf8'), 'preserve\n');
-  assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
-});
-
-test('cleanup rejects a dangling profile-matched scratch symlink', async (t) => {
-  const { root, profile, worktree } = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  await symlink('missing-plan', join(worktree, 'PLAN.md'));
-
-  const preview = JSON.parse((await run('python3', [
-    CLEANUP, '--profile', profile, worktree,
-  ], { cwd: root })).stdout);
-
-  assert.equal(preview.removable, false);
-  assert.match(preview.reasons.join('\n'), /symlink target is dangling or changed/);
-  await assert.rejects(run('python3', [
-    CLEANUP, '--profile', profile, '--remove', worktree,
-  ], { cwd: root }), /symlink target is dangling or changed/);
-  assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
-});
-
-test('cleanup rejects an internal symlink that no scratch pattern authorizes', async (t) => {
-  const { root, profile, worktree } = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  await symlink('tracked.txt', join(worktree, 'unmatched-link'));
-
-  const preview = JSON.parse((await run('python3', [
-    CLEANUP, '--profile', profile, worktree,
-  ], { cwd: root })).stdout);
-
-  assert.equal(preview.removable, false);
-  assert.match(
-    preview.reasons.join('\n'),
-    /untracked non-scratch: unmatched-link/,
-  );
-  await assert.rejects(run('python3', [
-    CLEANUP, '--profile', profile, '--remove', worktree,
-  ], { cwd: root }), /untracked non-scratch: unmatched-link/);
-  assert.match((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
-});
-
-test('cleanup preview refuses scratch overlapping landing-generated patterns without evidence', async (t) => {
-  const { root, profile, worktree } = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const configured = JSON.parse(await readFile(profile, 'utf8'));
-  configured.worktreeLifecycle.scratchPatterns.push('dist-kit/**');
-  configured.wrapup = { landingGeneratedArtifactPatterns: ['dist-kit/**'] };
-  await writeFile(profile, JSON.stringify(configured));
-  await mkdir(join(worktree, 'dist-kit'));
-  await writeFile(join(worktree, 'dist-kit/output.tgz'), 'ambiguous\n');
-  await writeFile(join(worktree, 'PLAN.md'), '# preserve until all evidence is valid\n');
-
-  const preview = JSON.parse((await run('python3', [
-    CLEANUP, '--profile', profile, worktree,
-  ], { cwd: root })).stdout);
-
-  assert.equal(preview.removable, false);
-  assert.deepEqual(preview.scratchFiles, ['PLAN.md', 'dist-kit/output.tgz']);
-  assert.match(preview.reasons.join('\n'), /landing-generated scratch evidence is missing/);
-  await assert.rejects(run('python3', [
-    CLEANUP, '--profile', profile, '--remove', worktree,
-  ], { cwd: root }), /landing-generated scratch evidence is missing/);
+  ], { cwd: root }), /env-file/);
+  assert.equal(await readFile(join(worktree, '.env'), 'utf8'), 'LOCAL_ONLY=1\n');
   assert.equal(
     await readFile(join(worktree, 'PLAN.md'), 'utf8'),
-    '# preserve until all evidence is valid\n',
+    '# preserve everything until .env is resolved\n',
   );
-  assert.equal(await readFile(join(worktree, 'dist-kit/output.tgz'), 'utf8'), 'ambiguous\n');
 });
 
 test('cleanup rejects a worktree root replaced by a symlink after revalidation', async (t) => {
@@ -387,12 +282,6 @@ test('cleanup refuses untracked non-scratch and tracked modifications separately
   t.after(() => rm(root, { recursive: true, force: true }));
   await writeFile(join(worktree, 'PLAN.md'), '# local plan\n');
   await writeFile(join(worktree, 'notes.txt'), 'not declared scratch\n');
-  await mkdir(join(worktree, 'notes'));
-  await writeFile(join(worktree, 'notes/PLAN.md'), '# unversioned plan\n');
-  await mkdir(join(worktree, 'screenshots'));
-  await writeFile(join(worktree, 'screenshots/failure.png'), 'screenshot\n');
-  await mkdir(join(worktree, '.baseline'));
-  await writeFile(join(worktree, '.baseline/state.json'), '{}\n');
   await writeFile(join(worktree, 'tracked.txt'), 'real work\n');
 
   const preview = JSON.parse((await run('python3', [
@@ -401,11 +290,10 @@ test('cleanup refuses untracked non-scratch and tracked modifications separately
 
   assert.equal(preview.removable, false);
   assert.deepEqual(preview.scratchFiles, ['PLAN.md']);
-  assert.match(preview.reasons.join('\n'), /tracked modifications: tracked\.txt/);
-  assert.match(preview.reasons.join('\n'), /untracked non-scratch:/);
-  assert.match(preview.reasons.join('\n'), /\.baseline\/state\.json/);
-  assert.match(preview.reasons.join('\n'), /notes\/PLAN\.md/);
-  assert.match(preview.reasons.join('\n'), /screenshots\/failure\.png/);
+  const reasons = preview.reasons.join('\n');
+  assert.match(reasons, /\[tracked-change\] 1 tracked change blocks teardown/);
+  assert.match(reasons, /tracked\.txt/);
+  assert.match(reasons, /\[untracked-files\] 1 untracked file in 1 directory is not ignored/);
 });
 
 test('cleanup refuses an open PR using the same external fact as sweep', async (t) => {

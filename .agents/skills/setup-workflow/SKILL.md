@@ -204,27 +204,28 @@ Worktree Lifecycle for this repository?"* Offer exactly **Yes**, **Later**, and
 
 - **Yes** — create or deepen only the `worktreeLifecycle` section in
   `docs/agents/workflow-capabilities.json`, preserve every other section and
-  unknown key, reconcile an explicit consumer-derived `scratchPatterns` array,
-  explicitly derive and review the consumer's
-  `wrapup.landingGeneratedArtifactPatterns` array from real landing outputs,
-  and reconcile only the exact kit-owned hook commands listed in the seed.
+  unknown key, reconcile both branch templates — `branchTemplate` for an
+  issue-anchored slice and `contentBranchTemplate` (default `{type}/{slug}`)
+  for the issue-less branch of a durable-content session — and reconcile only
+  the exact kit-owned hook commands listed in the seed.
 - **Later / No** — record the choice in the tracked profile without installing
   hook wiring. Ordinary reruns do not ask again.
 - **Existing** — adopt the current section and wiring without normalizing
-  consumer-owned values. Preserve an existing landing-artifact policy
-  byte-for-byte; if it is missing, surface the explicit derivation decision and
-  do not write a default.
+  consumer-owned values, including keys this kit no longer reads.
 - **Disable** — remove only the exact kit-owned hook commands first, then set
   `enabled: false`; retain the profile, setup policy, and unknown keys.
 
-Whenever a profile already carries patterns — on **Yes** over an existing
-section and on **Existing** — run
+Reconcile no deletion-pattern list at any state. Deletion policy has exactly
+one configuration surface, the ignore mechanism, so a profile that still
+carries a pattern key from an older kit keeps it verbatim as consumer data: it
+is ignored in silence, never rewritten and never reported.
+
+Whenever a profile already carries Workflow Advisories globs — on **Yes** over
+an existing section and on **Existing** — run
 `python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json` and
 report every pattern it names. Patterns whose match set narrows or widens under
-the shared dialect are a consumer decision: name them with their witness path,
-mark the deletion-authority keys, and let the consumer rewrite them. Never
-rewrite a pattern for them, and never accept a widened deletion-authority
-pattern silently.
+the shared dialect are a consumer decision: name them with their witness path
+and let the consumer rewrite them. Never rewrite a pattern for them.
 
 The default setup entry is
 `python3 scripts/worktree-lifecycle/setup.py`; a proven consumer-native helper
@@ -452,8 +453,9 @@ step may write `.gitignore`; `init` and `update` reconciliation never reach the
 seeder.
 
 Report `appended · nothing to do (already ignored) · declined · blocked
-(consumer-edited block)`. After an approval — and only then — the Section A4
-`scratchPatterns` derivation has real ignored planning artefacts to read.
+(consumer-edited block)`. After an approval — and only then — those artefacts
+are Scratch, because being ignored is the whole of what makes a file deletable
+at teardown.
 
 ### 3. Section B — Triage labels
 
@@ -605,9 +607,9 @@ unknown consumer keys share this profile. Apply the transition and hook
 ownership rules from [worktree-lifecycle.md](./worktree-lifecycle.md),
 [workflow-advisories.md](./workflow-advisories.md), and
 [safety-guardrails.md](./safety-guardrails.md) transactionally.
-The landing-artifact policy is deletion authority: it is always an explicit
-consumer-reviewed setup value, never an update-time default or an inference
-from ignored paths.
+The profile carries structural facts only; it holds no deletion policy, because
+the ignore mechanism is the single surface that decides what teardown may
+remove.
 
 For Memory Lifecycle, use only the deterministic setup helper from Section A5.
 Do not copy templates with shell commands or edit the capability profile by

@@ -8,7 +8,6 @@
     "branchRegex": "^(?:feat|fix)/(?P<issue>\\d+)-",
     "mainBranches": ["main"],
     "protectedBranches": ["main"],
-    "scratchPatterns": ["PLAN.md", "PLAN-REVIEW-LOG.md"],
     "setupEntry": "./scripts/setup-worktree.sh",
     "setupSteps": [
       {

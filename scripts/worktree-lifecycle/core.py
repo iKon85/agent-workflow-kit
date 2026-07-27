@@ -1,25 +1,26 @@
-"""Consumer-neutral Worktree Lifecycle facts and decisions."""
+"""Consumer-neutral Worktree Lifecycle facts and decisions.
+
+Teardown authority is not stored here. `classify.py` derives it from the
+repository's current state at the moment of action, and this module consumes
+exactly that assessment: it adds only the facts git status cannot answer — is
+the path a registered worktree, is its branch protected, is there an open PR,
+is the branch merged — and renders the one classification report instead of
+formatting a second one.
+"""
 
 from __future__ import annotations
 
-import importlib.util
-import json
-import os
 import re
-import stat
-import sys
-from contextlib import contextmanager
-from dataclasses import dataclass, replace
-from hashlib import sha256
-from pathlib import Path, PurePosixPath
+from dataclasses import dataclass
+from pathlib import Path
 from time import time
 from typing import Any, Callable
 
+from classify import ClassificationError, assess, render_report
 from profile import (
     LifecycleError,
     WorktreeProfile,
     load_profile,
-    load_profile_text,
     local_branch_exists,
     main_worktree,
     registered_worktrees,
@@ -28,103 +29,6 @@ from profile import (
 
 _BRANCH_CHANGE_RE = re.compile(r"\b(?:git\s+(?:checkout|switch)|gh\s+pr\s+(?:merge|checkout))\b")
 _BRANCH_CREATE_RE = re.compile(r"\bgit\s+(?:checkout|switch)\s+-[bc]\s+(\S+)")
-ARTIFACT_BASELINE_FILE = "awkit-artifact-baseline-v1.json"
-LANDING_ATTEMPT_FILE = "awkit-landing-attempt-v1.json"
-PROFILE_GLOBS_MODULE = "_agent_workflow_kit_profile_globs"
-
-
-def load_profile_globs():
-    """Load the one shared repository-relative glob dialect exactly once."""
-    module = sys.modules.get(PROFILE_GLOBS_MODULE)
-    if module is not None:
-        return module
-    path = Path(__file__).resolve().parents[1] / "profile_globs.py"
-    spec = importlib.util.spec_from_file_location(PROFILE_GLOBS_MODULE, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load the shared profile glob dialect from {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[PROFILE_GLOBS_MODULE] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-# Consumer profile globs are matched here exactly as Workflow Advisories
-# matches its own: one dialect, so an advisory and a deletion decision can
-# never disagree about which repository-relative paths a pattern selects.
-path_glob_matches = load_profile_globs().path_glob_matches
-
-# Archived receipts are named from a contract-version-neutral stem plus the
-# archived receipt's own contractVersion, so a v2 receipt is never filed as v1.
-LANDING_ATTEMPT_ARCHIVE_STEM = "awkit-landing-attempt"
-LANDING_ATTEMPT_CONTRACT_VERSION = 2
-LANDING_ATTEMPT_KEYS = (
-    "contractVersion", "worktree", "branch", "rootDevice",
-    "rootInode", "baselineDigest", "generatedFiles",
-    "generatedEvidence", "state", "authorizedEvidence",
-    "pushSucceeded",
-)
-ABANDON_ATTEMPT_FLAG = "--abandon-unfinished-attempt"
-
-
-class BaselineBackfillDeferred(LifecycleError):
-    """A safe legacy baseline cannot be captured until consumer state changes."""
-
-
-class LegacyLandingAttempt(LifecycleError):
-    """A coherent attempt journal predates the active contract and is not adoptable."""
-
-
-def durable_atomic_json(
-    path: Path,
-    document: dict[str, Any],
-    *,
-    label: str,
-    mode: int = 0o666,
-    sort_keys: bool = False,
-) -> None:
-    """Atomically replace one JSON journal and durably publish its directory entry."""
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    try:
-        descriptor = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, mode)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            json.dump(
-                document,
-                handle,
-                ensure_ascii=False,
-                indent=2,
-                sort_keys=sort_keys,
-            )
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-        directory_descriptor = os.open(
-            path.parent,
-            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
-        )
-        try:
-            os.fsync(directory_descriptor)
-        finally:
-            os.close(directory_descriptor)
-    except OSError as error:
-        temporary.unlink(missing_ok=True)
-        raise LifecycleError(f"cannot {label}: {error}") from error
-
-
-def durable_replace(source: Path, destination: Path, *, label: str) -> None:
-    """Rename one journal durably without inspecting or claiming its payload files."""
-    try:
-        os.replace(source, destination)
-        directory_descriptor = os.open(
-            destination.parent,
-            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
-        )
-        try:
-            os.fsync(directory_descriptor)
-        finally:
-            os.close(directory_descriptor)
-    except OSError as error:
-        raise LifecycleError(f"cannot {label}: {error}") from error
 
 
 @dataclass(frozen=True)
@@ -146,734 +50,34 @@ class Decision:
 
 
 @dataclass(frozen=True)
-class CleanupAssessment:
-    worktree: Path
-    branch: str
-    assumptions: str
-    reasons: tuple[str, ...]
-    root_device: int
-    root_inode: int
-    scratch_files: tuple[str, ...] = ()
-    scratch_evidence: tuple[dict[str, Any], ...] = ()
-
-    @property
-    def removable(self) -> bool:
-        return not self.reasons
-
-
-@dataclass(frozen=True)
 class CleanupFacts:
     worktree: Path
     branch: str
     registered: bool
     is_main: bool
-    tracked_files: tuple[str, ...]
-    untracked_files: tuple[str, ...]
+    classification: Any
     merged: bool
     pr_state: str
     assumptions: str
-    root_device: int
-    root_inode: int
 
 
 @dataclass(frozen=True)
-class ArtifactBaseline:
+class CleanupAssessment:
     worktree: Path
     branch: str
-    root_device: int
-    root_inode: int
-    setup_head: str
-    initial_ignored_files: tuple[str, ...]
-    initial_untracked_files: tuple[str, ...]
-    digest: str
+    assumptions: str
+    reasons: tuple[str, ...]
+    classification: Any
 
+    @property
+    def removable(self) -> bool:
+        return not self.reasons
 
-def ignored_file_inventory(worktree: Path) -> tuple[str, ...]:
-    result = run(
-        [
-            "git", "ls-files", "--others", "--ignored",
-            "--exclude-standard", "-z",
-        ],
-        cwd=worktree,
-    )
-    return tuple(sorted(path for path in result.stdout.split("\0") if path))
-
-
-def untracked_file_inventory(worktree: Path) -> tuple[str, ...]:
-    ordinary = run(
-        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
-        cwd=worktree,
-    ).stdout.split("\0")
-    return tuple(sorted(
-        set(path for path in ordinary if path).union(ignored_file_inventory(worktree))
-    ))
-
-
-def artifact_baseline_path(worktree: Path) -> Path:
-    result = run(
-        ["git", "rev-parse", "--absolute-git-dir"],
-        cwd=worktree,
-    )
-    git_dir = Path(result.stdout.strip())
-    if not git_dir.is_absolute():
-        raise LifecycleError("artifact provenance baseline git dir is not absolute")
-    return git_dir / ARTIFACT_BASELINE_FILE
-
-
-def landing_attempt_path(worktree: Path) -> Path:
-    """Return the one landing-attempt journal path beside the artifact baseline."""
-    return artifact_baseline_path(worktree).with_name(LANDING_ATTEMPT_FILE)
-
-
-def landing_attempt_exists(path: Path) -> bool:
-    """Classify journal presence without following a symlink at that name."""
-    return os.path.lexists(path)
-
-
-def require_regular_landing_attempt(path: Path) -> None:
-    """Refuse a journal name occupied by a symlink or any non-regular entry."""
-    if path.is_symlink() or not path.is_file():
-        raise LifecycleError("landing-attempt provenance is not a regular file")
-
-
-def landing_attempt_keys(contract_version: Any) -> list[str]:
-    """Return the exact journal key set recorded by one contract version."""
-    keys = list(LANDING_ATTEMPT_KEYS)
-    if contract_version == LANDING_ATTEMPT_CONTRACT_VERSION:
-        keys.append("policyDigest")
-    return keys
-
-
-def _baseline_payload(
-    *,
-    worktree: Path,
-    branch: str,
-    root_device: int,
-    root_inode: int,
-    setup_head: str,
-    initial_ignored_files: tuple[str, ...],
-    initial_untracked_files: tuple[str, ...],
-) -> dict[str, Any]:
-    return {
-        "contractVersion": 2,
-        "worktree": str(worktree),
-        "branch": branch,
-        "rootDevice": root_device,
-        "rootInode": root_inode,
-        "setupHead": setup_head,
-        "initialIgnoredFiles": list(initial_ignored_files),
-        "initialUntrackedFiles": list(initial_untracked_files),
-    }
-
-
-def _baseline_digest(payload: dict[str, Any]) -> str:
-    encoded = json.dumps(
-        payload,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
-    return sha256(encoded).hexdigest()
-
-
-def landing_cleanup_policy_digest(profile: WorktreeProfile) -> str:
-    """Bind one attempt to the exact ordered policy that nominated its files."""
-    return _baseline_digest({
-        "scratchPatterns": list(profile.scratch_patterns),
-        "landingGeneratedArtifactPatterns": list(
-            profile.landing_generated_artifact_patterns
-        ),
-    })
-
-
-def capture_artifact_baseline(
-    worktree: Path,
-    *,
-    reject_ignored_patterns: tuple[str, ...] = (),
-) -> ArtifactBaseline:
-    worktree = worktree.resolve()
-    metadata = worktree.stat()
-    branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
-    setup_head = run(["git", "rev-parse", "HEAD"], cwd=worktree).stdout.strip()
-    ignored = ignored_file_inventory(worktree)
-    untracked = untracked_file_inventory(worktree)
-    blocked = tuple(sorted(
-        path
-        for path in ignored
-        if any(path_glob_matches(path, pattern) for pattern in reject_ignored_patterns)
-    ))
-    if blocked:
-        raise BaselineBackfillDeferred(
-            "landing-start generated paths are consumer-owned and protected: "
-            + ", ".join(blocked)
-        )
-    payload = _baseline_payload(
-        worktree=worktree,
-        branch=branch,
-        root_device=metadata.st_dev,
-        root_inode=metadata.st_ino,
-        setup_head=setup_head,
-        initial_ignored_files=ignored,
-        initial_untracked_files=untracked,
-    )
-    digest = _baseline_digest(payload)
-    path = artifact_baseline_path(worktree)
-    durable_atomic_json(
-        path,
-        {**payload, "sha256": digest},
-        label="write artifact provenance baseline",
-    )
-    return ArtifactBaseline(
-        worktree,
-        branch,
-        metadata.st_dev,
-        metadata.st_ino,
-        setup_head,
-        ignored,
-        untracked,
-        digest,
-    )
-
-
-def load_artifact_baseline(worktree: Path) -> ArtifactBaseline:
-    worktree = worktree.resolve()
-    path = artifact_baseline_path(worktree)
-    try:
-        if path.is_symlink() or not path.is_file():
-            raise LifecycleError("artifact provenance baseline is missing or not a regular file")
-        document = json.loads(path.read_text(encoding="utf-8"))
-        payload = {
-            key: document[key]
-            for key in (
-                "contractVersion",
-                "worktree",
-                "branch",
-                "rootDevice",
-                "rootInode",
-                "setupHead",
-                "initialIgnoredFiles",
-                "initialUntrackedFiles",
-            )
-        }
-        digest = document["sha256"]
-    except LifecycleError:
-        raise
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
-        raise LifecycleError(f"artifact provenance baseline is incoherent: {error}") from error
-    ignored = payload["initialIgnoredFiles"]
-    untracked = payload["initialUntrackedFiles"]
-    if (
-        payload["contractVersion"] != 2
-        or not isinstance(payload["worktree"], str)
-        or not isinstance(payload["branch"], str)
-        or not payload["branch"]
-        or type(payload["rootDevice"]) is not int
-        or type(payload["rootInode"]) is not int
-        or not isinstance(payload["setupHead"], str)
-        or re.fullmatch(r"[0-9a-f]{40,64}", payload["setupHead"]) is None
-        or not isinstance(ignored, list)
-        or not all(
-            isinstance(path_value, str)
-            and path_value
-            and not PurePosixPath(path_value).is_absolute()
-            and ".." not in PurePosixPath(path_value).parts
-            for path_value in ignored
-        )
-        or ignored != sorted(set(ignored))
-        or not isinstance(untracked, list)
-        or not all(
-            isinstance(path_value, str)
-            and path_value
-            and not PurePosixPath(path_value).is_absolute()
-            and ".." not in PurePosixPath(path_value).parts
-            for path_value in untracked
-        )
-        or untracked != sorted(set(untracked))
-        or not set(ignored).issubset(untracked)
-        or not isinstance(digest, str)
-        or re.fullmatch(r"[0-9a-f]{64}", digest) is None
-        or digest != _baseline_digest(payload)
-    ):
-        raise LifecycleError("artifact provenance baseline is incoherent")
-    try:
-        metadata = worktree.stat()
-        branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
-    except (OSError, LifecycleError) as error:
-        raise LifecycleError(
-            f"artifact provenance baseline binding cannot be verified: {error}"
-        ) from error
-    if (
-        payload["worktree"] != str(worktree)
-        or payload["branch"] != branch
-        or (payload["rootDevice"], payload["rootInode"])
-        != (metadata.st_dev, metadata.st_ino)
-    ):
-        raise LifecycleError("artifact provenance baseline binding does not match worktree")
-    return ArtifactBaseline(
-        worktree,
-        branch,
-        metadata.st_dev,
-        metadata.st_ino,
-        payload["setupHead"],
-        tuple(ignored),
-        tuple(untracked),
-        digest,
-    )
-
-
-def ensure_artifact_baseline(
-    worktree: Path,
-    *,
-    reject_ignored_patterns: tuple[str, ...] = (),
-) -> ArtifactBaseline:
-    """Load provenance or conservatively backfill one exact clean legacy worktree."""
-    path = artifact_baseline_path(worktree)
-    if os.path.lexists(path):
-        return load_artifact_baseline(worktree)
-    if landing_attempt_exists(landing_attempt_path(worktree)):
-        raise LifecycleError(
-            "artifact provenance baseline is missing while a landing attempt exists"
-        )
-    absolute = worktree.absolute()
-    try:
-        metadata = os.lstat(absolute)
-    except OSError as error:
-        raise LifecycleError(
-            f"legacy artifact baseline root cannot be inspected: {error}"
-        ) from error
-    if not stat.S_ISDIR(metadata.st_mode) or absolute != worktree.resolve():
-        raise LifecycleError("legacy artifact baseline root is not an exact nofollow directory")
-    main = main_worktree(worktree)
-    if worktree.resolve() not in registered_worktrees(main):
-        raise LifecycleError("legacy artifact baseline requires an exact registered worktree")
-    branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
-    if not branch:
-        raise LifecycleError("legacy artifact baseline requires an attached branch")
-    for command in (
-        ["git", "diff", "--quiet"],
-        ["git", "diff", "--cached", "--quiet"],
-    ):
-        if run(command, cwd=worktree, check=False).returncode != 0:
-            raise BaselineBackfillDeferred(
-                "legacy artifact baseline requires a clean tracked worktree and index"
-            )
-    return capture_artifact_baseline(
-        worktree,
-        reject_ignored_patterns=reject_ignored_patterns,
-    )
-
-
-def verified_landing_scratch_files(
-    profile: WorktreeProfile,
-    worktree: Path,
-    *,
-    expected_baseline_digest: str | None = None,
-    landing_start_files: tuple[str, ...] = (),
-) -> tuple[str, ...]:
-    return tuple(
-        item["path"]
-        for item in verified_landing_scratch_evidence(
-            profile,
-            worktree,
-            expected_baseline_digest=expected_baseline_digest,
-            landing_start_files=landing_start_files,
-        )
-    )
-
-
-def _classify_superseded_landing_attempt(
-    payload: dict[str, Any],
-    digest: Any,
-    baseline: ArtifactBaseline,
-    worktree: Path,
-) -> None:
-    """Separate a coherent pre-upgrade journal from genuinely corrupt evidence.
-
-    A journal written before the active contract can never be adopted, but it is
-    not damage: it has an exact, non-deleting route out. Only evidence that also
-    fails its own recorded contract is reported as corruption.
-    """
-    if (
-        payload["contractVersion"] != 1
-        or payload["worktree"] != str(worktree.resolve())
-        or payload["branch"] != baseline.branch
-        or (payload["rootDevice"], payload["rootInode"])
-        != (baseline.root_device, baseline.root_inode)
-        or payload["state"] not in {"started", "frozen"}
-        or digest != _baseline_digest(payload)
-    ):
-        raise LifecycleError("landing-attempt provenance is incoherent")
-    raise LegacyLandingAttempt(
-        "landing attempt was started under the superseded v1 journal contract "
-        "and cannot be adopted; archive it with "
-        f"`land {ABANDON_ATTEMPT_FLAG}` — that deletes and claims no file — "
-        "then rerun land"
-    )
-
-
-def landing_start_artifact_inventory(
-    profile: WorktreeProfile,
-    worktree: Path,
-) -> dict[str, Any]:
-    """Persist/reuse the generated-path inventory preceding the landing build."""
-    baseline = ensure_artifact_baseline(
-        worktree,
-        reject_ignored_patterns=profile.landing_generated_artifact_patterns,
-    )
-    attempt_path = landing_attempt_path(worktree)
-    if landing_attempt_exists(attempt_path):
-        require_regular_landing_attempt(attempt_path)
-        try:
-            document = json.loads(attempt_path.read_text(encoding="utf-8"))
-            contract_version = document["contractVersion"]
-            payload = {
-                key: document[key]
-                for key in landing_attempt_keys(contract_version)
-            }
-            digest = document["sha256"]
-        except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
-            raise LifecycleError(
-                f"landing-attempt provenance is incoherent: {error}"
-            ) from error
-        if contract_version != LANDING_ATTEMPT_CONTRACT_VERSION:
-            _classify_superseded_landing_attempt(
-                payload, digest, baseline, worktree
-            )
-        if payload["policyDigest"] != landing_cleanup_policy_digest(profile):
-            raise LifecycleError(
-                "landing cleanup policy changed after attempt start; "
-                "abandon the unfinished attempt before retrying"
-            )
-        if (
-            payload["contractVersion"] != LANDING_ATTEMPT_CONTRACT_VERSION
-            or payload["worktree"] != str(worktree.resolve())
-            or payload["branch"] != baseline.branch
-            or (payload["rootDevice"], payload["rootInode"])
-            != (baseline.root_device, baseline.root_inode)
-            or payload["baselineDigest"] != baseline.digest
-            or not isinstance(payload["generatedFiles"], list)
-            or payload["generatedFiles"] != sorted(set(payload["generatedFiles"]))
-            or not isinstance(payload["generatedEvidence"], list)
-            or payload["state"] not in {"started", "frozen"}
-            or not isinstance(payload["authorizedEvidence"], list)
-            or type(payload["pushSucceeded"]) is not bool
-            or digest != _baseline_digest(payload)
-        ):
-            raise LifecycleError("landing-attempt provenance is incoherent")
-        return {
-            "baselineDigest": payload["baselineDigest"],
-            "generatedFiles": payload["generatedFiles"],
-            "generatedEvidence": payload["generatedEvidence"],
-            "state": payload["state"],
-            "authorizedEvidence": payload["authorizedEvidence"],
-            "pushSucceeded": payload["pushSucceeded"],
-            "policyDigest": payload["policyDigest"],
-            "newAttempt": False,
-        }
-    current = set(ignored_file_inventory(worktree))
-    generated = tuple(sorted(
-        path for path in current
-        if any(
-            path_glob_matches(path, pattern)
-            for pattern in profile.landing_generated_artifact_patterns
-        )
-    ))
-    if generated:
-        raise LifecycleError(
-            "landing-start generated paths are consumer-owned and protected: "
-            + ", ".join(generated)
-        )
-    result = {
-        "baselineDigest": baseline.digest,
-        "generatedFiles": list(generated),
-        "generatedEvidence": [],
-        "state": "started",
-        "authorizedEvidence": [],
-        "pushSucceeded": False,
-        "policyDigest": landing_cleanup_policy_digest(profile),
-    }
-    payload = {
-        "contractVersion": LANDING_ATTEMPT_CONTRACT_VERSION,
-        "worktree": str(worktree.resolve()),
-        "branch": baseline.branch,
-        "rootDevice": baseline.root_device,
-        "rootInode": baseline.root_inode,
-        **result,
-    }
-    digest = _baseline_digest(payload)
-    durable_atomic_json(
-        attempt_path,
-        {**payload, "sha256": digest},
-        label="persist landing-attempt provenance",
-    )
-    return {**result, "newAttempt": True}
-
-
-def verified_landing_scratch_evidence(
-    profile: WorktreeProfile,
-    worktree: Path,
-    *,
-    expected_baseline_digest: str | None = None,
-    landing_start_files: tuple[str, ...] = (),
-) -> tuple[dict[str, Any], ...]:
-    """Return frozen regular-file identities for the authorized generator delta."""
-    baseline = load_artifact_baseline(worktree)
-    if (
-        expected_baseline_digest is not None
-        and baseline.digest != expected_baseline_digest
-    ):
-        raise LifecycleError("artifact provenance baseline changed during landing")
-    current = set(ignored_file_inventory(worktree))
-    initial = current.intersection(baseline.initial_ignored_files)
-    initial_generated = sorted(
-        path for path in initial
-        if any(
-            path_glob_matches(path, pattern)
-            for pattern in profile.landing_generated_artifact_patterns
-        )
-    )
-    if initial_generated:
-        raise LifecycleError(
-            "artifact provenance baseline protects initial generated paths: "
-            + ", ".join(initial_generated)
-        )
-    if landing_start_files:
-        raise LifecycleError(
-            "landing-start generated paths are consumer-owned and protected: "
-            + ", ".join(sorted(landing_start_files))
-        )
-    candidates = tuple(sorted(
-        path
-        for path in current.difference(baseline.initial_ignored_files)
-        if path not in landing_start_files
-        if any(
-            path_glob_matches(path, pattern)
-            for pattern in profile.landing_generated_artifact_patterns
-        )
-    ))
-    if not candidates:
-        return ()
-    with verified_worktree_root(
-        worktree,
-        baseline.root_device,
-        baseline.root_inode,
-    ) as descriptor:
-        return tuple(
-            contained_regular_identity(descriptor, relative)
-            for relative in candidates
-        )
-
-
-def freeze_landing_artifact_evidence(
-    profile: WorktreeProfile,
-    worktree: Path,
-    *,
-    push_succeeded: bool,
-) -> tuple[dict[str, Any], ...]:
-    """Freeze or revalidate the exact output of one generator-capable push."""
-    attempt = landing_start_artifact_inventory(profile, worktree)
-    current = verified_landing_scratch_evidence(
-        profile,
-        worktree,
-        expected_baseline_digest=attempt["baselineDigest"],
-        landing_start_files=tuple(attempt["generatedFiles"]),
-    )
-    frozen = tuple(attempt["authorizedEvidence"])
-    if attempt["state"] == "frozen" and frozen != current:
-        raise LifecycleError(
-            "landing-generated evidence changed after it was frozen"
-        )
-    if attempt["state"] == "frozen":
-        return frozen
-    path = landing_attempt_path(worktree)
-    document = json.loads(path.read_text(encoding="utf-8"))
-    payload = {
-        key: document[key]
-        for key in (
-            "contractVersion", "worktree", "branch", "rootDevice",
-            "rootInode", "baselineDigest", "generatedFiles",
-            "generatedEvidence", "policyDigest",
-        )
-    }
-    payload.update({
-        "state": "frozen",
-        "authorizedEvidence": list(current),
-        "pushSucceeded": push_succeeded,
-    })
-    digest = _baseline_digest(payload)
-    durable_atomic_json(
-        path,
-        {**payload, "sha256": digest},
-        label="freeze landing-generated evidence",
-    )
-    return current
-
-
-def reopen_frozen_landing_attempt(
-    profile: WorktreeProfile,
-    worktree: Path,
-) -> tuple[dict[str, Any], ...]:
-    """Validate a failed push boundary before permitting its generator to retry."""
-    frozen = freeze_landing_artifact_evidence(
-        profile, worktree, push_succeeded=False
-    )
-    path = landing_attempt_path(worktree)
-    document = json.loads(path.read_text(encoding="utf-8"))
-    payload = {
-        key: document[key]
-        for key in (
-            "contractVersion", "worktree", "branch", "rootDevice",
-            "rootInode", "baselineDigest", "generatedFiles",
-            "generatedEvidence", "policyDigest",
-        )
-    }
-    payload.update({
-        "state": "started",
-        "authorizedEvidence": [],
-        "pushSucceeded": False,
-    })
-    digest = _baseline_digest(payload)
-    durable_atomic_json(
-        path,
-        {**payload, "sha256": digest},
-        label="reopen validated landing attempt",
-    )
-    return frozen
-
-
-def abandon_unfinished_landing_attempt(
-    worktree: Path,
-) -> Path:
-    """Archive an ambiguous started attempt without claiming or deleting files."""
-    path = landing_attempt_path(worktree)
-    if not landing_attempt_exists(path):
-        raise LifecycleError("no pre-existing unfinished landing attempt to abandon")
-    try:
-        require_regular_landing_attempt(path)
-        document = json.loads(path.read_text(encoding="utf-8"))
-        payload = {
-            key: document[key]
-            for key in landing_attempt_keys(document["contractVersion"])
-        }
-        digest = document["sha256"]
-        metadata = os.lstat(worktree)
-        branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
-    except LifecycleError:
-        raise
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
-        raise LifecycleError(f"landing-attempt provenance is incoherent: {error}") from error
-    if (
-        payload["contractVersion"] not in {1, 2}
-        or payload["worktree"] != str(worktree.resolve())
-        or payload["branch"] != branch
-        or not stat.S_ISDIR(metadata.st_mode)
-        or (payload["rootDevice"], payload["rootInode"])
-        != (metadata.st_dev, metadata.st_ino)
-        or payload["state"] not in {"started", "frozen"}
-        or digest != _baseline_digest(payload)
-    ):
-        raise LifecycleError("landing-attempt provenance is incoherent")
-    archive = path.with_name(
-        f"{LANDING_ATTEMPT_ARCHIVE_STEM}.v{payload['contractVersion']}"
-        f".abandoned-{int(time() * 1_000_000)}.json"
-    )
-    durable_replace(path, archive, label="archive landing attempt")
-    return archive
-
-
-def canonical_recovery_evidence(
-    canonical: WorktreeProfile,
-    worktree: Path,
-) -> tuple[dict[str, Any], ...]:
-    """Revalidate one frozen landing attempt against canonical policy alone.
-
-    Canonical cleanup-policy drift between attempt start and post-merge cleanup
-    strands an already-merged worktree, because the attempt is bound to the
-    policy that nominated it. This route re-derives deletion authority from the
-    merged canonical policy only. It never re-scans the worktree for new
-    candidates, so broader stale candidate evidence cannot enter; every frozen
-    identity must additionally still be named by canonical policy and still
-    match byte-for-byte on disk, so a narrowed canonical policy, a changed file,
-    and any pre-existing state stop the recovery instead of being deleted.
-    """
-    path = landing_attempt_path(worktree)
-    if not landing_attempt_exists(path):
-        raise LifecycleError(
-            "canonical cleanup recovery requires the landing attempt that froze "
-            "this teardown's evidence"
-        )
-    try:
-        require_regular_landing_attempt(path)
-        document = json.loads(path.read_text(encoding="utf-8"))
-        contract_version = document["contractVersion"]
-        payload = {
-            key: document[key]
-            for key in landing_attempt_keys(contract_version)
-        }
-        digest = document["sha256"]
-        metadata = os.lstat(worktree)
-        branch = run(["git", "branch", "--show-current"], cwd=worktree).stdout.strip()
-    except LifecycleError:
-        raise
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
-        raise LifecycleError(f"landing-attempt provenance is incoherent: {error}") from error
-    if (
-        contract_version != LANDING_ATTEMPT_CONTRACT_VERSION
-        or payload["worktree"] != str(worktree.resolve())
-        or payload["branch"] != branch
-        or not stat.S_ISDIR(metadata.st_mode)
-        or (payload["rootDevice"], payload["rootInode"])
-        != (metadata.st_dev, metadata.st_ino)
-        or not isinstance(payload["generatedFiles"], list)
-        or not isinstance(payload["authorizedEvidence"], list)
-        or type(payload["pushSucceeded"]) is not bool
-        or digest != _baseline_digest(payload)
-    ):
-        raise LifecycleError("landing-attempt provenance is incoherent")
-    if payload["state"] != "frozen" or not payload["pushSucceeded"]:
-        raise LifecycleError(
-            "canonical cleanup recovery requires a frozen landing attempt from a "
-            f"completed push; archive an unfinished attempt with `{ABANDON_ATTEMPT_FLAG}`"
-        )
-    if payload["generatedFiles"]:
-        raise LifecycleError(
-            "landing-start generated paths are consumer-owned and protected: "
-            + ", ".join(payload["generatedFiles"])
-        )
-    baseline = load_artifact_baseline(worktree)
-    if payload["baselineDigest"] != baseline.digest:
-        raise LifecycleError("artifact provenance baseline changed during landing")
-    frozen = tuple(payload["authorizedEvidence"])
-    relatives: list[str] = []
-    for item in frozen:
-        relative = item.get("path") if isinstance(item, dict) else None
-        if not isinstance(relative, str) or relative in relatives:
-            raise LifecycleError("scratch evidence is incoherent")
-        relatives.append(relative)
-    outside = sorted(
-        relative for relative in relatives
-        if not any(
-            path_glob_matches(relative, pattern)
-            for pattern in canonical.landing_generated_artifact_patterns
-        )
-    )
-    if outside:
-        raise LifecycleError(
-            "landing-attempt evidence is outside canonical cleanup policy: "
-            + ", ".join(outside)
-        )
-    with verified_worktree_root(
-        worktree,
-        baseline.root_device,
-        baseline.root_inode,
-    ) as descriptor:
-        current = tuple(
-            contained_regular_identity(descriptor, relative)
-            for relative in relatives
-        )
-    if current != frozen:
-        raise LifecycleError("landing-generated evidence changed after it was frozen")
-    return current
+    @property
+    def scratch_files(self) -> tuple[str, ...]:
+        if self.classification is None:
+            return ()
+        return tuple(entry.path for entry in self.classification.scratch)
 
 
 def collect_facts(cwd: Path) -> RepoFacts:
@@ -942,39 +146,6 @@ def is_tracked(root: Path, relative: str) -> bool:
     return result.returncode == 0
 
 
-def cleanup_assessment(
-    profile: WorktreeProfile,
-    main: Path,
-    target: Path,
-    merge_target: str | None = None,
-    pr_state: str = "none",
-    verified_scratch_files: tuple[str, ...] = (),
-    verified_scratch_evidence: tuple[dict[str, Any], ...] = (),
-) -> CleanupAssessment:
-    assessment = classify_cleanup(
-        profile,
-        collect_cleanup_facts(
-            main,
-            target,
-            merge_target=merge_target,
-            pr_state=pr_state,
-        ),
-        verified_scratch_files=verified_scratch_files,
-    )
-    try:
-        return bind_cleanup_scratch_evidence(
-            profile,
-            assessment,
-            verified_scratch_evidence,
-            require_generator_evidence=True,
-        )
-    except LifecycleError as error:
-        return replace(
-            assessment,
-            reasons=assessment.reasons + (f"scratch evidence stop: {error}",),
-        )
-
-
 def collect_cleanup_facts(
     main: Path,
     target: Path,
@@ -982,38 +153,21 @@ def collect_cleanup_facts(
     merge_target: str | None = None,
     pr_state: str = "none",
 ) -> CleanupFacts:
+    """Read every fact a removal verdict needs, deciding nothing.
+
+    The file taxonomy comes from `classify.assess`, which is also the object the
+    removal step consumes — preview and action can never disagree.
+    """
     worktree = target.resolve()
-    root_metadata = worktree.stat()
     branch = run(
         ["git", "-C", str(worktree), "branch", "--show-current"],
         cwd=main,
         check=False,
     ).stdout.strip()
-    tracked = set(run(
-        ["git", "-C", str(worktree), "diff", "--name-only"],
-        cwd=main,
-        check=False,
-    ).stdout.splitlines())
-    tracked.update(run(
-        ["git", "-C", str(worktree), "diff", "--cached", "--name-only"],
-        cwd=main,
-        check=False,
-    ).stdout.splitlines())
-    untracked = set(run(
-        ["git", "-C", str(worktree), "ls-files", "--others", "--exclude-standard"],
-        cwd=main,
-        check=False,
-    ).stdout.splitlines())
-    untracked.update(run(
-        [
-            "git", "-C", str(worktree), "ls-files", "--others", "--ignored",
-            "--exclude-standard",
-        ],
-        cwd=main,
-        check=False,
-    ).stdout.splitlines())
-    # ANNAHMEN.md is governed separately: its bytes are returned before removal.
-    untracked.discard("ANNAHMEN.md")
+    try:
+        classification = assess(worktree, main)
+    except ClassificationError as error:
+        raise LifecycleError(str(error)) from error
     merged = False
     if branch:
         main_branch = merge_target or run(
@@ -1026,6 +180,7 @@ def collect_cleanup_facts(
             cwd=main,
             check=False,
         ).returncode == 0
+    # ANNAHMEN.md is governed separately: its bytes are returned before removal.
     assumptions_path = worktree / "ANNAHMEN.md"
     assumptions = assumptions_path.read_text(encoding="utf-8") if assumptions_path.is_file() else ""
     return CleanupFacts(
@@ -1033,22 +188,14 @@ def collect_cleanup_facts(
         branch=branch,
         registered=worktree in registered_worktrees(main),
         is_main=worktree == main.resolve(),
-        tracked_files=tuple(sorted(tracked)),
-        untracked_files=tuple(sorted(untracked)),
+        classification=classification,
         merged=merged,
         pr_state=pr_state,
         assumptions=assumptions,
-        root_device=root_metadata.st_dev,
-        root_inode=root_metadata.st_ino,
     )
 
 
-def classify_cleanup(
-    profile: WorktreeProfile,
-    facts: CleanupFacts,
-    *,
-    verified_scratch_files: tuple[str, ...] = (),
-) -> CleanupAssessment:
+def classify_cleanup(profile: WorktreeProfile, facts: CleanupFacts) -> CleanupAssessment:
     reasons = []
     if not facts.registered:
         reasons.append("not a registered worktree")
@@ -1056,27 +203,8 @@ def classify_cleanup(
         reasons.append("detached or unreadable branch")
     if facts.branch in profile.protected_branches or facts.is_main:
         reasons.append(f"protected worktree branch: {facts.branch or '<unknown>'}")
-    verified = set(verified_scratch_files)
-    missing_verified = sorted(verified.difference(facts.untracked_files))
-    if missing_verified:
-        reasons.append(
-            "verified scratch evidence no longer matches inventory: "
-            + ", ".join(missing_verified)
-        )
-    scratch = sorted(
-        path for path in facts.untracked_files
-        if (
-            path in verified
-            or any(path_glob_matches(path, pattern) for pattern in profile.scratch_patterns)
-        )
-    )
-    non_scratch = sorted(set(facts.untracked_files).difference(scratch))
-    if facts.tracked_files:
-        reasons.append(
-            f"dirty worktree: tracked modifications: {', '.join(facts.tracked_files)}"
-        )
-    if non_scratch:
-        reasons.append(f"dirty worktree: untracked non-scratch: {', '.join(non_scratch)}")
+    if facts.classification is not None and facts.classification.blocks:
+        reasons.append(render_report(facts.classification))
     if facts.pr_state == "open":
         reasons.append("open PR")
     if (
@@ -1090,518 +218,8 @@ def classify_cleanup(
         facts.branch,
         facts.assumptions,
         tuple(reasons),
-        facts.root_device,
-        facts.root_inode,
-        tuple(scratch),
+        facts.classification,
     )
-
-
-@contextmanager
-def verified_worktree_root(root: Path, expected_device: int, expected_inode: int):
-    """Open the assessed worktree root without following a replacement symlink."""
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    descriptor = None
-    try:
-        descriptor = os.open(root, directory_flags | no_follow)
-        metadata = os.fstat(descriptor)
-        if (metadata.st_dev, metadata.st_ino) != (expected_device, expected_inode):
-            raise LifecycleError("worktree root changed before removal")
-        yield descriptor
-    except OSError as error:
-        raise LifecycleError("worktree root changed before removal") from error
-    finally:
-        if descriptor is not None:
-            os.close(descriptor)
-
-
-def remove_contained_regular(
-    root_descriptor: int,
-    relative: str,
-    expected_identity: dict[str, Any] | None = None,
-) -> None:
-    """Delete one exact assessed regular file without following path symlinks."""
-    path = PurePosixPath(relative)
-    if path.is_absolute() or not path.parts or any(
-        part in {"", ".", ".."} for part in path.parts
-    ):
-        raise LifecycleError(f"unsafe scratch path: {relative}")
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    descriptors = []
-    try:
-        current = root_descriptor
-        for component in path.parts[:-1]:
-            current = os.open(
-                component,
-                directory_flags | no_follow,
-                dir_fd=current,
-            )
-            descriptors.append(current)
-        initial_metadata = os.stat(
-            path.name,
-            dir_fd=current,
-            follow_symlinks=False,
-        )
-        if not stat.S_ISREG(initial_metadata.st_mode):
-            raise LifecycleError(f"scratch path is not a regular file: {relative}")
-        file_descriptor = os.open(
-            path.name,
-            os.O_RDONLY | no_follow,
-            dir_fd=current,
-        )
-        try:
-            metadata = os.fstat(file_descriptor)
-            digest = sha256()
-            while chunk := os.read(file_descriptor, 128 * 1024):
-                digest.update(chunk)
-        finally:
-            os.close(file_descriptor)
-        if (
-            not stat.S_ISREG(metadata.st_mode)
-            or (metadata.st_dev, metadata.st_ino)
-            != (initial_metadata.st_dev, initial_metadata.st_ino)
-        ):
-            raise LifecycleError(f"scratch path changed before removal: {relative}")
-        identity = {
-            "path": relative,
-            "device": metadata.st_dev,
-            "inode": metadata.st_ino,
-            "size": metadata.st_size,
-            "sha256": digest.hexdigest(),
-        }
-        if expected_identity is not None and identity != expected_identity:
-            raise LifecycleError(f"scratch path identity changed: {relative}")
-        latest = os.stat(path.name, dir_fd=current, follow_symlinks=False)
-        if (latest.st_dev, latest.st_ino) != (metadata.st_dev, metadata.st_ino):
-            raise LifecycleError(f"scratch path changed before removal: {relative}")
-        os.unlink(path.name, dir_fd=current)
-    except OSError as error:
-        raise LifecycleError(f"scratch path changed before removal: {relative}") from error
-    finally:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
-
-
-def remove_authorized_scratch(
-    profile: WorktreeProfile,
-    root_descriptor: int,
-    scratch_files: tuple[str, ...] | list[str],
-    verified_evidence: tuple[dict[str, Any], ...] | list[dict[str, Any]] = (),
-) -> None:
-    """Remove profile scratch or exact generator evidence without weakening overlaps."""
-    evidence_by_path: dict[str, dict[str, Any]] = {}
-    for item in verified_evidence:
-        relative = item.get("path")
-        if not isinstance(relative, str) or relative in evidence_by_path:
-            raise LifecycleError("scratch evidence is incoherent")
-        evidence_by_path[relative] = item
-    unexpected = sorted(set(evidence_by_path).difference(scratch_files))
-    if unexpected:
-        raise LifecycleError(
-            "scratch evidence is outside the assessed inventory: "
-            + ", ".join(unexpected)
-        )
-    for relative in scratch_files:
-        generated = any(
-            path_glob_matches(relative, pattern)
-            for pattern in profile.landing_generated_artifact_patterns
-        )
-        profile_authorized = any(
-            path_glob_matches(relative, pattern)
-            for pattern in profile.scratch_patterns
-        )
-        expected = evidence_by_path.get(relative)
-        if not generated and not profile_authorized:
-            raise LifecycleError(
-                f"canonical cleanup policy does not authorize scratch: {relative}"
-            )
-        if generated and expected is None:
-            raise LifecycleError(
-                f"landing-generated scratch evidence is missing: {relative}"
-            )
-        if generated and expected.get("kind") == "symlink":
-            raise LifecycleError(
-                f"landing-generated scratch path is not a regular file: {relative}"
-            )
-        if profile_authorized and expected is None:
-            raise LifecycleError(f"profile scratch evidence is missing: {relative}")
-        if not profile_authorized and expected is None:
-            raise LifecycleError(f"verified scratch evidence is missing: {relative}")
-    for relative in scratch_files:
-        expected = evidence_by_path[relative]
-        if expected.get("kind") == "symlink":
-            remove_contained_untracked(
-                root_descriptor,
-                expected,
-                require_contained_symlink_target=True,
-            )
-        else:
-            remove_contained_regular(
-                root_descriptor,
-                relative,
-                expected_identity=expected,
-            )
-
-
-def bind_cleanup_scratch_evidence(
-    profile: WorktreeProfile,
-    assessment: CleanupAssessment,
-    verified_generator_evidence: tuple[dict[str, Any], ...] | list[dict[str, Any]] = (),
-    *,
-    require_generator_evidence: bool = False,
-) -> CleanupAssessment:
-    """Freeze identity for every assessed scratch path at its authority boundary."""
-    evidence_by_path = {
-        item.get("path"): item
-        for item in verified_generator_evidence
-        if isinstance(item, dict) and isinstance(item.get("path"), str)
-    }
-    if len(evidence_by_path) != len(verified_generator_evidence):
-        raise LifecycleError("scratch evidence is incoherent")
-    unauthorized_evidence = sorted(
-        relative
-        for relative in evidence_by_path
-        if not any(
-            path_glob_matches(relative, pattern)
-            for pattern in profile.landing_generated_artifact_patterns
-        )
-    )
-    if unauthorized_evidence:
-        raise LifecycleError(
-            "generator evidence is outside canonical landing policy: "
-            + ", ".join(unauthorized_evidence)
-        )
-    scratch = set(assessment.scratch_files)
-    if not set(evidence_by_path).issubset(scratch):
-        raise LifecycleError("scratch evidence is outside the assessed inventory")
-    profile_only = [
-        relative
-        for relative in assessment.scratch_files
-        if not any(
-            path_glob_matches(relative, pattern)
-            for pattern in profile.landing_generated_artifact_patterns
-        )
-    ]
-    missing_generator = [
-        relative
-        for relative in assessment.scratch_files
-        if any(
-            path_glob_matches(relative, pattern)
-            for pattern in profile.landing_generated_artifact_patterns
-        )
-        and relative not in evidence_by_path
-    ]
-    if missing_generator and require_generator_evidence:
-        raise LifecycleError(
-            "landing-generated scratch evidence is missing: "
-            + ", ".join(missing_generator)
-        )
-    with verified_worktree_root(
-        assessment.worktree,
-        assessment.root_device,
-        assessment.root_inode,
-    ) as descriptor:
-        for relative in profile_only:
-            evidence_by_path[relative] = contained_profile_scratch_identity(
-                descriptor, relative
-            )
-    return replace(
-        assessment,
-        scratch_evidence=tuple(
-            evidence_by_path[relative]
-            for relative in assessment.scratch_files
-            if relative in evidence_by_path
-        ),
-    )
-
-
-def contained_regular_identity(root_descriptor: int, relative: str) -> dict[str, Any]:
-    """Read one exact regular file identity without following path symlinks."""
-    path = PurePosixPath(relative)
-    if path.is_absolute() or not path.parts or any(
-        part in {"", ".", ".."} for part in path.parts
-    ):
-        raise LifecycleError(f"unsafe scratch path: {relative}")
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    descriptors = []
-    try:
-        current = root_descriptor
-        for component in path.parts[:-1]:
-            current = os.open(
-                component,
-                directory_flags | no_follow,
-                dir_fd=current,
-            )
-            descriptors.append(current)
-        initial = os.stat(path.name, dir_fd=current, follow_symlinks=False)
-        if not stat.S_ISREG(initial.st_mode):
-            raise LifecycleError(
-                f"scratch path is not a regular file: {relative}"
-            )
-        file_descriptor = os.open(
-            path.name,
-            os.O_RDONLY | no_follow,
-            dir_fd=current,
-        )
-        try:
-            metadata = os.fstat(file_descriptor)
-            if (
-                not stat.S_ISREG(metadata.st_mode)
-                or (metadata.st_dev, metadata.st_ino)
-                != (initial.st_dev, initial.st_ino)
-            ):
-                raise LifecycleError(
-                    f"scratch path changed before inspection: {relative}"
-                )
-            digest = sha256()
-            while chunk := os.read(file_descriptor, 128 * 1024):
-                digest.update(chunk)
-        finally:
-            os.close(file_descriptor)
-        return {
-            "path": relative,
-            "device": metadata.st_dev,
-            "inode": metadata.st_ino,
-            "size": metadata.st_size,
-            "sha256": digest.hexdigest(),
-        }
-    except OSError as error:
-        raise LifecycleError(f"scratch path changed before inspection: {relative}") from error
-    finally:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
-
-
-def contained_untracked_identity(
-    root_descriptor: int,
-    relative: str,
-    *,
-    require_contained_symlink_target: bool = False,
-) -> dict[str, Any]:
-    """Read exact regular/symlink identity without following any symlink."""
-    path = PurePosixPath(relative)
-    if path.is_absolute() or not path.parts or any(
-        part in {"", ".", ".."} for part in path.parts
-    ):
-        raise LifecycleError(f"unsafe recovery path: {relative}")
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    descriptors = []
-    try:
-        current = root_descriptor
-        for component in path.parts[:-1]:
-            current = os.open(
-                component,
-                directory_flags | no_follow,
-                dir_fd=current,
-            )
-            descriptors.append(current)
-        metadata = os.stat(path.name, dir_fd=current, follow_symlinks=False)
-        common = {
-            "path": relative,
-            "device": metadata.st_dev,
-            "inode": metadata.st_ino,
-            "size": metadata.st_size,
-        }
-        if stat.S_ISLNK(metadata.st_mode):
-            target_text = os.readlink(path.name, dir_fd=current)
-            target = target_text.encode(
-                "utf-8", errors="surrogateescape"
-            )
-            identity = {
-                **common,
-                "kind": "symlink",
-                "sha256": sha256(target).hexdigest(),
-            }
-            if require_contained_symlink_target:
-                target_metadata = contained_symlink_target_identity(
-                    root_descriptor,
-                    relative,
-                    target_text,
-                )
-                identity.update({
-                    "targetDevice": target_metadata.st_dev,
-                    "targetInode": target_metadata.st_ino,
-                })
-            return identity
-        if not stat.S_ISREG(metadata.st_mode):
-            raise LifecycleError(f"unsupported recovery path type: {relative}")
-        file_descriptor = os.open(
-            path.name,
-            os.O_RDONLY | no_follow,
-            dir_fd=current,
-        )
-        try:
-            opened = os.fstat(file_descriptor)
-            if (opened.st_dev, opened.st_ino) != (
-                metadata.st_dev, metadata.st_ino
-            ):
-                raise LifecycleError(
-                    f"recovery path changed before inspection: {relative}"
-                )
-            digest = sha256()
-            while chunk := os.read(file_descriptor, 128 * 1024):
-                digest.update(chunk)
-        finally:
-            os.close(file_descriptor)
-        return {**common, "kind": "regular", "sha256": digest.hexdigest()}
-    except OSError as error:
-        raise LifecycleError(
-            f"recovery path changed before inspection: {relative}"
-        ) from error
-    finally:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
-
-
-def contained_profile_scratch_identity(
-    root_descriptor: int,
-    relative: str,
-) -> dict[str, Any]:
-    """Freeze regular scratch unchanged, or one contained symlink and its target."""
-    identity = contained_untracked_identity(
-        root_descriptor,
-        relative,
-        require_contained_symlink_target=True,
-    )
-    if identity["kind"] == "regular":
-        return {
-            key: value
-            for key, value in identity.items()
-            if key != "kind"
-        }
-    return identity
-
-
-def _relative_target_parts(
-    base_parts: list[str],
-    target: str,
-    relative: str,
-) -> list[str]:
-    target_path = PurePosixPath(target)
-    if target_path.is_absolute():
-        raise LifecycleError(f"scratch symlink target is absolute: {relative}")
-    resolved = list(base_parts)
-    for component in target_path.parts:
-        if component in {"", "."}:
-            continue
-        if component == "..":
-            if not resolved:
-                raise LifecycleError(
-                    f"scratch symlink target escapes worktree: {relative}"
-                )
-            resolved.pop()
-            continue
-        resolved.append(component)
-    return resolved
-
-
-def contained_symlink_target_identity(
-    root_descriptor: int,
-    relative: str,
-    target: str,
-) -> os.stat_result:
-    """Resolve one symlink target beneath the open root, rejecting every escape."""
-    link = PurePosixPath(relative)
-    pending = _relative_target_parts(list(link.parts[:-1]), target, relative)
-    resolved: list[str] = []
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    symlink_count = 0
-    try:
-        if not pending:
-            return os.fstat(root_descriptor)
-        while pending:
-            component = pending.pop(0)
-            descriptors = []
-            try:
-                parent = root_descriptor
-                for ancestor in resolved:
-                    parent = os.open(
-                        ancestor,
-                        directory_flags | no_follow,
-                        dir_fd=parent,
-                    )
-                    descriptors.append(parent)
-                metadata = os.stat(
-                    component,
-                    dir_fd=parent,
-                    follow_symlinks=False,
-                )
-                if stat.S_ISLNK(metadata.st_mode):
-                    symlink_count += 1
-                    if symlink_count > 40:
-                        raise OSError("too many symbolic links")
-                    nested_target = os.readlink(component, dir_fd=parent)
-                    pending = _relative_target_parts(
-                        resolved,
-                        nested_target,
-                        relative,
-                    ) + pending
-                    resolved = []
-                    if not pending:
-                        return os.fstat(root_descriptor)
-                    continue
-                if pending and not stat.S_ISDIR(metadata.st_mode):
-                    raise OSError("symlink target parent is not a directory")
-                resolved.append(component)
-                if not pending:
-                    return metadata
-            finally:
-                for descriptor in reversed(descriptors):
-                    os.close(descriptor)
-    except LifecycleError:
-        raise
-    except OSError as error:
-        raise LifecycleError(
-            f"scratch symlink target is dangling or changed: {relative}"
-        ) from error
-    raise LifecycleError(f"scratch symlink target is dangling or changed: {relative}")
-
-
-def remove_contained_untracked(
-    root_descriptor: int,
-    expected_identity: dict[str, Any],
-    *,
-    require_contained_symlink_target: bool = False,
-) -> None:
-    """Unlink one frozen regular file or symlink if its identity still matches."""
-    relative = expected_identity.get("path")
-    if not isinstance(relative, str):
-        raise LifecycleError("recovery path evidence is incoherent")
-    current = contained_untracked_identity(
-        root_descriptor,
-        relative,
-        require_contained_symlink_target=require_contained_symlink_target,
-    )
-    if current != expected_identity:
-        raise LifecycleError(f"recovery path identity changed: {relative}")
-    path = PurePosixPath(relative)
-    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    descriptors = []
-    try:
-        parent = root_descriptor
-        for component in path.parts[:-1]:
-            parent = os.open(
-                component,
-                directory_flags | no_follow,
-                dir_fd=parent,
-            )
-            descriptors.append(parent)
-        latest = os.stat(path.name, dir_fd=parent, follow_symlinks=False)
-        if (latest.st_dev, latest.st_ino) != (
-            expected_identity["device"], expected_identity["inode"]
-        ):
-            raise LifecycleError(f"recovery path changed before removal: {relative}")
-        os.unlink(path.name, dir_fd=parent)
-    except OSError as error:
-        raise LifecycleError(f"recovery path changed before removal: {relative}") from error
-    finally:
-        for descriptor in reversed(descriptors):
-            os.close(descriptor)
 
 
 @dataclass(frozen=True)
@@ -1637,6 +255,7 @@ class SweepFactRow:
     merged_into_main: bool
     last_commit_age_seconds: int
     cleanup: CleanupFacts | None = None
+    cleanup_error: str = ""
 
 
 @dataclass(frozen=True)
@@ -1668,6 +287,23 @@ def _worktree_branches(main: Path) -> tuple[dict[str, Path], tuple[Path, ...]]:
                 detached.append(path)
             path = None
     return linked, tuple(detached)
+
+
+def _cleanup_facts_or_error(
+    main: Path,
+    path: Path,
+    *,
+    merge_target: str,
+    pr_state: str,
+) -> tuple[CleanupFacts | None, str]:
+    """A single unreadable worktree must not abort the read-only inventory."""
+    try:
+        facts = collect_cleanup_facts(
+            main, path, merge_target=merge_target, pr_state=pr_state
+        )
+    except LifecycleError as error:
+        return None, str(error)
+    return facts, ""
 
 
 def collect_sweep_facts(
@@ -1702,18 +338,21 @@ def collect_sweep_facts(
             cwd=main,
             check=False,
         ).returncode == 0
+        cleanup, cleanup_error = (
+            _cleanup_facts_or_error(
+                main, path, merge_target=main_branch, pr_state=pr_state
+            )
+            if path is not None
+            else (None, "")
+        )
         rows.append(SweepFactRow(
             path=path,
             branch=branch,
             pr_state=pr_state,
             merged_into_main=merged,
             last_commit_age_seconds=max(0, timestamp - int(commit_time)),
-            cleanup=collect_cleanup_facts(
-                main,
-                path,
-                merge_target=main_branch,
-                pr_state=pr_state,
-            ) if path is not None else None,
+            cleanup=cleanup,
+            cleanup_error=cleanup_error,
         ))
     for path in detached:
         commit_time = run(
@@ -1759,7 +398,7 @@ def classify_sweep(profile: WorktreeProfile, facts: SweepFacts) -> SweepReport:
             scratch = assessment.scratch_files
             assumptions = assessment.assumptions
         elif fact.path is not None:
-            reasons = ("detached or unreadable branch",)
+            reasons = (fact.cleanup_error or "detached or unreadable branch",)
             scratch = ()
             assumptions = ""
         else:

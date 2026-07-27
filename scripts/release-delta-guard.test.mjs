@@ -81,6 +81,51 @@ test('removing accidentally packed seed-only project stubs is a minor change', (
   assert.equal(result.recommendedBump, 'minor');
 });
 
+test('narrowing the publish scope to what a consumer installs is a minor change', () => {
+  const consumer = { kitVersion: '1.3.0', files: [file('skill.md', 'same')] };
+  const result = assessRelease({
+    baseVersion: '1.2.3',
+    currentVersion: '1.3.0',
+    baseManifest: { ...consumer, kitVersion: '1.2.3' },
+    builtManifest: consumer,
+    checkedManifest: consumer,
+    payloadManifest: consumer,
+    basePackagePayload: {
+      files: [
+        file('src/cli.mjs', 'same'),
+        file('scripts/build-kit.mjs', 'maintainer-build-tooling'),
+        file('scripts/lib/scrub.mjs', 'maintainer-build-tooling'),
+        file('scripts/board-sync.test.mjs', 'test-source'),
+        file('scripts/test_board_sync.py', 'test-source'),
+        file('docs/research/wave-43-script-hook-census.md', 'maintainer-doc'),
+        file('docs/adr/0001-consumer-divergence-policy.md', 'maintainer-doc'),
+        file('docs/agents/board-sync.md', 'own-project-layer'),
+      ],
+    },
+    currentPackagePayload: { files: [file('src/cli.mjs', 'same')] },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.recommendedBump, 'minor');
+});
+
+test('a payload removal outside the publish-excluded surface stays major', () => {
+  const consumer = { kitVersion: '1.3.0', files: [file('skill.md', 'same')] };
+  const result = assessRelease({
+    baseVersion: '1.2.3',
+    currentVersion: '1.3.0',
+    baseManifest: { ...consumer, kitVersion: '1.2.3' },
+    builtManifest: consumer,
+    checkedManifest: consumer,
+    payloadManifest: consumer,
+    basePackagePayload: { files: [file('src/lib/hash.mjs', 'runtime')] },
+    currentPackagePayload: { files: [] },
+  });
+
+  assert.equal(result.recommendedBump, 'major');
+  assert.match(result.errors.join('\n'), /minor bump is smaller than recommended major/);
+});
+
 test('dead checked-manifest entries are rejected', () => {
   const result = assessRelease({
     baseVersion: '1.2.3', currentVersion: '1.3.0',
@@ -171,4 +216,57 @@ test('actual npm payload drift is blocked even when checked and built manifests 
   });
   assert.equal(result.ok, false);
   assert.match(result.errors.join('\n'), /npm package payload.*changed: skill\.md/);
+});
+
+test('major version zero recommends a minor for an install-manifest removal', () => {
+  // Semver's initial-development rule: at 0.y.z there is no stable public
+  // contract to break, so removing an installed file is a minor, not a major.
+  const before = { kitVersion: '0.43.0', files: [file('a.md', 'same'), file('gone.py', 'x')] };
+  const after = { kitVersion: '0.44.0', files: [file('a.md', 'same')] };
+  const result = assessRelease({
+    baseVersion: '0.43.0',
+    currentVersion: '0.44.0',
+    baseManifest: before,
+    builtManifest: after,
+    checkedManifest: after,
+    payloadManifest: after,
+  });
+
+  assert.deepEqual(result.delta.removed, ['gone.py']);
+  assert.equal(result.recommendedBump, 'minor');
+  assert.equal(result.ok, true);
+});
+
+test('a released package still demands a major for the same removal', () => {
+  // Positive control for the rule above: the strictness must survive 1.0.0.
+  const before = { kitVersion: '1.2.0', files: [file('a.md', 'same'), file('gone.py', 'x')] };
+  const after = { kitVersion: '1.3.0', files: [file('a.md', 'same')] };
+  const result = assessRelease({
+    baseVersion: '1.2.0',
+    currentVersion: '1.3.0',
+    baseManifest: before,
+    builtManifest: after,
+    checkedManifest: after,
+    payloadManifest: after,
+  });
+
+  assert.equal(result.recommendedBump, 'major');
+  assert.equal(result.ok, false);
+});
+
+test('major version zero still refuses to call a removal a patch', () => {
+  const before = { kitVersion: '0.43.0', files: [file('a.md', 'same'), file('gone.py', 'x')] };
+  const after = { kitVersion: '0.43.1', files: [file('a.md', 'same')] };
+  const result = assessRelease({
+    baseVersion: '0.43.0',
+    currentVersion: '0.43.1',
+    baseManifest: before,
+    builtManifest: after,
+    checkedManifest: after,
+    payloadManifest: after,
+  });
+
+  assert.equal(result.recommendedBump, 'minor');
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((e) => /smaller than recommended minor/.test(e)), result.errors.join('\n'));
 });
