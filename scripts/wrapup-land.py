@@ -18,16 +18,16 @@ Subcommands
                   untouched, no teardown half (run in the main checkout)
 
 Any born, attached worktree is first-class: a direct /wrapup invocation is the
-teardown authorization (ADR 0009), including for worktrees an external tool
-created under a foreign name and path. There is no naming or location gate, no
-persisted attempt state, and no recovery flag — an interrupted landing is
-resumed by re-running it, because every step verifies present state and skips
-what is already done (ADR 0009).
+teardown authorization, including for worktrees an external tool created under
+a foreign name and path. There is no naming or location gate, no persisted
+attempt state, and no recovery flag — an interrupted landing is resumed by
+re-running it, because every step verifies present state and skips what is
+already done.
 
 Branch retirement is authorized, never assumed: ancestry against the freshly
 fetched integration branch deletes normally, and only the platform's own PR
 record — the full tuple, head SHA equal to the tip re-read immediately before
-the deletion — force-deletes (ADR 0009 §3).
+the deletion — force-deletes.
 
 Output: one JSON report on stdout. Exit 0 = ok, 1 = STOP (reason in JSON),
 2 = usage/context error. On STOP nothing is forced — no --force, no
@@ -525,7 +525,7 @@ def load_module(name: str, path: Path, step: str):
 
 
 def load_teardown_classifier():
-    """The one stateless teardown core (ADR 0009) — never a second copy here."""
+    """The one stateless teardown core — never a second copy here."""
     path = Path(__file__).resolve().parent / "worktree-lifecycle" / "classify.py"
     return load_module(CLASSIFY_MODULE, path, "4 teardown")
 
@@ -833,8 +833,8 @@ def cmd_preflight(args) -> dict:
     branch = require_landable_head("preflight", cwd)
     _, protected = branch_policy(wt)
     # No naming or location gate: any born, attached worktree is first-class,
-    # including one an external tool created under a foreign name and path
-    # (ADR 0009). Only the main checkout and a protected branch are refused.
+    # including one an external tool created under a foreign name and path.
+    # Only the main checkout and a protected branch are refused.
     if os.path.realpath(wt) == os.path.realpath(main_tree):
         raise Stop("preflight", "run /wrapup in the worktree it should land and tear down",
                    f"wt={wt} is the main checkout — /wrapup never tears that down")
@@ -928,7 +928,7 @@ def cmd_commit(args) -> dict:
     return {"committed": True, "sha": sha, "allowed_matches": bool(hits)}
 
 
-# ---------- Content route (ADR 0009: durable content, no worktree) ----------
+# ---------- Content route (durable content, no worktree) ----------
 #
 # A planning session has no worktree and no slice. What it produced — an ADR, a
 # glossary update, a research note — sits dirty in the main checkout on the
@@ -1108,7 +1108,7 @@ def load_claim(path: str) -> list[Claimed]:
 
 
 def _is_ignored(main_checkout: str, path: str) -> bool:
-    """Git's own exclude sources decide what is Scratch (ADR 0009 §1)."""
+    """Git's own exclude sources decide what is Scratch."""
     return git(["check-ignore", "-q", "--", path], cwd=main_checkout).returncode == 0
 
 
@@ -1343,7 +1343,7 @@ def cmd_content_commit(args) -> dict:
     }
 
 
-# ---------- branch deletion authority (ADR 0009 §3) ----------
+# ---------- branch deletion authority ----------
 
 BRANCH_PR_RECORD = "pr-record"
 BRANCH_ANCESTRY = "ancestry"
@@ -1383,7 +1383,7 @@ def refresh_integration_branch(main_tree: str, integration: str) -> str:
     """Fetch the configured branch: a stale remote-tracking ref makes ancestry lie.
 
     Ancestry is read against a *freshly fetched* protected branch, and a fetch
-    that fails stops rather than guesses (ADR 0009 §3).
+    that fails stops rather than guesses.
     """
     tracking = f"refs/remotes/origin/{integration}"
     result = git(
@@ -1464,7 +1464,7 @@ def is_merged_record(record: dict) -> bool:
 
 
 def matches_pr_tuple(record: dict, *, repository, branch, integration, tip) -> bool:
-    """ADR 0009 §3's full tuple — the head SHA carries the uniqueness.
+    """The full pull-request tuple — the head SHA carries the uniqueness.
 
     A reused head ref resolves to several pull requests, so the ref never
     establishes uniqueness on its own.
@@ -1526,7 +1526,7 @@ def authorize_branch_deletion(
     repository as base repo, the head repository equal to it, this head ref,
     the configured base ref, merged, head SHA equal to the branch tip —
     authorizes force deletion. Zero matches, several matches, an open pull
-    request on the same head, or no platform access keep the branch (ADR 0009).
+    request on the same head, or no platform access keep the branch.
     """
     command_runner = run if command_runner is None else command_runner
     tracking = refresh_integration_branch(main_tree, integration)
@@ -1646,7 +1646,7 @@ def retire_local_branch(
 def pull_request_snapshot(branch: str) -> dict | None:
     """Read the platform's PR record — the resume authority for a re-run.
 
-    There is no persisted attempt state (ADR 0009). Whether the push, the PR
+    There is no persisted attempt state. Whether the push, the PR
     and the merge already happened is answered by looking, every single time.
     """
     p = run(["gh", "pr", "view", branch, "--json", "number,state,body"])
@@ -2113,7 +2113,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "against the full tuple)")
     l.add_argument("--skip-malformed-drift", action="store_true")
     # No recovery flag exists: an interrupted landing is resumed by re-running
-    # `land`, which re-checks present state at every step (ADR 0009).
+    # `land`, which re-checks present state at every step.
     sub.add_parser("content-claim",
                    help="read-only: infer durable content in the main checkout")
     c2 = sub.add_parser("content-commit",

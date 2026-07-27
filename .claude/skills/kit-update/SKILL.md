@@ -157,9 +157,9 @@ release contain the same artifact.
    the witness path that proves the difference; exit code 1 means at least one
    needs review. Report the named patterns and let the user rewrite them. The
    updater never rewrites a consumer pattern. No Worktree Lifecycle decision
-   reads a glob (ADR 0009), so an update cannot expand what cleanup removes. A
-   missing or disabled profile leaves nothing to review and does not invalidate
-   the update.
+   reads a glob, so an update cannot expand what cleanup removes. A missing or
+   disabled profile leaves nothing to review and does not invalidate the
+   update.
 
 6. Check the optional project census after the update:
 

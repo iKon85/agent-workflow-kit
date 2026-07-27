@@ -5,8 +5,8 @@ Workflow Advisories selects repository-relative paths from consumer-owned
 profile globs, and this is the single matcher it uses, so a pattern can never
 select one set of paths on one advisory surface and a different set on another.
 No Worktree Lifecycle decision reads a glob at all: deletion policy has exactly
-one configuration surface, the ignore mechanism (ADR 0009), so no consumer
-pattern here carries deletion authority.
+one configuration surface, the ignore mechanism, so no consumer pattern here
+carries deletion authority.
 
 Dialect
 -------

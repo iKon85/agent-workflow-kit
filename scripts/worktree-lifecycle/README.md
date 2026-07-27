@@ -22,9 +22,9 @@ they do not carry a second branch regex, worktree traversal, or failure policy.
   setup sequence.
 - `riskyCommandPatterns`: commands that must target the active linked worktree.
 
-The profile carries **structural facts only** (ADR 0009). It declares no
-pattern list, because deletion policy has exactly one configuration surface:
-the ignore mechanism. Making a file deletable at teardown means ignoring it.
+The profile carries **structural facts only**. It declares no pattern list,
+because deletion policy has exactly one configuration surface: the ignore
+mechanism. Making a file deletable at teardown means ignoring it.
 Keys this loader does not know are ignored in silence, so a profile written for
 an older kit keeps working without warning noise.
 
@@ -63,7 +63,7 @@ shipped skills write (`PLAN.md`, `PLAN-REVIEW-LOG.md`, `ANNAHMEN.md`).
 `preview` reports what an approval would append and writes nothing, and `apply`
 appends exactly one marker block. `.gitignore` is a consumer file the kit does
 not own, so only an explicit approved `/setup-workflow` step may run `apply`;
-`init` and `update` reconciliation never reach it (ADR 0008).
+`init` and `update` reconciliation never reach it.
 
 The append never rewrites, reorders, or removes an existing line. A repository
 that already ignores every artefact reports `nothing-to-do`, a re-run after an
@@ -101,13 +101,13 @@ force removal.
 own declared `.dev-ports` listeners, classify, delete the Scratch, remove the
 worktree. Teardown always runs — a direct `/wrapup` invocation is its
 authorization, including for a worktree an external tool created under a
-foreign name and path (ADR 0009). There is no persisted attempt state and no
-recovery flag: an interrupted landing is resumed by re-running it, because
-every step verifies present state and skips what is already done.
+foreign name and path. There is no persisted attempt state and no recovery
+flag: an interrupted landing is resumed by re-running it, because every step
+verifies present state and skips what is already done.
 
-Two residual risks are accepted deliberately (ADR 0009) — between assessment and
-deletion a file could in principle be replaced, and a valuable file a consumer
-keeps gitignored outside `.env*` is deletable at teardown.
+Two residual risks are accepted deliberately — between assessment and deletion
+a file could in principle be replaced, and a valuable file a consumer keeps
+gitignored outside `.env*` is deletable at teardown.
 
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal

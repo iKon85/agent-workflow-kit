@@ -1,11 +1,11 @@
 """Consumer-neutral Worktree Lifecycle facts and decisions.
 
 Teardown authority is not stored here. `classify.py` derives it from the
-repository's current state at the moment of action (ADR 0009), and this module
-consumes exactly that assessment: it adds only the facts git status cannot
-answer — is the path a registered worktree, is its branch protected, is there
-an open PR, is the branch merged — and renders the one classification report
-instead of formatting a second one.
+repository's current state at the moment of action, and this module consumes
+exactly that assessment: it adds only the facts git status cannot answer — is
+the path a registered worktree, is its branch protected, is there an open PR,
+is the branch merged — and renders the one classification report instead of
+formatting a second one.
 """
 
 from __future__ import annotations
