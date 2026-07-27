@@ -1467,7 +1467,11 @@ def contained_profile_scratch_identity(
         require_contained_symlink_target=True,
     )
     if identity["kind"] == "regular":
-        return contained_regular_identity(root_descriptor, relative)
+        return {
+            key: value
+            for key, value in identity.items()
+            if key != "kind"
+        }
     return identity
 
 

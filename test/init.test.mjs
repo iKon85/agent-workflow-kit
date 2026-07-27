@@ -6,12 +6,13 @@ import { init } from '../src/commands/init.mjs';
 import {
   readManifest, writeManifest, CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME,
 } from '../src/lib/manifest.mjs';
-import { firstLineState, stubSentinel } from '../src/lib/sentinel.mjs';
+import { firstLineState } from '../src/lib/sentinel.mjs';
 import { STUB_TARGETS } from '../src/lib/bundle.mjs';
 import { PROJECT_SKILL_REGISTRY_PATH } from '../src/lib/skillRegistry.mjs';
 import { makeKit, makeEmptyDir, cleanup } from './helpers.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
+const PRE_CHANGE_STUB_BYTES = '<!-- setup-workflow: state=stub -->\n';
 
 test('init copies kit files, writes the consumer manifest, and seeds every doc stub byte-identically', async () => {
   const kit = await makeKit({ '.claude/skills/to-prd/SKILL.md': '# to-prd\n' });
@@ -31,7 +32,7 @@ test('init copies kit files, writes the consumer manifest, and seeds every doc s
         path,
         bytes: await readFile(join(consumer, path), 'utf8'),
       }))),
-      STUB_TARGETS.map((path) => ({ path, bytes: `${stubSentinel()}\n` })),
+      STUB_TARGETS.map((path) => ({ path, bytes: PRE_CHANGE_STUB_BYTES })),
     );
     assert.deepEqual(result.seeded, STUB_TARGETS);
     assert.equal(
