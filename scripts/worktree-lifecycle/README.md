@@ -86,9 +86,14 @@ scratch is named in the report but does not block removal. The assessment reads
 processes or removing the worktree.
 
 Explicit removal re-collects facts immediately before mutation, requires the
-same removable inventory, deletes only the exact contained regular scratch
-files from that inventory, and uses ordinary `git worktree remove`. It never
-bypasses Git's final concurrent-change check with force removal.
+same removable inventory, deletes only the exact contained scratch entries
+from that inventory, and uses ordinary `git worktree remove`. Regular-file
+identity stays byte-bound. A profile-authorized symlink is eligible only when
+its relative target resolves to an existing entry inside the assessed
+worktree; cleanup freezes both the link and resolved target identities, then
+unlinks the link without following it. Absolute, escaping, dangling, changed,
+unmatched, or late symlinks stop cleanup. It never bypasses Git's final
+concurrent-change check with force removal.
 
 The generic setup route atomically records its ignored and complete
 untracked-file inventories in the linked worktree's Git metadata after its
@@ -129,9 +134,10 @@ The landing adapter may carry exact scratch evidence only for current ignored
 files that match the consumer-owned
 `wrapup.landingGeneratedArtifactPatterns` profile and were absent from that
 creation baseline. Missing, changed, or incoherent provenance stops landing
-cleanup. Initial/profile-matched files, unmatched files, symlinks, and writes
-after the landing evidence snapshot remain cleanup stops; deletion still uses
-the same descriptor-bound regular-file primitive and a second inventory check.
+cleanup. Initial/profile-matched files, unmatched files, landing-generated
+symlinks, and writes after the landing evidence snapshot remain cleanup stops;
+generator evidence and regular-file removal stay descriptor-bound and require
+a second inventory check.
 Mutable session logs belong in explicit `scratchPatterns`, not in the landing
 generator allowlist: their identity is frozen at final cleanup assessment, so
 normal logging before teardown remains live while a later append or replacement

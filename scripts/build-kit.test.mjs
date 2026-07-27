@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { buildKit } from './build-kit.mjs';
 import { init } from '../src/commands/init.mjs';
-import { HELPER_FILES } from '../src/lib/bundle.mjs';
+import { HELPER_FILES, STUB_TARGETS } from '../src/lib/bundle.mjs';
 import { CONSUMER_MANIFEST_NAME, readManifest } from '../src/lib/manifest.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -154,6 +154,9 @@ test('npm pack keeps product files but excludes runtime residue', async () => {
     assert.ok(files.includes('.claude/skills/tdd/SKILL.md'));
     for (const path of PUBLIC_CENSUS_UNIT) {
       assert.ok(files.includes(path), `pack missing ${path}`);
+    }
+    for (const path of STUB_TARGETS) {
+      assert.ok(!files.includes(path), `pack must exclude init stub target ${path}`);
     }
     const packedByPath = new Map(JSON.parse(output)[0].files.map((file) => [file.path, file]));
     assert.deepEqual(

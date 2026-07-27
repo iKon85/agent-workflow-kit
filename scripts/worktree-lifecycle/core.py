@@ -1220,17 +1220,28 @@ def remove_authorized_scratch(
             raise LifecycleError(
                 f"landing-generated scratch evidence is missing: {relative}"
             )
+        if generated and expected.get("kind") == "symlink":
+            raise LifecycleError(
+                f"landing-generated scratch path is not a regular file: {relative}"
+            )
         if profile_authorized and expected is None:
             raise LifecycleError(f"profile scratch evidence is missing: {relative}")
         if not profile_authorized and expected is None:
             raise LifecycleError(f"verified scratch evidence is missing: {relative}")
     for relative in scratch_files:
         expected = evidence_by_path[relative]
-        remove_contained_regular(
-            root_descriptor,
-            relative,
-            expected_identity=expected,
-        )
+        if expected.get("kind") == "symlink":
+            remove_contained_untracked(
+                root_descriptor,
+                expected,
+                require_contained_symlink_target=True,
+            )
+        else:
+            remove_contained_regular(
+                root_descriptor,
+                relative,
+                expected_identity=expected,
+            )
 
 
 def bind_cleanup_scratch_evidence(
@@ -1292,7 +1303,7 @@ def bind_cleanup_scratch_evidence(
         assessment.root_inode,
     ) as descriptor:
         for relative in profile_only:
-            evidence_by_path[relative] = contained_regular_identity(
+            evidence_by_path[relative] = contained_profile_scratch_identity(
                 descriptor, relative
             )
     return replace(
@@ -1366,6 +1377,8 @@ def contained_regular_identity(root_descriptor: int, relative: str) -> dict[str,
 def contained_untracked_identity(
     root_descriptor: int,
     relative: str,
+    *,
+    require_contained_symlink_target: bool = False,
 ) -> dict[str, Any]:
     """Read exact regular/symlink identity without following any symlink."""
     path = PurePosixPath(relative)
@@ -1393,10 +1406,26 @@ def contained_untracked_identity(
             "size": metadata.st_size,
         }
         if stat.S_ISLNK(metadata.st_mode):
-            target = os.readlink(path.name, dir_fd=current).encode(
+            target_text = os.readlink(path.name, dir_fd=current)
+            target = target_text.encode(
                 "utf-8", errors="surrogateescape"
             )
-            return {**common, "kind": "symlink", "sha256": sha256(target).hexdigest()}
+            identity = {
+                **common,
+                "kind": "symlink",
+                "sha256": sha256(target).hexdigest(),
+            }
+            if require_contained_symlink_target:
+                target_metadata = contained_symlink_target_identity(
+                    root_descriptor,
+                    relative,
+                    target_text,
+                )
+                identity.update({
+                    "targetDevice": target_metadata.st_dev,
+                    "targetInode": target_metadata.st_ino,
+                })
+            return identity
         if not stat.S_ISREG(metadata.st_mode):
             raise LifecycleError(f"unsupported recovery path type: {relative}")
         file_descriptor = os.open(
@@ -1427,15 +1456,126 @@ def contained_untracked_identity(
             os.close(descriptor)
 
 
+def contained_profile_scratch_identity(
+    root_descriptor: int,
+    relative: str,
+) -> dict[str, Any]:
+    """Freeze regular scratch unchanged, or one contained symlink and its target."""
+    identity = contained_untracked_identity(
+        root_descriptor,
+        relative,
+        require_contained_symlink_target=True,
+    )
+    if identity["kind"] == "regular":
+        return {
+            key: value
+            for key, value in identity.items()
+            if key != "kind"
+        }
+    return identity
+
+
+def _relative_target_parts(
+    base_parts: list[str],
+    target: str,
+    relative: str,
+) -> list[str]:
+    target_path = PurePosixPath(target)
+    if target_path.is_absolute():
+        raise LifecycleError(f"scratch symlink target is absolute: {relative}")
+    resolved = list(base_parts)
+    for component in target_path.parts:
+        if component in {"", "."}:
+            continue
+        if component == "..":
+            if not resolved:
+                raise LifecycleError(
+                    f"scratch symlink target escapes worktree: {relative}"
+                )
+            resolved.pop()
+            continue
+        resolved.append(component)
+    return resolved
+
+
+def contained_symlink_target_identity(
+    root_descriptor: int,
+    relative: str,
+    target: str,
+) -> os.stat_result:
+    """Resolve one symlink target beneath the open root, rejecting every escape."""
+    link = PurePosixPath(relative)
+    pending = _relative_target_parts(list(link.parts[:-1]), target, relative)
+    resolved: list[str] = []
+    directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    no_follow = getattr(os, "O_NOFOLLOW", 0)
+    symlink_count = 0
+    try:
+        if not pending:
+            return os.fstat(root_descriptor)
+        while pending:
+            component = pending.pop(0)
+            descriptors = []
+            try:
+                parent = root_descriptor
+                for ancestor in resolved:
+                    parent = os.open(
+                        ancestor,
+                        directory_flags | no_follow,
+                        dir_fd=parent,
+                    )
+                    descriptors.append(parent)
+                metadata = os.stat(
+                    component,
+                    dir_fd=parent,
+                    follow_symlinks=False,
+                )
+                if stat.S_ISLNK(metadata.st_mode):
+                    symlink_count += 1
+                    if symlink_count > 40:
+                        raise OSError("too many symbolic links")
+                    nested_target = os.readlink(component, dir_fd=parent)
+                    pending = _relative_target_parts(
+                        resolved,
+                        nested_target,
+                        relative,
+                    ) + pending
+                    resolved = []
+                    if not pending:
+                        return os.fstat(root_descriptor)
+                    continue
+                if pending and not stat.S_ISDIR(metadata.st_mode):
+                    raise OSError("symlink target parent is not a directory")
+                resolved.append(component)
+                if not pending:
+                    return metadata
+            finally:
+                for descriptor in reversed(descriptors):
+                    os.close(descriptor)
+    except LifecycleError:
+        raise
+    except OSError as error:
+        raise LifecycleError(
+            f"scratch symlink target is dangling or changed: {relative}"
+        ) from error
+    raise LifecycleError(f"scratch symlink target is dangling or changed: {relative}")
+
+
 def remove_contained_untracked(
     root_descriptor: int,
     expected_identity: dict[str, Any],
+    *,
+    require_contained_symlink_target: bool = False,
 ) -> None:
     """Unlink one frozen regular file or symlink if its identity still matches."""
     relative = expected_identity.get("path")
     if not isinstance(relative, str):
         raise LifecycleError("recovery path evidence is incoherent")
-    current = contained_untracked_identity(root_descriptor, relative)
+    current = contained_untracked_identity(
+        root_descriptor,
+        relative,
+        require_contained_symlink_target=require_contained_symlink_target,
+    )
     if current != expected_identity:
         raise LifecycleError(f"recovery path identity changed: {relative}")
     path = PurePosixPath(relative)

@@ -58,6 +58,29 @@ test('an npm runtime change outside the Consumer manifest still requires a relea
   assert.match(result.errors.join('\n'), /version remains 1\.2\.3/);
 });
 
+test('removing accidentally packed seed-only project stubs is a minor change', () => {
+  const consumer = { kitVersion: '1.3.0', files: [file('skill.md', 'same')] };
+  const result = assessRelease({
+    baseVersion: '1.2.3',
+    currentVersion: '1.3.0',
+    baseManifest: { ...consumer, kitVersion: '1.2.3' },
+    builtManifest: consumer,
+    checkedManifest: consumer,
+    payloadManifest: consumer,
+    basePackagePayload: {
+      files: [
+        file('src/cli.mjs', 'same'),
+        file('docs/agents/issue-tracker.md', 'filled-project-layer'),
+      ],
+    },
+    currentPackagePayload: { files: [file('src/cli.mjs', 'same')] },
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.delta.removed, ['docs/agents/issue-tracker.md']);
+  assert.equal(result.recommendedBump, 'minor');
+});
+
 test('dead checked-manifest entries are rejected', () => {
   const result = assessRelease({
     baseVersion: '1.2.3', currentVersion: '1.3.0',

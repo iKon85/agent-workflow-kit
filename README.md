@@ -469,6 +469,25 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.43.0
+
+- removed: `docs/agents/domain.md`
+- removed: `docs/agents/issue-tracker.md`
+- removed: `docs/agents/skills/local-ci.md`
+- removed: `docs/agents/skills/orchestrate-wave.md`
+- removed: `docs/agents/skills/spec-self-critique.md`
+- removed: `docs/agents/triage-labels.md`
+- removed: `docs/conventions/spec-completeness.md`
+- changed: `package.json`
+- changed: `scripts/build-kit.test.mjs`
+- changed: `scripts/codex-exec-scenarios/fake-codex.mjs`
+- changed: `scripts/codex-exec.test.mjs`
+- changed: `scripts/release-delta-guard.mjs`
+- changed: `scripts/release-delta-guard.test.mjs`
+- changed: `scripts/test_worktree_wrapup_contract.py`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/core.py`
+
 ### 0.42.1
 
 - changed: `docs/agents/skills/orchestrate-wave.md`
