@@ -1,6 +1,21 @@
 # Planning ignore rules are offered, never installed
 
-Status: accepted (2026-07-26, #255)
+Status: accepted (2026-07-26, #255) — amended by
+[ADR-0009](./0009-teardown-authority-is-stateless-repository-classification.md)
+(2026-07-27)
+
+**Amendment.** The decision itself stands unchanged: planning ignore rules are
+offered, previewed and explicitly approved, never installed. What ADR-0009
+changes is the surrounding machinery this ADR reasoned against. It removed the
+consumer profile key `worktreeLifecycle.scratchPatterns` and made the
+repository's own ignore mechanism the *single* configuration surface for
+deletion, so every mention of that key below is historical: the rejected
+alternative that would have derived the offered rules from it, and the
+consequence about its derivation finally becoming non-vacuous. Under ADR-0009
+an approved seed is not an input to a pattern list — ignoring a file *is* the
+deletion policy, and an ignored planning artefact is Scratch by classification
+rather than by pattern match. The body below is preserved verbatim as the
+reasoning as it stood when this decision was made.
 
 The shipped planning skills write `PLAN.md`, `PLAN-REVIEW-LOG.md`, and
 `ANNAHMEN.md` into a session worktree, and several of them told the agent those
