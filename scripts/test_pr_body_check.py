@@ -79,6 +79,16 @@ class ExistingBodyRules(unittest.TestCase):
     def test_retro_line_still_required(self):
         self.assertTrue(any("Retro" in item for item in pbc.check_pr_body("closes #149", 149, None)))
 
+    def test_program_prd_label_counts_as_anchor(self):
+        with mock.patch.object(pbc, "_run",
+                               return_value=(0, "type:program\npriority:medium")):
+            self.assertTrue(pbc.fetch_is_anchor(320))
+
+    def test_cluster_label_still_counts_as_anchor(self):
+        with mock.patch.object(pbc, "_run",
+                               return_value=(0, "type:cluster")):
+            self.assertTrue(pbc.fetch_is_anchor(41))
+
     def test_wave_pr_still_requires_part_of_without_closing_anchor(self):
         body = f"Part of #130\ncloses #149\n{RETRO}"
         self.assertEqual(pbc.check_pr_body(body, 130, None, is_anchor=True), [])
