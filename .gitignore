@@ -1,5 +1,9 @@
 node_modules/
+# No lockfile is tracked. pnpm-lock.yaml was already ignored; npm is the
+# documented package manager here, so `npm install` would otherwise leave an
+# untracked package-lock.json for the next session to commit by accident.
 pnpm-lock.yaml
+package-lock.json
 dist-kit/
 __pycache__/
 

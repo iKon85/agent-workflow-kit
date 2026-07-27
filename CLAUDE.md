@@ -166,6 +166,14 @@ same reconciler. Never recover by bumping the version.
 - **An empty grep/git result is no proof.** Anchor paths from the repo root,
   grep the import line not just the bare symbol, try ≥1 pattern variant before
   claiming absence.
+- **A negative measurement is no proof until the harness has produced a
+  positive.** Before recording "the capability is absent", show the same
+  apparatus returning a positive on a case known to have it — otherwise the
+  measurement may have varied the thing under test while holding a control that
+  never had the capability at all. Record the positive control next to the
+  negative. (#296: every early probe ran against a model with no effort axis,
+  so "effort is not readable" was about to be written into an ADR; a control run
+  on an effort-capable model returned the value immediately.)
 - **Verify external platform capabilities before plan-lock.** A plan resting on
   a GitHub plan-tier / Projects / API / npm capability is checked empirically
   (`gh api`, official docs) before the decision is locked — never assumed.
@@ -235,7 +243,11 @@ bare `gh issue create` + `gh project item-*`.
 - **Branch/PR.** `feat|fix|chore|docs/<#>-<slug>`. Leaf-issue PR body:
   `closes #<#>`. Slice PR against a wave/cluster anchor: `Part of #<anchor>`,
   **never** `closes` (merge would close the anchor early). Multi-paragraph
-  bodies via temp file + `--body-file`, then read back once.
+  bodies via temp file + `--body-file`, then read back once. Write the temp file
+  wherever, but **run `gh` from the repo** — `gh` resolves the target repository
+  from the working directory and dies with `not a git repository` in `/tmp`.
+  Working out of the temp directory is the natural way to do this and fails
+  every call; pass `-R <owner>/<repo>` if the cwd cannot be the repo.
 - **Anchor reconcile on every slice event** (PR create **and** merge):
   `python3 scripts/board-sync.py anchor-sync <anchor#>` — `--dry-run` first,
   review the diff, then write.
