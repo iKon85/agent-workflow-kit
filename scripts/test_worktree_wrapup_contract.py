@@ -153,6 +153,7 @@ def land_args(branch, **overrides):
         "body_file": None,
         "title": None,
         "anchor": None,
+        "pr": None,
         "skip_malformed_drift": False,
     }
     values.update(overrides)

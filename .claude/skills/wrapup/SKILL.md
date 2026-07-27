@@ -101,7 +101,7 @@ Run **from the main tree** (the script refuses inside the worktree — an in-wor
 ```bash
 python3 scripts/wrapup-land.py land --branch "<branch>" --title "<title>" --body-file /tmp/wrapup-pr-body.md
 ```
-One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (pending/null-conclusion checks poll for up to 20 minutes with progress on stderr; terminal red / `CONFLICTING` / timeout = STOP; known zero-step billing or runner failures are named `infrastructure failure`; an already-`MERGED` PR resumes at teardown) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` listeners only, own shell ancestry excluded) → teardown classification + scratch removal → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → integration-branch `--ff-only` pull + `branch -d` → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program).
+One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (pending/null-conclusion checks poll for up to 20 minutes with progress on stderr; terminal red / `CONFLICTING` / timeout = STOP; known zero-step billing or runner failures are named `infrastructure failure`; an already-`MERGED` PR resumes at teardown) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` listeners only, own shell ancestry excluded) → teardown classification + scratch removal → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → integration-branch `--ff-only` pull + branch retirement by authority → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program).
 
 STOP → diagnose in the main conversation, fix, re-run `land`. Re-running is the
 only recovery route there is: every step re-reads present state (is the remote
@@ -119,6 +119,21 @@ scratch. One hardcoded exception: an `.env*` file is deletable only when it is
 byte-identical to the main checkout's copy at the same path — otherwise the
 refusal names the exact file. Make something deletable by ignoring it; there is
 no pattern list to configure.
+
+Branch retirement is authorized, never assumed. A branch that is an ancestor of
+the **freshly fetched** integration branch is deleted with `-d`; a fetch that
+fails stops instead of trusting a stale ancestry check. Otherwise the platform's
+own record decides: exactly one pull request matching the full tuple — this
+repository on both sides (no fork heads), this head ref, the configured base
+ref, merged — whose head SHA still equals the branch tip re-read immediately
+before the deletion, authorizes the force delete. Zero matches, several matches,
+an open PR on the same head, a tip that moved in between, or no platform access
+at all keep the branch and report why (`branch_authority` in the report; a
+degraded run says so instead of implying the platform agreed). A reused head ref
+resolves to several pull requests, so the head SHA carries the uniqueness, not
+the ref — `land --pr <n>` names the pull request to check when that record is
+ambiguous. `--pr` selects which pull request is validated; it never skips the
+validation.
 
 Two refusals name a state landing cannot repair for you: a **detached HEAD**
 (attach a branch in that worktree first) and an **unborn branch** (make the

@@ -19,9 +19,15 @@ persisted attempt state, and no recovery flag — an interrupted landing is
 resumed by re-running it, because every step verifies present state and skips
 what is already done (ADR 0009).
 
+Branch retirement is authorized, never assumed: ancestry against the freshly
+fetched integration branch deletes normally, and only the platform's own PR
+record — the full tuple, head SHA equal to the tip re-read immediately before
+the deletion — force-deletes (ADR 0009 §3).
+
 Output: one JSON report on stdout. Exit 0 = ok, 1 = STOP (reason in JSON),
-2 = usage/context error. On STOP nothing is forced — no --force, no -D,
-no --no-verify; the caller diagnoses.
+2 = usage/context error. On STOP nothing is forced — no --force, no
+--no-verify, and no branch deletion the authority above did not clear; the
+caller diagnoses.
 """
 
 from __future__ import annotations
@@ -36,6 +42,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -872,14 +879,279 @@ def cmd_commit(args) -> dict:
     return {"committed": True, "sha": sha, "allowed_matches": bool(hits)}
 
 
+# ---------- branch deletion authority (ADR 0009 §3) ----------
+
+BRANCH_PR_RECORD = "pr-record"
+BRANCH_ANCESTRY = "ancestry"
+BRANCH_RETAINED = "retained"
+
+
+class BranchAuthority(NamedTuple):
+    """What this repository and the platform allow for exactly this branch tip."""
+
+    branch: str
+    decision: str
+    tip: str
+    reason: str
+    pr: str | None = None
+    degraded: bool = False
+
+    def as_report(self) -> dict:
+        return {
+            "decision": self.decision,
+            "pr": self.pr,
+            "tip": self.tip,
+            "reason": self.reason,
+            "degraded": self.degraded,
+        }
+
+
+def branch_tip(main_tree: str, branch: str) -> str:
+    """The branch's current tip OID, or "" when the branch does not exist."""
+    result = git(
+        ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}^{{commit}}"],
+        cwd=main_tree,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def refresh_integration_branch(main_tree: str, integration: str) -> str:
+    """Fetch the configured branch: a stale remote-tracking ref makes ancestry lie.
+
+    Ancestry is read against a *freshly fetched* protected branch, and a fetch
+    that fails stops rather than guesses (ADR 0009 §3).
+    """
+    tracking = f"refs/remotes/origin/{integration}"
+    result = git(
+        ["fetch", "origin", f"+refs/heads/{integration}:{tracking}"], cwd=main_tree
+    )
+    if result.returncode != 0:
+        raise Stop(
+            "5 branch-authority",
+            f"cannot fetch {integration} — a stale ancestry check stops rather than guesses",
+            (result.stderr or result.stdout).strip()[-1000:],
+        )
+    return tracking
+
+
+def platform_json(command_runner, command: list[str]):
+    """Read one read-only platform command's JSON; (None, why) when it cannot be."""
+    try:
+        result = command_runner(command)
+    except OSError as error:  # the platform CLI is not installed at all
+        return None, sanitize_external_detail(str(error))
+    if result.returncode != 0:
+        return None, sanitize_external_detail(result.stderr or result.stdout)
+    try:
+        return json.loads(result.stdout), ""
+    except json.JSONDecodeError as error:
+        return None, sanitize_external_detail(str(error))
+
+
+def platform_repository(command_runner) -> tuple[str, str]:
+    payload, error = platform_json(
+        command_runner, ["gh", "repo", "view", "--json", "nameWithOwner"]
+    )
+    name = payload.get("nameWithOwner") if isinstance(payload, dict) else None
+    if not isinstance(name, str) or "/" not in name:
+        return "", error or "the platform did not name this repository"
+    return name, ""
+
+
+def head_pull_requests(repository: str, branch: str, command_runner):
+    """Every pull request ever opened from this head ref, in any state.
+
+    The historical query survives deleting the branch on the remote *and*
+    locally, which is exactly the moment a landing needs it — measured against
+    this platform, not assumed.
+    """
+    owner = repository.split("/", 1)[0]
+    head = quote(f"{owner}:{branch}", safe=":")
+    path = f"repos/{repository}/pulls?state=all&head={head}&per_page=100"
+    records, error = platform_json(command_runner, ["gh", "api", path])
+    if not isinstance(records, list):
+        return None, error or "the platform returned no pull request list"
+    return records, ""
+
+
+def pull_request_by_number(repository: str, number: str, command_runner):
+    """The one pull request `--pr` names — selected for the check, not exempt."""
+    record, error = platform_json(
+        command_runner, ["gh", "api", f"repos/{repository}/pulls/{quote(number, safe='')}"]
+    )
+    if not isinstance(record, dict):
+        return None, error or f"pull request #{number} cannot be read"
+    return record, ""
+
+
+def _full_name(node) -> str:
+    return str(node.get("full_name") or "") if isinstance(node, dict) else ""
+
+
+def is_merged_record(record: dict) -> bool:
+    """Merged state is `merged_at`, never `merged`.
+
+    The list endpoint sends `merged: null` even for a genuinely merged pull
+    request — measured on a live merged pull request — so reading `merged`
+    there would classify every merged PR as unmerged and silently retain
+    every branch.
+    """
+    return bool(record.get("merged_at"))
+
+
+def matches_pr_tuple(record: dict, *, repository, branch, integration, tip) -> bool:
+    """ADR 0009 §3's full tuple — the head SHA carries the uniqueness.
+
+    A reused head ref resolves to several pull requests, so the ref never
+    establishes uniqueness on its own.
+    """
+    head = record.get("head") or {}
+    base = record.get("base") or {}
+    return (
+        _full_name(base.get("repo")) == repository
+        and _full_name(head.get("repo")) == repository
+        and str(head.get("ref") or "") == branch
+        and str(base.get("ref") or "") == integration
+        and is_merged_record(record)
+        and str(head.get("sha") or "") == tip
+    )
+
+
+def open_pull_requests_on_head(records, *, repository: str, branch: str) -> list:
+    open_prs = []
+    for record in records:
+        head = record.get("head") or {}
+        if (
+            str(record.get("state") or "").lower() == "open"
+            and str(head.get("ref") or "") == branch
+            and _full_name(head.get("repo")) == repository
+        ):
+            open_prs.append(record)
+    return open_prs
+
+
+def _pr_numbers(records) -> str:
+    return ", ".join(f"#{record.get('number')}" for record in records)
+
+
+def _ancestry_only(branch: str, tip: str, integration: str, error: str) -> BranchAuthority:
+    """Honest degradation: say that the platform was unreachable, never imply it agreed."""
+    detail = f" ({error})" if error else ""
+    return BranchAuthority(
+        branch,
+        BRANCH_RETAINED,
+        tip,
+        f"no platform access, so authority degrades to ancestry only — and {branch} "
+        f"is not merged into {integration}{detail}",
+        degraded=True,
+    )
+
+
+def authorize_branch_deletion(
+    main_tree: str,
+    branch: str,
+    *,
+    integration: str,
+    pr: str | None = None,
+    command_runner=None,
+) -> BranchAuthority:
+    """Decide what this branch's own state and the platform record allow.
+
+    Ancestry against the freshly fetched integration branch deletes normally.
+    Otherwise exactly one pull request matching the full tuple — this
+    repository as base repo, the head repository equal to it, this head ref,
+    the configured base ref, merged, head SHA equal to the branch tip —
+    authorizes force deletion. Zero matches, several matches, an open pull
+    request on the same head, or no platform access keep the branch (ADR 0009).
+    """
+    command_runner = run if command_runner is None else command_runner
+    tracking = refresh_integration_branch(main_tree, integration)
+    tip = branch_tip(main_tree, branch)
+    if not tip:
+        return BranchAuthority(
+            branch, BRANCH_RETAINED, "", "the local branch is already absent"
+        )
+    if git(["merge-base", "--is-ancestor", tip, tracking], cwd=main_tree).returncode == 0:
+        return BranchAuthority(
+            branch, BRANCH_ANCESTRY, tip,
+            f"merged into the freshly fetched {integration}",
+        )
+    repository, error = platform_repository(command_runner)
+    if not repository:
+        return _ancestry_only(branch, tip, integration, error)
+    records, error = head_pull_requests(repository, branch, command_runner)
+    if records is None:
+        return _ancestry_only(branch, tip, integration, error)
+    open_prs = open_pull_requests_on_head(records, repository=repository, branch=branch)
+    if open_prs:
+        return BranchAuthority(
+            branch, BRANCH_RETAINED, tip,
+            f"an open pull request shares this head: {_pr_numbers(open_prs)}",
+        )
+    if pr is not None:
+        record, error = pull_request_by_number(repository, pr, command_runner)
+        if record is None:
+            return BranchAuthority(branch, BRANCH_RETAINED, tip, error)
+        records = [record]
+    matching = [
+        record for record in records
+        if matches_pr_tuple(
+            record, repository=repository, branch=branch,
+            integration=integration, tip=tip,
+        )
+    ]
+    if len(matching) == 1:
+        return BranchAuthority(
+            branch, BRANCH_PR_RECORD, tip,
+            f"merged pull request #{matching[0].get('number')} matches this tip",
+            pr=str(matching[0].get("number")),
+        )
+    if not matching:
+        return BranchAuthority(
+            branch, BRANCH_RETAINED, tip,
+            f"no merged pull request in {repository} matches this branch tip "
+            f"{tip[:7]} on {branch}",
+        )
+    return BranchAuthority(
+        branch, BRANCH_RETAINED, tip,
+        f"several merged pull requests match this tip ({_pr_numbers(matching)}) — "
+        "ambiguous; name the one that authorizes deletion with --pr <number>",
+    )
+
+
+def delete_authorized_branch(main_tree: str, authority: BranchAuthority) -> tuple[bool, str]:
+    """Delete exactly what the authority cleared, re-reading the tip last.
+
+    The window between reading the platform record and deleting the branch is
+    the whole point of the re-read: a tip that moved inside it keeps the branch.
+    Ancestry deletes with git's own `-d` safety semantics; only the PR record
+    authorizes the force flag.
+    """
+    if authority.decision == BRANCH_RETAINED:
+        return False, authority.reason
+    current = branch_tip(main_tree, authority.branch)
+    if current != authority.tip:
+        return False, (
+            "the branch tip moved between authorization and deletion "
+            f"({authority.tip[:7]} → {current[:7] or 'absent'})"
+        )
+    forced = authority.decision == BRANCH_PR_RECORD
+    result = git(["branch", "-D" if forced else "-d", authority.branch], cwd=main_tree)
+    if result.returncode != 0:
+        return False, (result.stderr or result.stdout).strip()[:200]
+    return True, authority.reason
+
+
 def retire_local_branch(
     branch: str,
     main_tree: str,
     integration: str,
     report: dict,
+    *,
+    pr: str | None = None,
 ) -> None:
-    """Fast-forward the integration branch, then retire the merged local branch
-    with `-d` only. Already absent is a completed step, not a failure."""
+    """Fast-forward the integration branch, then retire the branch its authority
+    clears. Already absent is a completed step, not a failure."""
     git(["fetch", "origin", "--prune"], cwd=main_tree)
     git(["checkout", integration], cwd=main_tree)
     p = git(["pull", "--ff-only"], cwd=main_tree)
@@ -887,23 +1159,24 @@ def retire_local_branch(
         raise Stop("5 integration-ff",
                    f"no fast-forward possible — a diverged {integration} is an anomaly",
                    (p.stderr or p.stdout).strip()[-1000:])
-    if git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
-           cwd=main_tree).returncode != 0:
+    if not branch_tip(main_tree, branch):
         report["branch_retired"] = "already absent"
         report["skipped"].append("branch retire: local branch already absent")
         return
     if branch in worktree_map(main_tree)[1]:
         report["branch_retired"] = "refused: still checked out"
         report["warnings"].append(
-            f"branch -d {branch} refused (still checked out?) — never -D"
+            f"branch retire refused: {branch} is still checked out"
         )
         return
-    p = git(["branch", "-d", branch], cwd=main_tree)
-    report["branch_retired"] = p.returncode == 0
-    if p.returncode != 0:
-        report["warnings"].append(
-            f"branch -d {branch} refused: {(p.stderr or '').strip()[:200]}"
-        )
+    authority = authorize_branch_deletion(
+        main_tree, branch, integration=integration, pr=pr
+    )
+    report["branch_authority"] = authority.as_report()
+    deleted, detail = delete_authorized_branch(main_tree, authority)
+    report["branch_retired"] = deleted
+    if not deleted:
+        report["warnings"].append(f"branch {branch} retained: {detail}")
 
 
 def pull_request_snapshot(branch: str) -> dict | None:
@@ -1074,8 +1347,8 @@ def cmd_land(args) -> dict:
         git(["worktree", "prune"], cwd=main_tree)
         report["worktree_removed"] = wt
 
-    # Step 5 — integration ff + local branch delete (-d only, after the pull)
-    retire_local_branch(branch, main_tree, integration, report)
+    # Step 5 — integration ff + branch retirement by authority (after the pull)
+    retire_local_branch(branch, main_tree, integration, report, pr=args.pr)
 
     # Step 5b — verify declared auto-closes (backtick-swallowed `closes`
     # misses). Targets come from the merged PR body's close keywords, never
@@ -1184,7 +1457,14 @@ def cmd_land(args) -> dict:
     return report
 
 
-def main() -> int:
+def pull_request_number(value: str) -> str:
+    """`--pr` names which pull request is checked — it never skips the check."""
+    if not value.isdigit():
+        raise argparse.ArgumentTypeError("--pr expects a pull request number")
+    return value
+
+
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("preflight", help="read-only context report (run in the worktree)")
@@ -1197,10 +1477,18 @@ def main() -> int:
     l.add_argument("--title", help="PR title (create path)")
     l.add_argument("--body-file", help="final PR body (create or overwrite)")
     l.add_argument("--anchor", help="wave-anchor issue # (derived via parent-of when omitted)")
+    l.add_argument("--pr", type=pull_request_number,
+                   help="the PR that authorizes deleting this branch when a reused "
+                        "head ref makes the record ambiguous (still validated "
+                        "against the full tuple)")
     l.add_argument("--skip-malformed-drift", action="store_true")
     # No recovery flag exists: an interrupted landing is resumed by re-running
     # `land`, which re-checks present state at every step (ADR 0009).
-    args = ap.parse_args()
+    return ap
+
+
+def main() -> int:
+    args = build_parser().parse_args()
 
     try:
         result = {"preflight": cmd_preflight, "commit": cmd_commit, "land": cmd_land}[args.cmd](args)

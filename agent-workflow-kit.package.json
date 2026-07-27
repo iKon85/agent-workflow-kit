@@ -997,7 +997,7 @@
       "ownerSkill": "wrapup",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "576330f2bace218840e1c2c49a656730750854de079e1276a7978b11adbedc37",
+      "sha256": "4434d61c7e5519cef78fa31912e5a6f33706e2fe5526a3d51bf7ee84371f6d97",
       "mode": 420,
       "origin": "kit"
     },
@@ -2347,7 +2347,7 @@
       "ownerSkill": "wrapup",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "576330f2bace218840e1c2c49a656730750854de079e1276a7978b11adbedc37",
+      "sha256": "4434d61c7e5519cef78fa31912e5a6f33706e2fe5526a3d51bf7ee84371f6d97",
       "mode": 420,
       "origin": "kit"
     },
@@ -2867,7 +2867,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "cc1fad0b887290fe247d63be3940dd6dfc2d49fb416dae8666006f08d42cae4e",
+      "sha256": "74cf088a0ccbd8bf8f0f9229e6794b664b04792444cb01e1d17be345729a6d66",
       "mode": 493,
       "origin": "kit"
     },
