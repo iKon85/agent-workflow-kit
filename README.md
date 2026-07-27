@@ -469,6 +469,12 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.42.0
+
+- added: `docs/adr/0010-model-roster-replaces-the-optimization-dial.md`
+- added: `docs/research/agent-task-taxonomy-benchmark-coverage.md`
+- changed: `docs/adr/0006-routing-knowledge-access-and-policy-are-separate.md`
+
 ### 0.41.1
 
 - changed: `README.md`

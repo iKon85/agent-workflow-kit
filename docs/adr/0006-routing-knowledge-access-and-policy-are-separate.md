@@ -1,6 +1,10 @@
 # Routing knowledge, access, and policy are separate
 
-Status: accepted (2026-07-22, Program #197)
+Status: accepted (2026-07-22, Program #197) — the optimization-dial clause is
+superseded by
+[ADR-0010](./0010-model-roster-replaces-the-optimization-dial.md)
+(items 3 and the "Model preferences and optimization overrides" sentence below;
+everything else stands)
 
 Planning cannot safely persist a concrete recommended model. Provider catalogs
 change, model names age, effort behavior differs by model, agent surfaces expose

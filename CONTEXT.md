@@ -113,10 +113,11 @@ _Avoid_: Skill chooser, Altitude command
 ## Routing intent
 
 A provider-neutral description of the work a delegated agent must perform: its
-workload, task shape, risk, autonomy requirement, context need, and optimization
-goal. It is durable planning data and remains valid when providers or model
-names change.
-_Avoid_: Recommended model, Provider hint
+workload, task shape, risk, autonomy requirement, and context need. It is
+durable planning data and remains valid when providers or model names change.
+It carries no optimization goal — what a user is willing to spend is a Routing
+profile choice, not a property of the work.
+_Avoid_: Recommended model, Provider hint, Optimization goal
 
 ## Evidence catalog
 
@@ -134,12 +135,44 @@ model selection, effort control, and dispatch. Detection does not imply user
 authorization.
 _Avoid_: Installed-model list, Provider preference
 
+## Routing profile
+
+The stored personal choice a user makes once: which agent surfaces they use,
+whether the Kit may switch between them, which Model roster they authorize, and
+their Standard routes. It is user-local, carries no revision, and is never
+inferred from detection, credentials, or instruction files.
+_Avoid_: Routing policy, Optimization preference
+
+## Model roster
+
+The set of model-and-effort pairs a user authorizes the Kit to pick from. It is
+a positive list: a pair absent from it is never dispatched, whatever the
+evidence says. A newly available pair stays outside the roster until the user
+admits it.
+_Avoid_: Installed-model list, Model allowlist, Benchmark ranking
+
+## Standard route
+
+The model-and-effort pair a user nominates for a broad kind of work, used when
+no decisive evidence covers the resolved Routing intent. A Route decision taken
+this way names the Standard route as its reason and never presents itself as
+evidence-backed.
+_Avoid_: Default model, Recommended model
+
 ## Routing policy
 
-The user-owned rules that constrain dispatch across the Access graph, including
-allowed surfaces and transports, switching autonomy, optimization goals, and
-optional advanced overrides. It never changes Evidence catalog facts.
-_Avoid_: Model table, Benchmark score
+The constraint object derived from a Routing profile for one dispatch: allowed
+surfaces, transports, and roster pairs, plus switching autonomy. It carries a
+revision so a Dispatch receipt can prove which constraints applied, and it never
+changes Evidence catalog facts.
+_Avoid_: Model table, Benchmark score, Personal preference
+
+## Dispatch plan
+
+The resolved table a delegating workflow presents before its first dispatch:
+each unit of work with its Routing intent, chosen route, and the reason that
+route won. It is authorized once for the whole run, never per dispatch.
+_Avoid_: Per-task prompt, Cost estimate
 
 ## Route decision
 
