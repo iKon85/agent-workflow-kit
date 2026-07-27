@@ -169,9 +169,20 @@ enter outside the plan funnel and feed straight into Execute:
 > handoff.* The land phase puts mechanical gates in front of the commit.
 
 - **`wrapup`** — the land-and-clean closeout: make the branch landable, enforce
-  the PR body contract, merge the PR, reconcile the board, sweep merged branches,
-  and surface anything still open. It does not replace live verification; verify
-  the user outcome before landing.
+  the PR body contract, merge the PR, reconcile the board, tear the finished
+  worktree down, retire the branch, sweep merged branches, and surface anything
+  still open. It does not replace live verification; verify the user outcome
+  before landing. Interrupted halfway? Re-run it — every step re-reads present
+  state (does the PR exist, is it merged, is the worktree still there?) and skips
+  what is already done, so there is no separate resume mode and no journal to
+  repair.
+- **Teardown asks your repository, not a config file.** Finishing a worktree
+  classifies it with git's own file taxonomy at the moment it acts: a tracked
+  change or an unmerged path blocks, an untracked file your repo does *not*
+  ignore blocks with a bounded report, and an ignored entry is scratch that dies
+  with the worktree. Making something disposable therefore means ignoring it —
+  the full rules, the `.env*` exception, and the breaking change from the pattern
+  keys are in [the worktree lifecycle](#the-worktree-lifecycle).
 - **The pre-commit / pre-push gate fires automatically** — TypeScript, lint, and
   contract guards block a broken commit or push. You don't run a skill here; the
   gate was installed once at setup (`git-guardrails` / `setup-pre-commit`, both
@@ -306,6 +317,71 @@ Status stage names are yours too: scripts and skills address stages by semantic
 **role** (`fields.status.roles`: `idea/triaged/spec/inProgress/review/done` →
 your option names, e.g. `board-sync.py add --status-role spec`), so a board in
 any language works — map each role once, rename an option with one profile edit.
+
+### The worktree lifecycle
+
+An optional capability, offered once by `/setup-workflow` and recorded in your
+own `docs/agents/workflow-capabilities.json`. Enabled, it gives each build its
+own linked worktree: `python3 scripts/worktree-lifecycle/setup.py` cuts the
+branch, creates the worktree from your naming templates, and runs your project's
+setup steps; on Claude Code a set of hook adapters keeps edits, verification
+commands, and Git mutations in the checkout they belong to; and `wrapup` tears
+the worktree down after the merge. A worktree belongs to a **build** — a session
+that only plans or grills stays in the main checkout, keeps its scratch on disk,
+and lands its durable output as ordinary content.
+
+The profile carries structural facts only: where worktrees live
+(`worktreeRoot`), how branches and paths are named (`branchTemplate`,
+`contentBranchTemplate`, `pathTemplate`, `branchRegex`), which branches are
+protected (`mainBranches`, `protectedBranches`), the setup command and its
+ordered steps, and the command patterns that must run inside the active
+worktree. Keys the loader does not know are ignored in silence, so a profile
+written for an older kit keeps working without warning noise.
+
+**Teardown authority is the repository's current state, read at the moment of
+action, and nothing else.** It classifies the worktree with git's own file
+taxonomy over your standard exclude sources — the repository's `.gitignore`
+files, `.git/info/exclude`, and your global excludes file:
+
+| What git reports | What teardown does |
+|---|---|
+| a tracked modification, or an unmerged path | blocks, and names it |
+| an untracked file you do **not** ignore | blocks with a bounded report — a count plus the top directories, never a page-long path dump |
+| an ignored entry | scratch: deleted together with the worktree |
+
+Two rules sit on top of that taxonomy. An `.env*` file (basename glob) is the
+single hardcoded exception — ignored, yet potentially irreplaceable — so it is
+removed only when it is byte-identical to the file at the same relative path in
+your main checkout; divergent, missing there, or not a plain file stops teardown
+and names the exact file. An ignored symlink is unlinked, never followed, and
+only while its target stays inside the worktree: an absolute, escaping, dangling,
+or since-changed target keeps the worktree and names the link.
+
+Branch retirement is authorized, never assumed. A branch that is an ancestor of
+the freshly fetched protected branch is deleted normally. A branch that is not is
+force-deleted only when exactly one merged pull request matches it completely —
+your repository as base, no fork head, the same head and base ref — and that
+PR's head commit still equals the branch tip when the tip is re-read immediately
+before deletion. Anything else keeps the branch and reports why. Without
+platform access this degrades to ancestry only, and says so.
+
+For a read-only inventory of every linked worktree and local branch — issue, PR,
+merge, age, and removal facts, nothing removed — run
+`python3 scripts/worktree-lifecycle/cleanup.py sweep`.
+
+> **Breaking — the deletion pattern keys are gone, with no migration.** Earlier
+> releases configured what teardown could delete with
+> `worktreeLifecycle.scratchPatterns` and
+> `wrapup.landingGeneratedArtifactPatterns`. Both keys are removed. Deletion
+> policy now has exactly one configuration surface: the ignore mechanism. There
+> is nothing to migrate — a profile that still carries either key simply keeps
+> it as consumer data; nothing reads it, nothing warns, nothing rewrites it —
+> but the behaviour did change. If you used a pattern to make a file deletable,
+> ignore the file instead; `/setup-workflow` offers (never installs) the ignore
+> rules for the planning artefacts the shipped skills write. And note the risk
+> this deliberately accepts: a file you keep gitignored inside a worktree is
+> deletable at teardown unless it matches `.env*`. The decision record is
+> `docs/adr/0009-teardown-authority-is-stateless-repository-classification.md`.
 
 ### What's yours vs. the kit's
 
@@ -1457,10 +1533,13 @@ skip these on a Codex-first repo): `write-a-skill`, `git-guardrails-claude-code`
 `codex-build`.
 
 **Helper scripts** — `board_config.py` (profile loader), `board-sync.py`,
-`execute-ready-check.py`, `pr-body-check.py`, the handoff drift-guard, the
-skill-drift-hint and board-status hooks (Claude only — wired via
-`.claude/settings.json`, no Codex mirror), the opt-in LoC-offender gate, and the
-wave-anchor + security-audit-runbook templates.
+`execute-ready-check.py`, `pr-body-check.py`, `wrapup-land.py` (the landing and
+teardown driver), the `scripts/worktree-lifecycle/` set (setup entry, teardown
+classification, cleanup plus the read-only sweep, and the planning-artifact
+ignore-rule offer), the handoff drift-guard, the skill-drift-hint, board-status
+and worktree hooks (Claude only — wired via `.claude/settings.json`, no Codex
+mirror), the opt-in LoC-offender gate, and the wave-anchor +
+security-audit-runbook templates.
 
 This kit deliberately ships without a test suite (a leaner `npx` payload) — the
 scripts and skills are tested in the maintainer's private source repo they're
