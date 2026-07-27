@@ -9,17 +9,15 @@ import json
 import sys
 from pathlib import Path
 
+from classify import ClassificationError, remove_scratch, render_report
 from core import (
     LifecycleError,
-    bind_cleanup_scratch_evidence,
     classify_cleanup,
     collect_cleanup_facts,
     collect_sweep,
     load_profile,
     main_worktree,
-    remove_authorized_scratch,
     run,
-    verified_worktree_root,
 )
 
 
@@ -75,18 +73,7 @@ def collect_assessment(profile, main: Path, worktree: Path, gh_command: str):
         worktree,
     )
     state = pr_state(gh_command, main, facts.branch)
-    assessment = classify_cleanup(profile, replace(facts, pr_state=state))
-    try:
-        return bind_cleanup_scratch_evidence(
-            profile,
-            assessment,
-            require_generator_evidence=True,
-        )
-    except LifecycleError as error:
-        return replace(
-            assessment,
-            reasons=assessment.reasons + (f"scratch evidence stop: {error}",),
-        )
+    return classify_cleanup(profile, replace(facts, pr_state=state))
 
 
 def execute(args: argparse.Namespace) -> dict:
@@ -106,6 +93,7 @@ def execute(args: argparse.Namespace) -> dict:
         "reasons": list(assessment.reasons),
         "assumptions": assessment.assumptions,
         "scratchFiles": list(assessment.scratch_files),
+        "classification": render_report(assessment.classification),
         "removed": False,
     }
     if not args.remove:
@@ -119,22 +107,14 @@ def execute(args: argparse.Namespace) -> dict:
         latest.branch != assessment.branch
         or latest.scratch_files != assessment.scratch_files
         or latest.assumptions != assessment.assumptions
-        or latest.root_device != assessment.root_device
-        or latest.root_inode != assessment.root_inode
-        or latest.scratch_evidence != assessment.scratch_evidence
+        or (latest.classification.root_device, latest.classification.root_inode)
+        != (assessment.classification.root_device, assessment.classification.root_inode)
     ):
         raise LifecycleError("cleanup changed before removal: inventory no longer matches preview")
-    with verified_worktree_root(
-        latest.worktree,
-        latest.root_device,
-        latest.root_inode,
-    ) as root_descriptor:
-        remove_authorized_scratch(
-            profile,
-            root_descriptor,
-            latest.scratch_files,
-            assessment.scratch_evidence,
-        )
+    try:
+        remove_scratch(latest.classification)
+    except ClassificationError as error:
+        raise LifecycleError(f"cleanup changed before removal: {error}") from error
     run(["git", "worktree", "remove", str(latest.worktree)], cwd=main)
     run(["git", "branch", "-d", assessment.branch], cwd=main)
     report["removed"] = True

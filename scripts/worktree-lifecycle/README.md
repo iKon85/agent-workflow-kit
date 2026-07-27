@@ -17,31 +17,24 @@ they do not carry a second branch regex, worktree traversal, or failure policy.
 - `setupEntry` and ordered `setupSteps`: the portable setup command and project
   setup sequence.
 - `riskyCommandPatterns`: commands that must target the active linked worktree.
-- `scratchPatterns`: consumer-owned glob patterns for untracked disposable
-  planning artefacts. No filename is assumed by Core.
-- `wrapup.landingGeneratedArtifactPatterns`: an explicitly reviewed
-  consumer-owned allowlist for outputs created by the landing commands. It is
-  deletion authority, so setup never derives it from `.gitignore` alone and
-  update never installs a universal default.
 
-Profile globs use one repository-relative POSIX dialect, implemented once in
-`scripts/profile_globs.py` and loaded by this core and by
-`scripts/workflow-advisories/core.py`. `*` and `?` stay inside one path
-segment; `[seq]`/`[!seq]` are per-segment character classes; `**` as a whole
-segment matches zero or more segments, so a leading `**/` also matches the
-repository root and `dir/**` also matches `dir` itself; matching is always
-case-sensitive on every host filesystem; and a pattern must match the whole
-path. For example, `**/__pycache__/**` matches both root and nested caches,
-while `dist-kit/*` does not match `dist-kit/a/b`.
+The profile carries **structural facts only** (ADR 0009). It declares no
+pattern list, because deletion policy has exactly one configuration surface:
+the ignore mechanism. Making a file deletable at teardown means ignoring it.
+Keys this loader does not know are ignored in silence, so a profile written for
+an older kit keeps working without warning noise.
 
-Because both capabilities load the same matcher, a pattern can never select one
-set of paths for an advisory and a different set for a deletion decision. Run
+Profile globs elsewhere in the kit (Workflow Advisories) use one
+repository-relative POSIX dialect, implemented once in
+`scripts/profile_globs.py`. `*` and `?` stay inside one path segment;
+`[seq]`/`[!seq]` are per-segment character classes; `**` as a whole segment
+matches zero or more segments, so a leading `**/` also matches the repository
+root and `dir/**` also matches `dir` itself; matching is always case-sensitive
+on every host filesystem; and a pattern must match the whole path. Run
 `python3 scripts/profile_globs.py <profile.json>` to review an installed
-profile: it names every pattern whose match set narrows or widens against that
-key's legacy matcher, prints the witness path proving it, marks the keys that
-carry deletion authority, and exits 1 when anything needs review. It reads the
-profile and never rewrites a pattern, so a migration cannot silently expand
-cleanup authority.
+profile. No Worktree Lifecycle decision reads a glob: the ignore mechanism is
+the single deletion-policy surface, so a pattern can no longer widen cleanup
+authority at all.
 
 Unknown or malformed events fail open without changing repository state.
 Security-sensitive, profile-matched edits and commands fail closed only when
@@ -73,81 +66,44 @@ that already ignores every artefact reports `nothing-to-do`, a re-run after an
 approval is a byte-identical no-op, and a marker block the consumer has since
 edited reports `blocked` rather than being repaired. An artefact already tracked
 in git is named separately — an ignore rule cannot untrack it, and the helper
-never runs `git rm`. Only after such an approval does the `scratchPatterns`
-derivation have real ignored planning artefacts to read.
+never runs `git rm`. Approving that offer is also what makes the artefacts
+deletable at teardown: `.gitignore` is the one deletion-policy surface.
 
 ## Cleanup
 
-`cleanup.py` previews by default. Removal refuses protected, tracked-dirty,
-non-scratch-dirty, open-PR, or unmerged worktrees. Profile-declared untracked
-scratch is named in the report but does not block removal. The assessment reads
-`ANNAHMEN.md` before removal and returns its contents for propagation.
-`wrapup-land.py` invokes this same assessment after a merge and before killing
-processes or removing the worktree.
+`classify.py` is the teardown authority. It reads the worktree's current state
+at the moment of action and nothing else: a tracked change or an unmerged path
+blocks, an untracked non-ignored file blocks with a bounded report (count plus
+top directories, never a path dump), and an ignored entry is Scratch and
+deletable. The single hardcoded exception is `.env*` by basename glob, which is
+deletable only when it is byte-identical to its counterpart at the same
+relative path in the main checkout, both opened no-follow. An ignored symlink
+is deletable only when its target resolves inside the assessed worktree; the
+link itself is unlinked and never followed.
 
-Explicit removal re-collects facts immediately before mutation, requires the
-same removable inventory, deletes only the exact contained regular scratch
-files from that inventory, and uses ordinary `git worktree remove`. It never
-bypasses Git's final concurrent-change check with force removal.
+`cleanup.py` previews by default. Removal additionally refuses an unregistered
+path, a detached branch, a protected branch or the main checkout, an open PR,
+and an unmerged branch. The assessment reads `ANNAHMEN.md` before removal and
+returns its contents for propagation.
 
-The generic setup route atomically records its ignored and complete
-untracked-file inventories in the linked worktree's Git metadata after its
-configured setup steps. The record is bound to the worktree path, branch, root
-device/inode, and setup HEAD, and carries a canonical digest. Existing
-worktrees can receive a conservative baseline only when they are the exact
-registered no-follow directory on an attached branch with a clean tracked
-worktree and index. Setup reuse defers that backfill, without blocking the
-existing worktree, while tracked work is dirty or landing-generated blockers
-are present. Landing classifies those blockers before writing any baseline;
-after they are moved, every remaining current ignored and untracked path is
-recorded as pre-existing and therefore protected. A corrupt baseline or an
-active landing attempt is never overwritten. The claim-bound session route
-below captures its stricter baseline before project setup so a failed setup has
-an exact recovery boundary.
+Explicit removal re-collects facts immediately before mutation and requires the
+same removable inventory. The deletion walk re-opens the assessed root
+no-follow, re-checks its device/inode, and re-checks every entry's kind — and a
+symlink's target — immediately before unlinking it. It uses ordinary `git
+worktree remove` and never bypasses Git's final concurrent-change check with
+force removal.
 
-Before merge, the committed worktree profile may only nominate exact,
-identity-bound landing candidates; it authorizes no deletion. After merge and
-`fetch origin/main`, cleanup reloads the profile directly from canonical
-`origin/main`, requires its scratch and generator policies to equal the
-worktree candidate and the policy digest frozen at attempt start, and only then
-authorizes mutation. Every supplied generator-evidence path is independently
-checked against that canonical generator policy. A missing policy is distinct
-from an explicit empty policy. An unmerged or transient branch policy therefore
-cannot grant itself broader cleanup authority.
+`wrapup-land.py` runs the same assessment after a merge: quiesce the worktree's
+own declared `.dev-ports` listeners, classify, delete the Scratch, remove the
+worktree. Teardown always runs — a direct `/wrapup` invocation is its
+authorization, including for a worktree an external tool created under a
+foreign name and path (ADR 0009). There is no persisted attempt state and no
+recovery flag: an interrupted landing is resumed by re-running it, because
+every step verifies present state and skips what is already done.
 
-Canonical policy that drifts between attempt start and post-merge cleanup keeps
-that refusal, and the refusal names its supported recovery. Recovery re-derives
-authority from the merged canonical policy alone: it never consults the stale
-worktree candidate, never re-scans for new candidates, requires the branch to
-already be an ancestor of canonical main, and requires each frozen identity to
-be both named by canonical policy and unchanged on disk. Evidence outside
-canonical policy, a changed identity, and pre-existing or foreign state stop the
-recovery instead of being deleted, and a repeated run after a completed teardown
-is a no-op.
-
-The landing adapter may carry exact scratch evidence only for current ignored
-files that match the consumer-owned
-`wrapup.landingGeneratedArtifactPatterns` profile and were absent from that
-creation baseline. Missing, changed, or incoherent provenance stops landing
-cleanup. Initial/profile-matched files, unmatched files, symlinks, and writes
-after the landing evidence snapshot remain cleanup stops; deletion still uses
-the same descriptor-bound regular-file primitive and a second inventory check.
-Mutable session logs belong in explicit `scratchPatterns`, not in the landing
-generator allowlist: their identity is frozen at final cleanup assessment, so
-normal logging before teardown remains live while a later append or replacement
-still stops deletion.
-Landing-start blockers are classified before a journal is written, so moving a
-protected blocker permits a clean next attempt. An explicit relinquish archives
-either a started or frozen attempt, including drifted evidence, without
-deleting or claiming any file; the next preflight treats every current file as
-pre-existing. Exact unchanged frozen evidence remains directly resumable. The
-attempt journal name is classified without following a symlink, so a symlinked
-or dangling journal entry stops instead of being read or replaced, and each
-archived receipt is filed under a contract-version-neutral stem plus its own
-recorded contract version. A journal written under a superseded contract is
-classified as legacy rather than corrupt when it still satisfies its own
-recorded contract; that refusal names the archive route explicitly, while a
-journal that fails its own contract is still reported as incoherent evidence.
+Two residual risks are accepted deliberately (ADR 0009) — between assessment and
+deletion a file could in principle be replaced, and a valuable file a consumer
+keeps gitignored outside `.env*` is deletable at teardown.
 
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal

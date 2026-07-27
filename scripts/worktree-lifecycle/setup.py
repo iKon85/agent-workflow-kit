@@ -10,9 +10,6 @@ import zlib
 from pathlib import Path
 
 from core import (
-    BaselineBackfillDeferred,
-    capture_artifact_baseline,
-    ensure_artifact_baseline,
     LifecycleError,
     load_profile,
     local_branch_exists,
@@ -25,7 +22,9 @@ from core import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", default="docs/agents/workflow-capabilities.json")
-    parser.add_argument("--base", default="origin/main")
+    # Resolved from the consumer profile when omitted — the integration
+    # branch is never named inline.
+    parser.add_argument("--base")
     parser.add_argument("issue")
     parser.add_argument("slug")
     parser.add_argument("branch_type", nargs="?", default="feat")
@@ -133,34 +132,24 @@ def create(args: argparse.Namespace) -> Path:
     if not profile_path.is_absolute():
         profile_path = main / profile_path
     profile = load_profile(profile_path)
+    base = args.base or f"origin/{profile.main_branches[0]}"
     branch = profile.branch_name(args.issue, args.slug, args.branch_type)
     target = (main / profile.relative_path(args.issue, args.slug, args.branch_type)).resolve()
 
     if target in registered_worktrees(main):
         ensure_reusable_base(
-            main, repo=target, rev="HEAD", base=args.base, label=f"worktree {target}"
+            main, repo=target, rev="HEAD", base=base, label=f"worktree {target}"
         )
-        try:
-            ensure_artifact_baseline(
-                target,
-                reject_ignored_patterns=profile.landing_generated_artifact_patterns,
-            )
-        except BaselineBackfillDeferred as error:
-            print(
-                "Baseline backfill deferred; preserve the worktree, remove generated "
-                f"blockers or commit/stash tracked work, then retry: {error}",
-                file=sys.stderr,
-            )
         print(f"Worktree already exists: {target} ({branch})")
         return target
 
     branch_existed = local_branch_exists(main, branch)
     if branch_existed:
         ensure_reusable_base(
-            main, repo=main, rev=branch, base=args.base, label=f"branch {branch}"
+            main, repo=main, rev=branch, base=base, label=f"branch {branch}"
         )
     command = ["git", "worktree", "add", str(target)]
-    command += [branch] if branch_existed else ["-b", branch, args.base]
+    command += [branch] if branch_existed else ["-b", branch, base]
     run(command, cwd=main)
     try:
         for step in profile.setup_steps:
@@ -171,7 +160,6 @@ def create(args: argparse.Namespace) -> Path:
                 issue=args.issue,
                 branch=branch,
             )
-        capture_artifact_baseline(target)
     except Exception:
         remove_failed_worktree(main, target, branch, not branch_existed)
         raise

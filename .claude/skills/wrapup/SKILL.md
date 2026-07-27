@@ -10,9 +10,9 @@ description: >-
   slice isn't landed yet, it first makes it landable (Step 0): commits a dirty
   tree (after an .env/secret check), pushes, and opens the PR — reusing one if
   it already exists. User-triggered only (never auto-invoke, never hook). Aborts
-  hard only on: not in a feature worktree, a detected .env/secret, a rejected
-  push, a conflicting PR, terminal red checks, or checks still pending after
-  the bounded wait budget.
+  hard only on: the main checkout or a protected branch, a detached or unborn
+  HEAD, a detected .env/secret, a rejected push, a conflicting PR, terminal red
+  checks, or checks still pending after the bounded wait budget.
 ---
 
 <!-- project-extension:protocol-v1:start -->
@@ -48,7 +48,7 @@ Run **in the worktree**:
 ```bash
 python3 scripts/wrapup-land.py preflight
 ```
-Hard stop (the only pure precondition): not in a feature worktree / on `main` — the script exits 1. The report carries everything the later steps need: dirty files, `.env` hits, secret-grep hits, issue + parent (leaf vs. anchor slice), existing PR + whether its body has a `**Retro:**` line, parsed `ANNAHMEN.md` drift lines, profile values (`retro_values`, `vor_bau`, remote-sweep switch).
+Hard stop (the only pure preconditions): the main checkout, a protected branch, a detached HEAD, or an unborn branch — the script exits 1 and names which. Any other born, attached worktree qualifies, whatever its name or location. The report carries everything the later steps need: dirty files, `.env` hits, secret-grep hits, issue + parent (leaf vs. anchor slice), existing PR + whether its body has a `**Retro:**` line, parsed `ANNAHMEN.md` drift lines, profile values (`retro_values`, `vor_bau`, remote-sweep switch).
 
 Then run:
 
@@ -101,55 +101,33 @@ Run **from the main tree** (the script refuses inside the worktree — an in-wor
 ```bash
 python3 scripts/wrapup-land.py land --branch "<branch>" --title "<title>" --body-file /tmp/wrapup-pr-body.md
 ```
-One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (pending/null-conclusion checks poll for up to 20 minutes with progress on stderr; terminal red / `CONFLICTING` / timeout = STOP; known zero-step billing or runner failures are named `infrastructure failure`; an already-`MERGED` PR resumes at teardown) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` ports + cwd-under-worktree walk, own shell ancestry excluded) → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → main `--ff-only` pull + `branch -d` → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program).
+One call covers: push → PR create/reuse (+ drift markers merged into the body) → `pr-body-check.py` gate (exit 1 = STOP, exit 2 = fail-open warning) → merge gate (pending/null-conclusion checks poll for up to 20 minutes with progress on stderr; terminal red / `CONFLICTING` / timeout = STOP; known zero-step billing or runner failures are named `infrastructure failure`; an already-`MERGED` PR resumes at teardown) → **merge** (`--merge` + `--delete-branch`, verified `MERGED`) → dev-server kill (`.dev-ports` listeners only, own shell ancestry excluded) → teardown classification + scratch removal → worktree remove (no `--force`; refusal = STOP, check surviving processes first) → integration-branch `--ff-only` pull + `branch -d` → issue-close verify (auto-close misses are closed manually) → local merged-branch sweep (`-d` only — squash/rebase-merged branches stay a manual call by design) → remote merged-PR sweep (opt-in `wrapup.remoteBranchSweep` in the board profile; PR-status-authoritative via `ls-remote`; deleted remote branches are restorable from the PR page) → anchor-sync (dry-run diff in the report) + anchor completeness check + `execute-ready-check --mode audit` → **upward propagation:** if the anchor's native parent is a Program-PRD, `program-sync` refreshes its Wellenplan (Status + Issue cells) and checks off mechanically completed Phasen-Gates — the slice event is visible at the program level, not only in the wave (`program_sync` block in the report; skipped when the parent isn't a program).
 
-STOP → diagnose in the main conversation, fix, re-run `land` (an already-merged PR resumes at teardown).
+STOP → diagnose in the main conversation, fix, re-run `land`. Re-running is the
+only recovery route there is: every step re-reads present state (is the remote
+already at this commit? does the PR exist? is it merged? is the worktree still
+there?) and skips what is already done, so an interrupted landing resumes
+exactly where it stopped. The report's `skipped` list names what it found done.
 
-Before merge, the committed worktree policy only nominates exact landing
-evidence. After merge, cleanup reloads `docs/agents/workflow-capabilities.json`
-from canonical `origin/main`; only the identical merged, attempt-bound scratch
-and generator policy authorizes each evidence path and deletion. A mismatch is
-a hard STOP that preserves every file—never bypass it with the unmerged branch
-profile.
+Teardown always runs, and running `/wrapup` in a worktree *is* its
+authorization — including a worktree an external tool created under a foreign
+name and path, and a branch that carries no issue number. Teardown authority is
+the repository's current state, nothing else: a tracked change or an unmerged
+path blocks, an untracked non-ignored file blocks with a bounded report (count
+plus top directories, never a path dump), and an ignored entry is deletable
+scratch. One hardcoded exception: an `.env*` file is deletable only when it is
+byte-identical to the main checkout's copy at the same path — otherwise the
+refusal names the exact file. Make something deletable by ignoring it; there is
+no pattern list to configure.
 
-Landing provenance has one explicit relinquish route. If the STOP names an
-unfinished or drifted landing attempt and the ambiguous files cannot be restored
-to their frozen identities, run:
+Two refusals name a state landing cannot repair for you: a **detached HEAD**
+(attach a branch in that worktree first) and an **unborn branch** (make the
+first commit first).
 
-```bash
-python3 scripts/wrapup-land.py land --branch "<branch>" --abandon-unfinished-attempt
-```
-
-This archives the started or frozen attempt receipt only. It deletes and claims
-no files, works even when the older creation baseline is missing, and returns
-before push, PR, or merge. The next `land` conservatively protects every current
-matching path; classify or move those blockers first. Do not use relinquish for
-an exact unchanged frozen attempt: a normal retry validates that evidence and
-resumes deterministically.
-
-An attempt journaled under the superseded v1 contract is **legacy, not
-corruption**. The STOP says so explicitly and names the same
-`--abandon-unfinished-attempt` archive route; archival stays valid for a v1 and
-a v2 receipt even without a creation baseline or a local main profile, and no
-generated or consumer file is deleted or claimed on that route.
-
-If canonical `origin/main` changed its scratch or generator policy *after* the
-attempt started, the PR can merge and cleanup then STOPs with `worktree cleanup
-policy differs from merged canonical origin/main`. That STOP stays fail-closed
-and names its one supported route out:
-
-```bash
-python3 scripts/wrapup-land.py land --branch "<branch>" --recover-canonical-cleanup
-```
-
-This resumes the teardown of an **already-merged** worktree only. It never reads
-the stale worktree candidate policy: it re-reads the merged canonical policy,
-requires the branch to already be an ancestor of canonical `origin/main`, and
-revalidates each frozen landing identity against that canonical policy before
-the ordinary shared assessment and removal run. Evidence the canonical policy no
-longer names, a changed identity, and any pre-existing or foreign file are hard
-STOPs that delete nothing. Re-running after a successful teardown is a no-op.
-The flag is mutually exclusive with `--abandon-unfinished-attempt`.
+The dev-server kill is `.dev-ports`-scoped and never signals on doubt: only a
+listener on a port this worktree declares, whose working directory is inside
+it, is signalled — pinned by `pidfd` so a recycled PID cannot be hit. Anything
+else on those ports is a STOP naming the process, not a kill.
 
 ### 6 · Post-merge (agent)
 - **Sibling propagation:** for each `drift_markers` entry in the land report, append the note to the target issue's `vor_bau` section + re-stamp its `plan_revision`. Log-based markers → **write directly, then show what was written where** (mandatory report — visibility moved from a pre-gate into the report, decision 2026-07-06); fallback candidates the user hasn't confirmed yet → confirm first. Program context widens the target set to unbuilt wave-stubs/leaves and the Program-PRD itself — same append-only mechanism. **Exception:** appends to the Program-PRD or unbuilt wave-stubs do **not** re-stamp `plan_revision` — that stays reserved for structural wave-plan edits via the `to-waves` escalation path; a mere drift note must not stale-block published stubs.

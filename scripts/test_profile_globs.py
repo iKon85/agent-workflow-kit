@@ -75,12 +75,7 @@ class MatcherContract(unittest.TestCase):
 
 
 class SharedMatcherContract(unittest.TestCase):
-    """Both shipped cores resolve to the one shared matcher, not a copy."""
-
-    def test_both_cores_share_one_matcher_object(self):
-        advisories = load("profile_globs_advisories_core", ADVISORIES_CORE)
-        lifecycle = load_lifecycle_core()
-        self.assertIs(advisories.path_glob_matches, lifecycle.path_glob_matches)
+    """The one shipped matcher lives in the dialect module, never in a copy."""
 
     def test_the_shared_matcher_comes_from_the_shipped_dialect_module(self):
         advisories = load("profile_globs_advisories_core", ADVISORIES_CORE)
@@ -88,18 +83,18 @@ class SharedMatcherContract(unittest.TestCase):
         self.assertEqual(Path(shared.__file__).resolve(), DIALECT_MODULE.resolve())
         self.assertIs(advisories.path_glob_matches, shared.path_glob_matches)
 
-    def test_both_cores_name_the_same_shared_module(self):
-        advisories = load("profile_globs_advisories_core", ADVISORIES_CORE)
-        lifecycle = load_lifecycle_core()
-        self.assertEqual(
-            advisories.PROFILE_GLOBS_MODULE, lifecycle.PROFILE_GLOBS_MODULE,
-        )
-
     def test_neither_core_keeps_a_second_matcher(self):
         for core in (ADVISORIES_CORE, LIFECYCLE_CORE):
             body = core.read_text(encoding="utf-8")
             self.assertNotIn("fnmatch.fnmatch(", body)
             self.assertNotIn("def path_glob_matches", body)
+
+    def test_the_lifecycle_core_matches_no_glob_at_all(self):
+        """Deletion policy has one surface, the ignore mechanism — so the
+        Worktree Lifecycle core reads no consumer glob to decide anything."""
+        lifecycle = load_lifecycle_core()
+        self.assertFalse(hasattr(lifecycle, "path_glob_matches"))
+        self.assertNotIn("glob", LIFECYCLE_CORE.read_text(encoding="utf-8"))
 
 
 class AdvisorySurfaceContract(unittest.TestCase):

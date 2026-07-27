@@ -316,10 +316,10 @@ def _named_block(rule: str, items, noun: str, fix: str):
     if not items:
         return None
     unique = sorted(dict.fromkeys(items))
-    plural = "" if len(unique) == 1 else "s"
+    one = len(unique) == 1
     return Block(
         rule,
-        f"{len(unique)} {noun}{plural} block teardown",
+        f"{len(unique)} {noun}{'' if one else 's'} {'blocks' if one else 'block'} teardown",
         tuple(_shorten(item) for item in unique[:EXAMPLE_LIMIT]),
         len(unique),
         f"{fix}, then run teardown again",
@@ -331,14 +331,22 @@ def _untracked_block(paths):
         return None
     counts = Counter(_parent(path) for path in paths)
     top = sorted(counts.items(), key=lambda pair: (-pair[1], pair[0]))[:TOP_DIRECTORY_LIMIT]
-    plural = "" if len(paths) == 1 else "s"
+    files = _count(len(paths), "untracked file")
     return Block(
         RULE_UNTRACKED,
-        f"{len(paths)} untracked file{plural} in {len(counts)} directories are not ignored",
-        tuple(f"{_shorten(directory)} ({count} files)" for directory, count in top),
+        f"{files} in {_count(len(counts), 'directory', 'directories')} "
+        f"{'is' if len(paths) == 1 else 'are'} not ignored",
+        tuple(
+            f"{_shorten(directory)} ({_count(count, 'file')})"
+            for directory, count in top
+        ),
         len(counts),
         "ignore or remove the untracked files, then run teardown again",
     )
+
+
+def _count(total: int, noun: str, plural: str | None = None) -> str:
+    return f"{total} {noun}" if total == 1 else f"{total} {plural or noun + 's'}"
 
 
 def _parent(path: str) -> str:

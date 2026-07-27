@@ -7,10 +7,17 @@ git/gh step of landing a slice runs here deterministically; judgment
 sibling propagation) stays with the calling agent.
 
 Subcommands
-  preflight   read-only context report (run in the feature worktree)
+  preflight   read-only context report (run in the worktree being landed)
   commit      .env hard block + secret grep + git commit (run in the worktree)
   land        push → PR → body-check → merge → teardown → sweeps → anchor-sync
               (run FROM the main tree; refuses to run inside the worktree)
+
+Any born, attached worktree is first-class: a direct /wrapup invocation is the
+teardown authorization (ADR 0009), including for worktrees an external tool
+created under a foreign name and path. There is no naming or location gate, no
+persisted attempt state, and no recovery flag — an interrupted landing is
+resumed by re-running it, because every step verifies present state and skips
+what is already done (ADR 0009).
 
 Output: one JSON report on stdout. Exit 0 = ok, 1 = STOP (reason in JSON),
 2 = usage/context error. On STOP nothing is forced — no --force, no -D,
@@ -24,6 +31,7 @@ import importlib.util
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -38,7 +46,6 @@ SECRET_RE = re.compile(
     re.IGNORECASE,
 )
 ENV_PATH_RE = re.compile(r"(^|/)\.env(\.[^/]*)?$")
-ISSUE_BRANCH_RE = re.compile(r"^(feat|fix|chore|docs)/(\d+)-")
 # ANNAHMEN.md drift-log line: "- #<n>: text" or "- #<n> §<section>: text"
 DRIFT_LINE_RE = re.compile(r"^-\s*#(\d+)(?:\s*§([^:]+?))?\s*:\s*(.+)$")
 RETRO_LINE_RE = re.compile(r"^\*\*Retro:\*\*", re.MULTILINE)
@@ -71,12 +78,9 @@ INFRA_FAILURE_RE = re.compile(
 )
 
 
-ABANDON_ATTEMPT_FLAG = "--abandon-unfinished-attempt"
-RECOVER_CANONICAL_CLEANUP_FLAG = "--recover-canonical-cleanup"
-CANONICAL_DRIFT_RECOVERY_HINT = (
-    f"rerun land with {RECOVER_CANONICAL_CLEANUP_FLAG} to revalidate the frozen "
-    "landing evidence against canonical policy and resume teardown"
-)
+LIFECYCLE_PROFILE = "docs/agents/workflow-capabilities.json"
+CLASSIFY_MODULE = "_wrapup_teardown_classify"
+LIFECYCLE_PROFILE_MODULE = "_wrapup_lifecycle_profile"
 
 
 class Stop(Exception):
@@ -419,8 +423,20 @@ def worktree_map(cwd: str | None = None) -> tuple[str, dict[str, str]]:
 
 
 def issue_from_branch(branch: str) -> str | None:
-    m = ISSUE_BRANCH_RE.match(branch)
-    return m.group(2) if m else None
+    """Derive the issue anchor from the branch — or None, which is first-class.
+
+    Branch prefixes are a project convention read from the board profile, never
+    inlined. A branch that carries no issue number (an externally created
+    worktree, a spike) lands without an anchor instead of being refused.
+    """
+    prefixes = load_profile().get("branchPrefixes") or ()
+    if not prefixes:
+        return None
+    pattern = re.compile(
+        r"^(?:" + "|".join(re.escape(prefix) for prefix in prefixes) + r")/(\d+)-"
+    )
+    match = pattern.match(branch)
+    return match.group(1) if match else None
 
 
 def declared_close_targets(body: str) -> list:
@@ -443,304 +459,104 @@ def load_profile() -> dict:
         return {}
 
 
-def load_worktree_cleanup_core():
-    path = Path(__file__).resolve().parent / "worktree-lifecycle" / "core.py"
-    module_dir = str(path.parent)
-    if module_dir not in sys.path:
-        sys.path.insert(0, module_dir)
-    spec = importlib.util.spec_from_file_location("_wrapup_worktree_lifecycle", path)
+def load_module(name: str, path: Path, step: str):
+    """Load one shipped helper module exactly once per process.
+
+    Re-executing it would mint a second set of classes, so an assessment
+    produced by one load could not be raised or matched against the other.
+    """
+    existing = sys.modules.get(name)
+    if existing is not None:
+        return existing
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise Stop("cleanup", f"cannot load shared cleanup core from {path}")
+        raise Stop(step, f"cannot load the shipped helper module from {path}")
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
 
-def load_candidate_landing_profile(core, wt: str):
-    """Let the committed worktree policy nominate evidence without deletion."""
-    result = core.run(
-        [
-            "git", "show",
-            "HEAD:docs/agents/workflow-capabilities.json",
-        ],
-        cwd=Path(wt),
-        check=False,
-    )
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout).strip()
-        raise core.LifecycleError(
-            f"committed landing profile cannot be read from worktree HEAD: {detail}"
-        )
-    candidate = core.load_profile_text(result.stdout)
-    if not candidate.landing_generated_artifact_policy_configured:
-        raise core.LifecycleError(
-            "worktree landing artifact policy is not configured; "
-            "run setup-workflow and commit the explicit policy decision first"
-        )
-    return candidate
+def load_teardown_classifier():
+    """The one stateless teardown core (ADR 0009) — never a second copy here."""
+    path = Path(__file__).resolve().parent / "worktree-lifecycle" / "classify.py"
+    return load_module(CLASSIFY_MODULE, path, "4 teardown")
 
 
-def load_merged_canonical_profile(core, main_tree: str):
-    """Read the merged canonical cleanup policy from origin/main."""
-    result = core.run(
-        [
-            "git", "show",
-            "origin/main:docs/agents/workflow-capabilities.json",
-        ],
-        cwd=Path(main_tree),
-        check=False,
-    )
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout).strip()
-        raise core.LifecycleError(
-            f"canonical landing profile cannot be read from origin/main: {detail}"
-        )
-    canonical = core.load_profile_text(result.stdout)
-    if not canonical.landing_generated_artifact_policy_configured:
-        raise core.LifecycleError(
-            "merged canonical landing artifact policy is not configured"
-        )
-    return canonical
+def load_lifecycle_profile_module():
+    path = Path(__file__).resolve().parent / "worktree-lifecycle" / "profile.py"
+    return load_module(LIFECYCLE_PROFILE_MODULE, path, "profile")
 
 
-def load_canonical_landing_profile(core, wt: str, main_tree: str):
-    """Authorize deletion only after the candidate policy is canonical."""
-    candidate = load_candidate_landing_profile(core, wt)
-    canonical = load_merged_canonical_profile(core, main_tree)
-    if (
-        candidate.landing_generated_artifact_patterns
-        != canonical.landing_generated_artifact_patterns
-        or candidate.scratch_patterns != canonical.scratch_patterns
-    ):
-        raise core.LifecycleError(
-            "worktree cleanup policy differs from merged canonical origin/main"
-            f"; {CANONICAL_DRIFT_RECOVERY_HINT}"
-        )
-    if not core.landing_attempt_exists(core.landing_attempt_path(Path(wt))):
-        raise core.LifecycleError(
-            "landing attempt is missing before canonical cleanup authorization"
-        )
-    attempt = core.landing_start_artifact_inventory(candidate, Path(wt))
-    if (
-        attempt["policyDigest"]
-        != core.landing_cleanup_policy_digest(canonical)
-    ):
-        raise core.LifecycleError(
-            "landing attempt cleanup policy differs from merged canonical origin/main"
-            f"; {CANONICAL_DRIFT_RECOVERY_HINT}"
-        )
-    return canonical
+def branch_policy(repo_root: str) -> tuple[str, tuple[str, ...]]:
+    """Return (integration branch, protected branches) from the consumer profile.
 
-
-def load_canonical_recovery_profile(core, wt: str, main_tree: str):
-    """Authorize post-merge cleanup from canonical policy alone after drift.
-
-    The committed worktree candidate is deliberately never consulted here: after
-    canonical drift it is stale, and trusting it could only widen what may be
-    deleted. Every authority boundary re-validates the frozen evidence against
-    the merged canonical policy instead.
+    The integration branch is never named inline. An absent or malformed
+    profile falls back to the Worktree Lifecycle profile's own documented
+    default, which is the single place in the kit that names a branch at all.
     """
-    canonical = load_merged_canonical_profile(core, main_tree)
-    core.canonical_recovery_evidence(canonical, Path(wt))
-    return canonical
-
-
-def landing_start_artifact_inventory(wt: str, main_tree: str) -> dict:
-    core = load_worktree_cleanup_core()
+    defaults = load_lifecycle_profile_module().DEFAULT_MAIN_BRANCHES
+    raw: dict = {}
     try:
-        profile = load_candidate_landing_profile(core, wt)
-        return core.landing_start_artifact_inventory(profile, Path(wt))
-    except core.LegacyLandingAttempt as error:
-        # Legacy, not damage: report the classification and the safe route out
-        # verbatim, without the corruption framing of a guard failure.
-        raise Stop("cleanup", str(error)) from error
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
-
-
-def landing_verified_scratch_evidence(
-    wt: str,
-    main_tree: str,
-    *,
-    expected_baseline_digest: str | None = None,
-    landing_start_files: tuple[str, ...] = (),
-) -> tuple[dict, ...]:
-    core = load_worktree_cleanup_core()
-    try:
-        profile = load_candidate_landing_profile(core, wt)
-        return core.verified_landing_scratch_evidence(
-            profile,
-            Path(wt),
-            expected_baseline_digest=expected_baseline_digest,
-            landing_start_files=landing_start_files,
+        document = json.loads(
+            (Path(repo_root) / LIFECYCLE_PROFILE).read_text(encoding="utf-8")
         )
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+        candidate = document.get("worktreeLifecycle")
+        raw = candidate if isinstance(candidate, dict) else {}
+    except (OSError, json.JSONDecodeError, AttributeError, TypeError):
+        raw = {}
+    integration = tuple(raw.get("mainBranches") or defaults)
+    protected = tuple(raw.get("protectedBranches") or integration)
+    return integration[0], protected
 
 
-def freeze_landing_artifact_evidence(
-    wt: str,
-    main_tree: str,
-    *,
-    push_succeeded: bool,
-) -> tuple[dict, ...]:
-    core = load_worktree_cleanup_core()
-    try:
-        profile = load_candidate_landing_profile(core, wt)
-        return core.freeze_landing_artifact_evidence(
-            profile,
-            Path(wt),
-            push_succeeded=push_succeeded,
-        )
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+def require_landable_head(step: str, cwd: str) -> str:
+    """Return the worktree's branch, or STOP with the exact reason it has none.
 
-
-def reopen_frozen_landing_attempt(wt: str, main_tree: str) -> tuple[dict, ...]:
-    core = load_worktree_cleanup_core()
-    try:
-        profile = load_candidate_landing_profile(core, wt)
-        return core.reopen_frozen_landing_attempt(profile, Path(wt))
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
-
-
-def abandon_unfinished_landing_attempt(wt: str, main_tree: str) -> str:
-    core = load_worktree_cleanup_core()
-    try:
-        return str(core.abandon_unfinished_landing_attempt(Path(wt)))
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
-
-
-def canonical_recovery_evidence(wt: str, main_tree: str) -> tuple[dict, ...]:
-    """Revalidate the frozen landing evidence against canonical policy alone."""
-    core = load_worktree_cleanup_core()
-    try:
-        canonical = load_merged_canonical_profile(core, main_tree)
-        return core.canonical_recovery_evidence(canonical, Path(wt))
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
-
-
-def landing_verified_scratch_files(
-    wt: str,
-    main_tree: str,
-    *,
-    expected_baseline_digest: str | None = None,
-) -> tuple[str, ...]:
-    core = load_worktree_cleanup_core()
-    try:
-        profile = load_candidate_landing_profile(core, wt)
-        return core.verified_landing_scratch_files(
-            profile,
-            Path(wt),
-            expected_baseline_digest=expected_baseline_digest,
-        )
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
-
-
-def ensure_worktree_removable(
-    wt: str,
-    main_tree: str,
-    *,
-    verified_scratch_files: tuple[str, ...] = (),
-    verified_scratch_evidence: tuple[dict, ...] = (),
-    profile_loader=None,
-):
-    core = load_worktree_cleanup_core()
-    # Resolved at call time so the module attribute stays the single seam.
-    loader = profile_loader or load_canonical_landing_profile
-    try:
-        profile = loader(core, wt, main_tree)
-        kwargs = {"merge_target": "origin/main"}
-        paths = (
-            tuple(item["path"] for item in verified_scratch_evidence)
-            or verified_scratch_files
-        )
-        if paths:
-            kwargs["verified_scratch_files"] = paths
-        if verified_scratch_evidence:
-            kwargs["verified_scratch_evidence"] = verified_scratch_evidence
-        assessment = core.cleanup_assessment(
-            profile, Path(main_tree), Path(wt), **kwargs
-        )
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
-    if assessment.reasons:
+    Detached and unborn are the two states a landing can never repair on its
+    own, so each is a named refusal that says what the user does about it —
+    never a silent skip.
+    """
+    symbolic = git(["symbolic-ref", "--quiet", "HEAD"], cwd=cwd)
+    if symbolic.returncode != 0:
         raise Stop(
-            "cleanup",
-            "shared cleanup guard refused worktree removal",
-            "; ".join(assessment.reasons),
+            step,
+            "detached HEAD — /wrapup lands a branch and this worktree is on none",
+            f"{cwd}: attach one here (`git switch -c <branch>` keeps the work on a "
+            "new branch, `git switch <branch>` moves to an existing one), then "
+            "re-run /wrapup",
         )
-    return assessment
+    branch = symbolic.stdout.strip().removeprefix("refs/heads/")
+    if git(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], cwd=cwd).returncode != 0:
+        raise Stop(
+            step,
+            f"unborn branch {branch} — it has no commits yet, so there is nothing to land",
+            f"{cwd}: make the first commit (wrapup's `commit` step does it), then "
+            "re-run /wrapup",
+        )
+    return branch
 
 
-def remove_verified_worktree_scratch(
-    wt: str,
-    main_tree: str,
-    assessment,
-    *,
-    verified_scratch_files: tuple[str, ...] = (),
-    verified_scratch_evidence: tuple[dict, ...] = (),
-    profile_loader=None,
-):
-    """Re-verify and delete only assessed regular scratch files."""
-    core = load_worktree_cleanup_core()
-    loader = profile_loader or load_canonical_landing_profile
+def assess_teardown(wt: str, main_tree: str):
+    """Classify the worktree's current state — the only teardown authority."""
+    classify = load_teardown_classifier()
     try:
-        profile = loader(core, wt, main_tree)
-        evidence = verified_scratch_evidence
-        paths = tuple(item["path"] for item in evidence) or verified_scratch_files
-        latest = core.cleanup_assessment(
-            profile,
-            Path(main_tree),
-            Path(wt),
-            merge_target="origin/main",
-            verified_scratch_files=paths,
-            verified_scratch_evidence=evidence,
-        )
-        if latest.reasons:
-            raise core.LifecycleError(
-                "cleanup changed before removal: " + "; ".join(latest.reasons)
-            )
-        if (
-            latest.branch != assessment.branch
-            or latest.scratch_files != assessment.scratch_files
-            or latest.assumptions != assessment.assumptions
-            or latest.root_device != assessment.root_device
-            or latest.root_inode != assessment.root_inode
-            or latest.scratch_evidence != assessment.scratch_evidence
-        ):
-            raise core.LifecycleError(
-                "cleanup changed before removal: inventory no longer matches preview"
-            )
-        with core.verified_worktree_root(
-            latest.worktree,
-            latest.root_device,
-            latest.root_inode,
-        ) as root_descriptor:
-            core.remove_authorized_scratch(
-                profile,
-                root_descriptor,
-                latest.scratch_files,
-                latest.scratch_evidence,
-            )
-        final = core.cleanup_assessment(
-            profile,
-            Path(main_tree),
-            Path(wt),
-            merge_target="origin/main",
-        )
-        if final.reasons:
-            raise core.LifecycleError(
-                "cleanup changed after scratch removal: " + "; ".join(final.reasons)
-            )
-        return final
-    except core.LifecycleError as error:
-        raise Stop("cleanup", f"shared cleanup guard failed: {error}") from error
+        return classify.assess(Path(wt), Path(main_tree))
+    except classify.ClassificationError as error:
+        raise Stop("4 teardown", "teardown cannot be classified", str(error)) from error
+
+
+def remove_teardown_scratch(assessment) -> list[str]:
+    """Delete exactly what the given assessment cleared, re-checked entry by entry."""
+    classify = load_teardown_classifier()
+    try:
+        return list(classify.remove_scratch(assessment))
+    except classify.ClassificationError as error:
+        raise Stop("4 teardown", "teardown is blocked", str(error)) from error
+
+
+def teardown_report(assessment) -> str:
+    return load_teardown_classifier().render_report(assessment)
 
 
 # ---------- drift log (ANNAHMEN.md) ----------
@@ -827,33 +643,102 @@ def self_ancestry() -> set[int]:
     return pids
 
 
-def kill_worktree_processes(wt: str) -> list[str]:
-    """Kill port listeners (.dev-ports) + processes with cwd under the worktree.
+def process_identity(pid: int) -> tuple[str, str] | None:
+    """The pair that tells one PID apart from its recycled reuse: start time + cwd."""
+    try:
+        with open(f"/proc/{pid}/stat", "rb") as handle:
+            fields = handle.read().rsplit(b")", 1)[1].split()
+        started = fields[19].decode()
+        return started, os.path.realpath(f"/proc/{pid}/cwd")
+    except (OSError, IndexError):
+        return None
 
-    Own shell ancestry is excluded (the self-kill trap, mechanically)."""
-    killed, protected = [], self_ancestry()
-    ports = []
-    dev_ports = Path(wt) / ".dev-ports"
-    if dev_ports.is_file():
-        ports = parse_dev_ports(dev_ports.read_text())
-    for port in ports:
-        p = run(["lsof", f"-ti:{port}"])
-        for pid in p.stdout.split():
-            if pid.isdigit() and int(pid) not in protected:
-                run(["kill", "-9", pid])
-                killed.append(f"port {port} pid {pid}")
-    p = run(["pgrep", "-f", "tsx|vite|tsc|pnpm|node"])
-    wt_real = os.path.realpath(wt)
-    for pid in p.stdout.split():
-        if not pid.isdigit() or int(pid) in protected:
-            continue
+
+def signal_listener(port: str, pid: int, identity: tuple[str, str]) -> str:
+    """SIGKILL one attributed listener without ever hitting a recycled PID.
+
+    `pidfd_open` (Linux 5.3+) pins the process, so the signal cannot land on a
+    PID some other process inherited between the lookup and the kill. Without
+    it the identity is re-read immediately before signalling — a narrower but
+    honest guarantee, and still a refusal rather than a blind kill.
+    """
+    opener = getattr(os, "pidfd_open", None)
+    sender = getattr(signal, "pidfd_send_signal", None)
+    if opener is None or sender is None:
+        if process_identity(pid) != identity:
+            raise Stop(
+                "2 process-kill",
+                f"pid {pid} changed identity before it could be signalled",
+                "the PID was recycled; re-run land once the ports are quiet",
+            )
         try:
-            cwd = os.path.realpath(f"/proc/{pid}/cwd")
-        except OSError:
-            continue
-        if cwd == wt_real or cwd.startswith(wt_real + os.sep):
-            run(["kill", pid])
-            killed.append(f"cwd pid {pid}")
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            return ""
+        return f"port {port} pid {pid} (recheck)"
+    try:
+        descriptor = opener(pid)
+    except ProcessLookupError:
+        return ""
+    except OSError as error:
+        raise Stop(
+            "2 process-kill", f"cannot pin pid {pid} before signalling it", str(error)
+        ) from error
+    try:
+        if process_identity(pid) != identity:
+            raise Stop(
+                "2 process-kill",
+                f"pid {pid} changed identity before it could be signalled",
+                "the PID was recycled; re-run land once the ports are quiet",
+            )
+        signal.pidfd_send_signal(descriptor, signal.SIGKILL)
+    except ProcessLookupError:
+        return ""
+    finally:
+        os.close(descriptor)
+    return f"port {port} pid {pid} (pidfd)"
+
+
+def kill_worktree_processes(wt: str) -> list[str]:
+    """Signal only the listeners on this worktree's own declared `.dev-ports`.
+
+    Never signal on doubt. A listener whose working directory is not inside
+    this worktree — or whose identity cannot be read at all — is a named STOP,
+    not a kill: matching foreign processes by command name across the whole
+    machine is how a wrapup run takes down someone else's server. Own shell
+    ancestry stays excluded (the self-kill trap).
+    """
+    dev_ports = Path(wt) / ".dev-ports"
+    if not dev_ports.is_file():
+        return []
+    ports = parse_dev_ports(dev_ports.read_text())
+    protected = self_ancestry()
+    worktree_root = os.path.realpath(wt)
+    killed, unattributed = [], []
+    for port in ports:
+        listing = run(["lsof", "-ti", f":{port}"])
+        for raw in listing.stdout.split():
+            if not raw.isdigit() or int(raw) in protected:
+                continue
+            pid = int(raw)
+            identity = process_identity(pid)
+            if identity is None:
+                unattributed.append(f"port {port} pid {pid}: identity unreadable")
+                continue
+            cwd = identity[1]
+            if cwd != worktree_root and not cwd.startswith(worktree_root + os.sep):
+                unattributed.append(f"port {port} pid {pid}: cwd {cwd}")
+                continue
+            entry = signal_listener(port, pid, identity)
+            if entry:
+                killed.append(entry)
+    if unattributed:
+        raise Stop(
+            "2 process-kill",
+            "a process on this worktree's declared ports cannot be attributed to it "
+            "— never signal on doubt",
+            "; ".join(unattributed),
+        )
     return killed
 
 
@@ -874,8 +759,13 @@ def anchor_complete_from_body(body: str) -> bool | None:
 
 # ---------- remote sweep set ----------
 
-def stale_remote_set(merged: set[str], remotes: set[str], open_prs: set[str]) -> list[str]:
-    return sorted((merged & remotes) - open_prs - {"main"})
+def stale_remote_set(
+    merged: set[str],
+    remotes: set[str],
+    open_prs: set[str],
+    protected: set[str],
+) -> list[str]:
+    return sorted((merged & remotes) - open_prs - protected)
 
 
 # ---------- subcommands ----------
@@ -883,11 +773,18 @@ def stale_remote_set(merged: set[str], remotes: set[str], open_prs: set[str]) ->
 def cmd_preflight(args) -> dict:
     cwd = os.getcwd()
     main_tree, _ = worktree_map(cwd)
-    branch = git(["branch", "--show-current"], check=True).stdout.strip()
     wt = git(["rev-parse", "--show-toplevel"], check=True).stdout.strip()
-    if os.path.realpath(wt) == os.path.realpath(main_tree) or branch == "main":
-        raise Stop("preflight", "not in a feature worktree",
-                   f"wt={wt} branch={branch} — /wrapup runs in the finished slice's worktree")
+    branch = require_landable_head("preflight", cwd)
+    _, protected = branch_policy(wt)
+    # No naming or location gate: any born, attached worktree is first-class,
+    # including one an external tool created under a foreign name and path
+    # (ADR 0009). Only the main checkout and a protected branch are refused.
+    if os.path.realpath(wt) == os.path.realpath(main_tree):
+        raise Stop("preflight", "run /wrapup in the worktree it should land and tear down",
+                   f"wt={wt} is the main checkout — /wrapup never tears that down")
+    if branch in protected:
+        raise Stop("preflight", f"{branch} is a protected branch",
+                   f"wt={wt} — /wrapup lands a slice branch, never the integration branch")
 
     porcelain = git(["status", "--porcelain"], check=True).stdout
     profile = load_profile()
@@ -941,9 +838,16 @@ def cmd_preflight(args) -> dict:
 
 
 def cmd_commit(args) -> dict:
-    branch = git(["branch", "--show-current"], check=True).stdout.strip()
-    if branch == "main":
-        raise Stop("commit", "on main — refusing to commit")
+    cwd = os.getcwd()
+    root = git(["rev-parse", "--show-toplevel"], check=True).stdout.strip()
+    _, protected = branch_policy(root)
+    symbolic = git(["symbolic-ref", "--quiet", "HEAD"], cwd=cwd)
+    branch = symbolic.stdout.strip().removeprefix("refs/heads/") if symbolic.returncode == 0 else ""
+    if not branch:
+        raise Stop("commit", "detached HEAD — refusing to commit onto no branch",
+                   f"{root}: attach a branch here (`git switch -c <branch>`), then re-run")
+    if branch in protected:
+        raise Stop("commit", f"on protected branch {branch} — refusing to commit")
     porcelain = git(["status", "--porcelain"], check=True).stdout
     if not porcelain.strip():
         return {"committed": False, "reason": "clean tree — nothing to commit"}
@@ -968,17 +872,25 @@ def cmd_commit(args) -> dict:
     return {"committed": True, "sha": sha, "allowed_matches": bool(hits)}
 
 
-def retire_local_branch(branch: str, main_tree: str, report: dict) -> None:
-    """Fast-forward main, then retire the merged local branch with `-d` only."""
+def retire_local_branch(
+    branch: str,
+    main_tree: str,
+    integration: str,
+    report: dict,
+) -> None:
+    """Fast-forward the integration branch, then retire the merged local branch
+    with `-d` only. Already absent is a completed step, not a failure."""
     git(["fetch", "origin", "--prune"], cwd=main_tree)
-    git(["checkout", "main"], cwd=main_tree)
+    git(["checkout", integration], cwd=main_tree)
     p = git(["pull", "--ff-only"], cwd=main_tree)
     if p.returncode != 0:
-        raise Stop("5 main-ff", "no fast-forward possible — diverged main is an anomaly",
+        raise Stop("5 integration-ff",
+                   f"no fast-forward possible — a diverged {integration} is an anomaly",
                    (p.stderr or p.stdout).strip()[-1000:])
     if git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
            cwd=main_tree).returncode != 0:
         report["branch_retired"] = "already absent"
+        report["skipped"].append("branch retire: local branch already absent")
         return
     if branch in worktree_map(main_tree)[1]:
         report["branch_retired"] = "refused: still checked out"
@@ -994,81 +906,30 @@ def retire_local_branch(branch: str, main_tree: str, report: dict) -> None:
         )
 
 
-def recover_canonical_cleanup(
-    branch: str,
-    wt: str | None,
-    wt_exists: bool,
-    main_tree: str,
-) -> dict:
-    """Resume post-merge teardown after canonical cleanup-policy drift.
+def pull_request_snapshot(branch: str) -> dict | None:
+    """Read the platform's PR record — the resume authority for a re-run.
 
-    Canonical drift keeps the normal path fail-closed: the attempt is bound to
-    the policy that nominated its evidence, and that binding is never relaxed.
-    This route is the supported way out, not a bypass — it re-reads the merged
-    canonical policy, requires the branch to already be an ancestor of canonical
-    `origin/main`, and revalidates every frozen identity against that canonical
-    policy before the same shared assessment and removal primitives run. Nothing
-    outside the revalidated evidence can be deleted, and rerunning it after a
-    successful teardown is a no-op.
+    There is no persisted attempt state (ADR 0009). Whether the push, the PR
+    and the merge already happened is answered by looking, every single time.
     """
-    report: dict = {
-        "recovery": "canonical-cleanup",
-        "branch": branch,
-        "warnings": [],
-    }
-    git(["fetch", "origin", "main"], cwd=main_tree, check=True)
-    if not wt_exists:
-        report["worktree_removed"] = None
-        report["cleanup_guard"] = None
-        retire_local_branch(branch, main_tree, report)
-        report["main_sha"] = git(["log", "--oneline", "-1"], cwd=main_tree,
-                                 check=True).stdout.strip()
-        return report
-    assert wt is not None
-    if git(["status", "--porcelain"], cwd=wt, check=True).stdout.strip():
-        raise Stop("recover-cleanup", "worktree dirty — run `commit` first", wt)
-    if git(["merge-base", "--is-ancestor", branch, "origin/main"],
-           cwd=main_tree).returncode != 0:
-        raise Stop(
-            "recover-cleanup",
-            "branch is not merged into canonical origin/main — canonical cleanup "
-            "recovery only resumes an already-merged teardown",
-            branch,
-        )
-    evidence = canonical_recovery_evidence(wt, main_tree)
-    assessment = ensure_worktree_removable(
-        wt,
-        main_tree,
-        verified_scratch_evidence=evidence,
-        profile_loader=load_canonical_recovery_profile,
-    )
-    report["cleanup_guard"] = {
-        "assumptions_read": bool(assessment.assumptions),
-        "landing_generated_files": [item["path"] for item in evidence],
-    }
-    report["killed_processes"] = kill_worktree_processes(wt)
-    remove_verified_worktree_scratch(
-        wt,
-        main_tree,
-        assessment,
-        verified_scratch_evidence=evidence,
-        profile_loader=load_canonical_recovery_profile,
-    )
-    p = git(["worktree", "remove", wt], cwd=main_tree)
+    p = run(["gh", "pr", "view", branch, "--json", "number,state,body"])
     if p.returncode != 0:
-        raise Stop("recover-cleanup", "git worktree remove refused — no --force; "
-                   "check for surviving processes (lsof/pgrep)",
-                   (p.stderr or p.stdout).strip()[-1000:])
-    git(["worktree", "prune"], cwd=main_tree)
-    report["worktree_removed"] = wt
-    retire_local_branch(branch, main_tree, report)
-    report["main_sha"] = git(["log", "--oneline", "-1"], cwd=main_tree,
-                             check=True).stdout.strip()
-    return report
+        return None
+    try:
+        return json.loads(p.stdout)
+    except json.JSONDecodeError as error:
+        raise Stop("0c pr", "invalid PR response", str(error)) from error
+
+
+def remote_branch_tip(main_tree: str, branch: str) -> str:
+    result = git(["ls-remote", "--heads", "origin", branch], cwd=main_tree)
+    if result.returncode != 0 or not result.stdout.strip():
+        return ""
+    return result.stdout.split()[0]
 
 
 def cmd_land(args) -> dict:
-    report: dict = {"stops": [], "warnings": []}
+    report: dict = {"stops": [], "warnings": [], "skipped": []}
     main_tree, branches = worktree_map()
     here = os.path.realpath(os.getcwd())
     if here != os.path.realpath(main_tree):
@@ -1076,48 +937,21 @@ def cmd_land(args) -> dict:
                    f"cwd={here} main={main_tree} — the in-worktree shell would survive "
                    "teardown and the process-kill step")
     branch = args.branch
+    integration, protected = branch_policy(main_tree)
+    if branch in protected:
+        raise Stop("land", f"{branch} is a protected branch",
+                   "/wrapup lands a slice branch, never the integration branch")
     wt = branches.get(branch)
     wt_exists = wt is not None and Path(wt).is_dir()
-    if getattr(args, "recover_canonical_cleanup", False):
-        return recover_canonical_cleanup(branch, wt, wt_exists, main_tree)
     profile = load_profile()
     default_section = profile.get("headings", {}).get("vorBau", "Vor Bau zu klären")
 
     # drift markers from the build-time log — mechanical, no gate
     markers: list[dict] = []
-    landing_attempt: dict | None = None
-    generated_evidence: tuple[dict, ...] = ()
     if wt_exists:
+        require_landable_head("land", wt)
         if git(["status", "--porcelain"], cwd=wt, check=True).stdout.strip():
             raise Stop("land", "worktree dirty — run `commit` first", wt)
-        if getattr(args, "abandon_unfinished_attempt", False):
-            return {
-                "landing_attempt_abandoned": abandon_unfinished_landing_attempt(
-                    wt, main_tree
-                ),
-                "files_removed": [],
-                "next": (
-                    "current files remain protected; classify or move blockers, "
-                    "then rerun land"
-                ),
-            }
-        landing_attempt = landing_start_artifact_inventory(wt, main_tree)
-        if landing_attempt["state"] == "started" and not landing_attempt["newAttempt"]:
-            raise Stop(
-                "cleanup",
-                "unfinished landing generator attempt has no frozen output evidence; "
-                f"classify its files, then rerun with {ABANDON_ATTEMPT_FLAG}",
-            )
-        # Retained structural backstop: a journal on the active contract always
-        # carries an empty `generatedFiles`, because a landing-start blocker is
-        # refused before the journal is written. A non-empty list therefore means
-        # tampered or migrated evidence — never a path this run may claim.
-        if landing_attempt["generatedFiles"]:
-            raise Stop(
-                "cleanup",
-                "landing-start generated paths are consumer-owned and protected: "
-                + ", ".join(landing_attempt["generatedFiles"]),
-            )
         annahmen = Path(wt) / "ANNAHMEN.md"
         if annahmen.is_file():
             markers, malformed = parse_annahmen(annahmen.read_text(), default_section)
@@ -1127,82 +961,82 @@ def cmd_land(args) -> dict:
                            "\n".join(malformed))
     report["drift_markers"] = markers
 
-    # Step 0b — push
-    if wt_exists:
-        assert landing_attempt is not None
-        if landing_attempt["state"] == "frozen" and landing_attempt["pushSucceeded"]:
-            generated_evidence = freeze_landing_artifact_evidence(
-                wt, main_tree, push_succeeded=True
-            )
+    # Step 0c-a — read the PR record first: a merged PR means push, body and
+    # merge are done, and this run resumes at teardown.
+    snapshot = pull_request_snapshot(branch)
+    already_merged = snapshot is not None and snapshot.get("state") == "MERGED"
+
+    # Step 0b — push, unless the remote already carries this commit
+    if wt_exists and already_merged:
+        report["skipped"].append("push: the PR for this branch is already merged")
+    elif wt_exists:
+        local_tip = git(["rev-parse", "HEAD"], cwd=wt, check=True).stdout.strip()
+        if remote_branch_tip(main_tree, branch) == local_tip:
+            report["skipped"].append(f"push: origin/{branch} already at {local_tip[:7]}")
         else:
-            if landing_attempt["state"] == "frozen":
-                # Validate every previously frozen identity before a retry can
-                # invoke the generator-capable pre-push hook.
-                reopen_frozen_landing_attempt(wt, main_tree)
             p = git(["push", "-u", "origin", branch], cwd=wt)
-            generated_evidence = freeze_landing_artifact_evidence(
-                wt, main_tree, push_succeeded=p.returncode == 0
-            )
             if p.returncode != 0:
-                raise Stop(
-                    "0b push", "push rejected",
-                    (p.stderr or p.stdout).strip()[-2000:],
-                )
+                raise Stop("0b push", "push rejected",
+                           (p.stderr or p.stdout).strip()[-2000:])
 
     # Step 0c — ensure PR + final body
-    p = run(["gh", "pr", "view", branch, "--json", "number,state,body"])
     pr_body = ""
-    if p.returncode == 0:
-        d = json.loads(p.stdout)
-        pr, pr_state, pr_body = str(d["number"]), d["state"], d.get("body") or ""
+    if snapshot is not None:
+        pr, pr_body = str(snapshot["number"]), snapshot.get("body") or ""
         report["pr_reused"] = True
     elif args.body_file:
         if not args.title:
             raise Stop("0c pr", "--title required to create a PR")
-        run(["gh", "pr", "create", "--base", "main", "--head", branch,
+        run(["gh", "pr", "create", "--base", integration, "--head", branch,
              "--title", args.title, "--body-file", args.body_file], check=True)
-        d = json.loads(run(["gh", "pr", "view", branch, "--json", "number,state,body"],
-                           check=True).stdout)
-        pr, pr_state, pr_body = str(d["number"]), d["state"], d.get("body") or ""
+        created = pull_request_snapshot(branch)
+        if created is None:
+            raise Stop("0c pr", "PR was created but cannot be read back")
+        pr, pr_body = str(created["number"]), created.get("body") or ""
         report["pr_reused"] = False
     else:
         raise Stop("0c pr", "no open PR and no --body-file to create one")
     report["pr"] = pr
 
-    if args.body_file and report["pr_reused"]:
-        pr_body = Path(args.body_file).read_text()
-        final = merge_markers_into_body(pr_body, markers)
-        tmp = Path(args.body_file).with_suffix(".final.md")
-        tmp.write_text(final)
-        run(["gh", "pr", "edit", pr, "--body-file", str(tmp)], check=True)
-    elif markers:
-        final = merge_markers_into_body(pr_body, markers)
-        if final != pr_body:
-            tmp = Path(f"/tmp/wrapup-body-{pr}.md")
+    if already_merged:
+        report["skipped"].append("PR body + body-check: the PR is already merged")
+    else:
+        if args.body_file and report["pr_reused"]:
+            pr_body = Path(args.body_file).read_text()
+            final = merge_markers_into_body(pr_body, markers)
+            tmp = Path(args.body_file).with_suffix(".final.md")
             tmp.write_text(final)
             run(["gh", "pr", "edit", pr, "--body-file", str(tmp)], check=True)
+        elif markers:
+            final = merge_markers_into_body(pr_body, markers)
+            if final != pr_body:
+                tmp = Path(f"/tmp/wrapup-body-{pr}.md")
+                tmp.write_text(final)
+                run(["gh", "pr", "edit", pr, "--body-file", str(tmp)], check=True)
 
-    # body-convention check: closes-vs-Part-of + **Retro:** line
-    p = run([sys.executable, str(Path(__file__).parent / "pr-body-check.py"),
-             "--branch", branch])
-    report["body_check_exit"] = p.returncode
-    if p.returncode == 1:
-        raise Stop("0c body-check", "pr-body-check exit 1 — fix the body, never merge red",
-                   (p.stdout + p.stderr).strip()[-2000:])
-    if p.returncode == 2:
-        report["warnings"].append("pr-body-check exit 2 (fail-open): "
-                                  + (p.stdout + p.stderr).strip()[:300])
+        # body-convention check: closes-vs-Part-of + **Retro:** line
+        p = run([sys.executable, str(Path(__file__).parent / "pr-body-check.py"),
+                 "--branch", branch])
+        report["body_check_exit"] = p.returncode
+        if p.returncode == 1:
+            raise Stop("0c body-check", "pr-body-check exit 1 — fix the body, never merge red",
+                       (p.stdout + p.stderr).strip()[-2000:])
+        if p.returncode == 2:
+            report["warnings"].append("pr-body-check exit 2 (fail-open): "
+                                      + (p.stdout + p.stderr).strip()[:300])
 
-    # merge gate — wait boundedly for fresh-PR checks; already-MERGED resumes
-    # directly at teardown. Progress stays on stderr so stdout remains one JSON.
-    already_merged = wait_for_merge_gate(pr)
+        # merge gate — wait boundedly for fresh-PR checks; already-MERGED resumes
+        # directly at teardown. Progress stays on stderr so stdout remains one JSON.
+        already_merged = wait_for_merge_gate(pr)
 
     # Step 1 — merge (= prod deploy; authorization = the user's /wrapup invocation).
     # PR state is the authority, not gh's exit code: `--delete-branch` also tries
     # to delete the LOCAL branch, which fails while a worktree holds it — the
     # remote merge is through anyway (dogfood run PR).
     merge_err = ""
-    if not already_merged:
+    if already_merged:
+        report["skipped"].append("merge: the PR is already MERGED")
+    else:
         p = run(["gh", "pr", "merge", pr, "--merge", "--delete-branch"], cwd=main_tree)
         if p.returncode != 0:
             merge_err = (p.stderr or p.stdout).strip()[-2000:]
@@ -1215,27 +1049,23 @@ def cmd_land(args) -> dict:
         report["warnings"].append(f"gh pr merge exited non-zero but PR is MERGED: {merge_err[:300]}")
     report["merged"] = True
 
-    # Step 2 — kill the worktree's dev server, then Step 4 — teardown
-    if wt_exists:
-        git(["fetch", "origin", "main"], cwd=main_tree, check=True)
-        generated = tuple(item["path"] for item in generated_evidence)
-        cleanup = ensure_worktree_removable(
-            wt,
-            main_tree,
-            verified_scratch_files=generated,
-            verified_scratch_evidence=generated_evidence,
-        )
-        report["cleanup_guard"] = {
-            "assumptions_read": bool(cleanup.assumptions),
-            "landing_generated_files": list(generated),
-        }
+    # Step 2 — quiesce this worktree's own dev servers, then Step 4 — teardown.
+    # Teardown always runs: a direct /wrapup invocation is its authorization,
+    # and the classifier's four rules are the only protection.
+    if not wt_exists:
+        report["skipped"].append("teardown: the worktree is already removed")
+    else:
+        git(["fetch", "origin", integration], cwd=main_tree, check=True)
         report["killed_processes"] = kill_worktree_processes(wt)
-        remove_verified_worktree_scratch(
-            wt,
-            main_tree,
-            cleanup,
-            verified_scratch_evidence=generated_evidence,
-        )
+        assessment = assess_teardown(wt, main_tree)
+        rendered = teardown_report(assessment)
+        report["teardown"] = {
+            "assumptions_read": (Path(wt) / "ANNAHMEN.md").is_file(),
+            "report": rendered,
+        }
+        if not assessment.removable:
+            raise Stop("4 teardown", "teardown is blocked", rendered)
+        report["scratch_removed"] = remove_teardown_scratch(assessment)
         p = git(["worktree", "remove", wt], cwd=main_tree)
         if p.returncode != 0:
             raise Stop("4 worktree-remove", "git worktree remove refused — no --force; "
@@ -1243,19 +1073,9 @@ def cmd_land(args) -> dict:
                        (p.stderr or p.stdout).strip()[-1000:])
         git(["worktree", "prune"], cwd=main_tree)
         report["worktree_removed"] = wt
-    git(["fetch", "origin", "--prune"], cwd=main_tree)
 
-    # Step 5 — main ff + local branch delete (-d only, after the pull)
-    git(["checkout", "main"], cwd=main_tree)
-    p = git(["pull", "--ff-only"], cwd=main_tree)
-    if p.returncode != 0:
-        raise Stop("5 main-ff", "no fast-forward possible — diverged main is an anomaly",
-                   (p.stderr or p.stdout).strip()[-1000:])
-    p = git(["branch", "-d", branch], cwd=main_tree)
-    if p.returncode != 0 and branch in worktree_map()[1]:
-        report["warnings"].append(f"branch -d {branch} refused (still checked out?) — never -D")
-    elif p.returncode != 0:
-        report["warnings"].append(f"branch -d {branch} refused: {(p.stderr or '').strip()[:200]}")
+    # Step 5 — integration ff + local branch delete (-d only, after the pull)
+    retire_local_branch(branch, main_tree, integration, report)
 
     # Step 5b — verify declared auto-closes (backtick-swallowed `closes`
     # misses). Targets come from the merged PR body's close keywords, never
@@ -1278,11 +1098,11 @@ def cmd_land(args) -> dict:
                 states.append(f"#{t} already closed")
         report["issue_close"] = " · ".join(states)
 
-    # Step 5c — local merged-branch sweep (-d only: unreachable-from-main is refused)
+    # Step 5c — local merged-branch sweep (-d only: unreachable-from-integration is refused)
     swept = []
-    p = git(["branch", "--merged", "main", "--format=%(refname:short)"], cwd=main_tree)
+    p = git(["branch", "--merged", integration, "--format=%(refname:short)"], cwd=main_tree)
     for b in p.stdout.split():
-        if b in ("main", branch) or not b:
+        if b in protected or b == branch or not b:
             continue
         if git(["branch", "-d", b], cwd=main_tree).returncode == 0:
             swept.append(b)
@@ -1300,7 +1120,7 @@ def cmd_land(args) -> dict:
     for line in git(["ls-remote", "--heads", "origin"], cwd=main_tree, check=True).stdout.splitlines():
         if "refs/heads/" in line:
             remote_heads.add(line.split("refs/heads/", 1)[1].strip())
-    stale = stale_remote_set(merged_heads, remote_heads, open_heads)
+    stale = stale_remote_set(merged_heads, remote_heads, open_heads, set(protected))
     if not profile.get("wrapup", {}).get("remoteBranchSweep"):
         report["swept_remote"] = {"enabled": False, "stale_count": len(stale)}
     elif stale:
@@ -1311,14 +1131,19 @@ def cmd_land(args) -> dict:
     else:
         report["swept_remote"] = {"enabled": True, "deleted": []}
 
-    # Step 5e.1 — anchor tracker sync + completeness; 5e.3 land sanity
+    # Step 5e.1 — anchor tracker sync + completeness; 5e.3 land sanity.
+    # The anchor is optional: a branch that carries no issue number lands
+    # without one instead of being refused.
     anchor = args.anchor
     if not anchor and issue:
         p = run([sys.executable, str(Path(__file__).parent / "board-sync.py"),
                  "parent-of", issue])
         out = p.stdout.strip()
         anchor = out if p.returncode == 0 and out.isdigit() else None
-    if anchor:
+    if not anchor:
+        report["anchor_sync"] = {"anchor": None,
+                                 "skipped": "branch carries no issue anchor"}
+    else:
         bs = str(Path(__file__).parent / "board-sync.py")
         dry = run([sys.executable, bs, "anchor-sync", str(anchor), "--dry-run"])
         wet = run([sys.executable, bs, "anchor-sync", str(anchor)])
@@ -1373,24 +1198,8 @@ def main() -> int:
     l.add_argument("--body-file", help="final PR body (create or overwrite)")
     l.add_argument("--anchor", help="wave-anchor issue # (derived via parent-of when omitted)")
     l.add_argument("--skip-malformed-drift", action="store_true")
-    recovery = l.add_mutually_exclusive_group()
-    recovery.add_argument(
-        ABANDON_ATTEMPT_FLAG,
-        action="store_true",
-        help=(
-            "archive an interrupted pre-freeze landing attempt without deleting "
-            "or claiming its ambiguous files"
-        ),
-    )
-    recovery.add_argument(
-        RECOVER_CANONICAL_CLEANUP_FLAG,
-        action="store_true",
-        help=(
-            "after canonical cleanup-policy drift, revalidate the frozen landing "
-            "evidence against canonical origin/main and resume the merged "
-            "worktree's teardown idempotently"
-        ),
-    )
+    # No recovery flag exists: an interrupted landing is resumed by re-running
+    # `land`, which re-checks present state at every step (ADR 0009).
     args = ap.parse_args()
 
     try:
