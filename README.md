@@ -469,6 +469,14 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.41.0
+
+- added: `docs/adr/0009-teardown-authority-is-stateless-repository-classification.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `docs/adr/0007-session-teardown-requires-provenance-bound-ownership.md`
+- changed: `scripts/pr-body-check.py`
+- changed: `scripts/test_pr_body_check.py`
+
 ### 0.40.0 — planning ignore rules are offered, never installed
 
 Nothing in this release requires a consumer action. `kit-update` reconciles it.
