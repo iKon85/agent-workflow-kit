@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { STUB_TARGETS } from '../src/lib/bundle.mjs';
 import { sha256 } from '../src/lib/hash.mjs';
 import { buildKit } from './build-kit.mjs';
 
@@ -30,9 +31,10 @@ function mergeDeltas(...deltas) {
   ]));
 }
 
-export function recommendBump(delta) {
-  if (delta.removed.length) return 'major';
-  if (delta.added.length) return 'minor';
+export function recommendBump(delta, { minorRemovals = [] } = {}) {
+  const minorRemovalSet = new Set(minorRemovals);
+  if (delta.removed.some((path) => !minorRemovalSet.has(path))) return 'major';
+  if (delta.added.length || delta.removed.length) return 'minor';
   return delta.changed.length ? 'patch' : null;
 }
 
@@ -79,7 +81,13 @@ export function assessRelease(input) {
       + `tag and publish it before preparing ${input.currentVersion}`,
     );
   }
-  const recommendedBump = recommendBump(delta);
+  // Project-layer stubs are seed inputs, never installed Consumer files.
+  // Removing an accidentally packed copy is additive hygiene, unless the same
+  // path also disappeared from the actual Consumer bundle.
+  const seedOnlyPackageRemovals = packageDelta.removed.filter(
+    (path) => STUB_TARGETS.includes(path) && !bundleDelta.removed.includes(path),
+  );
+  const recommendedBump = recommendBump(delta, { minorRemovals: seedOnlyPackageRemovals });
   const actual = bumpKind(input.baseVersion, input.currentVersion);
   const rank = { patch: 1, minor: 2, major: 3 };
   if (hasDelta(delta) && input.currentVersion !== input.baseVersion && !actual) {
