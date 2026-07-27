@@ -208,13 +208,26 @@ def fetch_pr_body(branch: str):
     return out if rc == 0 else None
 
 
+def _anchor_labels() -> set:
+    """Labels that mark an issue as a never-auto-close anchor: the wave
+    cluster label plus the board profile's Program-PRD label (a Program-PRD
+    is closed last, manually — `closes` must never target it)."""
+    labels = {"type:cluster"}
+    try:
+        import board_config
+        labels.add(board_config.program_type_label(board_config.load_board_config()))
+    except Exception:
+        labels.add("type:program")  # profile unavailable → literal default
+    return labels
+
+
 def fetch_is_anchor(number: int) -> bool:
-    """True wenn das Issue selbst ein Wellen-Anker ist (Label type:cluster)."""
+    """True wenn das Issue selbst ein Anker ist (type:cluster oder Program-PRD)."""
     rc, out = _run(["gh", "issue", "view", str(number),
                     "--json", "labels", "-q", ".labels[].name"])
     if rc != 0:
         return False  # fail-open in den Leaf-Pfad (bisheriges Verhalten)
-    return "type:cluster" in out.splitlines()
+    return bool(_anchor_labels() & set(out.splitlines()))
 
 
 def resolve_has_e2e_na(args, branch: str) -> bool:

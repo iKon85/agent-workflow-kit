@@ -161,27 +161,39 @@ The complete workflow for creating, identifying, enforcing, and cleaning up an
 isolated worktree. Setup and enforcement are one capability even when different
 agent hooks expose parts of it.
 
-## Teardown provenance
+## Stateless teardown classification
 
-Durable evidence that a cleanup candidate was created by one specific lifecycle
-and is still the same object that lifecycle observed. Provenance binds the
-owning action, its time boundary, and object identity; a matching name, path,
-content, patch, or generated-file pattern is not ownership.
-_Avoid_: Cleanup inventory, Matching path, Merged branch
+The rule that teardown authority is derived entirely from the repository's
+current state — git's own tracked/untracked/ignored classification over the
+standard exclude sources, and the platform PR record — never from persisted
+lifecycle evidence. Interrupted work is resumed by re-checking present state, not by
+replaying a journal.
+_Avoid_: Teardown provenance, Ownership proof, Lifecycle receipt
 
-## Ownership proof
+## Scratch
 
-An atomic, durable grant showing that a lifecycle acquired an object rather
-than merely intending to create it. A receipt may describe intent before the
-grant, but cleanup authority begins only with the proof.
-_Avoid_: Receipt row, Absence check, Expected branch
+A file git's standard exclude sources (repository ignore files,
+`.git/info/exclude`, the global excludes file) classify as ignored. By the
+repository's own declaration it is not work, and it is therefore deletable at
+teardown. The single exception class is `.env*`, which is compared against the
+main checkout before removal.
+_Avoid_: Scratch pattern, Cleanup allowlist
 
-## Lifecycle receipt
+## Durable content
 
-A persistent state-transition journal that makes an interrupted lifecycle
-resumable or explicitly classifiable without inferring ownership from current
-repository state. It is not a disposable list of worktrees or files.
-_Avoid_: Cleanup list, Session log
+Repository content a session produced that must reach `main` through a commit
+and the ordinary PR gate — glossary and ADR updates, research documents,
+tracked-file edits. Durable content is ordinary work; it has no special
+landing mechanics.
+_Avoid_: Planning artifact, Session leftover
+
+## Content route
+
+The wrapup path for a session whose output is Durable content without a
+feature worktree or slice: infer the situation, claim an explicitly confirmed
+file set, cut a branch, commit, and open the ordinary PR — with no teardown
+half. It adds a route to wrapup, never a caller.
+_Avoid_: Second landing path, Auto-commit
 
 ## Safety guardrail
 
