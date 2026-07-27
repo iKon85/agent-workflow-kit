@@ -251,6 +251,13 @@ def downgrade_landing_attempt_to_v1(core, worktree: Path) -> Path:
 
 
 class WorktreeCleanupContract(unittest.TestCase):
+    def test_declared_close_targets_is_pr_body_authority(self):
+        mod = load_wrapup()
+        self.assertEqual(mod.declared_close_targets("Part of #320"), [])
+        self.assertEqual(mod.declared_close_targets("closes #341\ncloses #12"),
+                         ["12", "341"])
+        self.assertEqual(mod.declared_close_targets("`closes #341`"), [])
+
     def test_profile_scratch_and_generated_evidence_share_safe_removal_contract(self):
         wrapup = load_wrapup()
         with tempfile.TemporaryDirectory() as tmp:

@@ -79,6 +79,15 @@ class ExistingBodyRules(unittest.TestCase):
     def test_retro_line_still_required(self):
         self.assertTrue(any("Retro" in item for item in pbc.check_pr_body("closes #149", 149, None)))
 
+    def test_active_close_targets_extracts_all_forms(self):
+        body = ("closes #12\nFixes: #13\n"
+                "resolves https://github.com/iKon85/agent-workflow-kit/issues/14\n"
+                "`closes #99` and Part of #320 and closes #12")
+        self.assertEqual(pbc.active_close_targets(body), ["12", "13", "14"])
+
+    def test_active_close_targets_empty_for_part_of_only(self):
+        self.assertEqual(pbc.active_close_targets("Part of #320\n**Retro:** skipped — x"), [])
+
     def test_program_prd_label_counts_as_anchor(self):
         with mock.patch.object(pbc, "_run",
                                return_value=(0, "type:program\npriority:medium")):

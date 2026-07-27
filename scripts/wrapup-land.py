@@ -423,6 +423,18 @@ def issue_from_branch(branch: str) -> str | None:
     return m.group(2) if m else None
 
 
+def declared_close_targets(body: str) -> list:
+    """Close authority for Step 5b: the PR body's ACTIVE close keywords, parsed
+    by pr-body-check's one close grammar. A branch number is context, never
+    closure authority (#341 — branch-derived closing shut Program-PRD #320,
+    which a PR deliberately references only via `Part of`)."""
+    spec = importlib.util.spec_from_file_location(
+        "pr_body_check_grammar", Path(__file__).parent / "pr-body-check.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.active_close_targets(body)
+
+
 def load_profile() -> dict:
     try:
         from board_config import load_board_config
@@ -1245,16 +1257,26 @@ def cmd_land(args) -> dict:
     elif p.returncode != 0:
         report["warnings"].append(f"branch -d {branch} refused: {(p.stderr or '').strip()[:200]}")
 
-    # Step 5b — verify issue auto-close (backtick-swallowed `closes` misses)
+    # Step 5b — verify declared auto-closes (backtick-swallowed `closes`
+    # misses). Targets come from the merged PR body's close keywords, never
+    # from the branch number (#341).
     issue = issue_from_branch(branch)
-    if issue:
-        p = run(["gh", "issue", "view", issue, "--json", "state"])
-        if p.returncode == 0 and json.loads(p.stdout)["state"] == "OPEN":
-            run(["gh", "issue", "close", issue, "-c",
-                 f"Merged via PR #{pr} — auto-close didn't fire; closed manually."])
-            report["issue_close"] = f"#{issue} closed manually"
-        elif p.returncode == 0:
-            report["issue_close"] = f"#{issue} already closed"
+    p = run(["gh", "pr", "view", pr, "--json", "body"])
+    merged_body = (json.loads(p.stdout).get("body") or "") if p.returncode == 0 else ""
+    targets = declared_close_targets(merged_body)
+    if not targets:
+        report["issue_close"] = "no close targets declared — nothing to verify"
+    else:
+        states = []
+        for t in targets:
+            q = run(["gh", "issue", "view", t, "--json", "state"])
+            if q.returncode == 0 and json.loads(q.stdout)["state"] == "OPEN":
+                run(["gh", "issue", "close", t, "-c",
+                     f"Merged via PR #{pr} — auto-close didn't fire; closed manually."])
+                states.append(f"#{t} closed manually")
+            elif q.returncode == 0:
+                states.append(f"#{t} already closed")
+        report["issue_close"] = " · ".join(states)
 
     # Step 5c — local merged-branch sweep (-d only: unreachable-from-main is refused)
     swept = []
