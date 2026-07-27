@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.42.1",
+  "kitVersion": "0.43.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -2699,7 +2699,7 @@
       "path": "scripts/release-delta-guard.mjs",
       "kind": "script",
       "installRole": "maintainer",
-      "sha256": "566d7bae5526af2f8863d7a06dfa3016c9383b241b616cd43757eb7b46555895",
+      "sha256": "41d9fd9c86324f1428a3de04f2bfcb630e868525d88a8864d7bdfc2954e00414",
       "mode": 420,
       "origin": "kit"
     },
@@ -2811,7 +2811,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "50c60de1e0238fa1f5cd627f67e57ca4f378275136691411487f36d7fda580dd",
+      "sha256": "2c89528a7beb629eb8b61ced26dd68cd8cd19fe2d37a4934badf74cede51e832",
       "mode": 420,
       "origin": "kit"
     },
@@ -2843,7 +2843,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "0dbba4a87d41171f3fce22a4842eecd2a989ea6a5ddf44832d7b2aed9feb4226",
+      "sha256": "a5e89b57eeb817075214af30e6504f4077434b9f90fb08a19aea028144073448",
       "mode": 420,
       "origin": "kit"
     },
