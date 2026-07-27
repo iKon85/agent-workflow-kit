@@ -149,12 +149,15 @@ same reconciler. Never recover by bumping the version.
 - **Parallel subagents share the git index — default serialize.** Pathspec
   disjointness is no protection. Parallel work only with a `git worktree` per
   agent.
-- **Worktree per session.** A different issue/slice than the current branch →
-  create a worktree under `.worktrees/<slug>` early (before recon reads).
-  Plan/grill sessions create the worktree **before** writing `PLAN.md`
-  (gitignored, on-disk only); the implementing session reuses the same
-  worktree. Check the branch carries no foreign open PR first
-  (`gh pr list --head <branch>`).
+- **Worktree binds to implementation.** A worktree isolates a *build*, so it
+  belongs to the session that builds. A different issue/slice than the current
+  branch → create it under `.worktrees/<slug>` early (before recon reads),
+  after checking the branch carries no foreign open PR
+  (`gh pr list --head <branch>`). Plan/grill sessions create **none**: they run
+  in the main checkout, their `PLAN.md` and review log stay gitignored on disk,
+  and their durable output (`CONTEXT.md`, ADRs, research notes) lands through
+  `/wrapup`'s Content route as ordinary work. The implementing session creates
+  the worktree when the build starts.
 
 ### Diagnosis & verification
 

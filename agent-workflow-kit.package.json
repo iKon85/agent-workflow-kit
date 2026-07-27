@@ -207,7 +207,7 @@
       "ownerSkill": "grill-me",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "b13087563adda186f62aa6206a9233034310ff2458535362246294a45e03079f",
+      "sha256": "f23fe7dfbe7e546cfbce5af8467d7d119008e4379f47f2904b53cb6cab9ec538",
       "mode": 420,
       "origin": "kit"
     },
@@ -247,7 +247,7 @@
       "ownerSkill": "grill-with-docs",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "93694d55fe8d164c4c0e0eef27529bd1211acdaddc18224a921c2b0f3b5a10ed",
+      "sha256": "677068c8ed1bf024cf36dda04e8843dd39e00dbcc1c6a45145036c5eb7ffc176",
       "mode": 420,
       "origin": "kit"
     },
@@ -857,7 +857,7 @@
       "ownerSkill": "to-issues",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "a675a5140c53b76e785fc105bf71c981b9f3eafefdd220bdb28e01c2f1b6f180",
+      "sha256": "c118e8561a4e47de777a60d1773333e1bff49cddb42ee69504451f57f02e16cc",
       "mode": 420,
       "origin": "kit"
     },
@@ -1469,7 +1469,7 @@
       "ownerSkill": "grill-me-codex",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "19be44dde597b83200fb3622f2643be6e08a50192b380a61838286f8e2bdb241",
+      "sha256": "65c312a2f738897ccafb3a1af23607c0b1bd9b156ba6f7d2cde162fc919fb161",
       "mode": 420,
       "origin": "kit"
     },
@@ -1489,7 +1489,7 @@
       "ownerSkill": "grill-me",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "a63331339ed4e018d770face4e7cfe483225ce758a4a1302f39a50239e8187e1",
+      "sha256": "eed0e4009fadc98b892d2b645cfa7a4b5735dd71795d7b28a2f4ef9c6eff891f",
       "mode": 420,
       "origin": "kit"
     },
@@ -1529,7 +1529,7 @@
       "ownerSkill": "grill-with-docs-codex",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "2b53b723e481c6895fc184b572441cd025b40315f95b079d5e46d7df13951974",
+      "sha256": "d1a85fa5e00c63c78b545d61eb589fa48af11d097a789f23af7d69fa69cd2461",
       "mode": 420,
       "origin": "kit"
     },
@@ -1569,7 +1569,7 @@
       "ownerSkill": "grill-with-docs",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "0cb1b41fc6bde94d3e71f3377cbb15b9d7a9a4089df66f591fc907dc19b6c1b5",
+      "sha256": "eb3527e99f8174d46eead925c1611d43db593596d5758bb335a4af62f9899d31",
       "mode": 420,
       "origin": "kit"
     },
@@ -2207,7 +2207,7 @@
       "ownerSkill": "to-issues",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "7cc957d9883ac205904df9fc3ba2d29e7f13661b6511b355f56115ac992e2a09",
+      "sha256": "d3f191639369dcff02de806427f78b6ec434da15ad697bfa4e026b7510a7488e",
       "mode": 420,
       "origin": "kit"
     },
