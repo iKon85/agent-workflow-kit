@@ -369,15 +369,17 @@ test('automatic stale cleanup is bounded and never removes retained or active st
 
 test('invalid stale cleanup limits fail before launch and preserve an active run', async () => {
   const fx = fixture();
+  const ready = join(fx.dir, 'group-hang.ready');
   const running = spawn(helper, launchArgs('build'), {
     cwd: root, encoding: 'utf8', env: {
       ...process.env, CODEX_EXEC_STATE_ROOT: fx.stateRoot,
-      FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_PAUSE_MS: '5000',
+      FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_GROUP_HANG_READY: ready,
       FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
     },
   });
   running.stdout.on('data', () => {});
   try {
+    assert.ok(await waitFor(() => exists(ready)));
     const stateName = await waitFor(() => exists(fx.stateRoot) && readdirSync(fx.stateRoot)
       .find((name) => readJson(join(fx.stateRoot, name, 'runtime.json'))?.phase === 'running'));
     assert.ok(stateName);
@@ -452,7 +454,6 @@ test('stale cleanup cannot delete a run whose resume acquired the shared lease',
         ...process.env,
         CODEX_EXEC_STATE_ROOT: fx.stateRoot,
         FAKE_CODEX_SCENARIO: 'group-hang',
-        FAKE_CODEX_PAUSE_MS: '5000',
         FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
       },
     });
@@ -577,7 +578,7 @@ test('timeout kills only the owned group and leaves a decoy sibling alive', () =
   try {
     const args = launchArgs().map((value, index, all) => all[index - 1] === '--timeout' ? '0.35' : value);
     const result = invoke(fx, args, {
-      FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_PAUSE_MS: '2000', FAKE_CODEX_CHILD_PID: childPid,
+      FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_CHILD_PID: childPid,
     });
     assert.equal(result.output.status, 'TIMEOUT');
     assert.equal(exists(result.output.stateDir), true);
@@ -598,7 +599,7 @@ test('a concurrent resume and finalize cannot steal an owned round lease', async
   ], {
     cwd: root, encoding: 'utf8', env: {
       ...process.env, CODEX_EXEC_STATE_ROOT: fx.stateRoot,
-      FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_PAUSE_MS: '5000',
+      FAKE_CODEX_SCENARIO: 'group-hang',
       FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
     },
   });
@@ -655,7 +656,6 @@ test('a runtime publication failure reaps the owned child before releasing its l
     CODEX_EXEC_TEST_CHILD_PID_FILE: childPid,
     CODEX_EXEC_TEST_RUNTIME_WRITE_FAIL: '1',
     FAKE_CODEX_SCENARIO: 'group-hang',
-    FAKE_CODEX_PAUSE_MS: '5000',
   });
   assert.notEqual(result.status, 0);
   assert.equal(result.output.error, 'ROUND_SUPERVISOR_FAILED');
@@ -795,7 +795,7 @@ test('abort cancels an active run, deletes its state, and spares a decoy', async
   const running = spawn(helper, launchArgs('build'), {
     cwd: root, encoding: 'utf8', env: {
       ...process.env, CODEX_EXEC_STATE_ROOT: fx.stateRoot, FAKE_CODEX_SCENARIO: 'group-hang',
-      FAKE_CODEX_PAUSE_MS: '5000', FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
+      FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
     },
   });
   let stdout = '';
@@ -823,7 +823,7 @@ test('handle-failure selects one of two simultaneous live runs and leaves the ot
   const start = () => spawn(helper, launchArgs('build'), {
     cwd: root, encoding: 'utf8', env: {
       ...process.env, CODEX_EXEC_STATE_ROOT: fx.stateRoot,
-      FAKE_CODEX_SCENARIO: 'group-hang', FAKE_CODEX_PAUSE_MS: '5000',
+      FAKE_CODEX_SCENARIO: 'group-hang',
       FAKE_CODEX_LAUNCH_LOG: fx.launchLog,
     },
   });
