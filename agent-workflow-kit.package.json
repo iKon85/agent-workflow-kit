@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.41.0",
+  "kitVersion": "0.41.1",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -2627,7 +2627,7 @@
       "path": "scripts/pr-body-check.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "7fa67a672d6f6986b0fba99e78157d51225ab91f61b691a4cc184d316b521882",
+      "sha256": "d18a9f1bf9285506bd7d40a1800dd9b66f631bd4666f0ae801e8db1882d3ad2d",
       "mode": 493,
       "origin": "kit"
     },
@@ -2867,7 +2867,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "476012558bb786070ce47458c6f0734ff110d5d957af72e13b20d49a37a03592",
+      "sha256": "de41f6c7bee1f67f3f25db4c7750a3caca422be5749012c6d5402cfeed91b2f7",
       "mode": 493,
       "origin": "kit"
     },

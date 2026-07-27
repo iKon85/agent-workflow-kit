@@ -125,6 +125,21 @@ def _close_on(body: str, n: int) -> bool:
     return bool(pat.search(strip_code(body)))
 
 
+def active_close_targets(body: str) -> list:
+    """All issue numbers an ACTIVE close-keyword targets (outside code spans),
+    as sorted, deduplicated strings. Same grammar `_close_on` enforces —
+    plain `closes #n`, the colon form, and the full-URL form. This is the one
+    close grammar; close-verification (wrapup-land Step 5b) must derive its
+    targets from here, never from a branch number."""
+    text = strip_code(body)
+    pat = re.compile(
+        rf"\b(?:{CLOSE_KEYWORDS})(?::\s*|\s+)"
+        rf"(?:#0*(\d+)(?!\d)|https?://\S+/issues/0*(\d+)(?!\d))",
+        re.IGNORECASE)
+    found = {a or b for a, b in pat.findall(text)}
+    return sorted(found, key=int)
+
+
 def _part_of(body: str, n: int) -> bool:
     return bool(re.search(
         rf"\b{PART_OF_RE_SRC}(?::\s*|\s+)#0*{n}(?!\d)", body or "", re.IGNORECASE))
