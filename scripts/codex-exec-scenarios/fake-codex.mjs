@@ -52,6 +52,16 @@ const verdict = () => emit({
   item: { id: 'fake-item', type: 'agent_message', text: 'fake verdict' },
 });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const waitForSignal = () => new Promise((resolve) => {
+  const keepAlive = setInterval(() => {}, 2_147_483_647);
+  const done = () => {
+    clearInterval(keepAlive);
+    resolve();
+  };
+  process.once('SIGTERM', done);
+  process.once('SIGINT', done);
+  process.once('SIGHUP', done);
+});
 
 switch (scenario) {
   case 'silent':
@@ -129,7 +139,10 @@ switch (scenario) {
     if (process.env.FAKE_CODEX_CHILD_PID) {
       writeFileSync(process.env.FAKE_CODEX_CHILD_PID, String(child.pid));
     }
-    await sleep(pause);
+    if (process.env.FAKE_CODEX_GROUP_HANG_READY) {
+      writeFileSync(process.env.FAKE_CODEX_GROUP_HANG_READY, 'ready\n');
+    }
+    await waitForSignal();
     break;
   }
   case 'orphan-group': {
