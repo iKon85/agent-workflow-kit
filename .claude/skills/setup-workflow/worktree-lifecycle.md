@@ -160,5 +160,6 @@ reads a glob, so a pattern here can widen only what an advisory selects, never
 what teardown removes.
 
 The shipped read-only inventory is
-`python3 scripts/worktree-lifecycle/cleanup.py sweep`. The same profile powers
-its branch issue extraction and scratch-only cleanup verdicts.
+`python3 scripts/worktree-lifecycle/cleanup.py sweep`. The profile powers its
+branch issue extraction; the scratch each row reports comes from the same
+stateless classification teardown itself uses, never from a profile pattern.

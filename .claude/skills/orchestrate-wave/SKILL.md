@@ -126,7 +126,7 @@ replace the ~30-second heartbeat; otherwise the standing heartbeat remains requi
 
 1. **Read everything**: the anchor body, every sub-issue body (each has a Handoff
    block: scope, blast-radius, live-verify, PR line), and the locked plan /
-   plan-review doc in the planning worktree (file-exact).
+   plan-review doc the handoff points at, file-exact when one is on disk.
 2. **Select exact commands or the generic fallback.** If the readiness result
    activated `projectRecipe`, use the loaded filled recipe wherever a phase below
    points at a `§`-section. Otherwise use each phase's generic fallback; the
@@ -142,8 +142,9 @@ replace the ~30-second heartbeat; otherwise the standing heartbeat remains requi
    `acquired: false` or a work signal you did not create means another session
    owns the wave — **STOP**, report the returned `claim.owner` plus the exact
    branch/worktree, touch nothing. The claim stays local — never push it.
-4. **Wave worktree**: reuse the planning worktree (never re-create; the handoff
-   points there). Bring its branch to current `main`:
+4. **Wave worktree**: reuse the planning worktree when the handoff names one,
+   never re-creating it; planning binds to no worktree, so a wave may need one
+   cut with your worktree helper. Bring its branch to current `main`:
    `git -C <wave> merge --ff-only origin/main` (if your repo guards destructive
    git, ff-merge is the safe path — not `reset --hard`). Install dependencies with
    your package manager after (the lockfile may have moved). A plan doc the repository

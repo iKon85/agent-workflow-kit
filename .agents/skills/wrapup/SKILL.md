@@ -120,8 +120,10 @@ path blocks, an untracked non-ignored file blocks with a bounded report (count
 plus top directories, never a path dump), and an ignored entry is deletable
 scratch. One hardcoded exception: an `.env*` file is deletable only when it is
 byte-identical to the main checkout's copy at the same path — otherwise the
-refusal names the exact file. Make something deletable by ignoring it; there is
-no pattern list to configure.
+refusal names the exact file. An ignored symlink is unlinked, never followed,
+and only while its target stays inside the worktree: an absolute, escaping,
+dangling, or since-changed target keeps the worktree and names the link. Make
+something deletable by ignoring it; there is no pattern list to configure.
 
 Branch retirement is authorized, never assumed. A branch that is an ancestor of
 the **freshly fetched** integration branch is deleted with `-d`; a fetch that
