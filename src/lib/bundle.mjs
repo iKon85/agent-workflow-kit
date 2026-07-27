@@ -232,6 +232,36 @@ export const STUB_TARGETS = [
   'docs/conventions/spec-completeness.md',
 ];
 
+/**
+ * Source paths `package.json:"files"` deliberately keeps out of the npm payload:
+ * test sources, the build-time tooling that materializes `dist-kit/`, and this
+ * repository's own maintainer documentation and project layer. None of them is
+ * an install-manifest entry and nothing resolves them from an installed kit, so
+ * a removal here narrows the publish scope rather than breaking a consumer —
+ * the release guard classifies it accordingly. Kept in sync with that `"files"`
+ * field, and asserted against the real tarball by the publish-scope audit.
+ */
+export const PUBLISH_EXCLUDED_FILES = [
+  'scripts/build-kit.mjs',
+  'scripts/check-kit-staleness.mjs',
+  'scripts/grill-census-wiring-guard.mjs',
+  'scripts/portability_profile_scan.py',
+  'docs/agents/board-sync.md',
+  'docs/agents/code-review.md',
+  'docs/agents/workflow-capabilities.json',
+];
+
+const PUBLISH_EXCLUDED_PATTERNS = [
+  /\.test\.mjs$/,
+  /(^|\/)test_[^/]+\.py$/,
+  /^scripts\/codex-exec-scenarios\//,
+  /^scripts\/lib\//,
+  /^docs\/(adr|research)\//,
+];
+
+export const isPublishExcluded = (path) => PUBLISH_EXCLUDED_FILES.includes(path)
+  || PUBLISH_EXCLUDED_PATTERNS.some((pattern) => pattern.test(path));
+
 const SURFACE_DIR = { claude: '.claude/skills', codex: '.agents/skills' };
 
 /** Skills with publish:true, each with the surfaces it installs into. */

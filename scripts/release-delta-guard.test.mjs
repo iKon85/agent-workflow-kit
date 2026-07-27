@@ -81,6 +81,51 @@ test('removing accidentally packed seed-only project stubs is a minor change', (
   assert.equal(result.recommendedBump, 'minor');
 });
 
+test('narrowing the publish scope to what a consumer installs is a minor change', () => {
+  const consumer = { kitVersion: '1.3.0', files: [file('skill.md', 'same')] };
+  const result = assessRelease({
+    baseVersion: '1.2.3',
+    currentVersion: '1.3.0',
+    baseManifest: { ...consumer, kitVersion: '1.2.3' },
+    builtManifest: consumer,
+    checkedManifest: consumer,
+    payloadManifest: consumer,
+    basePackagePayload: {
+      files: [
+        file('src/cli.mjs', 'same'),
+        file('scripts/build-kit.mjs', 'maintainer-build-tooling'),
+        file('scripts/lib/scrub.mjs', 'maintainer-build-tooling'),
+        file('scripts/board-sync.test.mjs', 'test-source'),
+        file('scripts/test_board_sync.py', 'test-source'),
+        file('docs/research/wave-43-script-hook-census.md', 'maintainer-doc'),
+        file('docs/adr/0001-consumer-divergence-policy.md', 'maintainer-doc'),
+        file('docs/agents/board-sync.md', 'own-project-layer'),
+      ],
+    },
+    currentPackagePayload: { files: [file('src/cli.mjs', 'same')] },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.recommendedBump, 'minor');
+});
+
+test('a payload removal outside the publish-excluded surface stays major', () => {
+  const consumer = { kitVersion: '1.3.0', files: [file('skill.md', 'same')] };
+  const result = assessRelease({
+    baseVersion: '1.2.3',
+    currentVersion: '1.3.0',
+    baseManifest: { ...consumer, kitVersion: '1.2.3' },
+    builtManifest: consumer,
+    checkedManifest: consumer,
+    payloadManifest: consumer,
+    basePackagePayload: { files: [file('src/lib/hash.mjs', 'runtime')] },
+    currentPackagePayload: { files: [] },
+  });
+
+  assert.equal(result.recommendedBump, 'major');
+  assert.match(result.errors.join('\n'), /minor bump is smaller than recommended major/);
+});
+
 test('dead checked-manifest entries are rejected', () => {
   const result = assessRelease({
     baseVersion: '1.2.3', currentVersion: '1.3.0',

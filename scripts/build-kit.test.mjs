@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { buildKit } from './build-kit.mjs';
 import { init } from '../src/commands/init.mjs';
-import { HELPER_FILES, STUB_TARGETS } from '../src/lib/bundle.mjs';
+import { HELPER_FILES, STUB_TARGETS, isPublishExcluded } from '../src/lib/bundle.mjs';
 import { CONSUMER_MANIFEST_NAME, readManifest } from '../src/lib/manifest.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,6 +21,20 @@ const WAVE_152_HELPERS = [
   { path: 'scripts/codex-exec.sh', kind: 'script', mode: 0o755 },
   { path: 'scripts/codex_proc.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/render-anchor.py', kind: 'script', mode: 0o755 },
+];
+/**
+ * Named witnesses for the publish-excluded classes: build-time-only tooling
+ * that materializes `dist-kit/`, and the scrub/audit libraries it imports.
+ * Neither is resolved from an installed kit, so publishing them only widened
+ * the unscrubbed surface.
+ */
+const MAINTAINER_ONLY = [
+  'scripts/build-kit.mjs',
+  'scripts/check-kit-staleness.mjs',
+  'scripts/grill-census-wiring-guard.mjs',
+  'scripts/portability_profile_scan.py',
+  'scripts/lib/scrub.mjs',
+  'scripts/lib/audit-refs.mjs',
 ];
 async function withBuild(fn) {
   const dist = await mkdtemp(join(tmpdir(), 'awkit-build-'));
@@ -147,7 +161,7 @@ test('npm pack keeps product files but excludes runtime residue', async () => {
       cwd: REPO, encoding: 'utf8',
     });
     const files = JSON.parse(output)[0].files.map((file) => file.path);
-    assert.ok(files.includes('scripts/build-kit.mjs'));
+    assert.ok(files.includes('scripts/release-state.mjs'));
     assert.ok(files.includes('scripts/board-sync.py'));
     assert.ok(files.includes('scripts/kit-update-pr.mjs'));
     assert.ok(files.includes('.claude/hooks/drift-guard.py'));
@@ -158,6 +172,10 @@ test('npm pack keeps product files but excludes runtime residue', async () => {
     for (const path of STUB_TARGETS) {
       assert.ok(!files.includes(path), `pack must exclude init stub target ${path}`);
     }
+    for (const path of MAINTAINER_ONLY) {
+      assert.ok(!files.includes(path), `pack must exclude maintainer-only tooling ${path}`);
+    }
+    assert.deepEqual(files.filter(isPublishExcluded), []);
     const packedByPath = new Map(JSON.parse(output)[0].files.map((file) => [file.path, file]));
     assert.deepEqual(
       WAVE_152_HELPERS.map(({ path, mode }) => ({ path, mode: packedByPath.get(path)?.mode })),

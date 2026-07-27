@@ -2699,7 +2699,7 @@
       "path": "scripts/release-delta-guard.mjs",
       "kind": "script",
       "installRole": "maintainer",
-      "sha256": "41d9fd9c86324f1428a3de04f2bfcb630e868525d88a8864d7bdfc2954e00414",
+      "sha256": "4fb460aade566493273bd98ffad7d5293f1087c611a11a4b323d541c1123932e",
       "mode": 420,
       "origin": "kit"
     },
