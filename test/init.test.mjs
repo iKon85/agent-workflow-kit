@@ -6,17 +6,18 @@ import { init } from '../src/commands/init.mjs';
 import {
   readManifest, writeManifest, CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME,
 } from '../src/lib/manifest.mjs';
-import { firstLineState } from '../src/lib/sentinel.mjs';
+import { firstLineState, stubSentinel } from '../src/lib/sentinel.mjs';
+import { STUB_TARGETS } from '../src/lib/bundle.mjs';
 import { PROJECT_SKILL_REGISTRY_PATH } from '../src/lib/skillRegistry.mjs';
 import { makeKit, makeEmptyDir, cleanup } from './helpers.mjs';
 
 const exists = (p) => access(p).then(() => true, () => false);
 
-test('init copies kit files, writes the consumer manifest, seeds doc stubs', async () => {
+test('init copies kit files, writes the consumer manifest, and seeds every doc stub byte-identically', async () => {
   const kit = await makeKit({ '.claude/skills/to-prd/SKILL.md': '# to-prd\n' });
   const consumer = await makeEmptyDir();
   try {
-    await init({ kitRoot: kit, consumerRoot: consumer });
+    const result = await init({ kitRoot: kit, consumerRoot: consumer });
 
     assert.equal(await readFile(join(consumer, '.claude/skills/to-prd/SKILL.md'), 'utf8'), '# to-prd\n');
 
@@ -25,11 +26,19 @@ test('init copies kit files, writes the consumer manifest, seeds doc stubs', asy
     assert.ok(entry.installedSha256, 'records a hash');
     assert.equal(entry.origin, 'kit');
 
-    // a stub target was seeded with the sentinel; board-sync.md was NOT created
+    assert.deepEqual(
+      await Promise.all(STUB_TARGETS.map(async (path) => ({
+        path,
+        bytes: await readFile(join(consumer, path), 'utf8'),
+      }))),
+      STUB_TARGETS.map((path) => ({ path, bytes: `${stubSentinel()}\n` })),
+    );
+    assert.deepEqual(result.seeded, STUB_TARGETS);
     assert.equal(
       firstLineState(await readFile(join(consumer, 'docs/agents/issue-tracker.md'), 'utf8')),
-      'stub'
+      'stub',
     );
+    // board-sync.md remains discovery-dependent and is not created by init.
     assert.equal(await exists(join(consumer, 'docs/agents/board-sync.md')), false);
   } finally {
     await cleanup(kit, consumer);
