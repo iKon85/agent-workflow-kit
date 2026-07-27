@@ -469,6 +469,10 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.42.1
+
+- changed: `docs/agents/skills/orchestrate-wave.md`
+
 ### 0.42.0
 
 - added: `docs/adr/0010-model-roster-replaces-the-optimization-dial.md`
