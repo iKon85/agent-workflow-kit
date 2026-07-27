@@ -1,6 +1,6 @@
 # Session teardown requires provenance-bound ownership
 
-Status: accepted (2026-07-26, Wave #271)
+Status: superseded by [ADR-0009](./0009-teardown-authority-is-stateless-repository-classification.md) (2026-07-27, #320)
 
 Long agent sessions create branches, linked worktrees, setup outputs, and
 landing-time build artifacts. The desired end state is that every
