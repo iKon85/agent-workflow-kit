@@ -231,6 +231,14 @@ test('portable setup core ships as one complete helper unit', () => {
   const shipped = new Set(HELPER_FILES.map(({ path }) => path));
   assert.equal(shipped.has('scripts/worktree-lifecycle/core.py'), true);
   assert.equal(shipped.has('scripts/worktree-lifecycle/setup.py'), true);
-  assert.equal(shipped.has('scripts/worktree-lifecycle/session.py'), true);
+  assert.equal(shipped.has('scripts/worktree-lifecycle/classify.py'), true);
   assert.equal(shipped.has('scripts/worktree-lifecycle/capabilities.json'), true);
+});
+
+// ADR-0009: teardown authority is the repository's current state, so the shipped
+// unit carries no session-teardown provenance CLI to bind a receipt to.
+test('the shipped lifecycle unit ships no session-teardown provenance CLI', async () => {
+  const shipped = new Set(HELPER_FILES.map(({ path }) => path));
+  assert.equal(shipped.has('scripts/worktree-lifecycle/session.py'), false);
+  await assert.rejects(readFile(resolve('scripts/worktree-lifecycle/session.py'), 'utf8'));
 });

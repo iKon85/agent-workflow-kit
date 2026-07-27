@@ -154,63 +154,6 @@ every linked worktree and local branch, reports issue/PR/merge/age/removal
 facts, and counts merged remote branches separately. It never removes a
 worktree or branch.
 
-## Session-owned teardown
-
-`session.py` is the narrower orchestration route. It binds one receipt in the
-Git common directory to the active `wave-active/<anchor>` annotated claim:
-
-```sh
-python3 scripts/worktree-lifecycle/session.py begin --anchor <n> --owner <run> --base <wave-head>
-python3 scripts/worktree-lifecycle/session.py create --anchor <n> --owner <run> --base <current-wave-head> <issue> <slug> <type>
-python3 scripts/worktree-lifecycle/session.py recover --anchor <n> --owner <run> --branch <exact-branch>
-python3 scripts/worktree-lifecycle/session.py seal --anchor <n> --owner <run>
-python3 scripts/worktree-lifecycle/session.py inspect --anchor <n> --owner <run> --main origin/main
-python3 scripts/worktree-lifecycle/session.py teardown --anchor <n> --owner <run> --main origin/main
-```
-
-Only `create` can add an inventory row, and it refuses any branch or path that
-already existed. It journals a provisional exact row before `git worktree add`,
-then captures the shared artifact baseline before project setup and promotes
-the row only after setup succeeds. Session inspection
-therefore accepts generated scratch only when the exact path matches the
-profile and is absent from the creation baseline; missing, changed, or
-incoherent provenance stops. `seal` records the final exact branch OIDs.
-Inspection reports ancestry, one-to-one stable patch equivalence, unique
-content, and ambiguity separately. Empty commits, non-ancestry merge commits,
-duplicate patch IDs, open or unreadable PR evidence, dirt, protected names,
-stale registrations, recreated removed targets, and identity drift stop the
-whole teardown before mutation.
-
-If setup fails, the provisional row becomes `recovery-pending`. Automatic and
-explicit `recover` use the same bounded route: active claim and receipt,
-protected name, PR state, exact ref OID, registration/root identity, and the
-creation baseline are revalidated. A branch-only remainder is compare-deleted
-only at its provisional OID. A registered worktree whose add succeeded before
-root journaling is adopted only when its Git registration/backlink, branch,
-OID, and exact-clean inventory all match.
-
-For failed project setup, exact index/worktree diff hashes and paths are frozen
-without storing diff content. Exact regular-file or no-follow symlink identity
-is frozen for every setup-created untracked path. Recovery revalidates that
-evidence, restores only the frozen tracked paths to the creation OID, and
-unlinks only matching untracked identities; later foreign files,
-modifications, or replacements stop without losing receipt ownership. If
-identity capture cannot finish, the receipt retains only a bounded failure
-class and can retry from the unchanged inventory or an exact-clean worktree.
-Raw command, exception, stdout, and stderr text is never retained or archived.
-Recovery uses ordinary worktree removal and compare-deletes the exact ref.
-
-Teardown re-runs that complete assessment, archives every recovery OID in the
-receipt before its first mutation, and revalidates canonical main, the active
-claim and receipt, profile protection, PR state, branch OID, worktree
-registration/root identity, dirt, and the exact scratch inventory immediately
-before each target mutation. After ordinary worktree removal it rechecks the
-ref-side gates, then compare-deletes only the recorded local refs with
-`git update-ref -d <ref> <expected-oid>`. A concurrent ref move therefore
-survives, while a partial run keeps its recovery OIDs and can resume. Generic
-cleanup and sweep never consume this ownership route and never infer authority
-over a foreign branch.
-
 Claude hook wiring and any Codex adaptation consume this same profile and core.
 An adapter may change only the surface event envelope; it must preserve the
 core verdict and message.

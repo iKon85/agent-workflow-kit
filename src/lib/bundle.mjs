@@ -144,7 +144,7 @@ export const HELPER_FILES = [
   { path: 'scripts/worktree-lifecycle/profile.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/worktree-lifecycle/setup.py', kind: 'script', mode: 0o755 },
   { path: 'scripts/worktree-lifecycle/cleanup.py', kind: 'script', mode: 0o755 },
-  { path: 'scripts/worktree-lifecycle/session.py', kind: 'script', mode: 0o755 },
+  { path: 'scripts/worktree-lifecycle/classify.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/worktree-lifecycle/capabilities.json', kind: 'doc', mode: 0o644 },
   { path: 'scripts/worktree-lifecycle/README.md', kind: 'doc', mode: 0o644 },
   // Offered planning-artifact ignore rules for /setup-workflow Section A11.

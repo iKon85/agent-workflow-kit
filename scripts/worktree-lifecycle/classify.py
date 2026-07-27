@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stateless teardown classification (ADR-0009).
+"""Stateless teardown classification.
 
 Teardown authority comes from the repository's current state, read at the
 moment of action, and from nothing else. Four rules decide it:
@@ -20,7 +20,7 @@ assessment and action are hard stops that name the link. The containment check
 applies to the ignored entries git itself reports: git collapses an ignored
 directory into a single record, and the contained recursive removal below
 never follows a symlink, so a pnpm-style symlink farm inside such a directory
-is removable with zero configuration (#319, #347).
+is removable with zero configuration.
 
 One assessment object serves both surfaces: `assess()` returns it, a preview
 renders it with `render_report()`, and the action consumes exactly that object
@@ -30,7 +30,7 @@ idempotency comes from re-running the assessment, not from a journal.
 Deletion policy has exactly one configuration surface, the ignore mechanism:
 this module reads no consumer-profile pattern list.
 
-## Residual risks (accepted by ADR-0009)
+## Residual risks — accepted deliberately
 
 - Between assessment and deletion a file could in principle be replaced.
 - A valuable file a consumer keeps gitignored outside `.env*` is deletable at
