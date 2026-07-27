@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """One repository-relative glob dialect for every consumer workflow profile.
 
-Workflow Advisories and Worktree Lifecycle both select repository-relative
-paths from consumer-owned profile globs. They share this single matcher so the
-same pattern can never select one set of paths for an advisory and a different
-set for a cleanup decision.
+Workflow Advisories selects repository-relative paths from consumer-owned
+profile globs, and this is the single matcher it uses, so a pattern can never
+select one set of paths on one advisory surface and a different set on another.
+No Worktree Lifecycle decision reads a glob at all: deletion policy has exactly
+one configuration surface, the ignore mechanism (ADR 0009), so no consumer
+pattern here carries deletion authority.
 
 Dialect
 -------
@@ -24,9 +26,9 @@ Run this module to review an installed profile before trusting it:
     python3 scripts/profile_globs.py [docs/agents/workflow-capabilities.json]
 
 It names every pattern whose match set narrows or widens against the legacy
-matcher of its own capability, marks the keys that carry deletion authority,
-and never edits the profile. Exit code 0 means nothing changed meaning, 1 means
-at least one pattern needs review, 2 means the profile could not be read.
+matcher and never edits the profile. Exit code 0 means nothing changed meaning,
+1 means at least one pattern needs review, 2 means the profile could not be
+read.
 """
 
 from __future__ import annotations
@@ -94,7 +96,6 @@ class PatternMigration:
 class ProfileGlobFinding:
     location: str
     pattern: str
-    deletion_authority: bool
     migration: PatternMigration
 
 
@@ -232,52 +233,34 @@ def _surface_globs(advisories: dict, section: str) -> list[tuple[str, str]]:
     ]
 
 
-def _profile_globs(document: object) -> list[tuple[str, str, bool]]:
+def _profile_globs(document: object) -> list[tuple[str, str]]:
     """List every shipped consumer-profile glob call site's configured patterns."""
     if not isinstance(document, dict):
         return []
-    globs: list[tuple[str, str, bool]] = []
-    for index, pattern in _string_entries(
-        document.get("worktreeLifecycle"), "scratchPatterns",
-    ):
-        globs.append((f"worktreeLifecycle.scratchPatterns[{index}]", pattern, True))
-    for index, pattern in _string_entries(
-        document.get("wrapup"), "landingGeneratedArtifactPatterns",
-    ):
-        globs.append(
-            (f"wrapup.landingGeneratedArtifactPatterns[{index}]", pattern, True),
-        )
     advisories = document.get("workflowAdvisories")
-    if isinstance(advisories, dict):
-        for index, pattern in _string_entries(advisories.get("baseline"), "sourceGlobs"):
-            globs.append(
-                (f"workflowAdvisories.baseline.sourceGlobs[{index}]", pattern, False),
-            )
-        for section in ("preRefactor", "stopChecks"):
-            globs.extend(
-                (location, pattern, False)
-                for location, pattern in _surface_globs(advisories, section)
-            )
+    if not isinstance(advisories, dict):
+        return []
+    globs: list[tuple[str, str]] = [
+        (f"workflowAdvisories.baseline.sourceGlobs[{index}]", pattern)
+        for index, pattern in _string_entries(advisories.get("baseline"), "sourceGlobs")
+    ]
+    for section in ("preRefactor", "stopChecks"):
+        globs.extend(_surface_globs(advisories, section))
     return globs
 
 
 def scan_profile(document: object) -> tuple[ProfileGlobFinding, ...]:
     """Classify every consumer-profile glob against its own legacy matcher.
 
-    Worktree Lifecycle globs were always matched case-sensitively, while
-    Workflow Advisories globs went through the case-normalizing `fnmatch`, so
-    only the advisory keys can narrow on a case-insensitive host.
+    Every remaining glob key is a Workflow Advisories key, and those went
+    through the case-normalizing `fnmatch`, so all of them can narrow on a
+    case-insensitive host.
     """
     return tuple(
         ProfileGlobFinding(
-            location,
-            pattern,
-            deletion_authority,
-            classify_pattern(
-                pattern, case_insensitive_legacy=not deletion_authority,
-            ),
+            location, pattern, classify_pattern(pattern, case_insensitive_legacy=True),
         )
-        for location, pattern, deletion_authority in _profile_globs(document)
+        for location, pattern in _profile_globs(document)
     )
 
 
@@ -290,9 +273,8 @@ def render_report(findings: tuple[ProfileGlobFinding, ...], source: str) -> str:
         f"{len(changed)} change meaning.",
     ]
     for finding in changed:
-        authority = " [deletion authority]" if finding.deletion_authority else ""
         lines.append("")
-        lines.append(f"{finding.location}{authority}: {finding.pattern}")
+        lines.append(f"{finding.location}: {finding.pattern}")
         for effect in finding.migration.effects:
             witness = finding.migration.witnesses[effect]
             verb = "now also matches" if effect == WIDENS else "no longer matches"
@@ -301,8 +283,8 @@ def render_report(findings: tuple[ProfileGlobFinding, ...], source: str) -> str:
         lines.append("")
         lines.append(
             "Review each line above and rewrite the pattern yourself. A widened "
-            "deletion-authority pattern expands what cleanup may remove; this "
-            "check never edits the profile and never migrates a pattern for you.",
+            "pattern expands the surface an advisory selects; this check never "
+            "edits the profile and never migrates a pattern for you.",
         )
     return "\n".join(lines) + "\n"
 
@@ -331,7 +313,6 @@ def main(argv: list[str]) -> int:
                 {
                     "location": finding.location,
                     "pattern": finding.pattern,
-                    "deletionAuthority": finding.deletion_authority,
                     "effects": list(finding.migration.effects),
                     "witnesses": finding.migration.witnesses,
                 }

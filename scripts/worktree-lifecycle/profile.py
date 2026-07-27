@@ -7,6 +7,11 @@ pattern list is read here. Keys this loader does not know are ignored in
 silence: a profile written for an older kit keeps working, and an obsolete key
 produces no warning noise.
 
+Two branch templates exist because two kinds of work land. `branchTemplate`
+names the branch of an issue-anchored slice; `contentBranchTemplate` names the
+issue-less branch a session cuts for durable content, so it renders `{type}`
+and `{slug}` only and refuses `{issue}` outright rather than inventing a number.
+
 `DEFAULT_MAIN_BRANCHES` is the single place in the kit that names an
 integration branch at all; every command, test, and message resolves the name
 through the profile instead of assuming it.
@@ -22,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_MAIN_BRANCHES = ("main", "master")
+DEFAULT_CONTENT_BRANCH_TEMPLATE = "{type}/{slug}"
 
 
 class LifecycleError(RuntimeError):
@@ -32,6 +38,7 @@ class LifecycleError(RuntimeError):
 class WorktreeProfile:
     root: str
     branch_template: str
+    content_branch_template: str
     path_template: str
     main_branches: tuple[str, ...]
     protected_branches: tuple[str, ...]
@@ -41,10 +48,14 @@ class WorktreeProfile:
     risky_command_patterns: tuple[str, ...]
 
     def branch_name(self, issue: str, slug: str, branch_type: str) -> str:
-        return _render(self.branch_template, issue, slug, branch_type)
+        return _render(self.branch_template, issue=issue, slug=slug, type=branch_type)
+
+    def content_branch_name(self, slug: str, branch_type: str) -> str:
+        """Name the issue-less branch of a Content-route session."""
+        return _render(self.content_branch_template, slug=slug, type=branch_type)
 
     def relative_path(self, issue: str, slug: str, branch_type: str) -> Path:
-        name = _render(self.path_template, issue, slug, branch_type)
+        name = _render(self.path_template, issue=issue, slug=slug, type=branch_type)
         return Path(self.root) / name
 
     def issue_from_branch(self, branch: str) -> str | None:
@@ -52,11 +63,11 @@ class WorktreeProfile:
         return match.groupdict().get("issue") if match else None
 
 
-def _render(template: str, issue: str, slug: str, branch_type: str) -> str:
-    values = {"issue": issue, "slug": slug, "type": branch_type}
+def _render(template: str, **values: str) -> str:
+    """Render a profile template from exactly the placeholders it may use."""
     try:
         return template.format(**values)
-    except (KeyError, ValueError) as error:
+    except (KeyError, IndexError, ValueError) as error:
         raise LifecycleError(f"invalid worktree template: {error}") from error
 
 
@@ -71,6 +82,9 @@ def _load_profile_document(document: Any) -> WorktreeProfile:
     return WorktreeProfile(
         root=raw.get("worktreeRoot", ".worktrees"),
         branch_template=raw.get("branchTemplate", "{type}/{issue}-{slug}"),
+        content_branch_template=raw.get(
+            "contentBranchTemplate", DEFAULT_CONTENT_BRANCH_TEMPLATE,
+        ),
         path_template=raw.get("pathTemplate", "{type}-{issue}-{slug}"),
         main_branches=main,
         protected_branches=tuple(raw.get("protectedBranches") or main),

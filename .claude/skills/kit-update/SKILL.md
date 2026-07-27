@@ -113,10 +113,10 @@ release contain the same artifact.
    pull request all name the same outstanding actions. Each action names the
    workflow that resolves it, the Consumer file that carries the decision, and
    the exact missing decision. `kit-update` only detects and reports it: it
-   never writes the decision, never infers a value, and never invents or
-   auto-accepts a pattern that would grant deletion authority. An empty but
-   explicit decision is a committed decision and clears the action; a missing
-   one keeps it pending on every rerun.
+   never writes the decision and never infers a value. An empty but explicit
+   decision is a committed decision and clears the action; a missing one keeps
+   it pending on every rerun. A registry with no entries is the normal state —
+   report no outstanding action rather than inventing one.
 
    For each conflicted kit-shipped file, always ask the user whether the local
    edit is a generic improvement or project-specific; never decide or act
@@ -150,18 +150,16 @@ release contain the same artifact.
    python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json
    ```
 
-   Every consumer-profile glob — Worktree Lifecycle `scratchPatterns` and
-   `wrapup.landingGeneratedArtifactPatterns`, Workflow Advisories
+   Every consumer-profile glob — the Workflow Advisories keys
    `baseline.sourceGlobs` and the `preRefactor`/`stopChecks` surface globs — is
    matched by one shared repository-relative dialect. A pattern written for an
    older matcher can narrow or widen. The check names each such pattern with
-   the witness path that proves the difference and marks the keys that carry
-   deletion authority; exit code 1 means at least one needs review. Report the
-   named patterns and let the user rewrite them. The updater never rewrites a
-   consumer pattern, and a widened deletion-authority pattern is never accepted
-   silently — an update must not expand what cleanup may remove. A missing or
-   disabled profile leaves nothing to review and does not invalidate the
-   update.
+   the witness path that proves the difference; exit code 1 means at least one
+   needs review. Report the named patterns and let the user rewrite them. The
+   updater never rewrites a consumer pattern. No Worktree Lifecycle decision
+   reads a glob (ADR 0009), so an update cannot expand what cleanup removes. A
+   missing or disabled profile leaves nothing to review and does not invalidate
+   the update.
 
 6. Check the optional project census after the update:
 

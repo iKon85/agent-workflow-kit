@@ -29,7 +29,6 @@ advisory, and safe cleanup policy as one unit.
     "operations": [
       "record-choice",
       "reconcile-profile-enabled",
-      "reconcile-landing-artifact-policy",
       "reconcile-hook-wiring"
     ]
   },
@@ -51,8 +50,7 @@ advisory, and safe cleanup policy as one unit.
     "state": "existing",
     "choice": "yes",
     "operations": [
-      "adopt-existing",
-      "reconcile-landing-artifact-policy"
+      "adopt-existing"
     ]
   },
   {
@@ -105,28 +103,34 @@ approved step may write `.gitignore`.
 
 ## Scratch classification and sweep
 
-Reconcile an explicit `scratchPatterns` array when enabling a new profile.
-Derive its glob values from the consumer's ignored planning artefacts; an empty
-array is valid. Existing values are consumer-owned and remain byte-identical on
-adoption or rerun. Core never supplies filename defaults — the offered ignore
-rules above are what give that derivation something real to read.
+Reconcile **no** pattern list. Deletion policy has exactly one configuration
+surface, the ignore mechanism (ADR 0009): a file is Scratch — deletable at
+teardown — precisely when the repository's own exclude sources classify it as
+ignored. Making a file deletable therefore means ignoring it, which is what the
+offered planning-artifact rules above do. Setup never derives, writes, or
+reviews a deletion pattern, and a profile that still carries one from an older
+kit keeps it as consumer data: the loader ignores unknown keys in silence, so
+there is nothing to migrate and nothing to warn about.
 
-Also reconcile an explicit
-`wrapup.landingGeneratedArtifactPatterns` array. Derive candidates from the
-consumer's real landing commands and ignored outputs, show the exact list for
-review, and write it only as part of that explicit setup decision. Never copy
-another repository's values or infer deletion authority from `.gitignore`
-alone. An empty array is valid. Existing configured values remain byte-identical.
-If an existing enabled profile lacks the key, report one actionable setup
-decision and leave the project layer unchanged until the consumer confirms the
-derived list.
+## Branch templates
+
+`branchTemplate` names the branch of an issue-anchored slice and renders
+`{type}`, `{issue}`, and `{slug}`. `contentBranchTemplate` names the issue-less
+branch a session cuts when its output is durable content — a planning session
+has no issue number — and renders `{type}` and `{slug}` only; an `{issue}`
+placeholder in it is refused rather than filled with a guess.
+
+Reconcile `contentBranchTemplate` with the default `{type}/{slug}` when
+enabling a new profile, and offer the consumer their own naming instead.
+An existing value is consumer-owned and remains byte-identical on adoption or
+rerun.
 
 ## Profile glob dialect
 
-Every consumer-profile glob in this kit — Worktree Lifecycle and Workflow
-Advisories alike — is matched by the one shared dialect in
-`scripts/profile_globs.py`. There is no second matcher and no per-capability
-variant:
+Every consumer-profile glob in this kit — the Workflow Advisories keys
+`baseline.sourceGlobs`, the `preRefactor`/`stopChecks` surface globs — is
+matched by the one shared dialect in `scripts/profile_globs.py`. There is no
+second matcher and no per-capability variant:
 
 - `*` matches any run of characters inside one path segment, never `/`.
 - `?` matches exactly one character inside one path segment.
@@ -147,13 +151,13 @@ trusting its patterns:
 python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json
 ```
 
-The check names every pattern whose match set narrows or widens against that
-key's legacy matcher, prints the concrete witness path that proves the
-difference, and marks the keys that carry deletion authority. Exit code 1 means
-at least one pattern needs review. Report the named patterns and let the
-consumer rewrite them; never migrate a pattern automatically and never treat a
-widened deletion-authority pattern as an accepted default. The check reads the
-profile and never edits it.
+The check names every pattern whose match set narrows or widens against the
+legacy matcher and prints the concrete witness path that proves the difference.
+Exit code 1 means at least one pattern needs review. Report the named patterns
+and let the consumer rewrite them; never migrate a pattern automatically. The
+check reads the profile and never edits it. No Worktree Lifecycle decision
+reads a glob, so a pattern here can widen only what an advisory selects, never
+what teardown removes.
 
 The shipped read-only inventory is
 `python3 scripts/worktree-lifecycle/cleanup.py sweep`. The same profile powers

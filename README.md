@@ -427,6 +427,12 @@ Explicit fork with its own identity and update line instead.
 
 ### 0.38.0 — explicit landing-artifact policy
 
+**Superseded — no action required.** A later release removed the pattern keys
+without a migration: teardown now classifies from the repository's own ignore
+rules, so `wrapup.landingGeneratedArtifactPatterns` is no longer read, the
+requirement is no longer registered, and a profile still carrying the key
+simply keeps it. The original note is kept below as history.
+
 Existing consumers must run `setup-workflow` once after `kit-update`, review
 the generated `wrapup.landingGeneratedArtifactPatterns` decision in
 `docs/agents/workflow-capabilities.json`, and commit that profile change.

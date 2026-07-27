@@ -13,6 +13,10 @@ they do not carry a second branch regex, worktree traversal, or failure policy.
 - `enabled`: explicit activation gate.
 - `worktreeRoot`, `branchTemplate`, `pathTemplate`, and `branchRegex`: consumer
   naming and location policy.
+- `contentBranchTemplate` (default `{type}/{slug}`): the issue-less branch a
+  session cuts when its output is durable content. It renders `{type}` and
+  `{slug}` only — a durable-content session has no issue number — and refuses
+  an `{issue}` placeholder instead of inventing one.
 - `mainBranches` and `protectedBranches`: branches guarded in the main checkout.
 - `setupEntry` and ordered `setupSteps`: the portable setup command and project
   setup sequence.

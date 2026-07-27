@@ -56,8 +56,8 @@ test('automated update pull requests carry the required consumer migrations', as
     exitCode: 0,
     stdout: [
       'newly available: none',
-      'required migration: wrapup-landing-artifact-policy · setup-workflow · '
-        + 'docs/agents/workflow-capabilities.json · wrapup.landingGeneratedArtifactPatterns',
+      'required migration: example-consumer-decision · setup-workflow · '
+        + 'docs/agents/workflow-capabilities.json · exampleCapability.exampleDecision',
     ].join('\n'),
     stderr: '',
   } });
@@ -66,9 +66,9 @@ test('automated update pull requests carry the required consumer migrations', as
 
   const created = h.calls.find((call) => Array.isArray(call) && call[0] === 'create')[1];
   assert.match(created.body, /## Required migrations/);
-  assert.match(created.body, /required migration: wrapup-landing-artifact-policy/);
+  assert.match(created.body, /required migration: example-consumer-decision/);
   assert.match(created.body, /docs\/agents\/workflow-capabilities\.json/);
-  assert.match(created.body, /wrapup\.landingGeneratedArtifactPatterns/);
+  assert.match(created.body, /exampleCapability\.exampleDecision/);
 });
 
 test('a pull request without pending migrations says so explicitly', async () => {
