@@ -426,8 +426,8 @@ def issue_from_branch(branch: str) -> str | None:
 def declared_close_targets(body: str) -> list:
     """Close authority for Step 5b: the PR body's ACTIVE close keywords, parsed
     by pr-body-check's one close grammar. A branch number is context, never
-    closure authority (#341 — branch-derived closing shut Program-PRD #320,
-    which a PR deliberately references only via `Part of`)."""
+    closure authority — branch-derived closing once shut a Program-PRD that a
+    PR deliberately referenced only via `Part of`."""
     spec = importlib.util.spec_from_file_location(
         "pr_body_check_grammar", Path(__file__).parent / "pr-body-check.py")
     mod = importlib.util.module_from_spec(spec)
@@ -1259,7 +1259,7 @@ def cmd_land(args) -> dict:
 
     # Step 5b — verify declared auto-closes (backtick-swallowed `closes`
     # misses). Targets come from the merged PR body's close keywords, never
-    # from the branch number (#341).
+    # from the branch number.
     issue = issue_from_branch(branch)
     p = run(["gh", "pr", "view", pr, "--json", "body"])
     merged_body = (json.loads(p.stdout).get("body") or "") if p.returncode == 0 else ""

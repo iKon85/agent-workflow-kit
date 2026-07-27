@@ -471,7 +471,9 @@ the old way. Decision record:
 
 ### 0.41.1
 
+- changed: `README.md`
 - changed: `agent-workflow-kit.package.json`
+- changed: `package.json`
 - changed: `scripts/pr-body-check.py`
 - changed: `scripts/test_pr_body_check.py`
 - changed: `scripts/test_worktree_wrapup_contract.py`
