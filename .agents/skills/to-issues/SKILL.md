@@ -505,3 +505,46 @@ The Program graph engine emits `planning-mode=program` in its own counted audit
 after the complete preview gate; the facade relays that audit unchanged.
 
 Do NOT close or modify any parent issue beyond the promote stamp.
+
+### 8. End state — name what the session leaves behind
+
+Publication is not the end of the session. `to-issues` **never deletes** what it
+leaves behind — the locked plan is the implementing session's input and the
+assumption log is `$wrapup`'s. Classify, report, hand over.
+
+Read the classes from the repository itself, never from a pattern list — git's
+own taxonomy is the classification:
+
+```bash
+git status --short             # tracked edits + untracked, non-ignored files
+git status --short --ignored   # the same, plus the ignored paths, marked `!!`
+```
+
+- **Durable content** — everything the first command already lists. Domain-model
+  or glossary updates, decision records, research notes, any tracked edit the
+  planning produced. This is ordinary work: it has to reach a commit and the
+  ordinary PR gate. `to-issues` does not commit it.
+- **Scratch** — the `!!` entries only the second command adds: the locked plan,
+  its review log, the assumption log. The repository has already declared them
+  not-work, so they are deletable at teardown and die with the checkout they
+  were written in. Leave them here — the implementing session reads the plan and
+  `$wrapup` reads the assumption log.
+- **Nothing** — neither class present. Report it. An empty end state is a
+  result, not silence.
+
+Then emit the state report — exactly two lines, on every run:
+
+```
+end state: durable=<n file(s) | none> · scratch=<n file(s) | none>
+next: <$wrapup — lands the durable content | nothing to land — this session is done>
+```
+
+`$wrapup` is **user-invoked only**: name it as the next step, never call it from
+here.
+
+**A project with no worktree helper changes nothing about this.** The
+classification is git's, not the worktree layout's, and `$wrapup` lands durable
+content from whichever checkout it runs in — its Content route exists precisely
+for a session that has no worktree and no slice. Report the situation as
+observed instead of assuming a worktree convention the project may not have, and
+never propose creating one just to have something to land through.
