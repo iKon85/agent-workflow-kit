@@ -171,6 +171,22 @@ test('approved route passes explicit model and effort controls to Codex', () => 
   assert.equal(mismatch.output.error, 'ROUTE_CONTROL_MISMATCH');
 });
 
+test('the built command carries exactly one --json on both the fresh and the resume branch', () => {
+  const fx = fixture();
+  const result = invoke(fx, launchArgs());
+  assert.equal(result.output.status, 'OK');
+  const fresh = JSON.parse(readFileSync(fx.launchLog, 'utf8').trim());
+  assert.equal(fresh.filter((value) => value === '--json').length, 1, fresh.join(' '));
+
+  const resumed = invoke(fx, [
+    'resume', result.output.runId, '--codex-bin', fake,
+    '--prompt', 'Again', '--timeout', '2',
+  ]);
+  assert.equal(resumed.output.status, 'OK');
+  const resume = JSON.parse(readFileSync(fx.launchLog, 'utf8').trim().split('\n').at(-1));
+  assert.equal(resume.filter((value) => value === '--json').length, 1, resume.join(' '));
+});
+
 test('route controls fail closed when incomplete or unsafe', () => {
   for (const args of [
     [...launchArgs(), '--model', 'coding-model'],

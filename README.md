@@ -579,6 +579,13 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.45.1
+
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `package.json`
+- changed: `scripts/codex-exec.sh`
+
 ### 0.45.0
 
 - added: `scripts/doctrine-migration/index.mjs`

@@ -260,3 +260,33 @@ _Avoid_: Global setup gate
 A stable, manifest-declared region of a skill that is excluded when its
 Capability is unavailable while the rest of the skill remains usable.
 _Avoid_: Optional skill, prose fallback
+
+## User journey
+
+The path the human takes to an outcome: naming the goal, answering the
+decisions that are theirs, and approving. Few touchpoints, each one a decision.
+_Avoid_: Human workflow, operator flow
+
+## Agent journey
+
+The path an agent takes through skills, hooks and scripts to deliver that
+outcome, including the recovery paths it takes when something stops it. It is a
+distinct journey from the User journey, not the same route seen from the other
+side.
+_Avoid_: Skill chain, pipeline, happy path
+
+## Decision ownership
+
+Which party a decision belongs to, determined by whether it binds the project
+beyond the current change. A choice a later refactor can reverse without
+external consequence belongs to the agent; a dependency, vendor, interface
+contract, operating surface, or visible behavior belongs to the user. Technical
+difficulty does not decide it.
+_Avoid_: Technical vs. functional, user-facing flag
+
+## Planning claim
+
+A falsifiable statement the planning phase makes about what execution will
+find — that a slice carries no unresolved decision, that slices are disjoint,
+that a named assumption holds. Execution confirms or refutes it.
+_Avoid_: Planning assumption, spec guarantee, precondition
