@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 import {
+  ROUTING_INTENT_LEGACY_VERSION,
+  ROUTING_INTENT_MIGRATION_DEFAULTS,
   ROUTING_INTENT_VERSION,
+  migrateRoutingIntent,
+  parseRoutingIntent,
+  serializeRoutingIntent,
   validateRoutingIntent,
 } from '../src/lib/routingIntent.mjs';
 import {
@@ -37,27 +42,186 @@ import { classifyFrontendWorkload } from '../src/lib/frontendWorkloads.mjs';
 import { codeArenaSource } from '../src/lib/routingSources/codeArena.mjs';
 import { openHandsFrontendSource } from '../src/lib/routingSources/openhandsFrontend.mjs';
 
+const routingIntent = (overrides = {}) => ({
+  version: ROUTING_INTENT_VERSION,
+  workload: 'development',
+  reasoning: 'balanced',
+  taskShape: 'multi-step',
+  risk: 'moderate',
+  autonomyRequirement: 'supervised',
+  contextNeed: 'repository',
+  ...overrides,
+});
+
 test('durable routing intent describes work without persisting a provider route', () => {
-  const result = validateRoutingIntent({
-    version: ROUTING_INTENT_VERSION,
-    workload: 'development',
-    reasoning: 'balanced',
-  });
+  const result = validateRoutingIntent(routingIntent());
 
   assert.deepEqual(result, {
-    version: 1,
+    version: 2,
     workload: 'development',
     reasoning: 'balanced',
+    taskShape: 'multi-step',
+    risk: 'moderate',
+    autonomyRequirement: 'supervised',
+    contextNeed: 'repository',
   });
   assert.throws(
-    () => validateRoutingIntent({
-      version: ROUTING_INTENT_VERSION,
-      workload: 'development',
-      reasoning: 'balanced',
-      model: 'volatile-model-id',
-    }),
+    () => validateRoutingIntent(routingIntent({ model: 'volatile-model-id' })),
     /unknown routing intent field: model/,
   );
+});
+
+test('routing intent v2 carries every glossary dimension and no optimization goal', () => {
+  assert.throws(
+    () => validateRoutingIntent(routingIntent({ optimization: 'cost' })),
+    /unknown routing intent field: optimization/,
+  );
+  for (const dimension of ['workload', 'taskShape', 'risk', 'autonomyRequirement', 'contextNeed']) {
+    const incomplete = routingIntent();
+    delete incomplete[dimension];
+    assert.throws(
+      () => validateRoutingIntent(incomplete),
+      new RegExp(`${dimension} must be one of`),
+      `${dimension} must be a required routing intent dimension`,
+    );
+  }
+  assert.throws(
+    () => validateRoutingIntent(routingIntent({ risk: 'catastrophic' })),
+    /risk must be one of: low, moderate, high/,
+  );
+});
+
+test('a v1 routing intent migrates deterministically into the v2 dimensions', () => {
+  const legacy = {
+    version: ROUTING_INTENT_LEGACY_VERSION,
+    workload: 'judgment',
+    reasoning: 'deep',
+  };
+  const migrated = migrateRoutingIntent(legacy);
+
+  assert.equal(migrated.fromVersion, ROUTING_INTENT_LEGACY_VERSION);
+  assert.deepEqual(migrated.defaulted, [
+    'taskShape',
+    'risk',
+    'autonomyRequirement',
+    'contextNeed',
+  ]);
+  assert.deepEqual(migrated.intent, {
+    version: ROUTING_INTENT_VERSION,
+    workload: 'judgment',
+    reasoning: 'deep',
+    ...ROUTING_INTENT_MIGRATION_DEFAULTS,
+  });
+  assert.equal(
+    migrated.intent.autonomyRequirement,
+    'supervised',
+    'migration must never invent an autonomy claim a v1 intent never made',
+  );
+  assert.deepEqual(migrateRoutingIntent(legacy).intent, migrated.intent);
+  assert.deepEqual(
+    validateRoutingIntent(legacy),
+    migrated.intent,
+    'a v1 intent stays resolvable through the same deterministic migration',
+  );
+  assert.throws(
+    () => migrateRoutingIntent({ ...legacy, optimization: 'cost' }),
+    /unknown routing intent field: optimization/,
+  );
+  assert.throws(
+    () => validateRoutingIntent({ ...legacy, version: 3 }),
+    /routing intent version must be 1 or 2/,
+  );
+});
+
+test('routing intent issue serialization round-trips and migrates a v1 block', () => {
+  const intent = validateRoutingIntent(routingIntent({ workload: 'mechanical', risk: 'low' }));
+  const block = serializeRoutingIntent(intent);
+
+  assert.equal(block, [
+    'intent-version: 2',
+    'routing-intent: mechanical',
+    'reasoning-intent: balanced',
+    'task-shape: multi-step',
+    'risk: low',
+    'autonomy-requirement: supervised',
+    'context-need: repository',
+  ].join('\n'));
+  const parsed = parseRoutingIntent(block);
+  assert.deepEqual(parsed.intent, intent);
+  assert.equal(parsed.fromVersion, ROUTING_INTENT_VERSION);
+  assert.deepEqual(parsed.defaulted, []);
+
+  const embedded = parseRoutingIntent([
+    '## What to build',
+    '',
+    'Add the missing dimensions.',
+    'risk: high',
+    '',
+    ...block.split('\n'),
+    '',
+    'Outcome: the intent in code matches the intent in the glossary.',
+  ].join('\n'));
+  assert.deepEqual(
+    embedded.intent,
+    intent,
+    'only the block naming the workload key contributes dimensions',
+  );
+
+  const legacyBlock = parseRoutingIntent('routing-intent: judgment\nreasoning-intent: deep');
+  assert.equal(legacyBlock.fromVersion, ROUTING_INTENT_LEGACY_VERSION);
+  assert.deepEqual(legacyBlock.defaulted, [
+    'taskShape',
+    'risk',
+    'autonomyRequirement',
+    'contextNeed',
+  ]);
+  assert.deepEqual(legacyBlock.intent, {
+    version: ROUTING_INTENT_VERSION,
+    workload: 'judgment',
+    reasoning: 'deep',
+    ...ROUTING_INTENT_MIGRATION_DEFAULTS,
+  });
+});
+
+test('routing intent parsing rejects blocks it cannot round-trip', () => {
+  assert.throws(
+    () => parseRoutingIntent('reasoning-intent: deep'),
+    /routing intent block must name routing-intent/,
+  );
+  assert.throws(
+    () => parseRoutingIntent('routing-intent: judgment\nrouting-intent: development'),
+    /duplicate routing intent field: routing-intent/,
+  );
+  assert.throws(
+    () => parseRoutingIntent('routing-intent: judgment\n\nrouting-intent: development'),
+    /routing intent block must appear once/,
+  );
+  assert.throws(
+    () => parseRoutingIntent('routing-intent: architecture\nreasoning-intent: deep'),
+    /workload must be one of/,
+  );
+  assert.throws(
+    () => parseRoutingIntent('intent-version: 3\nrouting-intent: judgment\nreasoning-intent: deep'),
+    /routing intent version must be 1 or 2/,
+  );
+  assert.throws(() => parseRoutingIntent(42), /routing intent block must be a string/);
+});
+
+test('routing intent glossary keeps every dimension and no optimization goal', async () => {
+  const context = await readFile(new URL('../CONTEXT.md', import.meta.url), 'utf8');
+  const entry = context.split('\n## ').find((section) => section.startsWith('Routing intent\n'));
+  assert.ok(entry, 'CONTEXT.md must define the Routing intent');
+  for (const dimension of [
+    'workload',
+    'task shape',
+    'risk',
+    'autonomy requirement',
+    'context need',
+  ]) {
+    assert.ok(entry.includes(dimension), `Routing intent glossary must name ${dimension}`);
+  }
+  assert.match(entry, /carries no optimization goal/);
+  assert.match(entry, /_Avoid_:.*Optimization goal/);
 });
 
 const observation = (overrides = {}) => ({
@@ -238,11 +402,7 @@ test('routing policy rejects embedded credentials', () => {
 });
 
 const resolverFixture = (overrides = {}) => ({
-  intent: {
-    version: ROUTING_INTENT_VERSION,
-    workload: 'development',
-    reasoning: 'balanced',
-  },
+  intent: routingIntent(),
   catalog: {
     schemaVersion: EVIDENCE_CATALOG_VERSION,
     revision: 'catalog-r7',
@@ -334,12 +494,7 @@ test('frontend evidence selection intersects the requested workload and axis wit
     frontendDomain: 'marketing',
   }).evidenceSelection;
   const greenfield = resolveRoute(resolverFixture({
-    intent: {
-      version: ROUTING_INTENT_VERSION,
-      workload: 'development',
-      reasoning: 'balanced',
-      evidenceSelection: greenfieldSelection,
-    },
+    intent: routingIntent({ evidenceSelection: greenfieldSelection }),
     catalog,
     accessGraph: {
       schemaVersion: ACCESS_GRAPH_VERSION,
@@ -360,12 +515,7 @@ test('frontend evidence selection intersects the requested workload and axis wit
     qualityAxes: ['functional', 'visual-preference'],
   }).evidenceSelection;
   const repair = resolveRoute(resolverFixture({
-    intent: {
-      version: ROUTING_INTENT_VERSION,
-      workload: 'development',
-      reasoning: 'balanced',
-      evidenceSelection: repairSelection,
-    },
+    intent: routingIntent({ evidenceSelection: repairSelection }),
     catalog,
     accessGraph: {
       schemaVersion: ACCESS_GRAPH_VERSION,
@@ -386,25 +536,26 @@ test('routing intent keeps evidence selection provider-neutral and rejects unkno
     repositoryContext: 'isolated',
     qualityAxes: ['visual-preference'],
   }).evidenceSelection;
-  assert.deepEqual(validateRoutingIntent({
-    version: ROUTING_INTENT_VERSION,
-    workload: 'judgment',
-    reasoning: 'deep',
-    evidenceSelection,
-  }), {
-    version: ROUTING_INTENT_VERSION,
-    workload: 'judgment',
-    reasoning: 'deep',
+  const intent = routingIntent({ workload: 'judgment', reasoning: 'deep', evidenceSelection });
+  assert.deepEqual(validateRoutingIntent(intent), {
+    ...intent,
     evidenceSelection,
   });
   assert.throws(
-    () => validateRoutingIntent({
-      version: ROUTING_INTENT_VERSION,
-      workload: 'judgment',
-      reasoning: 'deep',
+    () => validateRoutingIntent(routingIntent({
       evidenceSelection: { ...evidenceSelection, modelId: 'volatile-model' },
-    }),
+    })),
     /unknown evidence selection field: modelId/,
+  );
+
+  const block = serializeRoutingIntent(intent);
+  assert.match(block, /^evidence-selection: frontend-greenfield:general:visual-preference$/m);
+  assert.deepEqual(parseRoutingIntent(block).intent, validateRoutingIntent(intent));
+  assert.throws(
+    () => serializeRoutingIntent(routingIntent({
+      evidenceSelection: { ...evidenceSelection, axes: ['visual,preference'] },
+    })),
+    /evidence selection axis must not contain a comma/,
   );
 });
 
