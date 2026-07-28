@@ -3,7 +3,7 @@ set -u
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROC_HELPER="$SCRIPT_DIR/codex_proc.py"
-TESTED_VERSIONS=("0.137.0" "0.144.6")
+TESTED_VERSIONS=("0.137.0" "0.144.6" "0.145.0")
 SUPPORTED_EFFORTS=("low" "medium" "high" "xhigh" "max" "ultra")
 STATE_ROOT=${CODEX_EXEC_STATE_ROOT:-${TMPDIR:-/tmp}/codex-exec-state}
 
@@ -179,7 +179,7 @@ launch_round() {
   prepare_prompt "$state_dir" || return 1
   local command
   if [[ -z $thread_id ]]; then
-    command=("$CODEX_BIN" exec --json --sandbox "$SANDBOX")
+    command=("$CODEX_BIN" exec --sandbox "$SANDBOX")
   else
     command=("$CODEX_BIN" exec resume "$thread_id" -c "sandbox_mode=$SANDBOX")
   fi

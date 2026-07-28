@@ -15,6 +15,18 @@ PLAN.md
 PLAN-REVIEW-LOG.md
 ANNAHMEN.md
 
+# Linked worktrees. CLAUDE.md places them at `.worktrees/<slug>`, so the parent
+# checkout sees a live sibling worktree as an untracked directory: it blocks
+# every landing from the main tree and a wholesale `git add` commits it as an
+# embedded repository (#370).
+.worktrees/
+
+# Tool and prototype scratch. `/prototype` and the Playwright MCP server write
+# these into the repository root; ignoring them is what makes them deletable at
+# teardown, which is this repo's only mechanism for that.
+.playwright-mcp/
+variant-*.png
+
 # Local Claude/Codex state and personal overrides. Checked-in skills, project
 # config, hooks, and agent definitions remain trackable.
 .claude/settings.local.json
