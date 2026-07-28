@@ -24,7 +24,7 @@
       "cost": {
         "amount": 0,
         "currency": "USD",
-        "unit": "vote"
+        "unit": "run"
       }
     },
     {
@@ -39,13 +39,13 @@
       "cost": {
         "amount": 0,
         "currency": "USD",
-        "unit": "vote"
+        "unit": "run"
       }
     },
     {
       "providerId": "provider-o",
       "modelId": "model-o",
-      "effort": "xhigh",
+      "effort": "unknown",
       "domain": "marketing",
       "score": 1630,
       "confidenceInterval": 11,
@@ -54,7 +54,7 @@
       "cost": {
         "amount": 0,
         "currency": "USD",
-        "unit": "vote"
+        "unit": "run"
       }
     }
   ]

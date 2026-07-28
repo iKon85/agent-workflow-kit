@@ -7,6 +7,17 @@ import {
   artificialAnalysisSource,
 } from '../src/lib/routingSources/artificialAnalysis.mjs';
 import { openHandsSource } from '../src/lib/routingSources/openhands.mjs';
+import { codeArenaSource } from '../src/lib/routingSources/codeArena.mjs';
+import { openHandsFrontendSource } from '../src/lib/routingSources/openhandsFrontend.mjs';
+import { benchLmSource } from '../src/lib/routingSources/benchlm.mjs';
+import {
+  EVIDENCE_COST_UNITS,
+  evidenceFreshness,
+  evidenceSourceClaim,
+  isDecisiveEvidence,
+  parseEvidenceIdentity,
+  validateEvidenceCatalog,
+} from '../src/lib/routingCatalog.mjs';
 import {
   refreshRoutingEvidence,
 } from '../src/commands/routing-policy-update.mjs';
@@ -63,6 +74,184 @@ test('owner adapters preserve execution identity and exact provenance', async ()
       assert.ok(Number.isFinite(observation.cost.amount));
     }
   }
+});
+
+test('every source carries the three-part decisiveness test instead of a boolean', () => {
+  const adapters = [
+    deepSweSource,
+    artificialAnalysisSource,
+    openHandsSource,
+    codeArenaSource,
+    openHandsFrontendSource,
+    benchLmSource,
+  ];
+
+  for (const adapter of adapters) {
+    const claim = evidenceSourceClaim(adapter.sourceId);
+    assert.deepEqual(adapter.claim, claim, `${adapter.sourceId} must publish its claim`);
+    assert.equal('decisive' in claim, false, `${adapter.sourceId} must not carry a boolean`);
+    for (const flag of ['measuresTriple', 'preservesEffort', 'preservesHarness']) {
+      assert.equal(typeof claim[flag], 'boolean', `${adapter.sourceId}.${flag}`);
+    }
+    assert.equal(
+      isDecisiveEvidence(claim),
+      claim.collapsedDimensions.length === 0,
+      `${adapter.sourceId} decisiveness must follow the three-part test`,
+    );
+  }
+
+  assert.equal(isDecisiveEvidence(evidenceSourceClaim('deepswe')), true);
+  assert.throws(() => evidenceSourceClaim('unlisted-owner'), /unknown evidence source/);
+});
+
+test('non-frontend owner adapters emit the researched taxonomy identity and cost unit', async () => {
+  const snapshots = [
+    [deepSweSource, await fixture('deepswe'), 'sha256:deepswe'],
+    [artificialAnalysisSource, await fixture('artificial-analysis'), 'sha256:aa'],
+    [openHandsSource, await fixture('openhands'), 'sha256:openhands'],
+  ];
+
+  for (const [adapter, payload, snapshotHash] of snapshots) {
+    const ingested = adapter.ingest({ payload, snapshotHash, observedAt, expiresAt });
+    for (const observation of ingested.observations) {
+      assert.deepEqual(parseEvidenceIdentity(observation.workload), {
+        workload: 'repository-repair',
+        domain: 'general',
+        axis: 'functional',
+      });
+      assert.ok(EVIDENCE_COST_UNITS.includes(observation.cost.unit));
+      assert.equal(observation.cost.unit, 'attempt');
+      assert.equal(observation.cost.currency, 'USD');
+    }
+    assert.doesNotThrow(() => validateEvidenceCatalog({
+      schemaVersion: 1,
+      revision: `taxonomy-${adapter.sourceId}`,
+      models: ingested.models,
+      observations: ingested.observations,
+    }));
+  }
+});
+
+test('observation freshness follows the Kit policy per source, never the owner', async () => {
+  const payload = await fixture('deepswe');
+  // An owner-published expiry in the artifact must not reach the observation.
+  payload.artifact.expiresAt = '2026-07-23T11:00:00.000Z';
+  const ingested = deepSweSource.ingest({
+    payload,
+    snapshotHash: 'sha256:deepswe',
+    observedAt,
+    expiresAt: '2099-01-01T00:00:00.000Z',
+  });
+  const { freshness } = evidenceSourceClaim(deepSweSource.sourceId);
+  const expected = new Date(
+    Date.parse(observedAt) + freshness.maxAgeDays * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  assert.equal(freshness.basis, 'kit-policy');
+  assert.ok(freshness.maxAgeDays > 0);
+  for (const observation of ingested.observations) {
+    assert.equal(observation.freshness.observedAt, observedAt);
+    assert.equal(observation.freshness.expiresAt, expected);
+    assert.equal(observation.freshness.basis, 'kit-policy');
+    assert.equal(observation.freshness.maxAgeDays, freshness.maxAgeDays);
+  }
+  assert.notEqual(
+    evidenceFreshness({ sourceId: openHandsSource.sourceId, observedAt }).expiresAt,
+    expected,
+  );
+});
+
+test('an effort-collapsed source may not publish a reasoning effort it never measured', async () => {
+  const analysis = await fixture('artificial-analysis');
+  analysis.configurations[0].reasoningEffort = 'max';
+  assert.throws(
+    () => artificialAnalysisSource.ingest({
+      payload: analysis,
+      snapshotHash: 'sha256:aa-effort',
+      observedAt,
+      expiresAt,
+    }),
+    /does not preserve reasoning effort/,
+  );
+
+  const openHands = await fixture('openhands');
+  openHands.results[0].effort = 'high';
+  assert.throws(
+    () => openHandsSource.ingest({
+      payload: openHands,
+      snapshotHash: 'sha256:openhands-effort',
+      observedAt,
+      expiresAt,
+    }),
+    /does not preserve reasoning effort/,
+  );
+
+  const deepSwe = await fixture('deepswe');
+  deepSwe.rows[0].effort = 'unknown';
+  assert.throws(
+    () => deepSweSource.ingest({
+      payload: deepSwe,
+      snapshotHash: 'sha256:deepswe-effort',
+      observedAt,
+      expiresAt,
+    }),
+    /preserves reasoning effort/,
+  );
+});
+
+test('an owner cost unit outside the enum quarantines instead of entering the catalog', async () => {
+  const payload = await fixture('openhands');
+  payload.results[0].meanCost.unit = 'task';
+  assert.throws(
+    () => openHandsSource.ingest({
+      payload,
+      snapshotHash: 'sha256:openhands-cost',
+      observedAt,
+      expiresAt,
+    }),
+    /unit must be one of: attempt, run, success-derived/,
+  );
+
+  const catalogOf = (observations) => ({
+    schemaVersion: 1,
+    revision: 'cost-unit-r1',
+    models: [{ providerId: 'synthetic-provider', modelId: 'synthetic-model' }],
+    observations,
+  });
+  const taxonomyCost = (cost) => [syntheticObservation('cost-unit', 'sha256:cost', {
+    workload: 'repository-repair:general:functional',
+    cost,
+  })];
+
+  assert.throws(
+    () => validateEvidenceCatalog(catalogOf(taxonomyCost({
+      amount: 1,
+      currency: 'USD',
+      unit: 'task',
+    }))),
+    /unit must be one of: attempt, run, success-derived/,
+  );
+  assert.throws(
+    () => validateEvidenceCatalog(catalogOf(taxonomyCost({
+      amount: 1,
+      currency: 'USD',
+      unit: 'success-derived',
+    }))),
+    /Kit-derived/,
+  );
+  assert.doesNotThrow(() => validateEvidenceCatalog(catalogOf(taxonomyCost({
+    amount: 1,
+    currency: 'USD',
+    unit: 'success-derived',
+    derived: true,
+  }))));
+  // A legacy aggregate identity names no axis and keeps its free-form unit, so
+  // an already-cached catalog stays readable.
+  assert.doesNotThrow(() => validateEvidenceCatalog(catalogOf([
+    syntheticObservation('cost-unit', 'sha256:cost', {
+      cost: { amount: 1, currency: 'USD', unit: 'task' },
+    }),
+  ])));
 });
 
 test('refresh reports source progress, live status, and the final evidence diff', async () => {
@@ -266,7 +455,7 @@ function syntheticObservation(sourceId, snapshotHash, overrides = {}) {
     },
     uncertainty: { kind: 'standard-error', value: 0.1 },
     freshness: { observedAt, expiresAt },
-    cost: { amount: 1, currency: 'USD', unit: 'task' },
+    cost: { amount: 1, currency: 'USD', unit: 'attempt' },
     ...overrides,
   };
 }

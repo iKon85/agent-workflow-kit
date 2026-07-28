@@ -2,46 +2,47 @@ import {
   evidenceWorkloadIdentity,
   validateEvidenceSelection,
 } from './routingIntent.mjs';
+import {
+  FRONTEND_QUALITY_AXES,
+  evidenceDomainsFor,
+  evidenceIdentity,
+  evidenceSourceClaim,
+} from './routingCatalog.mjs';
 
-const FRONTEND_DOMAINS = new Set([
-  'general',
-  'reference-design',
-  'marketing',
-  'analytics',
-  'product',
-  'game',
-  'simulation',
-  'editor',
+// The frontend vocabulary is a strict subset of the researched taxonomy
+// (docs/research/agent-task-taxonomy-benchmark-coverage.md §1.1): it reads its
+// domains and quality axes from the catalog rather than restating them.
+const FRONTEND_WORKLOADS = Object.freeze([
+  'frontend-greenfield',
+  'frontend-repository-repair',
 ]);
+const FRONTEND_DOMAINS = new Set(evidenceDomainsFor(FRONTEND_WORKLOADS[0]));
+const QUALITY_AXES = new Set(FRONTEND_QUALITY_AXES);
 
-const QUALITY_AXES = new Set([
-  'visual-preference',
-  'visual-fidelity',
-  'functional',
-  'accessibility',
-  'responsive',
-]);
+// Each source carries the three-part decisiveness test instead of a boolean, so
+// a collapsed dimension is named rather than hidden (§4).
+const frontendClaim = (sourceId, { workloads, axes }) => Object.freeze({
+  workloads: Object.freeze(workloads),
+  axes: Object.freeze(axes),
+  ...evidenceSourceClaim(sourceId),
+});
 
 export const FRONTEND_SOURCE_CLAIMS = Object.freeze({
-  'code-arena-webdev': Object.freeze({
-    workloads: Object.freeze(['frontend-greenfield']),
-    axes: Object.freeze(['visual-preference']),
-    decisive: true,
+  'code-arena-webdev': frontendClaim('code-arena-webdev', {
+    workloads: ['frontend-greenfield'],
+    axes: ['visual-preference'],
   }),
-  'openhands-frontend': Object.freeze({
-    workloads: Object.freeze(['frontend-repository-repair']),
-    axes: Object.freeze(['functional']),
-    decisive: true,
+  'openhands-frontend': frontendClaim('openhands-frontend', {
+    workloads: ['frontend-repository-repair'],
+    axes: ['functional'],
   }),
-  vision2web: Object.freeze({
-    workloads: Object.freeze(['frontend-greenfield']),
-    axes: Object.freeze(['visual-fidelity', 'functional', 'responsive']),
-    decisive: false,
+  vision2web: frontendClaim('vision2web', {
+    workloads: ['frontend-greenfield'],
+    axes: ['visual-fidelity', 'functional', 'responsive'],
   }),
-  design2code: Object.freeze({
-    workloads: Object.freeze(['frontend-greenfield']),
-    axes: Object.freeze(['visual-fidelity']),
-    decisive: false,
+  design2code: frontendClaim('design2code', {
+    workloads: ['frontend-greenfield'],
+    axes: ['visual-fidelity'],
   }),
 });
 
@@ -111,13 +112,14 @@ export function classifyFrontendWorkload(input) {
 }
 
 export function frontendEvidenceWorkload({ workload, frontendDomain = 'general', axis }) {
-  if (!['frontend-greenfield', 'frontend-repository-repair'].includes(workload)) {
+  if (!FRONTEND_WORKLOADS.includes(workload)) {
     throw new TypeError(`unknown frontend evidence workload: ${workload}`);
   }
   if (!FRONTEND_DOMAINS.has(frontendDomain)) {
     throw new TypeError(`unknown frontend domain: ${frontendDomain}`);
   }
   if (!QUALITY_AXES.has(axis)) throw new TypeError(`unknown frontend quality axis: ${axis}`);
+  evidenceIdentity({ workload, domain: frontendDomain, axis });
   return evidenceWorkloadIdentity({
     workload,
     domain: frontendDomain,
