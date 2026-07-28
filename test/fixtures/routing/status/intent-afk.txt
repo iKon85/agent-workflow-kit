@@ -1,0 +1,8 @@
+intent-version: 2
+routing-intent: development
+reasoning-intent: balanced
+task-shape: long-horizon
+risk: moderate
+autonomy-requirement: afk
+context-need: repository
+evidence-selection: repository-repair:general:functional

@@ -9,6 +9,9 @@ import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
 import { setOwnership } from './commands/own.mjs';
 import {
+  routeOrigin, routingStatus, routingStatusFailure,
+} from './commands/routing-status.mjs';
+import {
   beginContributionBridge, prepareContributionArtifact,
 } from './lib/contributionBridge.mjs';
 import {
@@ -115,6 +118,8 @@ export async function runCli({
   const ownershipState = args.find((arg) => arg.startsWith('--as='))?.slice('--as='.length);
   // Machine-readable rendering of the same update record the interactive run prints.
   const jsonReport = cmd === 'update' && args.includes('--json');
+  // The routing status machine contract: the document is the only thing on stdout.
+  const routingJson = cmd === 'routing' && args.includes('--json');
   let exitCode = 0;
 
   if (cmd === 'update' && keepDeleted && restoreDeleted) {
@@ -129,7 +134,7 @@ export async function runCli({
     return 1;
   }
 
-  if (!jsonReport) p.intro('agent-workflow-kit');
+  if (!jsonReport && !routingJson) p.intro('agent-workflow-kit');
 
   try {
   if (cmd === 'init') {
@@ -238,6 +243,19 @@ export async function runCli({
       });
       p.outro(`prepared local contribution artifact ${output}; no remote was changed`);
     }
+  } else if (cmd === 'routing') {
+    if (args[1] !== 'status') {
+      throw new Error('Usage: agent-workflow-kit routing status --intent-file=<file> ' +
+        '[--surface=<id>] [--json]');
+    }
+    const status = await routingStatus({ argv: args.slice(2), consumerRoot });
+    if (routingJson) {
+      process.stdout.write(`${JSON.stringify(status.document, null, 2)}\n`);
+      return status.exitCode;
+    }
+    p.note(renderRoutingStatus(status.document), 'routing status');
+    p.outro(`routing status: ${status.document.outcome}`);
+    exitCode = status.exitCode;
   } else if (cmd === 'own' || cmd === 'disown') {
     if (!args[1]) {
       throw new Error(
@@ -254,9 +272,11 @@ export async function runCli({
     p.outro(`${args[1]} is now ${origin}-owned` +
       (origin === CONSUMER_ORIGIN ? ` (${ownershipState ?? 'explicit-fork'})` : ''));
   } else {
-    p.note('Usage: agent-workflow-kit <init|update|diff|uninstall|own|disown|contribute> ' +
+    p.note('Usage: agent-workflow-kit ' +
+      '<init|update|diff|uninstall|own|disown|contribute|routing status> ' +
       '[<path>] [--force] [--yes] [--keep-deleted|--restore-deleted] [--owned] ' +
-      '[--as=contribution-bridge|explicit-fork]');
+      '[--as=contribution-bridge|explicit-fork] ' +
+      '[--intent-file=<file>] [--surface=<id>] [--json]');
     p.outro('');
   }
 } catch (err) {
@@ -265,6 +285,11 @@ export async function runCli({
       schemaVersion: UPDATE_DOCUMENT_SCHEMA_VERSION, state: 'failed', error: err.message,
     }, null, 2)}\n`);
     return 1;
+  }
+  if (routingJson) {
+    const document = routingStatusFailure(err.message);
+    process.stdout.write(`${JSON.stringify(document, null, 2)}\n`);
+    return document.exitCode;
   }
   p.cancel(`Error: ${err.message}`);
   return 1;
@@ -346,6 +371,53 @@ export function renderReadinessAvailability(availability) {
     if (remedy) lines.push(`    next step: ${remedy}`);
   }
   return lines;
+}
+
+/** A model-and-effort pair as a route reads out loud. */
+function describeRoutePair(route) {
+  if (!route) return 'none';
+  return `${route.modelId} · ${route.effort ?? 'no effort axis'}`;
+}
+
+/** Where the route would run — the Access path, not the evidence. */
+function describeRouteAccess(route) {
+  if (!route?.surfaceId) return '';
+  const app = sanitizeReadinessText(surfaceById(route.surfaceId)?.label ?? route.surfaceId);
+  return ` on ${app} · ${route.transportId}`;
+}
+
+/**
+ * The Route decision in the terms the question was asked in: what the evidence
+ * ranks first, what this machine could actually run, what it costs, what blocks
+ * it, and which revisions the answer stands on.
+ */
+export function renderRoutingStatus(document) {
+  const lines = [`outcome: ${document.outcome} (exit ${document.exitCode})`];
+  if (document.surface) {
+    lines.push(`surface: ${document.surface.id} (${document.surface.source})`);
+  }
+  if (document.intent) {
+    lines.push(`intent: ${document.intent.workload} · ${document.intent.reasoning} reasoning · `
+      + `${document.intent.risk} risk · ${document.intent.autonomyRequirement}`);
+  }
+  if (document.state) {
+    lines.push(`pick: ${routeOrigin(document.origin).label} · ${document.state}`
+      + `${document.reason ? ` (${document.reason})` : ''}`);
+    lines.push(`best overall: ${describeRoutePair(document.bestOverall?.route)}`
+      + ` (${document.bestOverall?.status ?? 'unavailable'})`);
+    lines.push(`best executable: ${describeRoutePair(document.bestExecutable)}`
+      + describeRouteAccess(document.bestExecutable));
+    lines.push(`cost per task: ${document.costPerTask
+      ? `${document.costPerTask.amount} ${document.costPerTask.currency} `
+        + `per ${document.costPerTask.unit}`
+      : 'none published'}`);
+    lines.push(`blockers: ${document.blockers.join(', ') || 'none'}`);
+    lines.push(`revisions: policy ${document.revisions?.policy ?? 'none'} · `
+      + `catalog ${document.revisions?.catalog ?? 'none'} · `
+      + `access graph ${document.revisions?.accessGraph ?? 'none'}`);
+  }
+  for (const { code, detail } of document.diagnostics) lines.push(`${code}: ${detail}`);
+  return lines.join('\n');
 }
 
 async function decideUpdate(action, path, yes, classification, choices = {}) {

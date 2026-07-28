@@ -1,0 +1,8 @@
+intent-version: 2
+routing-intent: development
+reasoning-intent: balanced
+task-shape: multi-step
+risk: moderate
+autonomy-requirement: supervised
+context-need: repository
+evidence-selection: repository-repair:general:functional

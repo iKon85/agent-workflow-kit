@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "revision": "catalog-routing-status-fixture-r1",
+  "models": [
+    { "providerId": "anthropic", "modelId": "opus" },
+    { "providerId": "anthropic", "modelId": "sonnet" }
+  ],
+  "observations": [
+    {
+      "id": "deepswe:opus:high",
+      "providerId": "anthropic",
+      "modelId": "opus",
+      "effort": "high",
+      "workload": "repository-repair:general:functional",
+      "harness": { "id": "deepswe-harness", "version": "2.1" },
+      "score": 0.87,
+      "source": {
+        "id": "deepswe",
+        "owner": "deepswe-owner",
+        "url": "https://example.invalid/deepswe",
+        "benchmark": "repository-repair",
+        "version": "2026-07",
+        "snapshotHash": "sha256:routing-status-fixture"
+      },
+      "uncertainty": { "kind": "confidence-interval", "value": 0.02 },
+      "freshness": {
+        "observedAt": "2026-07-20T00:00:00.000Z",
+        "expiresAt": "2036-08-20T00:00:00.000Z"
+      },
+      "cost": { "amount": 2.5, "currency": "USD", "unit": "attempt" }
+    },
+    {
+      "id": "deepswe:sonnet:high",
+      "providerId": "anthropic",
+      "modelId": "sonnet",
+      "effort": "high",
+      "workload": "repository-repair:general:functional",
+      "harness": { "id": "deepswe-harness", "version": "2.1" },
+      "score": 0.71,
+      "source": {
+        "id": "deepswe",
+        "owner": "deepswe-owner",
+        "url": "https://example.invalid/deepswe",
+        "benchmark": "repository-repair",
+        "version": "2026-07",
+        "snapshotHash": "sha256:routing-status-fixture"
+      },
+      "uncertainty": { "kind": "confidence-interval", "value": 0.02 },
+      "freshness": {
+        "observedAt": "2026-07-20T00:00:00.000Z",
+        "expiresAt": "2036-08-20T00:00:00.000Z"
+      },
+      "cost": { "amount": 0.9, "currency": "USD", "unit": "attempt" }
+    }
+  ]
+}
