@@ -1,3 +1,6 @@
+import { readFile, readdir } from 'node:fs/promises';
+import { basename, join } from 'node:path';
+
 import { adaptClaudeRoutingInventory } from '../capabilityMatrix.mjs';
 import {
   attestAccessPath,
@@ -83,6 +86,114 @@ function mismatchReason(path, requested, applied) {
     return `applied route mismatch: ${field}`;
   }
   return null;
+}
+
+/**
+ * `codex × native` — the in-session Codex spawn primitive. The dated host
+ * inventory (2026-07-23, `.codex/agents/README.md`) exposes `task_name`,
+ * `message` and `fork_turns` and no per-spawn model or effort selector, so it
+ * can start a task but never prove a differentiated pair was applied. Attested
+ * unavailable rather than bridged.
+ */
+export const CODEX_NATIVE_UNAVAILABLE = Object.freeze({
+  surfaceId: 'codex',
+  transportId: 'native',
+  reason: 'spawn-schema-exposes-no-model-or-effort-selector',
+  detail: 'the native spawn schema carries task_name, message and fork_turns only',
+  evidence: 'codex-host-inventory',
+  observedAt: '2026-07-23',
+});
+
+/**
+ * The Codex host as a bridged child process. The applied pair lives in the
+ * rollout file's `turn_context`, which the client writes — strictly stronger
+ * than an argv echo, strictly weaker than Claude's server-returned model, so the
+ * attestation is `client-attested` and a receipt must not claim otherwise. The
+ * `--json` event stream carries neither model nor effort, and `--ephemeral`
+ * destroys the rollout file altogether, so it is forbidden here.
+ */
+export const CODEX_CLI_HOST = Object.freeze({
+  transportId: 'codex-cli',
+  command: 'codex',
+  /** OpenAI models live under the `codex` surface of the pinned inventory. */
+  inventorySurface: 'codex',
+  attestationStrength: 'client-attested',
+  forbiddenArgs: Object.freeze(['--ephemeral']),
+  buildArgv({ modelId, effort, cwd }) {
+    const argv = ['exec', '--json', '--model', modelId, '--cd', cwd];
+    if (effort !== null) argv.push('-c', `model_reasoning_effort="${effort}"`);
+    argv.push('-');
+    return Object.freeze(argv);
+  },
+  degraded(result) {
+    return codexRunDegraded(result?.stdout);
+  },
+  readApplied({ home, result }) {
+    const threadId = codexThreadId(result?.stdout);
+    return threadId === null ? null : readCodexAppliedPair({ home, threadId });
+  },
+});
+
+function* codexEvents(stdout) {
+  for (const line of String(stdout ?? '').split('\n')) {
+    if (line.trim() === '') continue;
+    try {
+      yield JSON.parse(line);
+    } catch {
+      continue;
+    }
+  }
+}
+
+/** The durable run identity Codex announces on its own event stream. */
+export function codexThreadId(stdout) {
+  for (const event of codexEvents(stdout)) {
+    if (event?.type !== 'thread.started') continue;
+    const id = event.thread_id ?? event.payload?.thread_id;
+    if (typeof id === 'string' && id !== '') return id;
+  }
+  return null;
+}
+
+/**
+ * Codex emits a soft `item.completed` metadata error before a hard failure. A
+ * consumer reading only the terminal status would take that degraded run for a
+ * clean one, so the bridge treats it as a failed dispatch.
+ */
+export function codexRunDegraded(stdout) {
+  for (const event of codexEvents(stdout)) {
+    if (event?.type !== 'item.completed') continue;
+    if (/Model metadata for .+ not found/i.test(JSON.stringify(event))) return true;
+  }
+  return false;
+}
+
+/** Read the applied pair out of the dated `rollout-…-<threadId>.jsonl` session file. */
+export async function readCodexAppliedPair({ home, threadId }) {
+  const root = join(home, '.codex', 'sessions');
+  let entries;
+  try {
+    entries = await readdir(root, { recursive: true });
+  } catch {
+    return null;
+  }
+  const file = entries.find((entry) => entry.endsWith(`-${threadId}.jsonl`)
+    && basename(entry).startsWith('rollout-'));
+  if (file === undefined) return null;
+  let raw;
+  try {
+    raw = await readFile(join(root, file), 'utf8');
+  } catch {
+    return null;
+  }
+  let modelId = null;
+  let effort = null;
+  for (const event of codexEvents(raw)) {
+    if (event?.type !== 'turn_context') continue;
+    if (typeof event.payload?.model === 'string') modelId = event.payload.model;
+    effort = typeof event.payload?.effort === 'string' ? event.payload.effort : null;
+  }
+  return modelId === null ? null : Object.freeze({ modelId, effort, runId: threadId });
 }
 
 export function adaptCodexRoutingInventory(inventory) {
