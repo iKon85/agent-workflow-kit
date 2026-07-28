@@ -9,6 +9,11 @@ import {
   detectAgentSurfaces,
   surfaceById,
 } from './agentSurfaceRegistry.mjs';
+import {
+  commitRoutingProfileGenerations,
+  readCommittedRoutingProfilePair,
+  resolveProjectIdentity,
+} from './routingProfileStorage.mjs';
 
 export const ROUTING_PROFILE_VERSION = 2;
 export const ROUTING_PROFILE_PATH = 'routing-profile.json';
@@ -263,11 +268,85 @@ export function decodeRoutingProfile(document) {
   return decode(document);
 }
 
-export function routingProfilePath(consumerRoot, profileRoot) {
-  const root = profileRoot ??
+function stateRoot(profileRoot) {
+  return profileRoot ??
     join(process.env.XDG_STATE_HOME || join(homedir(), '.local', 'state'), 'agent-workflow-kit');
+}
+
+export function routingProfilePath(consumerRoot, profileRoot) {
   const consumerKey = createHash('sha256').update(resolve(consumerRoot)).digest('hex').slice(0, 20);
-  return join(root, 'profiles', consumerKey, ROUTING_PROFILE_PATH);
+  return join(stateRoot(profileRoot), 'profiles', consumerKey, ROUTING_PROFILE_PATH);
+}
+
+/** Where the two-level store keeps its generations: one global, one per project key. */
+export function routingProfileStorageRoot(profileRoot) {
+  return join(stateRoot(profileRoot), 'routing');
+}
+
+async function projectIdentity({ identity, projectRoot, runGit }) {
+  if (identity) return identity;
+  return resolveProjectIdentity({ projectRoot, runGit });
+}
+
+function composedGeneration(envelope) {
+  if (!envelope) return null;
+  const { profile, migration } = decodeRoutingProfile(envelope.document);
+  return {
+    generation: envelope.generation,
+    committedAt: envelope.committedAt,
+    authoredAgainstGlobalGeneration: envelope.authoredAgainstGlobalGeneration ?? null,
+    profile,
+    migration,
+  };
+}
+
+/**
+ * Composition: the latest committed global generation plus this project's own
+ * narrowing, so a global choice made after the narrowing is never invisible to
+ * the project. The generation a narrowing was authored against is reported for
+ * diagnostics, never used as the read key, and a project without a narrowing is
+ * a normal, safe state rather than an error.
+ */
+export async function readComposedRoutingProfile({
+  profileRoot, projectRoot, identity, runGit,
+}) {
+  const resolved = await projectIdentity({ identity, projectRoot, runGit });
+  const pair = await readCommittedRoutingProfilePair({
+    root: routingProfileStorageRoot(profileRoot),
+    projectKey: resolved.key,
+  });
+  const reasons = [];
+  if (!pair.global) reasons.push('no-global-authorization');
+  if (!pair.project) reasons.push('no-project-narrowing');
+  return {
+    identity: resolved,
+    global: composedGeneration(pair.global),
+    project: composedGeneration(pair.project),
+    reasons,
+    pendingTransactionId: pair.pendingTransactionId,
+  };
+}
+
+/**
+ * Commit the global authorization, the project narrowing, or both as one
+ * transaction. Each document is validated against the profile schema before it
+ * reaches the store — the envelope carries the generation, the profile never
+ * does.
+ */
+export async function commitRoutingProfilePair({
+  profileRoot, projectRoot, identity, runGit, global = null, project = null,
+  expectedGlobalGeneration, expectedProjectGeneration, now,
+}) {
+  const resolved = await projectIdentity({ identity, projectRoot, runGit });
+  return commitRoutingProfileGenerations({
+    root: routingProfileStorageRoot(profileRoot),
+    identity: resolved,
+    globalDocument: global ? validateRoutingProfile(global) : null,
+    projectDocument: project ? validateRoutingProfile(project) : null,
+    expectedGlobalGeneration,
+    expectedProjectGeneration,
+    now,
+  });
 }
 
 /** Where the pre-migration document is preserved before a migrated profile is written. */
