@@ -2915,7 +2915,7 @@
       "path": "src/lib/frontendWorkloads.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "695cb784564ddfe24f42cd92463ad7fbc4baeb555a6a36a7e180830a5a917146",
+      "sha256": "b2cc192f762a6398b523b269458486e07300c7f0b60361c306d3fe156eee3e6a",
       "mode": 420,
       "origin": "kit"
     },
@@ -2987,7 +2987,15 @@
       "path": "src/lib/routingAccessGraph.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "21fd08ddb8715a7fbb8bdf09307c9cb6fe9c9dd032732e56ed681780cc9b49ae",
+      "sha256": "afe9add5d1e4fbb711b638dca3c17a10537bc12e6820999c256b08f6a674e49b",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingAccessGraphStore.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "21eae1bf1010a1e1872da38ef46bb20d86d1b7ff6c792cfc43b706cdfce0af29",
       "mode": 420,
       "origin": "kit"
     },
@@ -2995,7 +3003,7 @@
       "path": "src/lib/routingAdapters/claude.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "ad7a0670c697ceb3d8a845c24ae456296b46f17325d62b9c53f1128aaa48a26d",
+      "sha256": "ee11debdb891614132b4f9d73931cc6a828dafc51ab649fa6bcd2a7f0d32c765",
       "mode": 420,
       "origin": "kit"
     },
@@ -3003,7 +3011,7 @@
       "path": "src/lib/routingAdapters/codex.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "70c0843505cdf69318d45c58d21c8eb81bfd74910bd8544e4194fba736e0e1ca",
+      "sha256": "67ee9a7b7936e2fe36085a941cfcf26fc0842710b86b346a739a53717fadadc9",
       "mode": 420,
       "origin": "kit"
     },
@@ -3011,7 +3019,7 @@
       "path": "src/lib/routingCatalog.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "3d683dfdf31496503b40746645629c116111cda8be1dcb87575afaf8ac8aca28",
+      "sha256": "5f667d88024a46e48c5e11fc139b9e6425026d1bbe09a1c7010850e56cfdcdaf",
       "mode": 420,
       "origin": "kit"
     },
@@ -3083,7 +3091,7 @@
       "path": "src/lib/routingSources/artificialAnalysis.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "1b02382957e68e6dc46b58fbff0d69a5a28088be27d42daeb5b426d20eb29baf",
+      "sha256": "b579391da60199ae2934add9e896101f7e9b1c3d0057719294fa6d3731eb20f6",
       "mode": 420,
       "origin": "kit"
     },
@@ -3091,7 +3099,7 @@
       "path": "src/lib/routingSources/benchlm.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "f3a08be4fa870137b41c630400fb939491e9c7c29881d384e6d5df6fe7dff231",
+      "sha256": "f52c32d607bd46d99e5da08e7ab2b5be6dc5e7d010d2396eda3d6a5abb321d09",
       "mode": 420,
       "origin": "kit"
     },
@@ -3099,7 +3107,7 @@
       "path": "src/lib/routingSources/codeArena.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "c90b1c7894704ace96e85f5c430cd61077e802dc21d591d51da84d027159b491",
+      "sha256": "5c5a1a3c809f25d5d340eb62726a6d1c8b5d38dbc9dbbc2c58125df8de586ade",
       "mode": 420,
       "origin": "kit"
     },
@@ -3107,7 +3115,7 @@
       "path": "src/lib/routingSources/deepswe.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "e5e4e69ca3aaec207e1b351003f67b4541543baf4b7be321a7659f9a9f57752b",
+      "sha256": "b6c28ff030465cb217495b09f68f82e1ee52f0b04da9b2dd3f3c344c1f757d82",
       "mode": 420,
       "origin": "kit"
     },
@@ -3115,7 +3123,7 @@
       "path": "src/lib/routingSources/openhands.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "fc347c17277dc601f5206d47269268839a7ade5eba6a7a538521213f996ac89b",
+      "sha256": "a8e3e5550a240e24ca3aa2b88719d31d3a8af016caf3c031682d2c79e572f7e0",
       "mode": 420,
       "origin": "kit"
     },
@@ -3123,7 +3131,7 @@
       "path": "src/lib/routingSources/openhandsFrontend.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "698b7f265ce95dfe000233dbb6ed0eb3bb655bb9581f64264e4f5d8a2d75e169",
+      "sha256": "b1515b44f2f85d14a6f926a37e349e5a01381adef22c75555b9838d4ac04c412",
       "mode": 420,
       "origin": "kit"
     },
