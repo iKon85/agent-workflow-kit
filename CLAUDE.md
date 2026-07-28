@@ -126,6 +126,29 @@ a stale packument cannot report a live release as unpublished (#243). Manual
 dispatch is recovery only: it requires one explicit existing tag and runs the
 same reconciler. Never recover by bumping the version.
 
+## Design maxim
+
+This is a meta-system, not an app: no test says the workflow behaved correctly,
+so the standing temptation is to legislate what cannot be measured (#343).
+Before adding a rule, guard or gate:
+
+- **One observation is not a mechanism.** Once, known trigger → a note or one
+  recovery line. Repeatedly, this repo → project layer. Repeatedly or
+  structurally, across projects → shipped, and mechanical (lint, guard,
+  command) with something that can fail it.
+- **Principle over case.** A rule that enumerates the case teaches the case;
+  the principle it instances transfers. If the principle won't name itself, the
+  finding isn't understood yet.
+- **Judgment is what a rule has to beat.** An over-specified rule narrows the
+  space the agent would otherwise reason through. It earns its override with a
+  repeated real failure, never a conceivable one.
+- **Place by when it is read.** Always-on `CLAUDE.md` carries only what must
+  hold before anything loads; detail belongs in the skill that loads when it
+  matters; repo-specific detail in `docs/agents/*`.
+- **Price the journey, not the rule.** Count the gates already standing on it.
+- **Cause before survival.** Machinery that keeps a wrong input working
+  conserves it.
+
 ## Hard rules
 
 ### Workflow
