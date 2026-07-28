@@ -1,0 +1,24 @@
+{
+  "envelopeVersion": 1,
+  "scope": "global",
+  "generation": 1,
+  "committedAt": "2026-07-26T00:00:00.000Z",
+  "document": {
+    "schemaVersion": 2,
+    "registryRevision": 1,
+    "selectedSurfaces": ["claude-code"],
+    "consideredSurfaces": ["claude-code", "codex"],
+    "authorizedTransports": [{ "surface": "claude-code", "transport": "native" }],
+    "switching": "automatic",
+    "roster": [
+      { "model": "opus", "effort": "high", "state": "admitted" },
+      { "model": "sonnet", "effort": "medium", "state": "admitted" }
+    ],
+    "inventoryRevision": "sha256-routing-status-fixture-inventory",
+    "standardRoutes": {
+      "mechanical": { "model": "sonnet", "effort": "medium", "state": "configured" },
+      "development": { "model": "opus", "effort": "high", "state": "configured" },
+      "judgment": { "model": "opus", "effort": "high", "state": "configured" }
+    }
+  }
+}

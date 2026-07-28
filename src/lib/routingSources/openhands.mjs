@@ -1,6 +1,15 @@
+import {
+  assertCostUnit,
+  assertPublishedEffort,
+  evidenceFreshness,
+  evidenceIdentity,
+  evidenceSourceClaim,
+} from '../routingCatalog.mjs';
+
 const SOURCE_ID = 'openhands-evaluation';
 const OWNER = 'All Hands AI';
 const ARTIFACT_URL = 'https://github.com/All-Hands-AI/OpenHands/tree/main/evaluation';
+const WORKLOAD = evidenceIdentity({ workload: 'repository-repair', axis: 'functional' });
 
 function object(value, field) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -50,7 +59,10 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
     object(row, `OpenHands results[${index}]`);
     const providerId = string(row.provider, `OpenHands results[${index}].provider`);
     const modelId = string(row.model, `OpenHands results[${index}].model`);
-    const effort = string(row.effort, `OpenHands results[${index}].effort`);
+    const effort = assertPublishedEffort({
+      sourceId: SOURCE_ID,
+      effort: string(row.effort, `OpenHands results[${index}].effort`),
+    });
     const id = `${SOURCE_ID}:${benchmarkVersion}:${providerId}:${modelId}:${effort}`;
     if (observationIds.has(id)) throw new TypeError(`duplicate OpenHands observation: ${id}`);
     observationIds.add(id);
@@ -61,7 +73,7 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
       providerId,
       modelId,
       effort,
-      workload: 'development',
+      workload: WORKLOAD,
       harness: { id: harnessId, version: harnessVersion },
       score: number(row.resolvedRate, `OpenHands results[${index}].resolvedRate`),
       source: {
@@ -76,14 +88,14 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
         kind: 'standard-error',
         value: number(row.standardError, `OpenHands results[${index}].standardError`),
       },
-      freshness: { observedAt, expiresAt },
+      freshness: evidenceFreshness({ sourceId: SOURCE_ID, observedAt }),
       cost: {
         amount: number(meanCost.amount, `OpenHands results[${index}].meanCost.amount`),
         currency: string(
           meanCost.currency,
           `OpenHands results[${index}].meanCost.currency`,
         ),
-        unit: string(meanCost.unit, `OpenHands results[${index}].meanCost.unit`),
+        unit: assertCostUnit(meanCost.unit, `OpenHands results[${index}].meanCost.unit`),
       },
     });
   });
@@ -98,5 +110,6 @@ export const openHandsSource = Object.freeze({
   sourceId: SOURCE_ID,
   owner: OWNER,
   artifactUrl: ARTIFACT_URL,
+  claim: evidenceSourceClaim(SOURCE_ID),
   ingest,
 });

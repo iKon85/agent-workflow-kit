@@ -5,7 +5,17 @@ import { readFile } from 'node:fs/promises';
 import { codeArenaSource } from '../src/lib/routingSources/codeArena.mjs';
 import { openHandsFrontendSource } from '../src/lib/routingSources/openhandsFrontend.mjs';
 import { benchLmSource } from '../src/lib/routingSources/benchlm.mjs';
-import { validateEvidenceCatalog } from '../src/lib/routingCatalog.mjs';
+import {
+  EVIDENCE_AXES,
+  EVIDENCE_WORKLOADS,
+  FRONTEND_QUALITY_AXES,
+  evidenceAxesFor,
+  evidenceDomainsFor,
+  evidenceIdentity,
+  evidenceSourceClaim,
+  isDecisiveEvidence,
+  validateEvidenceCatalog,
+} from '../src/lib/routingCatalog.mjs';
 import { refreshRoutingEvidence } from '../src/commands/routing-policy-update.mjs';
 import {
   FRONTEND_SOURCE_CLAIMS,
@@ -58,7 +68,96 @@ test('frontend taxonomy keeps visual generation, repository repair, and quality 
     },
   );
   assert.deepEqual(FRONTEND_SOURCE_CLAIMS.design2code.axes, ['visual-fidelity']);
-  assert.equal(FRONTEND_SOURCE_CLAIMS.design2code.decisive, false);
+  assert.equal(isDecisiveEvidence(FRONTEND_SOURCE_CLAIMS.design2code), false);
+});
+
+test('the frontend vocabulary is a strict subset of the researched taxonomy', () => {
+  const frontendWorkloads = ['frontend-greenfield', 'frontend-repository-repair'];
+  for (const workload of frontendWorkloads) {
+    assert.ok(EVIDENCE_WORKLOADS.includes(workload), `taxonomy must contain ${workload}`);
+    assert.deepEqual(evidenceDomainsFor(workload), [
+      'general',
+      'reference-design',
+      'marketing',
+      'analytics',
+      'product',
+      'game',
+      'simulation',
+      'editor',
+    ]);
+    for (const axis of FRONTEND_QUALITY_AXES) {
+      assert.ok(evidenceAxesFor(workload).includes(axis), `${workload} must keep ${axis}`);
+      assert.ok(EVIDENCE_AXES.includes(axis), `taxonomy must contain ${axis}`);
+    }
+  }
+  assert.deepEqual(
+    [...FRONTEND_QUALITY_AXES].sort(),
+    ['accessibility', 'functional', 'responsive', 'visual-fidelity', 'visual-preference'],
+  );
+  assert.equal(
+    evidenceIdentity({ workload: 'frontend-greenfield', domain: 'marketing', axis: 'visual-preference' }),
+    'frontend-greenfield:marketing:visual-preference',
+  );
+  // The generalization is additive: it never widens the frontend segments onto
+  // workloads whose owner publishes a single aggregate.
+  assert.deepEqual(evidenceDomainsFor('repository-repair'), ['general']);
+  assert.throws(
+    () => evidenceIdentity({ workload: 'repository-repair', domain: 'marketing', axis: 'functional' }),
+    /domain/,
+  );
+  assert.throws(
+    () => evidenceIdentity({ workload: 'repository-repair', axis: 'visual-preference' }),
+    /axis/,
+  );
+  assert.throws(
+    () => evidenceIdentity({ workload: 'frontend-design', axis: 'functional' }),
+    /unknown evidence workload/,
+  );
+  assert.throws(
+    () => validateEvidenceCatalog({
+      schemaVersion: 1,
+      revision: 'taxonomy-guard-r1',
+      models: [{ providerId: 'provider-k', modelId: 'model-k' }],
+      observations: [{
+        id: 'guard:1',
+        providerId: 'provider-k',
+        modelId: 'model-k',
+        effort: 'unknown',
+        workload: 'frontend-greenfield:marketing:pixel-vibes',
+        harness: { id: 'h', version: '1' },
+        score: 1,
+        source: {
+          id: 'code-arena-webdev',
+          owner: 'Arena',
+          url: 'https://arena.ai/leaderboard/code/webdev',
+          benchmark: 'code-arena-webdev',
+          version: '2026-07-22',
+          snapshotHash: 'sha256:guard',
+        },
+        uncertainty: { kind: 'confidence-interval', value: 1 },
+        freshness: {
+          observedAt: '2026-07-22T12:00:00.000Z',
+          expiresAt: '2026-08-22T12:00:00.000Z',
+        },
+        cost: { amount: 0, currency: 'USD', unit: 'run' },
+      }],
+    }),
+    /axis/,
+  );
+});
+
+test('the two formerly decisive frontend sources name the dimension they collapse', () => {
+  for (const sourceId of ['code-arena-webdev', 'openhands-frontend']) {
+    const claim = FRONTEND_SOURCE_CLAIMS[sourceId];
+    assert.deepEqual(claim, { ...claim, ...evidenceSourceClaim(sourceId) });
+    assert.equal(claim.measuresTriple, true, `${sourceId} measures its triple`);
+    assert.equal(claim.preservesHarness, true, `${sourceId} names its harness`);
+    assert.equal(claim.preservesEffort, false, `${sourceId} collapses effort`);
+    assert.deepEqual(claim.collapsedDimensions, ['effort']);
+    assert.match(claim.reason, /effort/);
+    assert.equal(isDecisiveEvidence(claim), false);
+    assert.equal('decisive' in claim, false);
+  }
 });
 
 test('Code Arena adapter emits model-plus-harness preference evidence without overstating axes', async () => {
@@ -249,6 +348,20 @@ test('broken owner links, duplicate identities, and inconsistent exports quarant
   assert.throws(
     () => openHandsFrontendSource.ingest({ payload: openHands, ...context }),
     /duplicate observation identity/,
+  );
+
+  const effortLabelled = await fixture('code-arena');
+  effortLabelled.rows[2].effort = 'xhigh';
+  assert.throws(
+    () => codeArenaSource.ingest({ payload: effortLabelled, ...context }),
+    /does not preserve reasoning effort/,
+  );
+
+  const votePriced = await fixture('code-arena');
+  votePriced.rows[0].cost.unit = 'vote';
+  assert.throws(
+    () => codeArenaSource.ingest({ payload: votePriced, ...context }),
+    /unit must be one of: attempt, run, success-derived/,
   );
 
   const benchLm = await fixture('benchlm');

@@ -1,4 +1,10 @@
 import { frontendEvidenceWorkload } from '../frontendWorkloads.mjs';
+import {
+  assertCostUnit,
+  assertPublishedEffort,
+  evidenceFreshness,
+  evidenceSourceClaim,
+} from '../routingCatalog.mjs';
 
 const OWNER_URL = 'https://arena.ai/leaderboard/code/webdev';
 const SOURCE_ID = 'code-arena-webdev';
@@ -80,7 +86,10 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
     object(row, `Code Arena rows[${index}]`);
     const providerId = string(row.providerId, `Code Arena rows[${index}].providerId`);
     const modelId = string(row.modelId, `Code Arena rows[${index}].modelId`);
-    const effort = string(row.effort, `Code Arena rows[${index}].effort`);
+    const effort = assertPublishedEffort({
+      sourceId: SOURCE_ID,
+      effort: string(row.effort, `Code Arena rows[${index}].effort`),
+    });
     const domain = string(row.domain, `Code Arena rows[${index}].domain`);
     const score = finite(row.score, `Code Arena rows[${index}].score`);
     const interval = finite(
@@ -132,11 +141,11 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
         status: row.status,
         sampleSize,
       },
-      freshness: { observedAt, expiresAt },
+      freshness: evidenceFreshness({ sourceId: SOURCE_ID, observedAt }),
       cost: {
         amount: finite(row.cost.amount, `Code Arena rows[${index}].cost.amount`),
         currency: string(row.cost.currency, `Code Arena rows[${index}].cost.currency`),
-        unit: string(row.cost.unit, `Code Arena rows[${index}].cost.unit`),
+        unit: assertCostUnit(row.cost.unit, `Code Arena rows[${index}].cost.unit`),
       },
     });
   }
@@ -158,5 +167,6 @@ export const codeArenaSource = Object.freeze({
   sourceId: SOURCE_ID,
   owner: 'Arena',
   artifactUrl: OWNER_URL,
+  claim: evidenceSourceClaim(SOURCE_ID),
   ingest,
 });

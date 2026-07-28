@@ -5,7 +5,10 @@ import { promisify } from 'node:util';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { evaluateCapability, checkSkill } from '../scripts/readiness.mjs';
+import { renderReadinessAvailability } from '../src/cli.mjs';
 import { makeEmptyDir, cleanup } from './helpers.mjs';
+
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/;
 
 const capability = {
   evidence: { type: 'sentinel', paths: ['docs/agents/example.md'] },
@@ -273,6 +276,82 @@ test('readiness composes a consumer-owned local skill with canonical Core capabi
     assert.equal(result.verdict, 'ready');
   } finally {
     await cleanup(root);
+  }
+});
+
+test('unresolved readiness renders as plain sentences with a next step per entry', () => {
+  const lines = renderReadinessAvailability({
+    stillUnresolved: ['alphaLayer:invalid', 'betaLayer:pending', 'gammaLayer:missing'],
+    unresolved: [
+      {
+        capability: 'alphaLayer',
+        state: 'invalid',
+        title: 'Alpha layer',
+        remedy: 'Replace the stub with the project rules.',
+        evidencePaths: ['docs/agents/alpha.md'],
+      },
+      {
+        capability: 'betaLayer',
+        state: 'pending',
+        title: null,
+        remedy: null,
+        evidencePaths: [],
+      },
+      {
+        capability: 'gammaLayer',
+        state: 'missing',
+        title: 'Gamma layer',
+        remedy: 'Record the gamma choice.',
+        evidencePaths: ['docs/agents/gamma.json', 'docs/agents/gamma.md'],
+      },
+    ],
+  });
+
+  assert.deepEqual(lines, [
+    'still unresolved:',
+    '  Alpha layer is present but not valid (evidence: docs/agents/alpha.md).',
+    '    next step: Replace the stub with the project rules.',
+    '  betaLayer is deferred as pending.',
+    '  Gamma layer is not configured yet '
+      + '(evidence: docs/agents/gamma.json, docs/agents/gamma.md).',
+    '    next step: Record the gamma choice.',
+  ]);
+});
+
+test('readiness rendering stays generic and never emits manifest control characters', async () => {
+  assert.deepEqual(
+    renderReadinessAvailability({ stillUnresolved: [], unresolved: [] }),
+    ['still unresolved: none'],
+  );
+  assert.deepEqual(
+    renderReadinessAvailability({ stillUnresolved: ['alphaLayer:missing'] }),
+    ['still unresolved: alphaLayer:missing'],
+  );
+
+  const rendered = renderReadinessAvailability({
+    stillUnresolved: ['alphaLayer:invalid'],
+    unresolved: [{
+      capability: 'alphaLayer',
+      state: 'invalid',
+      title: 'Alpha\u001b[31m layer',
+      remedy: 'Fix\u0007 it.\u001b]0;pwned\u0007',
+      evidencePaths: ['docs/agents/alpha\u001b.md'],
+    }],
+  });
+  for (const line of rendered) assert.doesNotMatch(line, CONTROL_CHARACTERS);
+  assert.match(rendered.join(' '), /Alpha \[31m layer is present but not valid/);
+  assert.match(rendered.join(' '), /next step: Fix it\. \]0;pwned/);
+
+  const source = JSON.parse(await readFile(
+    join(import.meta.dirname, '../.claude/skills/skill-manifest.json'), 'utf8',
+  ));
+  const cli = await readFile(join(import.meta.dirname, '../src/cli.mjs'), 'utf8');
+  for (const [name, entry] of Object.entries(source.readiness.capabilities)) {
+    assert.equal(cli.includes(name), false, `per-capability branch for ${name}`);
+    assert.equal(typeof entry.title, 'string', `${name} has no catalog title`);
+    assert.equal(typeof entry.remedy, 'string', `${name} has no catalog remedy`);
+    assert.doesNotMatch(entry.title, CONTROL_CHARACTERS, name);
+    assert.doesNotMatch(entry.remedy, CONTROL_CHARACTERS, name);
   }
 });
 

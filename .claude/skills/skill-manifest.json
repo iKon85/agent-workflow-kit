@@ -4,29 +4,29 @@
   "readiness": {
     "contractVersion": 1,
     "capabilities": {
-      "issueTracker": { "evidence": { "type": "sentinel", "paths": ["docs/agents/issue-tracker.md"], "allowLegacy": true } },
-      "triageLabels": { "evidence": { "type": "sentinel", "paths": ["docs/agents/triage-labels.md"], "allowLegacy": true } },
-      "managedBoard": { "allowNotApplicable": true, "evidence": { "type": "board-profile", "paths": ["docs/agents/board-sync.md"] } },
-      "specCompleteness": { "evidence": { "type": "sentinel", "paths": ["docs/conventions/spec-completeness.md"], "allowLegacy": true } },
-      "localCiRecipe": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/local-ci.md"], "allowLegacy": true } },
-      "projectReleaseProfile": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "validator": "project-release" } },
-      "securityAuditRunbook": { "evidence": { "type": "runbook-reference", "paths": ["docs/agents/skills/security-audit.md"], "allowLegacy": true } },
-      "prodTarget": { "evidence": { "type": "prod-section", "paths": ["CLAUDE.md", "AGENTS.md"] } },
-      "orchestrateWaveRecipe": { "evidence": { "type": "project-extension", "skill": "orchestrate-wave", "paths": ["docs/agents/skills/orchestrate-wave.md"], "activation": { "mode": "all-sections-filled", "sections": ["§Setup", "§Builder Commands", "§Builder Hard Rules", "§Integration Suites", "§Verify Recipe", "§Headless Login", "§Landing"] } } },
-      "specCritiqueLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/spec-self-critique.md"], "allowLegacy": true } },
-      "codeReviewLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/code-review.md"], "allowLegacy": true } },
-      "verifySpikeLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/verify-spike.md"], "allowLegacy": true } },
-      "auditSkillsLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/audit-skills.md"], "allowLegacy": true } },
-      "worktreeRecoveryLayer": { "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/git-worktree-recover.md"], "allowLegacy": true } },
-      "domainDocs": { "evidence": { "type": "sentinel", "paths": ["docs/agents/domain.md"], "allowLegacy": true } },
-      "censusChoice": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["census"] } },
-      "memoryLifecycle": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["memoryLifecycle"] } },
-      "worktreeLifecycle": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["worktreeLifecycle"] } },
-      "workflowAdvisories": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["workflowAdvisories"] } },
-      "safetyGuardrails": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["safetyGuardrails"] } },
-      "workflowSummary": { "evidence": { "type": "nonempty", "paths": ["CLAUDE.md", "AGENTS.md"] } },
-      "locProfile": { "evidence": { "type": "json", "paths": ["max-lines-allowlist.json"] } },
-      "kitOriginHint": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["kitOriginHint"] } }
+      "issueTracker": { "title": "Issue tracker layer", "remedy": "Run `/setup-workflow` and record where issues live plus how to read and write them.", "evidence": { "type": "sentinel", "paths": ["docs/agents/issue-tracker.md"], "allowLegacy": true } },
+      "triageLabels": { "title": "Triage vocabulary", "remedy": "Run `/setup-workflow` and record the label or state vocabulary triage may set.", "evidence": { "type": "sentinel", "paths": ["docs/agents/triage-labels.md"], "allowLegacy": true } },
+      "managedBoard": { "title": "Managed board profile", "remedy": "Run `/setup-workflow` to fill the board profile block, or record the capability as not applicable when the project runs no managed board.", "allowNotApplicable": true, "evidence": { "type": "board-profile", "paths": ["docs/agents/board-sync.md"] } },
+      "specCompleteness": { "title": "Spec completeness convention", "remedy": "Run `/setup-workflow` and record what makes a spec complete in this project.", "evidence": { "type": "sentinel", "paths": ["docs/conventions/spec-completeness.md"], "allowLegacy": true } },
+      "localCiRecipe": { "title": "Local CI recipe", "remedy": "Fill the project layer with the exact commands that must pass before a pull request.", "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/local-ci.md"], "allowLegacy": true } },
+      "projectReleaseProfile": { "title": "Project release profile", "remedy": "Record a `projectRelease` section naming the files that carry the version and the release tag prefix.", "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "validator": "project-release" } },
+      "securityAuditRunbook": { "title": "Security audit runbook", "remedy": "Point the security-audit layer at a real project runbook instead of the placeholder.", "evidence": { "type": "runbook-reference", "paths": ["docs/agents/skills/security-audit.md"], "allowLegacy": true } },
+      "prodTarget": { "title": "Deploy target", "remedy": "Add a `## Prod` section describing where this project deploys; `/setup-workflow` seeds it on both agent surfaces.", "evidence": { "type": "prod-section", "paths": ["CLAUDE.md", "AGENTS.md"] } },
+      "orchestrateWaveRecipe": { "title": "Wave orchestration recipe", "remedy": "Fill every section of the orchestrate-wave project extension \u2014 one empty section keeps the recipe inactive.", "evidence": { "type": "project-extension", "skill": "orchestrate-wave", "paths": ["docs/agents/skills/orchestrate-wave.md"], "activation": { "mode": "all-sections-filled", "sections": ["§Setup", "§Builder Commands", "§Builder Hard Rules", "§Integration Suites", "§Verify Recipe", "§Headless Login", "§Landing"] } } },
+      "specCritiqueLayer": { "title": "Spec critique layer", "remedy": "Run `/setup-workflow` and record the project-specific checks a spec critique must apply.", "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/spec-self-critique.md"], "allowLegacy": true } },
+      "codeReviewLayer": { "title": "Code review layer", "remedy": "Run `/setup-workflow` and record this project's standards sources and review tooling.", "evidence": { "type": "sentinel", "paths": ["docs/agents/code-review.md"], "allowLegacy": true } },
+      "verifySpikeLayer": { "title": "Verify-spike layer", "remedy": "Fill the project layer with where throwaway verification harnesses may live and how they are removed.", "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/verify-spike.md"], "allowLegacy": true } },
+      "auditSkillsLayer": { "title": "Skill audit layer", "remedy": "Fill the project layer with the skill trees and extra checks an audit must cover.", "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/audit-skills.md"], "allowLegacy": true } },
+      "worktreeRecoveryLayer": { "title": "Worktree recovery layer", "remedy": "Fill the project layer with this project's branch and worktree recovery rules.", "evidence": { "type": "sentinel", "paths": ["docs/agents/skills/git-worktree-recover.md"], "allowLegacy": true } },
+      "domainDocs": { "title": "Domain documentation layout", "remedy": "Run `/setup-workflow` and record where domain context and decision records live.", "evidence": { "type": "sentinel", "paths": ["docs/agents/domain.md"], "allowLegacy": true } },
+      "censusChoice": { "title": "Project census choice", "remedy": "Run `/setup-workflow` and answer whether the optional project census is prepared now, deferred, or disabled.", "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["census"] } },
+      "memoryLifecycle": { "title": "Memory lifecycle choice", "remedy": "Run `/setup-workflow` and record the memory roots plus the archive and recovery rules.", "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["memoryLifecycle"] } },
+      "worktreeLifecycle": { "title": "Worktree lifecycle choice", "remedy": "Run `/setup-workflow` and record where worktrees are created and how they are cleaned up.", "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["worktreeLifecycle"] } },
+      "workflowAdvisories": { "title": "Workflow advisories choice", "remedy": "Run `/setup-workflow` and record which workflow advisories this project activates.", "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["workflowAdvisories"] } },
+      "safetyGuardrails": { "title": "Safety guardrails choice", "remedy": "Run `/setup-workflow` and record which guardrail commands agent hooks may run here.", "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["safetyGuardrails"] } },
+      "workflowSummary": { "title": "Workflow overview", "remedy": "Run `/setup-workflow` to write the workflow entry-point map into the agent instruction files.", "evidence": { "type": "nonempty", "paths": ["CLAUDE.md", "AGENTS.md"] } },
+      "locProfile": { "title": "File-size profile", "remedy": "Record the maximum file length plus the curated list of existing offenders.", "evidence": { "type": "json", "paths": ["max-lines-allowlist.json"] } },
+      "kitOriginHint": { "title": "Kit-origin edit hint", "remedy": "Run `/setup-workflow` and decide whether the advisory kit-origin edit hint is activated.", "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["kitOriginHint"] } }
     }
   },
   "skills": {
@@ -50,6 +50,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "writesIntent": ["SKILL.md"] },
       "provenance": "matt-pocock"
     },
     "grill-with-docs": {
@@ -130,6 +131,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "own"
     },
     "setup-workflow": {
@@ -210,6 +212,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["INTERFACE-DESIGN.md", "SKILL.md"] },
       "provenance": "matt-pocock"
     },
     "prototype": {
@@ -240,6 +243,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["DESIGN-IT-TWICE.md"] },
       "provenance": "matt-pocock"
     },
     "domain-modeling": {
@@ -305,6 +309,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "matt-pocock"
     },
     "git-guardrails-claude-code": {
@@ -329,6 +334,7 @@
       "surfaces": [
         "claude"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "chase"
     },
     "grill-with-docs-codex": {
@@ -337,6 +343,7 @@
       "surfaces": [
         "claude"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "chase"
     },
     "codex-review": {
@@ -345,6 +352,7 @@
       "surfaces": [
         "claude"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "chase"
     },
     "codex-build": {
@@ -353,6 +361,7 @@
       "surfaces": [
         "claude"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "chase"
     },
     "codex-adapter-sync": {
@@ -372,6 +381,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "own"
     },
     "local-ci": {
@@ -397,6 +407,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["SKILL.md", "references/dispatch-subagents.md", "references/dispatch-workflow.md"] },
       "provenance": "own"
     },
     "git-worktree-recover": {

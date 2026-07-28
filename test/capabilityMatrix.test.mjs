@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
+import {
+  appendDispatchJournalEntry,
+  dispatchIdempotencyKey,
+  planDispatchRecovery,
+  readDispatchJournal,
+} from '../src/lib/dispatchJournal.mjs';
 import {
   adaptClaudeRoutingInventory,
   capabilityAdapter,
@@ -8,9 +17,24 @@ import {
   selectOrchestrationReference,
 } from '../src/lib/capabilityMatrix.mjs';
 import { dispatchResolvedRoute } from '../src/lib/routeDispatcher.mjs';
-import { createClaudeRoutingAdapter } from '../src/lib/routingAdapters/claude.mjs';
+import {
+  PLAN_AUTHORIZATION_MISMATCH,
+  PLAN_UNIT_UNAUTHORIZED,
+  authorizeDispatchPlan,
+  buildDispatchPlan,
+} from '../src/lib/dispatchPlan.mjs';
+import { ROUTING_POLICY_VERSION } from '../src/lib/routingPolicy.mjs';
+import {
+  ACCESS_GRAPH_VERSION,
+  buildAccessGraph,
+} from '../src/lib/routingAccessGraph.mjs';
+import {
+  claudeAccessAttestations,
+  createClaudeRoutingAdapter,
+} from '../src/lib/routingAdapters/claude.mjs';
 import {
   adaptCodexRoutingInventory,
+  codexAccessAttestations,
   createCodexRoutingAdapter,
 } from '../src/lib/routingAdapters/codex.mjs';
 
@@ -237,12 +261,13 @@ function routingFixture({
         }],
       },
       accessGraph: {
-        schemaVersion: 1,
+        schemaVersion: ACCESS_GRAPH_VERSION,
         revision: 'access-4',
         paths: [{
           id: `path-${transportId}`,
           providerId: route.providerId,
           modelId: route.modelId,
+          effort: route.effort,
           surfaceId: route.surfaceId,
           transportId: route.transportId,
           availability: 'available',
@@ -252,15 +277,28 @@ function routingFixture({
             observedAt: '2026-07-01T00:00:00.000Z',
             expiresAt: '2026-08-01T00:00:00.000Z',
           },
+          attestation: {
+            result: 'available',
+            failureKind: null,
+            probeId: 'capability-probe:minimal',
+            authorizationId: 'probe-authorization-1',
+            observedAt: '2026-07-01T00:00:00.000Z',
+            expiresAt: '2026-08-01T00:00:00.000Z',
+          },
         }],
       },
       policy: {
-        schemaVersion: 1,
+        schemaVersion: ROUTING_POLICY_VERSION,
         revision: 'policy-9',
         allowedSurfaces: [surfaceId],
         allowedTransports,
         switching: 'automatic',
-        optimization: 'quality',
+        roster: [{ model: route.modelId, effort: route.effort }],
+        standardRoutes: {
+          mechanical: { model: route.modelId, effort: route.effort, state: 'configured' },
+          development: { model: route.modelId, effort: route.effort, state: 'configured' },
+          judgment: { model: route.modelId, effort: route.effort, state: 'configured' },
+        },
         unreachable,
         missingInfrastructure: 'block',
       },
@@ -458,6 +496,116 @@ test('Codex capabilities require a dated host attestation and ignore foreign sur
     paths: [{ ...codexInventory(route).paths[0], surfaceId: 'claude' }],
   });
   assert.deepEqual(adapted.paths, []);
+});
+
+const CAPABILITY_DATES = Object.freeze({
+  revision: 'capability-r1',
+  observedAt: '2026-07-28T00:00:00.000Z',
+  expiresAt: '2026-07-29T00:00:00.000Z',
+});
+
+function pairInventory(route, efforts) {
+  return {
+    contractVersion: 1,
+    observedAt: CAPABILITY_DATES.observedAt,
+    host: { id: 'codex-cli', version: '0.144.6' },
+    spawnSchema: {
+      type: 'object',
+      properties: { task_name: {}, message: {}, model: {}, reasoning_effort: {} },
+    },
+    paths: efforts.map((effort) => ({
+      id: `${route.transportId}:${route.modelId}:${effort}`,
+      ...route,
+      detected: true,
+      callable: true,
+      permitted: true,
+      model: {
+        method: 'per-spawn',
+        enforced: true,
+        precedence: 'explicit-argument',
+        applied: route.modelId,
+      },
+      effort: {
+        method: 'per-spawn',
+        enforced: true,
+        precedence: 'explicit-argument',
+        applied: effort,
+      },
+    })),
+  };
+}
+
+test('a surface adapter resolves only the exact model-and-effort pair', async () => {
+  for (const [surfaceId, transportId, createAdapter] of [
+    ['claude', 'claude-native', createClaudeRoutingAdapter],
+    ['codex', 'codex-native', createCodexRoutingAdapter],
+  ]) {
+    const route = {
+      providerId: 'anthropic',
+      modelId: 'reasoning-model',
+      effort: 'low',
+      surfaceId,
+      transportId,
+    };
+    const adapter = createAdapter({
+      inventory: pairInventory(route, ['high', 'low']),
+      dispatchers: { [transportId]: async () => ({ taskId: 'pair-1' }) },
+    });
+
+    const prepared = await adapter.prepare(route);
+    assert.equal(prepared.appliedRoute.effort, 'low', surfaceId);
+    assert.equal(prepared.mismatchReason, null, surfaceId);
+
+    await assert.rejects(
+      () => adapter.prepare({ ...route, effort: 'medium' }),
+      /access pair is not attested: reasoning-model\+medium/,
+      surfaceId,
+    );
+  }
+});
+
+test('surface adapters attest dated access paths for the graph builder', () => {
+  const route = {
+    providerId: 'anthropic',
+    modelId: 'reasoning-model',
+    surfaceId: 'claude',
+    transportId: 'claude-native',
+  };
+  const attestations = claudeAccessAttestations(
+    pairInventory(route, ['high', 'low']),
+    CAPABILITY_DATES,
+  );
+
+  assert.deepEqual(attestations.map(({ effort }) => effort), ['high', 'low']);
+  assert.deepEqual(attestations[0].enforcement, { model: 'per-spawn', effort: 'per-spawn' });
+  assert.deepEqual(attestations[0].capabilityEvidence, {
+    revision: CAPABILITY_DATES.revision,
+    observedAt: CAPABILITY_DATES.observedAt,
+    expiresAt: CAPABILITY_DATES.expiresAt,
+  });
+  assert.equal(attestations[0].attested, true);
+
+  const graph = buildAccessGraph({ attestations });
+  assert.equal(graph.schemaVersion, ACCESS_GRAPH_VERSION);
+  assert.deepEqual(graph.paths.map(({ effort }) => effort), ['high', 'low']);
+  assert.deepEqual(
+    [...new Set(graph.paths.map(({ availability }) => availability))],
+    ['unknown'],
+    'detection is never authorization',
+  );
+
+  const codexRoute = { ...route, surfaceId: 'codex', transportId: 'codex-native', providerId: 'openai' };
+  const selectorLess = pairInventory(codexRoute, ['high']);
+  selectorLess.spawnSchema = { type: 'object', properties: { task_name: {}, message: {} } };
+  const unattested = codexAccessAttestations(selectorLess, CAPABILITY_DATES);
+  assert.equal(unattested[0].attested, false);
+  assert.ok(unattested[0].attestationFailures.includes('effort control is not enforced'));
+  assert.deepEqual(buildAccessGraph({ attestations: unattested }).paths, []);
+  assert.deepEqual(
+    codexAccessAttestations(pairInventory(route, ['high']), CAPABILITY_DATES),
+    [],
+    'a foreign surface never attests a Codex access path',
+  );
 });
 
 test('Claude routing inventory attests only proved controls and preserves environment precedence', () => {
@@ -742,21 +890,167 @@ test('adapter mismatch diagnostics cannot inject secrets into a blocked receipt'
   assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
 });
 
-test('unreachable handoff, inherit, and block policy outcomes do not spawn', async () => {
-  for (const unreachable of ['handoff', 'inherit', 'block']) {
-    const fixture = routingFixture({ allowedTransports: [], unreachable });
-    const result = await dispatchResolvedRoute({
-      executionId: `execution-${unreachable}`,
-      afk: false,
-      resolverInput: fixture.resolverInput,
-      adapter: { prepare: async () => { throw new Error('must not prepare'); } },
-      dispatchedAt: '2026-07-23T12:00:01.000Z',
-    });
-    const expectedStatus = unreachable === 'block' ? 'blocked' : unreachable;
-    assert.equal(result.decision.status, expectedStatus);
-    assert.equal(result.receipt.status, 'blocked');
-    assert.match(result.receipt.reason, new RegExp(`^${expectedStatus}:`));
+const NEVER_PREPARES = {
+  prepare: async () => { throw new Error('must not prepare'); },
+};
+
+/** The session default a Claude transcript attested, in the roster's own pair. */
+const SESSION_DEFAULT = Object.freeze({
+  appliedRoute: Object.freeze({
+    providerId: 'anthropic',
+    modelId: 'reasoning-model[1m]',
+    effort: 'high',
+    surfaceId: 'claude',
+    transportId: 'claude-native',
+  }),
+  attestation: Object.freeze({
+    source: 'session-transcript',
+    model: 'reasoning-model[1m]',
+    effort: 'high',
+    observedAt: '2026-07-23T11:59:00.000Z',
+  }),
+});
+
+const unreachableDispatch = (unreachable, overrides = {}) => dispatchResolvedRoute({
+  executionId: `execution-${unreachable}`,
+  afk: false,
+  resolverInput: routingFixture({ allowedTransports: [], unreachable }).resolverInput,
+  adapter: NEVER_PREPARES,
+  dispatchedAt: '2026-07-23T12:00:01.000Z',
+  ...overrides,
+});
+
+test('handoff hands the work back with the resolved intent and dispatches nothing', async () => {
+  const result = await unreachableDispatch('handoff');
+
+  assert.equal(result.decision.status, 'handoff');
+  assert.equal(result.receipt.kind, 'handoff');
+  assert.equal(result.receipt.status, 'handoff');
+  assert.deepEqual(result.receipt.handoff, { to: 'claude' });
+  assert.match(result.receipt.reason, /^handoff:/);
+  assert.equal(result.receipt.appliedRoute, null);
+  assert.equal(result.receipt.enforcement, null);
+  assert.equal(result.handoff.intent.workload, 'development');
+  assert.equal(result.dispatchResult, null);
+});
+
+test('inherit is the constrained non-AFK path and every other way into it stays closed', async () => {
+  const inherited = await unreachableDispatch('inherit', { sessionDefault: SESSION_DEFAULT });
+  assert.equal(inherited.decision.status, 'inherit');
+  assert.equal(inherited.receipt.kind, 'inherited-dispatch');
+  assert.equal(inherited.receipt.status, 'dispatched');
+  assert.deepEqual(inherited.receipt.enforcement, {
+    model: 'session-default', effort: 'session-default',
+  });
+  // The pair is identified against the roster under the normalization rule: the
+  // session reports a context variant the roster never spells out.
+  assert.equal(inherited.receipt.appliedRoute.modelId, 'reasoning-model[1m]');
+  assert.equal(inherited.receipt.attestation.source, 'session-transcript');
+  assert.equal(inherited.receipt.requestedRoute, null);
+  assert.equal(inherited.dispatchResult, null);
+
+  const foreignPair = {
+    appliedRoute: { ...SESSION_DEFAULT.appliedRoute, modelId: 'unauthorized-model' },
+    attestation: { ...SESSION_DEFAULT.attestation, model: 'unauthorized-model' },
+  };
+  const settingsFile = {
+    ...SESSION_DEFAULT,
+    // A configured value is not an applied one, so no such channel attests.
+    attestation: { ...SESSION_DEFAULT.attestation, source: 'settings-file' },
+  };
+  for (const [label, overrides, reason] of [
+    ['unattested', {}, 'inherit requires an attested session-default pair'],
+    ['configured', { sessionDefault: settingsFile },
+      'inherit requires an attested session-default pair'],
+    ['unauthorized', { sessionDefault: foreignPair },
+      'session-default pair is not in the effective roster'],
+    ['afk', { sessionDefault: SESSION_DEFAULT, afk: true },
+      'AFK dispatch cannot inherit a session default'],
+  ]) {
+    const blocked = await unreachableDispatch('inherit', overrides);
+    assert.equal(blocked.receipt.kind, 'blocked', label);
+    assert.equal(blocked.receipt.reason, reason, label);
   }
+});
+
+test('an unreachable route under a block policy fails closed', async () => {
+  for (const afk of [false, true]) {
+    const result = await unreachableDispatch('block', { afk });
+    assert.equal(result.decision.status, 'blocked');
+    assert.equal(result.receipt.kind, 'blocked');
+    assert.match(result.receipt.reason, /^blocked:/);
+    assert.equal(result.dispatchResult, null);
+  }
+});
+
+test('a dispatch references its plan authorization and a mismatch blocks before the spawn', async () => {
+  const { route, resolverInput } = routingFixture();
+  let invoked = 0;
+  const adapter = claudeAdapter(route, async () => {
+    invoked += 1;
+    return { taskId: 'native-1' };
+  });
+  const planFor = (input) => buildDispatchPlan({
+    units: [{ unitId: 'slice-1', intent: input.intent }], resolverInput: input,
+  });
+  const plan = planFor(resolverInput);
+  const record = authorizeDispatchPlan(plan, {
+    id: 'plan-authorization-22',
+    scope: 'wave-22',
+    mode: 'fixed',
+    timestamp: '2026-07-23T11:00:00.000Z',
+    actor: 'niko',
+  });
+  const dispatch = (overrides) => dispatchResolvedRoute({
+    executionId: 'execution-planned',
+    afk: true,
+    resolverInput,
+    adapter,
+    plan,
+    planAuthorization: record,
+    unitId: 'slice-1',
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+    ...overrides,
+  });
+
+  const authorized = await dispatch({});
+  assert.equal(authorized.receipt.status, 'dispatched');
+  assert.equal(authorized.receipt.authorizationId, 'plan-authorization-22');
+  assert.equal(invoked, 1);
+
+  // A unit the authorized plan never named is not covered by it.
+  const foreign = await dispatch({ unitId: 'slice-2' });
+  assert.equal(foreign.receipt.status, 'blocked');
+  assert.equal(foreign.receipt.reason, PLAN_UNIT_UNAUTHORIZED);
+  assert.equal(foreign.receipt.authorizationId, 'plan-authorization-22');
+
+  // The catalog moved under the plan: the same authorization no longer covers it.
+  const moved = routingFixture();
+  moved.resolverInput.catalog.revision = 'catalog-8';
+  const movedPlan = planFor(moved.resolverInput);
+  const stale = await dispatch({
+    resolverInput: moved.resolverInput, plan: movedPlan,
+  });
+  assert.equal(stale.receipt.status, 'blocked');
+  assert.equal(stale.receipt.reason, PLAN_AUTHORIZATION_MISMATCH);
+  assert.equal(invoked, 1, 'a mismatch blocks pending a newly attributed authorization');
+
+  // Unless the record itself permits bounded re-resolution inside that axis.
+  const bounded = await dispatch({
+    resolverInput: moved.resolverInput,
+    plan: movedPlan,
+    planAuthorization: authorizeDispatchPlan(plan, {
+      id: 'plan-authorization-23',
+      scope: 'wave-22',
+      mode: 'bounded-re-resolution',
+      bounds: { axes: ['catalog'] },
+      timestamp: '2026-07-23T11:00:00.000Z',
+      actor: 'niko',
+    }),
+  });
+  assert.equal(bounded.receipt.status, 'dispatched');
+  assert.equal(bounded.receipt.authorizationId, 'plan-authorization-23');
+  assert.equal(invoked, 2);
 });
 
 test('receipt and output never expose injected secret fixture values', async () => {
@@ -782,4 +1076,193 @@ test('receipt and output never expose injected secret fixture values', async () 
     dispatchedAt: '2026-07-23T12:00:01.000Z',
   });
   assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
+});
+
+function claudeAdapter(route, dispatch) {
+  return createClaudeRoutingAdapter({
+    inventory: {
+      contractVersion: 1,
+      paths: [{
+        id: 'native',
+        ...route,
+        detected: true,
+        callable: true,
+        permitted: true,
+        model: {
+          method: 'named-agent',
+          enforced: true,
+          precedence: 'agent-definition-over-environment',
+          applied: route.modelId,
+        },
+        effort: {
+          method: 'named-agent',
+          enforced: true,
+          precedence: 'agent-definition-over-environment',
+          applied: route.effort,
+        },
+      }],
+    },
+    dispatchers: { 'claude-native': dispatch },
+  });
+}
+
+test('a journaled dispatch records prepared then dispatched and never spawns an execution twice', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'awkit-dispatch-journal-'));
+  try {
+    const file = join(root, 'dispatch-journal.jsonl');
+    const { route, resolverInput } = routingFixture();
+    let invoked = 0;
+    const adapter = claudeAdapter(route, async () => {
+      invoked += 1;
+      return { taskId: 'native-1' };
+    });
+    const dispatch = () => dispatchResolvedRoute({
+      executionId: 'execution-journaled',
+      afk: true,
+      resolverInput,
+      adapter,
+      authorizationId: 'plan-authorization-1',
+      journal: { file, cwd: root, sessionId: '6f1a2b3c-0000-4000-8000-0123456789ab' },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+
+    const first = await dispatch();
+    assert.equal(first.receipt.status, 'dispatched');
+    assert.equal(first.receipt.kind, 'routed-dispatch');
+    assert.equal(first.receipt.authorizationId, 'plan-authorization-1');
+    assert.equal(invoked, 1);
+    const { entries } = await readDispatchJournal(file);
+    assert.deepEqual(entries.map((entry) => entry.phase), ['prepared', 'dispatched']);
+    assert.equal(entries[1].taskId, 'native-1');
+    assert.equal(entries[0].authorizationId, 'plan-authorization-1');
+
+    const replay = await dispatch();
+    assert.equal(replay.receipt.status, 'blocked');
+    assert.equal(replay.receipt.reason, 'dispatch is already recorded');
+    assert.equal(invoked, 1, 'a settled execution never spawns a second agent');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a crash after prepared blocks pending reconciliation unless the surface pre-assigned a key', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'awkit-dispatch-journal-'));
+  try {
+    const file = join(root, 'dispatch-journal.jsonl');
+    const { route, resolverInput } = routingFixture();
+    const sessionId = '6f1a2b3c-0000-4000-8000-0123456789ab';
+    let invoked = 0;
+    const adapter = claudeAdapter(route, async () => {
+      invoked += 1;
+      return { taskId: 'native-1' };
+    });
+    // What a process that died between the prepared record and the spawn leaves.
+    const crashed = async (surfaceId) => appendDispatchJournalEntry(file, {
+      phase: 'prepared',
+      executionId: `execution-${surfaceId}`,
+      surfaceId,
+      transportId: `${surfaceId}-native`,
+      cwd: root,
+      idempotencyKey: dispatchIdempotencyKey({ surfaceId, cwd: root, sessionId }),
+      authorizationId: null,
+      recordedAt: '2026-07-23T11:59:00.000Z',
+    });
+
+    await crashed('claude');
+    const unkeyed = await dispatchResolvedRoute({
+      executionId: 'execution-claude',
+      afk: true,
+      resolverInput,
+      adapter,
+      journal: { file, cwd: root },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+    assert.equal(unkeyed.receipt.status, 'blocked');
+    assert.equal(unkeyed.receipt.reason, 'dispatch is indeterminate pending reconciliation');
+    assert.equal(invoked, 0);
+
+    const keyed = await dispatchResolvedRoute({
+      executionId: 'execution-claude',
+      afk: true,
+      resolverInput,
+      adapter,
+      journal: { file, cwd: root, sessionId },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+    assert.equal(keyed.receipt.status, 'dispatched');
+    assert.equal(invoked, 1, 'the pre-assigned (cwd, session-id) key makes the retry safe');
+
+    // The same crash on Codex has no caller-assignable id to retry against.
+    const codex = routingFixture({
+      surfaceId: 'codex', providerId: 'openai', transportId: 'codex-native',
+      enforcementMethod: 'per-spawn',
+    });
+    let codexInvoked = 0;
+    await crashed('codex');
+    const blocked = await dispatchResolvedRoute({
+      executionId: 'execution-codex',
+      afk: true,
+      resolverInput: codex.resolverInput,
+      adapter: createCodexRoutingAdapter({
+        inventory: codexInventory(codex.route),
+        dispatchers: {
+          'codex-native': async () => {
+            codexInvoked += 1;
+            return { taskId: 'must-not-run' };
+          },
+        },
+      }),
+      journal: { file, cwd: root, sessionId },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+    assert.equal(blocked.receipt.status, 'blocked');
+    assert.equal(blocked.receipt.reason, 'dispatch is indeterminate pending reconciliation');
+    assert.equal(codexInvoked, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a dispatch blocked before the spawn leaves no indeterminate journal entry', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'awkit-dispatch-journal-'));
+  try {
+    const file = join(root, 'dispatch-journal.jsonl');
+    const { route, resolverInput } = routingFixture();
+    let invoked = 0;
+    const result = await dispatchResolvedRoute({
+      executionId: 'execution-blocked',
+      afk: true,
+      resolverInput,
+      adapter: createClaudeRoutingAdapter({
+        inventory: {
+          contractVersion: 1,
+          paths: [{
+            id: 'native', ...route, detected: false, callable: true, permitted: true,
+            model: {
+              method: 'named-agent', enforced: true,
+              precedence: 'agent-definition-over-environment', applied: route.modelId,
+            },
+            effort: {
+              method: 'named-agent', enforced: true,
+              precedence: 'agent-definition-over-environment', applied: route.effort,
+            },
+          }],
+        },
+        dispatchers: { 'claude-native': async () => { invoked += 1; } },
+      }),
+      journal: { file, cwd: root },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+
+    assert.equal(result.receipt.status, 'blocked');
+    assert.equal(invoked, 0);
+    const { entries } = await readDispatchJournal(file);
+    assert.deepEqual(entries.map((entry) => entry.phase), ['blocked']);
+    assert.equal(entries[0].reason, 'transport is not detected');
+    assert.deepEqual(planDispatchRecovery({
+      entries, executionId: 'execution-blocked', surfaceId: 'claude',
+    }).state, 'settled');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

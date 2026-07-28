@@ -54,6 +54,15 @@ Reconciliation is never delegated to a subagent.
 
 ## Round 2 — Build
 
+Before dispatch, resolve a provider-neutral Routing intent — an explicit intent
+block first, otherwise the workflow classifier — and authorize the whole run
+once through a Dispatch plan whose hash binds every unit, intent, route and
+reason. Dispatch only through `src/lib/routeDispatcher.mjs`, and require a
+Dispatch receipt from the shared spawn guard that carries the authorization id
+the plan recorded. A detected transport is not authorization; AFK dispatch
+stops unless requested/applied route, model/effort enforcement, environment
+precedence, and catalog/access/policy revisions are proved.
+
 For the current reconciled batch, spawn **one builder per slice**, again as one
 concurrent batch joined by an explicit wait. Give each builder the verbatim
 builder contract, its reconciled allowlist, and its required commands. Resolve

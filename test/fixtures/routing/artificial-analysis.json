@@ -11,7 +11,7 @@
     {
       "providerId": "openai",
       "modelId": "coding-model-a",
-      "reasoningEffort": "max",
+      "reasoningEffort": "unknown",
       "indexScore": 66.57,
       "uncertainty": {
         "kind": "not-reported",

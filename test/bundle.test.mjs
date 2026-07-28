@@ -1,6 +1,56 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { publishableSkills, HELPER_FILES, STUB_TARGETS } from '../src/lib/bundle.mjs';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+  publishableSkills, HELPER_FILES, STUB_TARGETS, verifyBundle, ROUTING_UNIT_PATTERN,
+} from '../src/lib/bundle.mjs';
+
+const REPO = fileURLToPath(new URL('..', import.meta.url));
+const ROUTING_UNIT = [
+  'src/lib/routingInventory.mjs',
+  'src/lib/routingInventory/snapshots/claude.json',
+  'src/lib/routingInventory/snapshots/codex.json',
+];
+
+const digest = (content) => createHash('sha256').update(content).digest('hex');
+
+/**
+ * A miniature bundle root: the real pinned routing unit plus whatever extra
+ * files a scenario needs, with a manifest that describes exactly what shipped.
+ */
+async function bundleFixture({ extra = [], skip = [] } = {}) {
+  const root = await mkdtemp(join(tmpdir(), 'awkit-verify-'));
+  const files = [];
+  for (const path of ROUTING_UNIT.filter((p) => !skip.includes(p))) {
+    const content = await readFile(join(REPO, path));
+    await mkdir(dirname(join(root, path)), { recursive: true });
+    await writeFile(join(root, path), content);
+    files.push({
+      path, kind: 'script', installRole: 'consumer', mode: 0o644, sha256: digest(content),
+    });
+  }
+  for (const { path, source, installRole = 'consumer' } of extra) {
+    await mkdir(dirname(join(root, path)), { recursive: true });
+    await writeFile(join(root, path), source);
+    files.push({
+      path, kind: 'script', installRole, mode: 0o644, sha256: digest(source),
+    });
+  }
+  const helperFiles = files.map(({ path, kind, installRole }) => ({
+    path, kind, mode: 0o644, installRole,
+  }));
+  return {
+    root, helperFiles, manifest: { kitVersion: '0.0.0', files },
+    verify: (overrides = {}) => verifyBundle({
+      bundleRoot: root, manifest: { kitVersion: '0.0.0', files }, helperFiles, ...overrides,
+    }),
+    cleanup: () => rm(root, { recursive: true, force: true }),
+  };
+}
 
 const MANIFEST = {
   skills: {
@@ -119,6 +169,105 @@ test('HELPER_FILES ships the wave claim helper exactly once', () => {
   const paths = HELPER_FILES.map(({ path }) => path);
   assert.equal(paths.filter((path) => path === 'src/lib/waveClaim.mjs').length, 1);
   assert.equal(HELPER_FILES.find((h) => h.path === 'src/lib/waveClaim.mjs').mode, 0o644);
+});
+
+test('HELPER_FILES ships the pinned routing inventory unit exactly once', () => {
+  const paths = HELPER_FILES.map(({ path }) => path);
+  for (const path of ROUTING_UNIT) {
+    assert.equal(paths.filter((candidate) => candidate === path).length, 1, path);
+    assert.equal(HELPER_FILES.find((h) => h.path === path).mode, 0o644);
+    assert.equal(HELPER_FILES.find((h) => h.path === path).installRole ?? 'consumer', 'consumer');
+    assert.ok(ROUTING_UNIT_PATTERN.test(path), path);
+  }
+});
+
+test('bundle verification proves hashes, roles, closure and an installed-consumer smoke run', async () => {
+  const fixture = await bundleFixture();
+  try {
+    const report = await fixture.verify();
+    assert.deepEqual(report.checks, {
+      manifestHashes: true, installRoles: true, importClosure: true, consumerSmoke: true,
+    });
+    assert.deepEqual(report.findings, []);
+    assert.equal(report.ok, true);
+    assert.equal(report.routingUnitCount, ROUTING_UNIT.length);
+    assert.match(report.inventoryRevision, /^sha256-[A-Za-z0-9_-]{43}$/);
+  } finally { await fixture.cleanup(); }
+});
+
+test('bundle verification fails when a shipped byte no longer matches the package manifest', async () => {
+  const fixture = await bundleFixture();
+  try {
+    await writeFile(join(fixture.root, 'src/lib/routingInventory.mjs'),
+      `${await readFile(join(fixture.root, 'src/lib/routingInventory.mjs'), 'utf8')}\n// drift\n`);
+    const report = await fixture.verify();
+    assert.equal(report.ok, false);
+    assert.equal(report.checks.manifestHashes, false);
+    assert.ok(report.findings.some((f) => f.check === 'manifestHashes'
+      && f.detail.includes('src/lib/routingInventory.mjs')));
+  } finally { await fixture.cleanup(); }
+});
+
+test('bundle verification fails when a shipped file is missing from the bundle root', async () => {
+  const fixture = await bundleFixture();
+  try {
+    await rm(join(fixture.root, 'src/lib/routingInventory/snapshots/codex.json'));
+    const report = await fixture.verify();
+    assert.equal(report.ok, false);
+    assert.equal(report.checks.manifestHashes, false);
+    // the snapshot the module resolves beside itself is gone, so the installed
+    // consumer cannot build an inventory either
+    assert.equal(report.checks.consumerSmoke, false);
+    assert.equal(report.inventoryRevision, null);
+  } finally { await fixture.cleanup(); }
+});
+
+test('bundle verification fails when a consumer import escapes the installed file set', async () => {
+  const fixture = await bundleFixture({
+    extra: [
+      { path: 'src/lib/consumerEntry.mjs', source: "import './maintainerOnly.mjs';\nexport const x = 1;\n" },
+      { path: 'src/lib/maintainerOnly.mjs', source: 'export const y = 2;\n', installRole: 'maintainer' },
+    ],
+  });
+  try {
+    const report = await fixture.verify();
+    assert.equal(report.ok, false);
+    assert.equal(report.checks.importClosure, false);
+    assert.ok(report.findings.some((f) => f.check === 'importClosure'
+      && f.detail.includes('src/lib/consumerEntry.mjs')));
+  } finally { await fixture.cleanup(); }
+});
+
+test('bundle verification fails on an unknown install role or a role that drifted from its declaration', async () => {
+  const fixture = await bundleFixture({
+    extra: [{ path: 'src/lib/oddRole.mjs', source: 'export const z = 3;\n' }],
+  });
+  try {
+    const stray = fixture.manifest.files.find(({ path }) => path === 'src/lib/oddRole.mjs');
+    stray.installRole = 'operator';
+    const unknownRole = await fixture.verify();
+    assert.equal(unknownRole.checks.installRoles, false);
+    assert.ok(unknownRole.findings.some((f) => f.detail.includes('operator')));
+
+    stray.installRole = 'consumer';
+    fixture.helperFiles.find(({ path }) => path === 'src/lib/oddRole.mjs').installRole = 'maintainer';
+    const drifted = await fixture.verify();
+    assert.equal(drifted.checks.installRoles, false);
+    assert.ok(drifted.findings.some((f) => f.detail.includes('src/lib/oddRole.mjs')));
+  } finally { await fixture.cleanup(); }
+});
+
+test('bundle verification fails when the routing unit does not ship at all', async () => {
+  const fixture = await bundleFixture({
+    skip: ROUTING_UNIT,
+    extra: [{ path: 'src/lib/unrelated.mjs', source: 'export const q = 4;\n' }],
+  });
+  try {
+    const report = await fixture.verify();
+    assert.equal(report.ok, false);
+    assert.equal(report.checks.consumerSmoke, false);
+    assert.equal(report.routingUnitCount, 0);
+  } finally { await fixture.cleanup(); }
 });
 
 test('STUB_TARGETS lists docs to seed but never board-sync.md', () => {

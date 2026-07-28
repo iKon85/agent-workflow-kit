@@ -683,6 +683,65 @@ test('dry-run previews readiness adoption without creating the candidate stub', 
   }
 });
 
+test('readiness reports structured capability entries beside the unchanged legacy arrays', async () => {
+  const oldReadiness = { readiness: { contractVersion: 1, capabilities: {} }, skills: {} };
+  const nextReadiness = {
+    readiness: { contractVersion: 1, capabilities: {
+      localCiRecipe: {
+        title: 'Local CI\u001b[31m recipe',
+        remedy: 'Record the exact commands\tthat gate a pull request.',
+        evidence: {
+          type: 'sentinel', paths: ['docs/agents/skills/local-ci.md'], allowLegacy: true,
+        },
+      },
+      domainDocs: {
+        evidence: { type: 'sentinel', paths: ['docs/agents/domain.md'], allowLegacy: true },
+      },
+    } },
+    skills: { 'local-ci': { readiness: { required: ['localCiRecipe'] } } },
+  };
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await setKitReadiness(kit, oldReadiness);
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await setKitReadiness(kit, nextReadiness);
+
+    const result = await update({ kitRoot: kit, consumerRoot: consumer, dryRun: true });
+
+    assert.equal(result.state, 'preview');
+    assert.deepEqual(result.availability.newlyAvailable, []);
+    assert.deepEqual(result.availability.newlyDegraded, []);
+    assert.deepEqual(result.availability.newlyBlocked, ['local-ci']);
+    assert.deepEqual(result.availability.stillUnresolved, [
+      'domainDocs:invalid', 'localCiRecipe:invalid',
+    ]);
+    assert.deepEqual(result.availability.unresolved, [
+      {
+        capability: 'domainDocs',
+        state: 'invalid',
+        title: null,
+        remedy: null,
+        evidencePaths: ['docs/agents/domain.md'],
+      },
+      {
+        capability: 'localCiRecipe',
+        state: 'invalid',
+        title: 'Local CI [31m recipe',
+        remedy: 'Record the exact commands that gate a pull request.',
+        evidencePaths: ['docs/agents/skills/local-ci.md'],
+      },
+    ]);
+    assert.doesNotMatch(
+      JSON.stringify(result.availability.unresolved),
+      /[\u0000-\u001f\u007f-\u009f]/,
+      'manifest text reaches no consumer with control characters',
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
 test('update mirrors one existing Prod section across Claude and Codex surfaces idempotently', async () => {
   const readiness = {
     readiness: { contractVersion: 1, capabilities: {

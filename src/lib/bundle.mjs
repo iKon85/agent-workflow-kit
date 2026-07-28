@@ -1,5 +1,8 @@
-import { readdir } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { createHash } from 'node:crypto';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join, posix, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // The planning skills are not usable without their helper ecosystem (Codex R2#1).
 // These ship alongside the skills. Paths are relative to the bundle/consumer root.
@@ -91,18 +94,34 @@ export const HELPER_FILES = [
   // These modules form one consumer unit; omitting one leaves shipped dispatch
   // prose pointing at a resolver or adapter that cannot execute.
   { path: 'src/commands/routing-policy-update.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/commands/routing-status.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/agentSurfaceRegistry.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/dispatchJournal.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/dispatchPlan.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/dispatchReceipt.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/frontendWorkloads.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routeDispatcher.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/safeText.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingAccessGraph.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingAccessGraphStore.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingAdapters/claude.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingAdapters/codex.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingAdapters/hostBridge.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingCatalog.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingDispatchLease.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingEvidenceCache.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingIntent.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingIntentClassifier.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingPolicy.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingProfile.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingProfilePolicy.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingProfileStorage.mjs', kind: 'script', mode: 0o644 },
+  // Pinned Model inventory: the module resolves its provenance-hashed source
+  // snapshots beside itself, so the three files are one indivisible unit. A
+  // consumer gets the model-and-effort table without any discovery request.
+  { path: 'src/lib/routingInventory.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingInventory/snapshots/claude.json', kind: 'doc', mode: 0o644 },
+  { path: 'src/lib/routingInventory/snapshots/codex.json', kind: 'doc', mode: 0o644 },
   { path: 'src/lib/routingResolver.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingSources/artificialAnalysis.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingSources/benchlm.mjs', kind: 'script', mode: 0o644 },
@@ -314,4 +333,141 @@ export async function collectBundle(repoRoot, manifest) {
     });
   }
   return { files, stubs: STUB_TARGETS };
+}
+
+// --- bundle verification ---------------------------------------------------
+// Counting files proves nothing about a shipped unit. Verification proves four
+// things about a built bundle: the package manifest describes the bytes that
+// shipped, every install role is known and matches its declaration, no consumer
+// module imports outside the set a consumer actually receives, and the routing
+// unit still works when it is installed as a consumer would install it.
+
+export const INSTALL_ROLES = Object.freeze(['consumer', 'maintainer']);
+const CONSUMER_ROLE = 'consumer';
+
+/** The routing unit an installed consumer must receive whole. */
+export const ROUTING_UNIT_PATTERN =
+  /^src\/(?:lib\/routing|lib\/(?:routeDispatcher|dispatchReceipt|dispatchJournal|dispatchPlan)\.mjs$|commands\/routing-)/;
+const ROUTING_INVENTORY_MODULE = 'src/lib/routingInventory.mjs';
+// `from './x'`, the side-effect `import './x'`, and dynamic `import('./x')`.
+const RELATIVE_IMPORT = /\b(?:from|import)\s*\(?\s*['"](\.[^'"]+)['"]/g;
+
+const roleOf = (entry) => entry.installRole ?? CONSUMER_ROLE;
+const isConsumer = (entry) => roleOf(entry) === CONSUMER_ROLE;
+
+async function checkManifestHashes(bundleRoot, entries, findings) {
+  for (const entry of entries) {
+    let content;
+    try {
+      content = await readFile(join(bundleRoot, entry.path));
+    } catch (error) {
+      findings.push(`shipped file missing from the bundle: ${entry.path} (${error.code ?? error.message})`);
+      continue;
+    }
+    const digest = createHash('sha256').update(content).digest('hex');
+    if (digest !== entry.sha256) findings.push(`package-manifest hash mismatch: ${entry.path}`);
+  }
+}
+
+function checkInstallRoles(entries, helperFiles, findings) {
+  const declared = new Map(helperFiles.map((h) => [h.path, h.installRole ?? CONSUMER_ROLE]));
+  for (const entry of entries) {
+    const role = roleOf(entry);
+    if (!INSTALL_ROLES.includes(role)) {
+      findings.push(`unknown install role: ${entry.path} -> ${role}`);
+      continue;
+    }
+    const declaredRole = declared.get(entry.path);
+    if (declaredRole && declaredRole !== role) {
+      findings.push(`install role drift: ${entry.path} declared ${declaredRole}, shipped ${role}`);
+    }
+    if (entry.kind === 'skill' && !entry.ownerSkill) {
+      findings.push(`skill file without an owning skill: ${entry.path}`);
+    }
+  }
+}
+
+async function checkImportClosure(bundleRoot, entries, findings) {
+  const installed = new Set(entries.filter(isConsumer).map(({ path }) => path));
+  for (const path of installed) {
+    if (!path.endsWith('.mjs')) continue;
+    let source;
+    try {
+      source = await readFile(join(bundleRoot, path), 'utf8');
+    } catch { continue; } // already reported by the hash check
+    for (const [, specifier] of source.matchAll(RELATIVE_IMPORT)) {
+      const resolved = posix.normalize(posix.join(posix.dirname(path), specifier));
+      if (!installed.has(resolved)) {
+        findings.push(`import escapes the installed consumer: ${path} -> ${specifier}`);
+      }
+    }
+  }
+}
+
+/** Materialize exactly what `init` would copy into a consumer. */
+async function materializeConsumerInstall(bundleRoot, entries) {
+  const root = await mkdtemp(join(tmpdir(), 'awkit-consumer-smoke-'));
+  for (const { path } of entries.filter(isConsumer)) {
+    await mkdir(dirname(join(root, path)), { recursive: true });
+    // A file the manifest promises but the bundle lacks is already a hash
+    // finding; the smoke run then fails on its own missing dependency.
+    await copyFile(join(bundleRoot, path), join(root, path)).catch(() => {});
+  }
+  return root;
+}
+
+/** Load the routing unit out of an installed consumer and use it once. */
+export async function smokeRoutingUnit(installRoot, routingPaths) {
+  for (const path of routingPaths.filter((candidate) => candidate.endsWith('.mjs'))) {
+    await import(pathToFileURL(join(installRoot, path)).href);
+  }
+  const module = await import(pathToFileURL(join(installRoot, ROUTING_INVENTORY_MODULE)).href);
+  const inventory = await module.loadRoutingInventory();
+  if (!inventory.pairs.length) {
+    throw new Error('the installed routing inventory ships no model-and-effort pair');
+  }
+  return { revision: inventory.revision, pairCount: inventory.pairs.length };
+}
+
+/**
+ * Verify a built bundle. Returns a report; the caller decides what a red means.
+ */
+export async function verifyBundle({
+  bundleRoot, manifest, helperFiles = HELPER_FILES, smoke = smokeRoutingUnit,
+}) {
+  const entries = manifest.files ?? [];
+  const findings = {
+    manifestHashes: [], installRoles: [], importClosure: [], consumerSmoke: [],
+  };
+  await checkManifestHashes(bundleRoot, entries, findings.manifestHashes);
+  checkInstallRoles(entries, helperFiles, findings.installRoles);
+  await checkImportClosure(bundleRoot, entries, findings.importClosure);
+
+  const routingPaths = entries.filter(isConsumer)
+    .map(({ path }) => path).filter((path) => ROUTING_UNIT_PATTERN.test(path));
+  let smoked = null;
+  if (!routingPaths.includes(ROUTING_INVENTORY_MODULE)) {
+    findings.consumerSmoke.push(`the routing unit ships no ${ROUTING_INVENTORY_MODULE}`);
+  } else {
+    const installRoot = await materializeConsumerInstall(bundleRoot, entries);
+    try {
+      smoked = await smoke(installRoot, routingPaths);
+    } catch (error) {
+      findings.consumerSmoke.push(`installed-consumer smoke run failed: ${error.message}`);
+    } finally {
+      await rm(installRoot, { recursive: true, force: true });
+    }
+  }
+
+  const checks = Object.fromEntries(
+    Object.entries(findings).map(([check, list]) => [check, list.length === 0]),
+  );
+  return {
+    ok: Object.values(checks).every(Boolean),
+    checks,
+    findings: Object.entries(findings)
+      .flatMap(([check, list]) => list.map((detail) => ({ check, detail }))),
+    routingUnitCount: routingPaths.length,
+    inventoryRevision: smoked?.revision ?? null,
+  };
 }

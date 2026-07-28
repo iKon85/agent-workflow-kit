@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -236,6 +237,37 @@ async function fixture() {
   return root;
 }
 
+const ROUTING_UNIT = [
+  'src/lib/routingInventory.mjs',
+  'src/lib/routingInventory/snapshots/claude.json',
+  'src/lib/routingInventory/snapshots/codex.json',
+];
+
+/**
+ * A buildBundle stub that materializes the real pinned routing unit, so the
+ * release path runs the real bundle verification against real bytes.
+ */
+async function bundleStub(kitVersion, { tamper = false } = {}) {
+  const bundleRoot = await mkdtemp(join(tmpdir(), 'kit-release-bundle-'));
+  const files = [];
+  for (const path of ROUTING_UNIT) {
+    const content = await readFile(join(REPO, path));
+    await mkdir(dirname(join(bundleRoot, path)), { recursive: true });
+    await writeFile(join(bundleRoot, path), content);
+    files.push({
+      path, kind: 'script', installRole: 'consumer', mode: 0o644,
+      sha256: tamper && path.endsWith('.mjs')
+        ? '0'.repeat(64)
+        : createHash('sha256').update(content).digest('hex'),
+    });
+  }
+  return async () => ({
+    manifest: { kitVersion, files },
+    bundleRoot,
+    cleanup: () => rm(bundleRoot, { recursive: true, force: true }),
+  });
+}
+
 test('confirmed target updates package, release notes, and regenerated manifest', async () => {
   const root = await fixture();
   const commands = [];
@@ -243,7 +275,7 @@ test('confirmed target updates package, release notes, and regenerated manifest'
     const result = await prepareRelease({
       repoRoot: root, targetVersion: '1.3.0',
       delta: { added: ['scripts/new.mjs'], removed: [], changed: ['README.md'] },
-      buildManifest: async () => ({ kitVersion: '1.3.0', files: [{ path: 'scripts/new.mjs' }] }),
+      buildBundle: await bundleStub('1.3.0'),
       run: async (command, args) => commands.push([command, ...args].join(' ')),
     });
     assert.equal(result.status, 'prepared');
@@ -261,13 +293,57 @@ test('a failed gate leaves an explainable target that retries without another bu
   const options = {
     repoRoot: root, targetVersion: '1.2.4',
     delta: { added: [], removed: [], changed: ['README.md'] },
-    buildManifest: async () => ({ kitVersion: '1.2.4', files: [] }),
   };
   try {
-    await assert.rejects(prepareRelease({ ...options, run: async () => { throw new Error('test red'); } }), /test red/);
+    await assert.rejects(prepareRelease({
+      ...options,
+      buildBundle: await bundleStub('1.2.4'),
+      run: async () => { throw new Error('test red'); },
+    }), /test red/);
     assert.equal(JSON.parse(await readFile(join(root, 'package.json'))).version, '1.2.4');
-    const retried = await prepareRelease({ ...options, run: async () => {} });
+    const retried = await prepareRelease({
+      ...options, buildBundle: await bundleStub('1.2.4'), run: async () => {},
+    });
     assert.equal(retried.status, 'resumed');
     assert.equal(JSON.parse(await readFile(join(root, 'package.json'))).version, '1.2.4');
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('release preparation consumes the pinned inventory and makes no network call', async () => {
+  const root = await fixture();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = () => { throw new Error('release preparation must never reach the network'); };
+  try {
+    const result = await prepareRelease({
+      repoRoot: root, targetVersion: '1.3.0',
+      delta: { added: [], removed: [], changed: [] },
+      buildBundle: await bundleStub('1.3.0'),
+      run: async () => {},
+    });
+    assert.match(result.inventoryRevision, /^sha256-[A-Za-z0-9_-]{43}$/);
+    const { loadRoutingInventory } = await import('../src/lib/routingInventory.mjs');
+    assert.equal(result.inventoryRevision, (await loadRoutingInventory()).revision);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('release preparation refuses a bundle that fails verification', async () => {
+  const root = await fixture();
+  const commands = [];
+  try {
+    await assert.rejects(prepareRelease({
+      repoRoot: root, targetVersion: '1.3.0',
+      delta: { added: [], removed: [], changed: [] },
+      buildBundle: await bundleStub('1.3.0', { tamper: true }),
+      run: async (command, args) => commands.push([command, ...args].join(' ')),
+    }), /bundle verification failed[\s\S]*manifestHashes/);
+    assert.deepEqual(commands, [], 'the gates must not run on an unverified bundle');
+    assert.equal(
+      JSON.parse(await readFile(join(root, 'agent-workflow-kit.package.json'))).kitVersion,
+      '1.2.3',
+      'an unverified bundle never overwrites the checked-in install manifest',
+    );
   } finally { await rm(root, { recursive: true, force: true }); }
 });

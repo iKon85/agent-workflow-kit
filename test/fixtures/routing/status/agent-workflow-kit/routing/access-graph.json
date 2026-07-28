@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 2,
+  "revision": "access-routing-status-fixture-r1",
+  "paths": [
+    {
+      "id": "claude-code:native:opus:high",
+      "surfaceId": "claude-code",
+      "providerId": "anthropic",
+      "modelId": "opus",
+      "effort": "high",
+      "transportId": "native",
+      "availability": "available",
+      "enforcement": { "model": "named-agent", "effort": "named-agent" },
+      "capabilityEvidence": {
+        "revision": "capability-routing-status-fixture-r1",
+        "observedAt": "2026-07-26T00:00:00.000Z",
+        "expiresAt": "2036-08-26T00:00:00.000Z"
+      },
+      "attestation": {
+        "result": "available",
+        "failureKind": null,
+        "probeId": "probe-opus-high",
+        "authorizationId": "authorization-routing-status-fixture",
+        "observedAt": "2026-07-26T00:00:00.000Z",
+        "expiresAt": "2036-08-26T00:00:00.000Z"
+      }
+    },
+    {
+      "id": "claude-code:native:sonnet:medium",
+      "surfaceId": "claude-code",
+      "providerId": "anthropic",
+      "modelId": "sonnet",
+      "effort": "medium",
+      "transportId": "native",
+      "availability": "available",
+      "enforcement": { "model": "named-agent", "effort": "named-agent" },
+      "capabilityEvidence": {
+        "revision": "capability-routing-status-fixture-r1",
+        "observedAt": "2026-07-26T00:00:00.000Z",
+        "expiresAt": "2036-08-26T00:00:00.000Z"
+      },
+      "attestation": {
+        "result": "available",
+        "failureKind": null,
+        "probeId": "probe-sonnet-medium",
+        "authorizationId": "authorization-routing-status-fixture",
+        "observedAt": "2026-07-26T00:00:00.000Z",
+        "expiresAt": "2036-08-26T00:00:00.000Z"
+      }
+    }
+  ]
+}

@@ -1,6 +1,14 @@
+import {
+  assertPublishedEffort,
+  evidenceFreshness,
+  evidenceIdentity,
+  evidenceSourceClaim,
+} from '../routingCatalog.mjs';
+
 const SOURCE_ID = 'artificial-analysis-coding-agents';
 const OWNER = 'Artificial Analysis';
 const ARTIFACT_URL = 'https://artificialanalysis.ai/agents/coding-agents';
+const WORKLOAD = evidenceIdentity({ workload: 'repository-repair', axis: 'functional' });
 
 function object(value, field) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -60,10 +68,13 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
       row.modelId,
       `Artificial Analysis configurations[${index}].modelId`,
     );
-    const effort = string(
-      row.reasoningEffort,
-      `Artificial Analysis configurations[${index}].effort`,
-    );
+    const effort = assertPublishedEffort({
+      sourceId: SOURCE_ID,
+      effort: string(
+        row.reasoningEffort,
+        `Artificial Analysis configurations[${index}].effort`,
+      ),
+    });
     const id = `${SOURCE_ID}:${benchmarkVersion}:${providerId}:${modelId}:${effort}`;
     if (observationIds.has(id)) {
       throw new TypeError(`duplicate Artificial Analysis observation: ${id}`);
@@ -79,7 +90,7 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
       providerId,
       modelId,
       effort,
-      workload: 'development',
+      workload: WORKLOAD,
       harness: { id: harnessId, version: harnessVersion },
       score: number(
         row.indexScore,
@@ -103,14 +114,14 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
           `Artificial Analysis configurations[${index}].uncertainty.value`,
         ),
       },
-      freshness: { observedAt, expiresAt },
+      freshness: evidenceFreshness({ sourceId: SOURCE_ID, observedAt }),
       cost: {
         amount: number(
           row.costPerTaskUsd,
           `Artificial Analysis configurations[${index}].costPerTaskUsd`,
         ),
         currency: 'USD',
-        unit: 'task',
+        unit: 'attempt',
       },
     });
   });
@@ -125,5 +136,6 @@ export const artificialAnalysisSource = Object.freeze({
   sourceId: SOURCE_ID,
   owner: OWNER,
   artifactUrl: ARTIFACT_URL,
+  claim: evidenceSourceClaim(SOURCE_ID),
   ingest,
 });

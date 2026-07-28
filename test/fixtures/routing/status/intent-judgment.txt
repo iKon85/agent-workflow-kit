@@ -1,0 +1,7 @@
+intent-version: 2
+routing-intent: judgment
+reasoning-intent: deep
+task-shape: single-step
+risk: high
+autonomy-requirement: supervised
+context-need: focused
