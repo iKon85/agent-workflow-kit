@@ -44,6 +44,9 @@ import {
   composeRoutingProfile,
 } from '../src/lib/routingProfile.mjs';
 import {
+  BEST_OVERALL_STATES,
+  ROUTE_DECISION_ORIGINS,
+  ROUTE_DECISION_STATES,
   ROUTE_DECISION_VERSION,
   resolveRoute,
 } from '../src/lib/routingResolver.mjs';
@@ -891,8 +894,18 @@ test('route decision reports best overall separately from best currently executa
   const decision = resolveRoute(fixture);
 
   assert.equal(decision.schemaVersion, ROUTE_DECISION_VERSION);
+  assert.equal(ROUTE_DECISION_VERSION, 2);
+  // Provenance and execution state are orthogonal axes, each with its own vocabulary.
+  assert.deepEqual([...ROUTE_DECISION_ORIGINS], ['evidence', 'standard']);
+  assert.deepEqual([...ROUTE_DECISION_STATES], [
+    'ready', 'approval-required', 'verification-required', 'blocked',
+  ]);
+  assert.deepEqual([...BEST_OVERALL_STATES], ['resolved', 'ambiguous', 'unavailable']);
   assert.equal(decision.status, 'ready');
-  assert.equal(decision.bestOverall.modelId, 'model-b');
+  assert.equal(decision.origin, 'evidence');
+  assert.equal(decision.state, 'ready');
+  assert.equal(decision.bestOverall.status, 'resolved');
+  assert.equal(decision.bestOverall.route.modelId, 'model-b');
   assert.equal(decision.bestExecutable.modelId, 'model-a');
   assert.equal(decision.bestExecutable.transportId, 'native');
   assert.deepEqual(fixture.catalog, before, 'personal policy must not mutate catalog evidence');
@@ -946,9 +959,18 @@ test('frontend evidence selection intersects the requested workload and axis wit
     qualityAxes: ['visual-preference', 'accessibility'],
     frontendDomain: 'marketing',
   }).evidenceSelection;
+  // The roster authorizes what may be dispatched, so it names the fixture's own pairs.
+  const frontendPolicy = routingPolicy({
+    roster: [
+      policyPair('model-a'),
+      policyPair('model-b'),
+      ...models.map(({ modelId }) => policyPair(modelId)),
+    ],
+  });
   const greenfield = resolveRoute(resolverFixture({
     intent: routingIntent({ evidenceSelection: greenfieldSelection }),
     catalog,
+    policy: frontendPolicy,
     accessGraph: {
       schemaVersion: ACCESS_GRAPH_VERSION,
       revision: 'frontend-access-r1',
@@ -957,10 +979,10 @@ test('frontend evidence selection intersects the requested workload and axis wit
   }));
   assert.equal(greenfield.intent.workload, 'development');
   assert.equal(greenfield.status, 'ready');
-  assert.ok(greenfield.bestOverall);
-  assert.match(greenfield.bestOverall.workload, /visual-preference$/);
-  assert.match(greenfield.bestOverall.reason, /frontend-greenfield:marketing:visual-preference/);
-  assert.notEqual(greenfield.bestOverall.observationId, wrongAxis.id);
+  assert.equal(greenfield.bestOverall.status, 'resolved');
+  assert.match(greenfield.bestOverall.route.workload, /visual-preference$/);
+  assert.match(greenfield.bestOverall.route.reason, /frontend-greenfield:marketing:visual-preference/);
+  assert.notEqual(greenfield.bestOverall.route.observationId, wrongAxis.id);
 
   const repairSelection = classifyFrontendWorkload({
     lifecycle: 'repair',
@@ -970,6 +992,7 @@ test('frontend evidence selection intersects the requested workload and axis wit
   const repair = resolveRoute(resolverFixture({
     intent: routingIntent({ evidenceSelection: repairSelection }),
     catalog,
+    policy: frontendPolicy,
     accessGraph: {
       schemaVersion: ACCESS_GRAPH_VERSION,
       revision: 'frontend-access-r1',
@@ -977,10 +1000,10 @@ test('frontend evidence selection intersects the requested workload and axis wit
     },
   }));
   assert.equal(repair.status, 'ready');
-  assert.ok(repair.bestOverall);
-  assert.match(repair.bestOverall.workload, /frontend-repository-repair:general:functional/);
-  assert.match(repair.bestOverall.reason, /frontend-repository-repair:general:functional/);
-  assert.equal(repair.bestOverall.source.id, openHandsFrontendSource.sourceId);
+  assert.equal(repair.bestOverall.status, 'resolved');
+  assert.match(repair.bestOverall.route.workload, /frontend-repository-repair:general:functional/);
+  assert.match(repair.bestOverall.route.reason, /frontend-repository-repair:general:functional/);
+  assert.equal(repair.bestOverall.route.source.id, openHandsFrontendSource.sourceId);
 });
 
 test('routing intent keeps evidence selection provider-neutral and rejects unknown nested fields', () => {
@@ -1065,6 +1088,212 @@ test('ask-before-switching requires approval for a cross-surface route', () => {
   const sameSurface = resolveRoute(resolverFixture({ policy }));
   assert.equal(sameSurface.status, 'ready');
   assert.equal(sameSurface.bestExecutable.surfaceId, 'codex');
+});
+
+test('a model-and-effort pair outside the roster is refused before any executable ranking', () => {
+  const outsideRoster = resolveRoute(resolverFixture({
+    policy: routingPolicy({
+      roster: [policyPair('model-b')],
+      standardRoutes: {
+        mechanical: policyRoute('model-b'),
+        development: policyRoute('model-b'),
+        judgment: policyRoute('model-b'),
+      },
+    }),
+  }));
+
+  assert.equal(outsideRoster.status, 'blocked');
+  assert.equal(outsideRoster.bestExecutable, null);
+  assert.ok(outsideRoster.blockers.includes('pair-not-authorized:model-a+high'));
+  // The roster authorizes dispatch; it never edits the evidence view.
+  assert.equal(outsideRoster.bestOverall.status, 'resolved');
+  assert.equal(outsideRoster.bestOverall.route.modelId, 'model-b');
+
+  // The pair is the unit: the same model at an effort the roster never admitted stays refused.
+  const otherEffort = resolveRoute(resolverFixture({
+    policy: routingPolicy({
+      roster: [policyPair('model-a', 'low'), policyPair('model-b')],
+      standardRoutes: {
+        mechanical: policyRoute('model-a', 'low'),
+        development: policyRoute('model-a', 'low'),
+        judgment: policyRoute('model-b'),
+      },
+    }),
+  }));
+  assert.equal(otherEffort.bestExecutable, null);
+  assert.ok(otherEffort.blockers.includes('pair-not-authorized:model-a+high'));
+});
+
+test('candidates from different cohorts are never compared and the Standard route decides', () => {
+  const decision = resolveRoute(resolverFixture({
+    catalog: {
+      schemaVersion: EVIDENCE_CATALOG_VERSION,
+      revision: 'catalog-r8',
+      models: [
+        { providerId: 'provider-a', modelId: 'model-a' },
+        { providerId: 'provider-b', modelId: 'model-b' },
+      ],
+      observations: [
+        observation(),
+        observation({
+          id: 'other-harness:model-b:high',
+          providerId: 'provider-b',
+          modelId: 'model-b',
+          score: 0.98,
+          harness: { id: 'other-harness', version: '9.0' },
+        }),
+      ],
+    },
+    accessGraph: {
+      schemaVersion: ACCESS_GRAPH_VERSION,
+      revision: 'access-r5',
+      paths: [
+        accessPath(),
+        accessPath({
+          id: 'codex:native:model-b',
+          providerId: 'provider-b',
+          modelId: 'model-b',
+        }),
+      ],
+    },
+  }));
+
+  assert.equal(decision.bestOverall.status, 'ambiguous');
+  assert.equal(decision.bestOverall.route, null, 'no single best across incomparable cohorts');
+  assert.deepEqual(
+    decision.bestOverall.cohorts.map((entry) => entry.modelId).sort(),
+    ['model-a', 'model-b'],
+  );
+  // Not an arbitrary pick: the Standard route decides and the decision says so.
+  assert.equal(decision.origin, 'standard');
+  assert.equal(decision.state, 'ready');
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.reason, 'ambiguous-evidence');
+  assert.equal(decision.selected.workloadClass, 'development');
+  assert.equal(decision.bestExecutable.modelId, 'model-a');
+  assert.equal(decision.bestExecutable.score, undefined, 'a fallback fabricates no evidence');
+  assert.equal(decision.bestExecutable.observationId, undefined);
+});
+
+test('inside one cohort uncertainty decides comparability and cost only breaks the tie', () => {
+  const cohortCatalog = {
+    schemaVersion: EVIDENCE_CATALOG_VERSION,
+    revision: 'catalog-r9',
+    models: [
+      { providerId: 'provider-a', modelId: 'model-a' },
+      { providerId: 'provider-b', modelId: 'model-b' },
+      { providerId: 'provider-c', modelId: 'model-c' },
+    ],
+    observations: [
+      observation({ id: 'cohort:model-a', score: 0.9, cost: { amount: 5, currency: 'USD', unit: 'run' } }),
+      observation({
+        id: 'cohort:model-b',
+        providerId: 'provider-b',
+        modelId: 'model-b',
+        score: 0.89,
+        cost: { amount: 1, currency: 'USD', unit: 'run' },
+      }),
+      observation({
+        id: 'cohort:model-c',
+        providerId: 'provider-c',
+        modelId: 'model-c',
+        score: 0.4,
+        cost: { amount: 0, currency: 'USD', unit: 'run' },
+      }),
+    ],
+  };
+  const decision = resolveRoute(resolverFixture({ catalog: cohortCatalog }));
+
+  assert.equal(decision.bestOverall.cohorts.length, 1, 'one comparable cohort');
+  assert.equal(decision.bestOverall.status, 'resolved');
+  // 0.90 vs 0.89 sits inside the combined uncertainty, so the cheaper pair wins;
+  // 0.40 is decisively worse and its zero cost never buys it the route.
+  assert.equal(decision.bestOverall.route.modelId, 'model-b');
+});
+
+test('an intent no evidence covers reports bestOverall unavailable and names the Standard route', () => {
+  const decision = resolveRoute(resolverFixture({
+    intent: routingIntent({ workload: 'judgment' }),
+  }));
+
+  assert.equal(decision.bestOverall.status, 'unavailable');
+  assert.equal(decision.bestOverall.route, null);
+  assert.deepEqual(decision.bestOverall.cohorts, []);
+  assert.equal(decision.origin, 'standard');
+  assert.equal(decision.reason, 'no-evidence-route');
+  assert.equal(decision.selected.workloadClass, 'judgment');
+  assert.equal(decision.selected.modelId, 'model-b');
+  assert.equal(decision.state, 'blocked', 'the judgment Standard route has no attested path here');
+  assert.equal(decision.status, 'blocked');
+  assert.equal(decision.bestExecutable, null);
+  assert.ok(decision.blockers.includes('standard-route-unreachable:model-b+high'));
+});
+
+test('ask-before-switching resolves an approval-required candidate and blocks without approval', () => {
+  const approvalFixture = (approval) => resolverFixture({
+    accessGraph: {
+      schemaVersion: ACCESS_GRAPH_VERSION,
+      revision: 'access-r4',
+      paths: [accessPath({
+        id: 'claude:plugin:model-a',
+        surfaceId: 'claude',
+        transportId: 'approved-plugin',
+      })],
+    },
+    policy: routingPolicy({ switching: 'ask' }),
+    ...(approval === undefined ? {} : { approval }),
+  });
+
+  const pending = resolveRoute(approvalFixture());
+  assert.equal(pending.origin, 'evidence');
+  assert.equal(pending.state, 'approval-required');
+  assert.equal(pending.reason, 'approval-required');
+  assert.equal(pending.selected.surfaceId, 'claude');
+  assert.equal(pending.status, 'blocked', 'a pending approval never dispatches');
+  assert.equal(pending.bestExecutable, null);
+  assert.ok(pending.blockers.includes('surface-switch-approval-required:claude'));
+
+  const granted = resolveRoute(approvalFixture({
+    decision: 'granted',
+    authorizationId: 'plan-authorization-1',
+  }));
+  assert.equal(granted.state, 'ready');
+  assert.equal(granted.status, 'ready');
+  assert.equal(granted.bestExecutable.surfaceId, 'claude');
+  assert.equal(granted.approval.authorizationId, 'plan-authorization-1');
+
+  const declined = resolveRoute(approvalFixture({ decision: 'declined' }));
+  assert.equal(declined.state, 'blocked');
+  assert.equal(declined.status, 'blocked');
+  assert.equal(declined.bestExecutable, null);
+  assert.ok(declined.blockers.includes('approval-declined:claude'));
+  assert.throws(
+    () => resolveRoute(approvalFixture({ decision: 'maybe' })),
+    /approval decision must be one of/,
+  );
+});
+
+test('untested access is a supervised verification route and stays blocked for an AFK run', () => {
+  const untested = {
+    schemaVersion: ACCESS_GRAPH_VERSION,
+    revision: 'access-r6',
+    paths: [accessPath({ availability: 'unknown', attestation: null })],
+  };
+
+  const supervised = resolveRoute(resolverFixture({ accessGraph: untested }));
+  assert.equal(supervised.origin, 'evidence');
+  assert.equal(supervised.state, 'verification-required');
+  assert.equal(supervised.status, 'blocked');
+  assert.equal(supervised.bestExecutable, null);
+  assert.ok(supervised.blockers.includes('access-unknown:codex:native:model-a'));
+
+  const afk = resolveRoute(resolverFixture({
+    accessGraph: untested,
+    intent: routingIntent({ autonomyRequirement: 'afk' }),
+  }));
+  assert.equal(afk.state, 'blocked');
+  assert.equal(afk.bestExecutable, null);
+  assert.ok(afk.blockers.includes('afk-requires-attested-access:codex:native:model-a'));
 });
 
 test('missing routing infrastructure inherits only when explicitly requested', () => {
