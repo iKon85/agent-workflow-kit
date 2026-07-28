@@ -10,6 +10,7 @@ import { compareSemver, parseSemver } from './semver.mjs';
 export const CONSUMER_MIGRATION_SCHEMA_VERSION = 1;
 const REGISTRY_URL = new URL('../consumer-migrations.json', import.meta.url);
 const DETECTORS = new Set(['json-key']);
+const ADVISORY_KINDS = new Set(['retired-key']);
 const TEXT_FIELDS = ['id', 'title', 'workflow', 'decision', 'consequence', 'remediation'];
 
 let shipped;
@@ -81,9 +82,28 @@ export function validateConsumerMigrationRegistry(registry) {
       detect: validateDetector(entry.detect, id),
     });
   });
+  const advisories = (registry.advisories ?? []).map((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error('consumer migration registry: each advisory must be an object');
+    }
+    const id = text(entry.id, 'id', entry.id);
+    if (seen.has(id)) throw new Error(`consumer migration registry: duplicate entry id ${id}`);
+    seen.add(id);
+    if (!ADVISORY_KINDS.has(entry.kind)) {
+      throw new Error(`consumer migration registry: unsupported advisory kind ${entry.kind} (${id})`);
+    }
+    parseSemver(entry.retiredIn);
+    return Object.freeze({
+      id,
+      kind: entry.kind,
+      retiredIn: entry.retiredIn,
+      detect: validateDetector(entry.detect, id),
+    });
+  });
   return Object.freeze({
     schemaVersion: registry.schemaVersion,
     migrations: Object.freeze(migrations),
+    advisories: Object.freeze(advisories),
   });
 }
 
@@ -126,6 +146,12 @@ async function detect(consumerRoot, migration) {
   return hasDecision(document, migration.detect.key) ? null : 'missing-decision';
 }
 
+async function detectPresent(consumerRoot, advisory) {
+  const { document, reason } = await readConsumerJson(consumerRoot, advisory.detect.path);
+  if (reason) return false;
+  return hasDecision(document, advisory.detect.key);
+}
+
 /**
  * Report every registered migration the consumer still owes for `kitVersion`.
  * Read-only by construction: an outstanding decision is named, never written —
@@ -155,7 +181,36 @@ export async function evaluateConsumerMigrations({ consumerRoot, kitVersion, reg
   return pending;
 }
 
+/**
+ * Report obsolete consumer-owned configuration without mutating it. Advisory
+ * evaluation is fail-open: absent or unreadable project-layer evidence cannot
+ * prove that a retired key is present.
+ */
+export async function evaluateConsumerAdvisories({ consumerRoot, kitVersion, registry }) {
+  const source = registry ? validateConsumerMigrationRegistry(registry)
+    : await readShippedConsumerMigrationRegistry();
+  const advisories = [];
+  for (const advisory of source.advisories) {
+    if (compareSemver(kitVersion, advisory.retiredIn) < 0) continue;
+    if (!(await detectPresent(consumerRoot, advisory))) continue;
+    advisories.push({
+      id: advisory.id,
+      state: 'advisory',
+      kind: advisory.kind,
+      retiredIn: advisory.retiredIn,
+      path: advisory.detect.path,
+      key: advisory.detect.key.join('.'),
+    });
+  }
+  return advisories;
+}
+
 /** One rendering of the shared record, used by every human-facing update surface. */
 export function renderRequiredMigration({ id, workflow, path, decision }) {
   return `required migration: ${id} · ${workflow} · ${path} · ${decision}`;
+}
+
+export function renderConsumerAdvisory({ key, retiredIn }) {
+  return `update advisory: ${key} is no longer read since ${retiredIn}; `
+    + 'the key is consumer-owned and safe to delete.';
 }
