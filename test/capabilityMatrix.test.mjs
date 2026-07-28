@@ -8,9 +8,17 @@ import {
   selectOrchestrationReference,
 } from '../src/lib/capabilityMatrix.mjs';
 import { dispatchResolvedRoute } from '../src/lib/routeDispatcher.mjs';
-import { createClaudeRoutingAdapter } from '../src/lib/routingAdapters/claude.mjs';
+import {
+  ACCESS_GRAPH_VERSION,
+  buildAccessGraph,
+} from '../src/lib/routingAccessGraph.mjs';
+import {
+  claudeAccessAttestations,
+  createClaudeRoutingAdapter,
+} from '../src/lib/routingAdapters/claude.mjs';
 import {
   adaptCodexRoutingInventory,
+  codexAccessAttestations,
   createCodexRoutingAdapter,
 } from '../src/lib/routingAdapters/codex.mjs';
 
@@ -237,18 +245,27 @@ function routingFixture({
         }],
       },
       accessGraph: {
-        schemaVersion: 1,
+        schemaVersion: ACCESS_GRAPH_VERSION,
         revision: 'access-4',
         paths: [{
           id: `path-${transportId}`,
           providerId: route.providerId,
           modelId: route.modelId,
+          effort: route.effort,
           surfaceId: route.surfaceId,
           transportId: route.transportId,
           availability: 'available',
           enforcement: { model: enforcementMethod, effort: enforcementMethod },
           capabilityEvidence: {
             revision: 'capability-3',
+            observedAt: '2026-07-01T00:00:00.000Z',
+            expiresAt: '2026-08-01T00:00:00.000Z',
+          },
+          attestation: {
+            result: 'available',
+            failureKind: null,
+            probeId: 'capability-probe:minimal',
+            authorizationId: 'probe-authorization-1',
             observedAt: '2026-07-01T00:00:00.000Z',
             expiresAt: '2026-08-01T00:00:00.000Z',
           },
@@ -458,6 +475,116 @@ test('Codex capabilities require a dated host attestation and ignore foreign sur
     paths: [{ ...codexInventory(route).paths[0], surfaceId: 'claude' }],
   });
   assert.deepEqual(adapted.paths, []);
+});
+
+const CAPABILITY_DATES = Object.freeze({
+  revision: 'capability-r1',
+  observedAt: '2026-07-28T00:00:00.000Z',
+  expiresAt: '2026-07-29T00:00:00.000Z',
+});
+
+function pairInventory(route, efforts) {
+  return {
+    contractVersion: 1,
+    observedAt: CAPABILITY_DATES.observedAt,
+    host: { id: 'codex-cli', version: '0.144.6' },
+    spawnSchema: {
+      type: 'object',
+      properties: { task_name: {}, message: {}, model: {}, reasoning_effort: {} },
+    },
+    paths: efforts.map((effort) => ({
+      id: `${route.transportId}:${route.modelId}:${effort}`,
+      ...route,
+      detected: true,
+      callable: true,
+      permitted: true,
+      model: {
+        method: 'per-spawn',
+        enforced: true,
+        precedence: 'explicit-argument',
+        applied: route.modelId,
+      },
+      effort: {
+        method: 'per-spawn',
+        enforced: true,
+        precedence: 'explicit-argument',
+        applied: effort,
+      },
+    })),
+  };
+}
+
+test('a surface adapter resolves only the exact model-and-effort pair', async () => {
+  for (const [surfaceId, transportId, createAdapter] of [
+    ['claude', 'claude-native', createClaudeRoutingAdapter],
+    ['codex', 'codex-native', createCodexRoutingAdapter],
+  ]) {
+    const route = {
+      providerId: 'anthropic',
+      modelId: 'reasoning-model',
+      effort: 'low',
+      surfaceId,
+      transportId,
+    };
+    const adapter = createAdapter({
+      inventory: pairInventory(route, ['high', 'low']),
+      dispatchers: { [transportId]: async () => ({ taskId: 'pair-1' }) },
+    });
+
+    const prepared = await adapter.prepare(route);
+    assert.equal(prepared.appliedRoute.effort, 'low', surfaceId);
+    assert.equal(prepared.mismatchReason, null, surfaceId);
+
+    await assert.rejects(
+      () => adapter.prepare({ ...route, effort: 'medium' }),
+      /access pair is not attested: reasoning-model\+medium/,
+      surfaceId,
+    );
+  }
+});
+
+test('surface adapters attest dated access paths for the graph builder', () => {
+  const route = {
+    providerId: 'anthropic',
+    modelId: 'reasoning-model',
+    surfaceId: 'claude',
+    transportId: 'claude-native',
+  };
+  const attestations = claudeAccessAttestations(
+    pairInventory(route, ['high', 'low']),
+    CAPABILITY_DATES,
+  );
+
+  assert.deepEqual(attestations.map(({ effort }) => effort), ['high', 'low']);
+  assert.deepEqual(attestations[0].enforcement, { model: 'per-spawn', effort: 'per-spawn' });
+  assert.deepEqual(attestations[0].capabilityEvidence, {
+    revision: CAPABILITY_DATES.revision,
+    observedAt: CAPABILITY_DATES.observedAt,
+    expiresAt: CAPABILITY_DATES.expiresAt,
+  });
+  assert.equal(attestations[0].attested, true);
+
+  const graph = buildAccessGraph({ attestations });
+  assert.equal(graph.schemaVersion, ACCESS_GRAPH_VERSION);
+  assert.deepEqual(graph.paths.map(({ effort }) => effort), ['high', 'low']);
+  assert.deepEqual(
+    [...new Set(graph.paths.map(({ availability }) => availability))],
+    ['unknown'],
+    'detection is never authorization',
+  );
+
+  const codexRoute = { ...route, surfaceId: 'codex', transportId: 'codex-native', providerId: 'openai' };
+  const selectorLess = pairInventory(codexRoute, ['high']);
+  selectorLess.spawnSchema = { type: 'object', properties: { task_name: {}, message: {} } };
+  const unattested = codexAccessAttestations(selectorLess, CAPABILITY_DATES);
+  assert.equal(unattested[0].attested, false);
+  assert.ok(unattested[0].attestationFailures.includes('effort control is not enforced'));
+  assert.deepEqual(buildAccessGraph({ attestations: unattested }).paths, []);
+  assert.deepEqual(
+    codexAccessAttestations(pairInventory(route, ['high']), CAPABILITY_DATES),
+    [],
+    'a foreign surface never attests a Codex access path',
+  );
 });
 
 test('Claude routing inventory attests only proved controls and preserves environment precedence', () => {

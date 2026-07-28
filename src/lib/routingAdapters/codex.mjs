@@ -1,4 +1,9 @@
 import { adaptClaudeRoutingInventory } from '../capabilityMatrix.mjs';
+import {
+  attestAccessPath,
+  capabilityPathMatchesPair,
+  selectCapabilityPath,
+} from '../routingAccessGraph.mjs';
 
 const MODEL_SELECTORS = ['model'];
 const EFFORT_SELECTORS = ['effort', 'reasoning_effort', 'model_reasoning_effort'];
@@ -60,11 +65,6 @@ function applySpawnSchemaEvidence(path, properties) {
   return candidate;
 }
 
-function matchesRoute(path, route) {
-  return ['surfaceId', 'providerId', 'modelId', 'transportId']
-    .every((field) => path[field] === route[field]);
-}
-
 function appliedRoute(path, requestedRoute) {
   return Object.freeze({
     ...requestedRoute,
@@ -103,14 +103,28 @@ export function adaptCodexRoutingInventory(inventory) {
   });
 }
 
+/**
+ * Attest the Codex surface's access paths for the Access-graph builder. A host
+ * whose spawn schema exposes no selector attests no control, so the path never
+ * becomes a dispatchable Access-graph path.
+ */
+export function codexAccessAttestations(inventory, dates) {
+  return Object.freeze(adaptCodexRoutingInventory(inventory).paths
+    .map((path) => attestAccessPath(path, dates)));
+}
+
 export function createCodexRoutingAdapter({ inventory, dispatchers = {} }) {
   const capabilities = adaptCodexRoutingInventory(inventory);
   return Object.freeze({
     async prepare(requestedRoute) {
-      const path = capabilities.paths.find((candidate) =>
-        matchesRoute(candidate, requestedRoute));
+      const path = selectCapabilityPath(capabilities.paths, requestedRoute);
       if (!path) throw new Error('Codex route capability is not attested');
       if (!path.verified) throw new Error(path.verificationFailures.join('; '));
+      if (!capabilityPathMatchesPair(path, requestedRoute)) {
+        throw new Error(
+          `access pair is not attested: ${requestedRoute.modelId}+${requestedRoute.effort}`,
+        );
+      }
       const invoke = dispatchers[path.transportId];
       if (typeof invoke !== 'function') {
         throw new Error(`transport has no approved dispatcher: ${path.transportId}`);
