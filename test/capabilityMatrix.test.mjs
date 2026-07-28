@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
+import {
+  appendDispatchJournalEntry,
+  dispatchIdempotencyKey,
+  planDispatchRecovery,
+  readDispatchJournal,
+} from '../src/lib/dispatchJournal.mjs';
 import {
   adaptClaudeRoutingInventory,
   capabilityAdapter,
@@ -915,4 +924,193 @@ test('receipt and output never expose injected secret fixture values', async () 
     dispatchedAt: '2026-07-23T12:00:01.000Z',
   });
   assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
+});
+
+function claudeAdapter(route, dispatch) {
+  return createClaudeRoutingAdapter({
+    inventory: {
+      contractVersion: 1,
+      paths: [{
+        id: 'native',
+        ...route,
+        detected: true,
+        callable: true,
+        permitted: true,
+        model: {
+          method: 'named-agent',
+          enforced: true,
+          precedence: 'agent-definition-over-environment',
+          applied: route.modelId,
+        },
+        effort: {
+          method: 'named-agent',
+          enforced: true,
+          precedence: 'agent-definition-over-environment',
+          applied: route.effort,
+        },
+      }],
+    },
+    dispatchers: { 'claude-native': dispatch },
+  });
+}
+
+test('a journaled dispatch records prepared then dispatched and never spawns an execution twice', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'awkit-dispatch-journal-'));
+  try {
+    const file = join(root, 'dispatch-journal.jsonl');
+    const { route, resolverInput } = routingFixture();
+    let invoked = 0;
+    const adapter = claudeAdapter(route, async () => {
+      invoked += 1;
+      return { taskId: 'native-1' };
+    });
+    const dispatch = () => dispatchResolvedRoute({
+      executionId: 'execution-journaled',
+      afk: true,
+      resolverInput,
+      adapter,
+      authorizationId: 'plan-authorization-1',
+      journal: { file, cwd: root, sessionId: '6f1a2b3c-0000-4000-8000-0123456789ab' },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+
+    const first = await dispatch();
+    assert.equal(first.receipt.status, 'dispatched');
+    assert.equal(first.receipt.kind, 'routed-dispatch');
+    assert.equal(first.receipt.authorizationId, 'plan-authorization-1');
+    assert.equal(invoked, 1);
+    const { entries } = await readDispatchJournal(file);
+    assert.deepEqual(entries.map((entry) => entry.phase), ['prepared', 'dispatched']);
+    assert.equal(entries[1].taskId, 'native-1');
+    assert.equal(entries[0].authorizationId, 'plan-authorization-1');
+
+    const replay = await dispatch();
+    assert.equal(replay.receipt.status, 'blocked');
+    assert.equal(replay.receipt.reason, 'dispatch is already recorded');
+    assert.equal(invoked, 1, 'a settled execution never spawns a second agent');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a crash after prepared blocks pending reconciliation unless the surface pre-assigned a key', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'awkit-dispatch-journal-'));
+  try {
+    const file = join(root, 'dispatch-journal.jsonl');
+    const { route, resolverInput } = routingFixture();
+    const sessionId = '6f1a2b3c-0000-4000-8000-0123456789ab';
+    let invoked = 0;
+    const adapter = claudeAdapter(route, async () => {
+      invoked += 1;
+      return { taskId: 'native-1' };
+    });
+    // What a process that died between the prepared record and the spawn leaves.
+    const crashed = async (surfaceId) => appendDispatchJournalEntry(file, {
+      phase: 'prepared',
+      executionId: `execution-${surfaceId}`,
+      surfaceId,
+      transportId: `${surfaceId}-native`,
+      cwd: root,
+      idempotencyKey: dispatchIdempotencyKey({ surfaceId, cwd: root, sessionId }),
+      authorizationId: null,
+      recordedAt: '2026-07-23T11:59:00.000Z',
+    });
+
+    await crashed('claude');
+    const unkeyed = await dispatchResolvedRoute({
+      executionId: 'execution-claude',
+      afk: true,
+      resolverInput,
+      adapter,
+      journal: { file, cwd: root },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+    assert.equal(unkeyed.receipt.status, 'blocked');
+    assert.equal(unkeyed.receipt.reason, 'dispatch is indeterminate pending reconciliation');
+    assert.equal(invoked, 0);
+
+    const keyed = await dispatchResolvedRoute({
+      executionId: 'execution-claude',
+      afk: true,
+      resolverInput,
+      adapter,
+      journal: { file, cwd: root, sessionId },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+    assert.equal(keyed.receipt.status, 'dispatched');
+    assert.equal(invoked, 1, 'the pre-assigned (cwd, session-id) key makes the retry safe');
+
+    // The same crash on Codex has no caller-assignable id to retry against.
+    const codex = routingFixture({
+      surfaceId: 'codex', providerId: 'openai', transportId: 'codex-native',
+      enforcementMethod: 'per-spawn',
+    });
+    let codexInvoked = 0;
+    await crashed('codex');
+    const blocked = await dispatchResolvedRoute({
+      executionId: 'execution-codex',
+      afk: true,
+      resolverInput: codex.resolverInput,
+      adapter: createCodexRoutingAdapter({
+        inventory: codexInventory(codex.route),
+        dispatchers: {
+          'codex-native': async () => {
+            codexInvoked += 1;
+            return { taskId: 'must-not-run' };
+          },
+        },
+      }),
+      journal: { file, cwd: root, sessionId },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+    assert.equal(blocked.receipt.status, 'blocked');
+    assert.equal(blocked.receipt.reason, 'dispatch is indeterminate pending reconciliation');
+    assert.equal(codexInvoked, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a dispatch blocked before the spawn leaves no indeterminate journal entry', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'awkit-dispatch-journal-'));
+  try {
+    const file = join(root, 'dispatch-journal.jsonl');
+    const { route, resolverInput } = routingFixture();
+    let invoked = 0;
+    const result = await dispatchResolvedRoute({
+      executionId: 'execution-blocked',
+      afk: true,
+      resolverInput,
+      adapter: createClaudeRoutingAdapter({
+        inventory: {
+          contractVersion: 1,
+          paths: [{
+            id: 'native', ...route, detected: false, callable: true, permitted: true,
+            model: {
+              method: 'named-agent', enforced: true,
+              precedence: 'agent-definition-over-environment', applied: route.modelId,
+            },
+            effort: {
+              method: 'named-agent', enforced: true,
+              precedence: 'agent-definition-over-environment', applied: route.effort,
+            },
+          }],
+        },
+        dispatchers: { 'claude-native': async () => { invoked += 1; } },
+      }),
+      journal: { file, cwd: root },
+      dispatchedAt: '2026-07-23T12:00:01.000Z',
+    });
+
+    assert.equal(result.receipt.status, 'blocked');
+    assert.equal(invoked, 0);
+    const { entries } = await readDispatchJournal(file);
+    assert.deepEqual(entries.map((entry) => entry.phase), ['blocked']);
+    assert.equal(entries[0].reason, 'transport is not detected');
+    assert.deepEqual(planDispatchRecovery({
+      entries, executionId: 'execution-blocked', surfaceId: 'claude',
+    }).state, 'settled');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
