@@ -78,10 +78,15 @@ const ROUTING_LABELS = {
 
 const ADVANCED_OPTIMIZATIONS = ['balanced', 'quality', 'cost'];
 const RECONCILE_MIGRATION_ACTIONS = ['review', 'decline'];
+/** The answer that nominates no Standard route for a workload class. */
+const NO_STANDARD_ROUTE = 'none';
 
 const ROUTING_PAYLOADS = {
   surfaces: surfacesPayload,
+  transports: transportsPayload,
   autonomy: autonomyPayload,
+  roster: rosterPayload,
+  'standard-route': standardRoutePayload,
   activation: activationPayload,
   advanced: advancedPayload,
   reconcile: reconcilePayload,
@@ -388,7 +393,10 @@ export function routingResultNote(result, consumerRoot, profileRoot) {
   if (result.reasons?.length) lines.push(`reasons: ${result.reasons.join(', ')}`);
   if (result.profile) {
     lines.push(`agent apps: ${surfaceLabels(result.profile.selectedSurfaces)}`);
+    lines.push(`transports: ${describeTransports(result.profile.authorizedTransports)}`);
     lines.push(`switching: ${describeSwitching(result.profile.switching)}`);
+    lines.push(`model roster: ${describeRoster(result.profile.roster)}`);
+    lines.push(`standard routes: ${describeStandardRoutes(result.profile.standardRoutes)}`);
   }
   lines.push(`profile file: ${routingProfilePath(consumerRoot, profileRoot)}`);
   return lines.join('\n');
@@ -444,6 +452,90 @@ function autonomyPayload(question) {
   };
 }
 
+/** Prompt-side identity for a `(surface, transport)` authorization. */
+const transportValue = ({ surface, transport }) => `${surface}/${transport}`;
+/** Prompt-side identity for a model-and-effort pair; the label is the readable half. */
+const pairValue = ({ model, effort }) => `${model}/${effort ?? ''}`;
+const pairText = ({ model, effort }) => sanitizeReadinessText(
+  `${model} · ${effort ?? 'no effort axis'}`,
+) ?? model;
+
+/**
+ * Authorizing an app is not authorizing it to drive another app's command line,
+ * so every transport says which of the two it is.
+ */
+function transportsPayload(question) {
+  const preselected = new Set((question.preselected ?? []).map(transportValue));
+  const options = (question.options ?? []).map((option) => {
+    const app = sanitizeReadinessText(option.surfaceLabel) ?? option.surface;
+    return {
+      value: transportValue(option),
+      label: `${app} · ${option.transport}`,
+      hint: option.native
+        ? `${app} may drive its own runtime`
+        : `lets ${app} drive the ${option.transport} command line — selecting the app does not`,
+    };
+  });
+  return {
+    control: 'multiselect',
+    label: 'transport authorization',
+    message: question.message,
+    options,
+    initialValues: options.filter(({ value }) => preselected.has(value)).map(({ value }) => value),
+    required: false,
+  };
+}
+
+/**
+ * The inventory can list dozens of pairs, so the roster question is grouped per
+ * agent app — detected apps first — and says how much it is showing. It also
+ * says what leaving a pair out means, because that answer is durable.
+ */
+function rosterPayload(question) {
+  const groups = question.groups ?? [];
+  const options = {};
+  for (const group of groups) {
+    const app = sanitizeReadinessText(group.label) ?? group.surface;
+    options[app] = group.pairs.map((pair) => ({
+      value: pairValue(pair),
+      label: pairText(pair),
+      hint: group.detected
+        ? `${app} is installed here — selecting the pair authorizes it`
+        : `${app} is not installed here — authorizing it is still your choice`,
+    }));
+  }
+  return {
+    control: 'groupmultiselect',
+    label: 'roster choice',
+    message: `${question.message} (${question.total} pairs across ${groups.length} agent apps; `
+      + 'a pair you leave out is recorded as declined and is not asked again)',
+    options,
+    initialValues: (question.preselected ?? []).map(pairValue),
+    required: false,
+  };
+}
+
+function standardRoutePayload(question) {
+  const options = (question.options ?? []).map((pair) => ({
+    value: pairValue(pair),
+    label: pairText(pair),
+    hint: `${question.workload} work uses this pair when no evidence covers the intent`,
+  }));
+  options.push({
+    value: NO_STANDARD_ROUTE,
+    label: 'Leave unset',
+    hint: `no Standard route for ${question.workload} work — the class blocks instead of guessing`,
+  });
+  return {
+    control: 'select',
+    label: 'standard route choice',
+    message: question.message,
+    options,
+    initialValue: question.current ? pairValue(question.current) : NO_STANDARD_ROUTE,
+    maxItems: question.pageSize,
+  };
+}
+
 function activationPayload(question) {
   return {
     control: 'select',
@@ -457,9 +549,36 @@ function activationPayload(question) {
 function activationSummary(question) {
   return [
     `agent apps: ${surfaceLabels(question.selectedSurfaces)}`,
+    `transports: ${describeTransports(question.authorizedTransports)}`,
     `switching: ${describeSwitching(question.switching)}`,
+    `model roster: ${describeRoster(question.roster)}`,
+    `standard routes: ${describeStandardRoutes(question.standardRoutes)}`,
     `advanced draft: ${describeDraft(question.advancedDraft)}`,
   ].join('\n');
+}
+
+function describeTransports(transports) {
+  const rendered = (transports ?? []).map(({ surface, transport }) =>
+    `${sanitizeReadinessText(surfaceById(surface)?.label ?? surface) ?? surface} · ${transport}`);
+  return sanitizeReadinessText(rendered.join(', ')) || 'none';
+}
+
+function describeRoster(roster) {
+  if (!Array.isArray(roster) || !roster.length) return 'none';
+  const counted = ['admitted', 'declined', 'withdrawn']
+    .map((state) => [state, roster.filter((entry) => entry.state === state).length])
+    .filter(([, count]) => count > 0)
+    .map(([state, count]) => `${count} ${state}`);
+  return counted.join(' · ') || 'none';
+}
+
+function describeStandardRoutes(routes) {
+  if (!routes || typeof routes !== 'object') return 'none';
+  const rendered = Object.entries(routes).map(([workload, entry]) => {
+    if (!entry) return `${workload}: unset`;
+    return `${workload}: ${pairText(entry)}${entry.state === 'unresolved' ? ' (unresolved)' : ''}`;
+  });
+  return sanitizeReadinessText(rendered.join(' · ')) || 'none';
 }
 
 function surfaceLabels(ids) {
@@ -493,6 +612,13 @@ function advancedPayload(question) {
   };
 }
 
+/** What the roster and the Standard routes still owe an answer on, if anything. */
+function rosterWork(delta) {
+  const roster = delta.roster ?? {};
+  return ['pending', 'withdrawn', 'reopenable', 'unresolvedRoutes']
+    .some((key) => (roster[key] ?? []).length > 0);
+}
+
 function reconcilePayload(question) {
   const delta = question.delta;
   if (delta.type === 'missing-profile' || delta.type === 'invalid-profile') {
@@ -507,6 +633,7 @@ function reconcilePayload(question) {
   }
   if (delta.newSurfaces.length) return reconcileAdditionsPayload(delta);
   const removed = delta.removedSurfaces.map(({ label }) => label).join(', ');
+  if (!removed && rosterWork(delta)) return reconcileRosterPayload(question, delta);
   return {
     control: 'confirm',
     label: 'routing reconcile choice',
@@ -515,6 +642,26 @@ function reconcilePayload(question) {
       : 'Refresh the routing profile registry revision?',
     active: 'Apply the change to the stored routing profile',
     inactive: 'Leave the stored routing profile as it is',
+  };
+}
+
+/** A roster-only change names what moved before it asks whether to review it. */
+function reconcileRosterPayload(question, delta) {
+  const roster = delta.roster ?? {};
+  const change = [
+    ['new pairs', roster.pending], ['pairs no longer offered', roster.withdrawn],
+    ['pairs available again', roster.reopenable],
+  ].filter(([, pairs]) => (pairs ?? []).length)
+    .map(([label, pairs]) => `${label}: ${pairs.map(pairText).join(', ')}`);
+  for (const { workload } of roster.unresolvedRoutes ?? []) {
+    change.push(`${workload} has no authorized Standard route any more`);
+  }
+  return {
+    control: 'select',
+    label: 'routing roster choice',
+    // Sanitized per line: collapsing the whole block would flatten the list.
+    message: [question.message, ...change.map(sanitizeReadinessText).filter(Boolean)].join('\n'),
+    options: hintedOptions('reconcile', labelledOptions('reconcile', RECONCILE_MIGRATION_ACTIONS)),
   };
 }
 
@@ -546,17 +693,40 @@ async function promptRoutingProfile(question) {
 
 function askRouting(control, payload) {
   if (control === 'multiselect') return p.multiselect(payload);
+  if (control === 'groupmultiselect') return p.groupMultiselect(payload);
   if (control === 'confirm') return p.confirm(payload);
   return p.select(payload);
+}
+
+/** Map prompt values back onto the very objects the question offered. */
+function decodeSelected(offered, identity, answer) {
+  const known = new Map(offered.map((option) => [identity(option), option]));
+  return (Array.isArray(answer) ? answer : [answer])
+    .map((value) => known.get(value))
+    .filter(Boolean);
 }
 
 /** The answer shape `routingProfile` expects back, per question. */
 function decodeRoutingAnswer(question, answer) {
   if (question.kind === 'advanced') return { ...question.draft, optimization: answer };
+  if (question.kind === 'transports') {
+    return decodeSelected(question.options ?? [], transportValue, answer)
+      .map(({ surface, transport }) => ({ surface, transport }));
+  }
+  if (question.kind === 'roster') {
+    const pairs = (question.groups ?? []).flatMap(({ pairs: group }) => group);
+    return decodeSelected(pairs, pairValue, answer);
+  }
+  if (question.kind === 'standard-route') {
+    return decodeSelected(question.options ?? [], pairValue, answer)[0] ?? null;
+  }
   if (question.kind !== 'reconcile') return answer;
   const delta = question.delta;
   if (delta.type === 'missing-profile' || delta.type === 'invalid-profile') return answer;
   if (delta.newSurfaces.length) return { action: 'apply', addSurfaceIds: answer };
+  if (!delta.removedSurfaces.length && rosterWork(delta)) {
+    return answer === 'review' ? { action: 'apply', addSurfaceIds: [] } : { action: 'decline' };
+  }
   return answer === true ? { action: 'apply', addSurfaceIds: [] } : { action: 'decline' };
 }
 
