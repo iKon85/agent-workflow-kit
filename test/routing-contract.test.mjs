@@ -28,9 +28,21 @@ import {
   classifyProbeFailure,
 } from '../src/lib/routingAccessGraphStore.mjs';
 import {
+  ROUTING_POLICY_LEGACY_VERSION,
   ROUTING_POLICY_VERSION,
+  decodeRoutingPolicy,
   validateRoutingPolicy,
 } from '../src/lib/routingPolicy.mjs';
+import {
+  ROUTING_POLICY_REVISION_INPUTS,
+  deriveRoutingPolicy,
+  routingPolicyRevision,
+} from '../src/lib/routingProfilePolicy.mjs';
+import {
+  ROUTING_PROFILE_VERSION,
+  STANDARD_ROUTE_CLASSES,
+  composeRoutingProfile,
+} from '../src/lib/routingProfile.mjs';
 import {
   ROUTE_DECISION_VERSION,
   resolveRoute,
@@ -567,8 +579,29 @@ test('the access-graph builder assembles surface attestations into dated unknown
   assert.equal(supervised.state, 'verification-required');
 });
 
+const policyPair = (model, effort = 'high') => ({ model, effort });
+const policyRoute = (model, effort = 'high', state = 'configured') => ({ model, effort, state });
+const NO_STANDARD_ROUTES = { mechanical: null, development: null, judgment: null };
+
 const routingPolicy = (overrides = {}) => ({
   schemaVersion: ROUTING_POLICY_VERSION,
+  revision: 'policy-r5',
+  allowedSurfaces: ['codex', 'claude'],
+  allowedTransports: ['native', 'approved-plugin'],
+  switching: 'automatic',
+  roster: [policyPair('model-a'), policyPair('model-b')],
+  standardRoutes: {
+    mechanical: policyRoute('model-a'),
+    development: policyRoute('model-a'),
+    judgment: policyRoute('model-b'),
+  },
+  unreachable: 'block',
+  missingInfrastructure: 'inherit',
+  ...overrides,
+});
+
+const legacyRoutingPolicy = (overrides = {}) => ({
+  schemaVersion: ROUTING_POLICY_LEGACY_VERSION,
   revision: 'policy-r5',
   allowedSurfaces: ['codex', 'claude'],
   allowedTransports: ['native', 'approved-plugin'],
@@ -582,7 +615,9 @@ const routingPolicy = (overrides = {}) => ({
 test('routing policy is personal, separately versioned, and requires an explicit fallback', () => {
   const policy = validateRoutingPolicy(routingPolicy());
 
+  assert.equal(policy.schemaVersion, ROUTING_POLICY_VERSION);
   assert.equal(policy.revision, 'policy-r5');
+  assert.equal(policy.unreachable, 'block');
   assert.equal(policy.missingInfrastructure, 'inherit');
   const missingFallback = routingPolicy();
   delete missingFallback.missingInfrastructure;
@@ -596,6 +631,226 @@ test('routing policy rejects embedded credentials', () => {
   assert.throws(
     () => validateRoutingPolicy(routingPolicy({ apiKey: 'not-package-data' })),
     /unknown routing policy field: apiKey/,
+  );
+});
+
+test('routing policy v2 drops the optimization dial and carries roster pairs and effective standard routes', () => {
+  const policy = validateRoutingPolicy(routingPolicy());
+
+  assert.deepEqual(Object.keys(policy).sort(), [
+    'allowedSurfaces', 'allowedTransports', 'missingInfrastructure', 'revision',
+    'roster', 'schemaVersion', 'standardRoutes', 'switching', 'unreachable',
+  ]);
+  assert.deepEqual(policy.roster, [
+    { model: 'model-a', effort: 'high' },
+    { model: 'model-b', effort: 'high' },
+  ]);
+  // The route vocabulary is the profile's, not a second literal list.
+  assert.deepEqual(Object.keys(policy.standardRoutes), [...STANDARD_ROUTE_CLASSES]);
+  assert.deepEqual(policy.standardRoutes.judgment, {
+    model: 'model-b', effort: 'high', state: 'configured',
+  });
+  assert.throws(
+    () => validateRoutingPolicy(routingPolicy({ optimization: 'quality' })),
+    /unknown routing policy field: optimization/,
+  );
+  // Authorization consistency: a configured route must name a pair the roster authorizes.
+  assert.throws(
+    () => validateRoutingPolicy(routingPolicy({
+      standardRoutes: { ...routingPolicy().standardRoutes, judgment: policyRoute('model-unlisted') },
+    })),
+    /standardRoutes\.judgment must name an authorized roster pair/,
+  );
+  // A knowingly broken nomination stays representable rather than invalidating the policy.
+  const unresolved = validateRoutingPolicy(routingPolicy({
+    standardRoutes: {
+      ...routingPolicy().standardRoutes,
+      judgment: policyRoute('withdrawn-model', 'high', 'unresolved'),
+    },
+  }));
+  assert.equal(unresolved.standardRoutes.judgment.state, 'unresolved');
+});
+
+test('a v1 routing policy decodes deterministically to v2 with the optimization dial dropped and recorded', () => {
+  const derivation = {
+    roster: [policyPair('model-a')],
+    standardRoutes: { ...NO_STANDARD_ROUTES, development: policyRoute('model-a') },
+  };
+  const decoded = decodeRoutingPolicy(legacyRoutingPolicy(), derivation);
+
+  assert.equal(decoded.fromVersion, ROUTING_POLICY_LEGACY_VERSION);
+  assert.deepEqual(decoded.dropped, ['optimization']);
+  assert.deepEqual(decoded.notes, [{ code: 'optimization-removed', value: 'quality' }]);
+  assert.equal(decoded.policy.schemaVersion, ROUTING_POLICY_VERSION);
+  assert.equal('optimization' in decoded.policy, false);
+  assert.equal(decoded.policy.revision, 'policy-r5');
+  assert.equal(decoded.policy.unreachable, 'block');
+  assert.equal(decoded.policy.missingInfrastructure, 'inherit');
+  assert.deepEqual(decoded.policy.roster, [{ model: 'model-a', effort: 'high' }]);
+  assert.deepEqual(decoded.policy.standardRoutes.development, {
+    model: 'model-a', effort: 'high', state: 'configured',
+  });
+  assert.deepEqual(decodeRoutingPolicy(legacyRoutingPolicy(), derivation), decoded);
+
+  const already = decodeRoutingPolicy(routingPolicy());
+  assert.equal(already.fromVersion, ROUTING_POLICY_VERSION);
+  assert.deepEqual(already.dropped, []);
+  assert.deepEqual(already.notes, []);
+  assert.deepEqual(already.policy, validateRoutingPolicy(routingPolicy()));
+});
+
+test('a routing policy that derives neither a roster nor a standard route fails closed', () => {
+  // A v1 document carries no roster at all, so decoding one without a derivation
+  // names the reason instead of inventing an empty authorization.
+  assert.throws(() => decodeRoutingPolicy(legacyRoutingPolicy()), /routing-policy-not-derivable/);
+  assert.throws(() => validateRoutingPolicy(legacyRoutingPolicy()), /routing-policy-not-derivable/);
+  assert.throws(
+    () => validateRoutingPolicy(routingPolicy({ roster: [], standardRoutes: NO_STANDARD_ROUTES })),
+    /routing-policy-not-derivable/,
+  );
+  // An unresolved route authorizes nothing, so it never rescues an empty roster.
+  assert.throws(
+    () => validateRoutingPolicy(routingPolicy({
+      roster: [],
+      standardRoutes: {
+        ...NO_STANDARD_ROUTES,
+        judgment: policyRoute('withdrawn-model', 'high', 'unresolved'),
+      },
+    })),
+    /routing-policy-not-derivable/,
+  );
+  // A roster alone derives: pairs may be authorized before any route is nominated.
+  const rosterOnly = validateRoutingPolicy(routingPolicy({
+    roster: [policyPair('model-a')], standardRoutes: NO_STANDARD_ROUTES,
+  }));
+  assert.deepEqual(rosterOnly.standardRoutes, NO_STANDARD_ROUTES);
+});
+
+const POLICY_INVENTORY = Object.freeze({
+  revision: 'sha256-inventory-1',
+  pairs: Object.freeze([
+    Object.freeze({ surface: 'codex', provider: 'openai', modelId: 'model-a', effort: 'high' }),
+    Object.freeze({ surface: 'claude', provider: 'anthropic', modelId: 'model-b', effort: 'high' }),
+  ]),
+});
+
+const globalAuthorization = (overrides = {}) => ({
+  schemaVersion: ROUTING_PROFILE_VERSION,
+  registryRevision: 1,
+  selectedSurfaces: ['codex', 'claude'],
+  consideredSurfaces: ['codex', 'claude'],
+  authorizedTransports: [
+    { surface: 'codex', transport: 'native' },
+    { surface: 'claude', transport: 'approved-plugin' },
+  ],
+  switching: 'automatic',
+  roster: [
+    { model: 'model-a', effort: 'high', state: 'admitted' },
+    { model: 'model-b', effort: 'high', state: 'admitted' },
+  ],
+  inventoryRevision: POLICY_INVENTORY.revision,
+  standardRoutes: {
+    mechanical: policyRoute('model-a'),
+    development: policyRoute('model-a'),
+    judgment: policyRoute('model-b'),
+  },
+  advanced: null,
+  ...overrides,
+});
+
+test('the routing policy revision hashes exactly the two generations and the inventory revision', () => {
+  const inputs = {
+    globalGeneration: 4, projectGeneration: 2, inventoryRevision: POLICY_INVENTORY.revision,
+  };
+  const revision = routingPolicyRevision(inputs);
+
+  assert.deepEqual([...ROUTING_POLICY_REVISION_INPUTS], [
+    'globalGeneration', 'projectGeneration', 'inventoryRevision',
+  ]);
+  assert.match(revision, /^sha256-[A-Za-z0-9_-]{43}$/);
+  assert.equal(routingPolicyRevision({ ...inputs }), revision, 'derivation is pure');
+  for (const [field, value] of [
+    ['globalGeneration', 5],
+    ['projectGeneration', null],
+    ['inventoryRevision', 'sha256-inventory-2'],
+  ]) {
+    assert.notEqual(routingPolicyRevision({ ...inputs, [field]: value }), revision, field);
+  }
+  // Exactly those three: nothing else is hashed, and nothing else is accepted.
+  assert.throws(
+    () => routingPolicyRevision({ ...inputs, switching: 'ask' }),
+    /unknown routing policy revision input field: switching/,
+  );
+  assert.throws(() => routingPolicyRevision({ ...inputs, globalGeneration: null }), /globalGeneration/);
+});
+
+test('a composed routing profile and its generations derive one validated, revisioned policy', () => {
+  const composed = composeRoutingProfile({
+    global: globalAuthorization(), inventory: POLICY_INVENTORY,
+  });
+  const derive = (overrides = {}) => deriveRoutingPolicy({
+    composed, globalGeneration: 4, projectGeneration: 2, ...overrides,
+  });
+  const policy = derive();
+
+  assert.equal(policy.schemaVersion, ROUTING_POLICY_VERSION);
+  assert.equal(policy.revision, routingPolicyRevision({
+    globalGeneration: 4, projectGeneration: 2, inventoryRevision: POLICY_INVENTORY.revision,
+  }));
+  assert.deepEqual(policy.allowedSurfaces, ['codex', 'claude']);
+  assert.deepEqual(policy.allowedTransports, ['native', 'approved-plugin']);
+  assert.equal(policy.switching, 'automatic');
+  assert.deepEqual(policy.roster, [
+    { model: 'model-a', effort: 'high' },
+    { model: 'model-b', effort: 'high' },
+  ]);
+  assert.deepEqual(policy.standardRoutes.judgment, {
+    model: 'model-b', effort: 'high', state: 'configured',
+  });
+  // The resolver's fallback semantics stay in the policy and default fail-closed.
+  assert.equal(policy.unreachable, 'block');
+  assert.equal(policy.missingInfrastructure, 'block');
+  assert.deepEqual(derive(), policy, 'derivation is pure');
+  assert.throws(() => derive({ unreachable: 'improvise' }), /unreachable/);
+
+  const narrowed = composeRoutingProfile({
+    global: globalAuthorization(),
+    project: {
+      schemaVersion: ROUTING_PROFILE_VERSION,
+      selectedSurfaces: null,
+      authorizedTransports: null,
+      switching: 'current-surface-only',
+      roster: [policyPair('model-a')],
+      standardRoutes: null,
+    },
+    inventory: POLICY_INVENTORY,
+  });
+  const narrowedPolicy = deriveRoutingPolicy({
+    composed: narrowed, globalGeneration: 4, projectGeneration: 3,
+  });
+  assert.deepEqual(narrowedPolicy.roster, [{ model: 'model-a', effort: 'high' }]);
+  assert.equal(narrowedPolicy.switching, 'current-surface-only');
+  // judgment named a pair the project narrowed away: derived unresolved, never replaced.
+  assert.equal(narrowedPolicy.standardRoutes.judgment.state, 'unresolved');
+  assert.notEqual(narrowedPolicy.revision, policy.revision);
+});
+
+test('deriving a policy from a profile that authorizes nothing blocks with the named reason', () => {
+  const composed = composeRoutingProfile({
+    global: globalAuthorization({
+      roster: [
+        { model: 'model-a', effort: 'high', state: 'declined' },
+        { model: 'model-b', effort: 'high', state: 'declined' },
+      ],
+      standardRoutes: NO_STANDARD_ROUTES,
+    }),
+    inventory: POLICY_INVENTORY,
+  });
+
+  assert.deepEqual(composed.roster, []);
+  assert.throws(
+    () => deriveRoutingPolicy({ composed, globalGeneration: 1, projectGeneration: null }),
+    /routing-policy-not-derivable/,
   );
 });
 
