@@ -579,6 +579,13 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.46.1
+
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `scripts/kit-release.mjs`
+
 ### 0.46.0
 
 - added: `src/commands/routing-refresh.mjs`
