@@ -315,11 +315,22 @@ def _required_checks_snapshot(pr: str, command_runner) -> list[dict]:
             "cannot inspect required PR checks",
             sanitize_external_detail(result.stderr or result.stdout),
         )
+    payload = (result.stdout or "").strip()
+    if not payload:
+        # An empty body is not an error: it is the platform saying no check run
+        # has been reported yet — the ordinary state in the seconds after a PR
+        # is opened, and precisely the state the poll below exists to wait
+        # through. Parsing it as JSON blamed the platform for a race this
+        # script opened itself.
+        return []
     try:
-        checks = json.loads(result.stdout)
+        checks = json.loads(payload)
     except json.JSONDecodeError as error:
         raise Stop(
-            "0c merge-gate", "invalid required PR check response", str(error)
+            "0c merge-gate",
+            "malformed required PR check response",
+            f"{error} — the response carried a body that is not JSON: "
+            f"{sanitize_external_detail(payload)}",
         ) from error
     if not isinstance(checks, list) or not all(
         isinstance(check, dict) for check in checks
@@ -591,6 +602,45 @@ def require_landable_head(step: str, cwd: str) -> str:
             "re-run /wrapup",
         )
     return branch
+
+
+class TeardownTarget(NamedTuple):
+    """What Step 4 may act on, decided before anything is removed."""
+
+    worktree: str | None
+    reason: str
+    is_main_working_tree: bool = False
+
+
+def resolve_teardown_target(main_tree: str, worktree: str | None) -> TeardownTarget:
+    """Resolve the teardown target and its admissibility — before any removal.
+
+    Deletion is the one irreversible half of a landing, so every state that
+    refuses it is enumerated here, while nothing has been removed yet. The
+    state that matters is the main working tree: teardown's safety argument is
+    that ignored means "the repository declared this is not work", and that
+    holds for a worktree this session is discarding — never for the checkout
+    every other session lives in, where ignored means node_modules, planning
+    artifacts and, once the worktree root is ignored, every sibling worktree of
+    every parallel agent.
+
+    Having no worktree to tear down is an ordinary outcome, not a refusal: the
+    branch merged, and there is simply nothing to discard.
+    """
+    if worktree is None:
+        return TeardownTarget(
+            None, "teardown: no worktree holds this branch — nothing to tear down"
+        )
+    if os.path.realpath(worktree) == os.path.realpath(main_tree):
+        return TeardownTarget(
+            None,
+            f"teardown: {worktree} is the main working tree — /wrapup never tears "
+            "that down, so there is nothing to tear down",
+            is_main_working_tree=True,
+        )
+    if not Path(worktree).is_dir():
+        return TeardownTarget(None, "teardown: the worktree is already removed")
+    return TeardownTarget(worktree, "")
 
 
 def assess_teardown(wt: str, main_tree: str):
@@ -893,6 +943,13 @@ def cmd_preflight(args) -> dict:
     }
 
 
+def staged_paths(cwd: str | None = None) -> list[str]:
+    """The paths the index holds against HEAD — one commit's exact subject."""
+    return sorted(_zsplit(
+        git(["diff", "--cached", "--name-only", "-z"], cwd=cwd, check=True).stdout
+    ))
+
+
 def cmd_commit(args) -> dict:
     cwd = os.getcwd()
     root = git(["rev-parse", "--show-toplevel"], check=True).stdout.strip()
@@ -910,10 +967,22 @@ def cmd_commit(args) -> dict:
     envs = env_paths(porcelain)
     if envs:
         raise Stop("commit", ".env in the working tree — never commit", "\n".join(envs))
-    git(["add", "-A"], check=True)
+    # An index the caller already prepared is a decision, not a draft: this
+    # commits exactly it. Staging the working tree is the fallback for an empty
+    # index alone — a wholesale sweep would commit a different set than the
+    # secret review upstream ever saw, which is how five screenshots and a
+    # foreign session's trace files rode into a release commit.
+    paths = staged_paths()
+    prepared = bool(paths)
+    if not prepared:
+        git(["add", "-A"], check=True)
+        paths = staged_paths()
     hits = secret_hits_in(git(["diff", "--cached"], check=True).stdout)
     if hits and not args.allow_matches:
-        git(["reset"])
+        if not prepared:
+            # Only what this step staged is unstaged again; the caller's own
+            # index survives the refusal for them to review.
+            git(["reset"])
         raise Stop("commit", "possible secrets in the staged diff — review; "
                    "false positive → re-run with --allow-matches, real secret → resolve first",
                    "\n".join(hits[:40]))
@@ -925,7 +994,14 @@ def cmd_commit(args) -> dict:
         raise Stop("commit", "git commit failed (pre-commit hook?)",
                    (p.stderr + "\n" + p.stdout).strip()[-3000:])
     sha = git(["rev-parse", "HEAD"], check=True).stdout.strip()
-    return {"committed": True, "sha": sha, "allowed_matches": bool(hits)}
+    return {
+        "committed": True,
+        "sha": sha,
+        "allowed_matches": bool(hits),
+        "staged_from": "prepared-index" if prepared else "working-tree",
+        "committed_paths": paths,
+        "committed_path_count": len(paths),
+    }
 
 
 # ---------- Content route (durable content, no worktree) ----------
@@ -1836,6 +1912,10 @@ def cmd_land(args) -> dict:
                    "/wrapup lands a slice branch, never the integration branch")
     wt = branches.get(branch)
     wt_exists = wt is not None and Path(wt).is_dir()
+    # Step 4's target is resolved here, before the merge and long before the
+    # first deletion: a teardown a later step would refuse must refuse now,
+    # while nothing has been removed yet.
+    teardown = resolve_teardown_target(main_tree, wt)
     profile = load_profile()
     default_section = profile.get("headings", {}).get("vorBau", "Vor Bau zu klären")
 
@@ -1943,11 +2023,13 @@ def cmd_land(args) -> dict:
     report["merged"] = True
 
     # Step 2 — quiesce this worktree's own dev servers, then Step 4 — teardown.
-    # Teardown always runs: a direct /wrapup invocation is its authorization,
-    # and the classifier's four rules are the only protection.
-    if not wt_exists:
-        report["skipped"].append("teardown: the worktree is already removed")
+    # Teardown runs on the target resolved above and on nothing else: a direct
+    # /wrapup invocation is its authorization, and the classifier's four rules
+    # are the only protection once it does run.
+    if teardown.worktree is None:
+        report["skipped"].append(teardown.reason)
     else:
+        wt = teardown.worktree
         git(["fetch", "origin", integration], cwd=main_tree, check=True)
         report["killed_processes"] = kill_worktree_processes(wt)
         assessment = assess_teardown(wt, main_tree)
@@ -1967,8 +2049,16 @@ def cmd_land(args) -> dict:
         git(["worktree", "prune"], cwd=main_tree)
         report["worktree_removed"] = wt
 
-    # Step 5 — integration ff + branch retirement by authority (after the pull)
-    retire_local_branch(branch, main_tree, integration, report, pr=args.pr)
+    # Step 5 — integration ff + branch retirement by authority (after the pull).
+    # Retirement checks out the integration branch first, so when the main
+    # working tree is the checkout holding this branch it would switch that
+    # tree off the branch it is sitting on. The landing reports and stops here.
+    if teardown.is_main_working_tree:
+        retired = "refused: the main working tree has this branch checked out"
+        report["branch_retired"] = retired
+        report["skipped"].append(f"branch retire: {retired}")
+    else:
+        retire_local_branch(branch, main_tree, integration, report, pr=args.pr)
 
     # Step 5b — verify declared auto-closes (backtick-swallowed `closes`
     # misses). Targets come from the merged PR body's close keywords, never

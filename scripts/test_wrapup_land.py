@@ -23,6 +23,11 @@ def completed(payload, returncode=0, stderr=""):
     return subprocess.CompletedProcess([], returncode, json.dumps(payload), stderr)
 
 
+def raw(stdout, returncode=0, stderr=""):
+    """One platform answer exactly as `gh` wrote it — not a re-encoded payload."""
+    return subprocess.CompletedProcess([], returncode, stdout, stderr)
+
+
 def pr_snapshot(**overrides):
     snapshot = {
         "state": "OPEN",
@@ -44,6 +49,8 @@ def gate_runner(snapshots, required_checks):
             return completed(next(snapshots))
         if cmd[:3] == ["gh", "pr", "checks"]:
             checks = next(required_checks)
+            if isinstance(checks, subprocess.CompletedProcess):
+                return checks
             return completed(checks, returncode=1 if any(
                 check.get("state") == "FAILURE" for check in checks
             ) else 0)
@@ -263,6 +270,57 @@ class WrapupCheckGateContract(unittest.TestCase):
         ))
         self.assertIn("test (awaiting discovery)", progress.getvalue())
         self.assertIn("test", progress.getvalue())
+
+    def test_an_empty_required_check_response_waits_instead_of_stopping(self):
+        """No check has been reported yet — the ordinary state seconds after a
+        PR is opened, and exactly what the poll exists to wait through (#387).
+
+        `gh pr checks --required --json …` answers with an empty body and exit
+        8 while the workflow has registered nothing yet; parsing that as JSON
+        is where `Expecting value: line 1 column 1 (char 0)` came from.
+        """
+        snapshots = [
+            pr_snapshot(mergeable="UNKNOWN", mergeStateStatus="BLOCKED"),
+            pr_snapshot(mergeable="UNKNOWN", mergeStateStatus="BLOCKED"),
+            pr_snapshot(),
+        ]
+        required = [
+            raw("", returncode=8, stderr="no checks reported on the 'x' branch"),
+            [{"name": "test", "state": "IN_PROGRESS", "bucket": "pending"}],
+            [{"name": "test", "state": "SUCCESS"}],
+        ]
+        clock = FakeClock()
+        progress = io.StringIO()
+
+        self.assertFalse(self.wrapup.wait_for_merge_gate(
+            "42",
+            timeout_seconds=30,
+            poll_interval=5,
+            command_runner=gate_runner(snapshots, required),
+            clock=clock.monotonic,
+            sleeper=clock.sleep,
+            progress_stream=progress,
+            configured_required_names={"test"},
+        ))
+        self.assertIn("test (awaiting discovery)", progress.getvalue())
+
+    def test_a_malformed_required_check_response_stops_and_names_itself(self):
+        """Positive control for the empty case: a non-empty body that is not
+        JSON is still a STOP, and says so in words an empty body never gets."""
+        snapshot = pr_snapshot(mergeStateStatus="BLOCKED")
+
+        with self.assertRaises(self.wrapup.Stop) as stopped:
+            self.wrapup.wait_for_merge_gate(
+                "42",
+                command_runner=gate_runner(
+                    [snapshot], [raw("<html>504 Gateway Timeout</html>")]
+                ),
+                configured_required_names={"test"},
+            )
+
+        self.assertEqual(stopped.exception.step, "0c merge-gate")
+        self.assertIn("malformed", stopped.exception.reason)
+        self.assertIn("504 Gateway Timeout", stopped.exception.detail)
 
     def test_visible_optional_check_cannot_mask_required_discovery(self):
         snapshot = pr_snapshot(
