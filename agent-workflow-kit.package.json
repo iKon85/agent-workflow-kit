@@ -2107,7 +2107,7 @@
       "path": ".claude/skills/skill-manifest.json",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "d2f918149db5d75cc389279afc93516d7c12aca790ddb49de23b198d055c8377",
+      "sha256": "8b635a0c193f5289876e0d212cab84a8292182aecf15f0cee237d68e7eb73411",
       "mode": 420,
       "origin": "kit"
     },

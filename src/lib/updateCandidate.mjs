@@ -415,7 +415,7 @@ export async function adoptReadinessCandidate({
     migrations,
     migrated: migrations.map(({ path }) => path),
     migrationConflicts,
-    availability: readinessDiff(before, after),
+    availability: readinessDiff(before, after, nextManifest?.readiness?.capabilities),
     incompatible,
   };
 }
@@ -568,11 +568,39 @@ async function readinessSnapshot(root, manifest) {
   return { skills, capabilities };
 }
 
-function readinessDiff(before, after) {
+/**
+ * Manifest prose is Kit-authored but reaches a terminal verbatim, so every
+ * catalog string is validated (must be a string) and stripped of C0/C1 control
+ * characters — an escape sequence would otherwise repaint the update plan.
+ */
+export function sanitizeReadinessText(value) {
+  if (typeof value !== 'string') return null;
+  const cleaned = value
+    .replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || null;
+}
+
+/** One unresolved capability in plain terms: what it is and what closes it. */
+function unresolvedEntry(capability, state, catalogEntry) {
+  return {
+    capability,
+    state,
+    title: sanitizeReadinessText(catalogEntry?.title),
+    remedy: sanitizeReadinessText(catalogEntry?.remedy),
+    evidencePaths: (catalogEntry?.evidence?.paths ?? [])
+      .map(sanitizeReadinessText)
+      .filter((path) => path !== null),
+  };
+}
+
+function readinessDiff(before, after, catalog = {}) {
   const newlyAvailable = [];
   const newlyDegraded = [];
   const newlyBlocked = [];
   const unresolved = new Set();
+  const unresolvedEntries = [];
   for (const [skill, current] of Object.entries(after.skills)) {
     const prior = before.skills[skill];
     if (current.verdict === 'blocked' && prior?.verdict !== 'blocked') newlyBlocked.push(skill);
@@ -582,11 +610,16 @@ function readinessDiff(before, after) {
     }
   }
   for (const [capability, result] of Object.entries(after.capabilities)) {
-    if (result.state !== 'ready') unresolved.add(`${capability}:${result.state}`);
+    if (result.state === 'ready') continue;
+    unresolved.add(`${capability}:${result.state}`);
+    unresolvedEntries.push(unresolvedEntry(capability, result.state, catalog?.[capability]));
   }
   return {
     newlyAvailable: newlyAvailable.sort(), newlyDegraded: newlyDegraded.sort(),
     newlyBlocked: newlyBlocked.sort(), stillUnresolved: [...unresolved].sort(),
+    unresolved: unresolvedEntries.sort(
+      (a, b) => (a.capability < b.capability ? -1 : 1),
+    ),
   };
 }
 
