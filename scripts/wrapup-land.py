@@ -932,6 +932,13 @@ def cmd_preflight(args) -> dict:
     }
 
 
+def staged_paths(cwd: str | None = None) -> list[str]:
+    """The paths the index holds against HEAD — one commit's exact subject."""
+    return sorted(_zsplit(
+        git(["diff", "--cached", "--name-only", "-z"], cwd=cwd, check=True).stdout
+    ))
+
+
 def cmd_commit(args) -> dict:
     cwd = os.getcwd()
     root = git(["rev-parse", "--show-toplevel"], check=True).stdout.strip()
@@ -949,10 +956,22 @@ def cmd_commit(args) -> dict:
     envs = env_paths(porcelain)
     if envs:
         raise Stop("commit", ".env in the working tree — never commit", "\n".join(envs))
-    git(["add", "-A"], check=True)
+    # An index the caller already prepared is a decision, not a draft: this
+    # commits exactly it. Staging the working tree is the fallback for an empty
+    # index alone — a wholesale sweep would commit a different set than the
+    # secret review upstream ever saw, which is how five screenshots and a
+    # foreign session's trace files rode into a release commit.
+    paths = staged_paths()
+    prepared = bool(paths)
+    if not prepared:
+        git(["add", "-A"], check=True)
+        paths = staged_paths()
     hits = secret_hits_in(git(["diff", "--cached"], check=True).stdout)
     if hits and not args.allow_matches:
-        git(["reset"])
+        if not prepared:
+            # Only what this step staged is unstaged again; the caller's own
+            # index survives the refusal for them to review.
+            git(["reset"])
         raise Stop("commit", "possible secrets in the staged diff — review; "
                    "false positive → re-run with --allow-matches, real secret → resolve first",
                    "\n".join(hits[:40]))
@@ -964,7 +983,14 @@ def cmd_commit(args) -> dict:
         raise Stop("commit", "git commit failed (pre-commit hook?)",
                    (p.stderr + "\n" + p.stdout).strip()[-3000:])
     sha = git(["rev-parse", "HEAD"], check=True).stdout.strip()
-    return {"committed": True, "sha": sha, "allowed_matches": bool(hits)}
+    return {
+        "committed": True,
+        "sha": sha,
+        "allowed_matches": bool(hits),
+        "staged_from": "prepared-index" if prepared else "working-tree",
+        "committed_paths": paths,
+        "committed_path_count": len(paths),
+    }
 
 
 # ---------- Content route (durable content, no worktree) ----------

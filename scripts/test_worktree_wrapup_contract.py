@@ -92,6 +92,15 @@ def integrate(main: Path, worktree: Path, branch: str) -> None:
     command(["git", "push", "origin", INTEGRATION_BRANCH], main)
 
 
+def committed_paths(repo: Path, sha: str) -> list[str]:
+    """Exactly what one commit changed — read from the commit, not the report."""
+    listed = command(
+        ["git", "diff-tree", "-r", "--name-only", "--no-commit-id", f"{sha}^", sha],
+        repo,
+    ).stdout
+    return sorted(listed.split())
+
+
 def _ok(args, stdout=""):
     return subprocess.CompletedProcess(args, 0, stdout, "")
 
@@ -486,6 +495,113 @@ class TeardownTargetContract(unittest.TestCase):
                 report["skipped"],
             )
             self.assertNotIn("worktree_removed", report)
+
+
+class PreparedIndexContract(unittest.TestCase):
+    """`commit` commits the caller's index, never a wholesale sweep (#386).
+
+    The secret review upstream reasons about the diff the agent believes it is
+    committing. A `git add -A` under that review commits a different set than
+    the one that was reviewed, so the index the caller prepared is the subject
+    of both the scan and the commit; staging the working tree is the fallback
+    for an empty index alone.
+    """
+
+    def fixture(self, tmp: Path) -> Path:
+        main, _ = make_repo(tmp)
+        return add_worktree(main, tmp / "index-tree", "spike/386-index")
+
+    def commit(self, wrapup, worktree: Path, **overrides):
+        values = {"message": "feat: the deliberate change", "allow_matches": False}
+        values.update(overrides)
+        previous = Path.cwd()
+        try:
+            os.chdir(worktree)
+            return wrapup.cmd_commit(SimpleNamespace(**values))
+        finally:
+            os.chdir(previous)
+
+    def test_a_prepared_index_is_committed_exactly(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            worktree = self.fixture(Path(tmp))
+            (worktree / "chosen.txt").write_text("the slice\n", encoding="utf-8")
+            (worktree / "screenshot.png").write_text("a prototype run\n", encoding="utf-8")
+            (worktree / "prototype").mkdir()
+            (worktree / "prototype/trace.json").write_text("{}\n", encoding="utf-8")
+            command(["git", "add", "chosen.txt"], worktree)
+
+            result = self.commit(wrapup, worktree)
+
+            self.assertTrue(result["committed"])
+            self.assertEqual(committed_paths(worktree, result["sha"]), ["chosen.txt"])
+            self.assertEqual(result["committed_paths"], ["chosen.txt"])
+            self.assertEqual(result["committed_path_count"], 1)
+            self.assertEqual(result["staged_from"], "prepared-index")
+            # The unrelated dirty files are bystanders: still there, still dirty.
+            self.assertEqual(
+                sorted(
+                    command(["git", "status", "--porcelain"], worktree).stdout.splitlines()
+                ),
+                ["?? prototype/", "?? screenshot.png"],
+            )
+
+    def test_an_empty_index_still_stages_the_whole_working_tree(self):
+        """Positive control: the fallback path is unchanged and reported."""
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            worktree = self.fixture(Path(tmp))
+            (worktree / "one.txt").write_text("first\n", encoding="utf-8")
+            (worktree / "two.txt").write_text("second\n", encoding="utf-8")
+
+            result = self.commit(wrapup, worktree)
+
+            self.assertEqual(
+                committed_paths(worktree, result["sha"]), ["one.txt", "two.txt"]
+            )
+            self.assertEqual(result["committed_paths"], ["one.txt", "two.txt"])
+            self.assertEqual(result["staged_from"], "working-tree")
+
+    def test_the_secret_scan_reads_the_diff_that_will_be_committed(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            worktree = self.fixture(Path(tmp))
+            (worktree / "chosen.txt").write_text("the slice\n", encoding="utf-8")
+            (worktree / "notes.md").write_text(
+                "api_key = sk-live-not-a-drill\n", encoding="utf-8"
+            )
+            command(["git", "add", "chosen.txt"], worktree)
+
+            result = self.commit(wrapup, worktree)
+
+            # The secret never enters this commit's diff, so it never becomes
+            # this commit's finding either.
+            self.assertEqual(committed_paths(worktree, result["sha"]), ["chosen.txt"])
+            self.assertFalse(result["allowed_matches"])
+            self.assertIn("?? notes.md",
+                          command(["git", "status", "--porcelain"], worktree).stdout)
+
+    def test_a_secret_in_the_prepared_index_stops_and_leaves_the_index_prepared(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            worktree = self.fixture(Path(tmp))
+            (worktree / "leak.txt").write_text(
+                "api_key = sk-live-not-a-drill\n", encoding="utf-8"
+            )
+            (worktree / "bystander.txt").write_text("unrelated\n", encoding="utf-8")
+            command(["git", "add", "leak.txt"], worktree)
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                self.commit(wrapup, worktree)
+
+            self.assertIn("secret", stopped.exception.reason)
+            self.assertIn("api_key", stopped.exception.detail)
+            # The index is the caller's decision, so the refusal keeps it
+            # exactly as prepared instead of resetting their work away.
+            self.assertEqual(
+                command(["git", "diff", "--cached", "--name-only"], worktree).stdout.split(),
+                ["leak.txt"],
+            )
 
 
 class ProcessKillContract(unittest.TestCase):
