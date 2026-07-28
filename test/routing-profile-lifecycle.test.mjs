@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,16 +11,25 @@ import {
   ROUTING_PROFILE_PATH,
   ROUTING_PROFILE_VERSION,
   STANDARD_ROUTE_CLASSES,
+  commitRoutingProfilePair,
   decodeRoutingProfile,
   inspectRoutingProfile,
   normalizeRosterModelId,
+  readComposedRoutingProfile,
   readRoutingProfile,
   reconcileRoutingProfile,
   routingProfileBackupPath,
   routingProfilePath,
+  routingProfileStorageRoot,
   setupRoutingProfile,
   validateRoutingProfile,
 } from '../src/lib/routingProfile.mjs';
+import {
+  ROUTING_PROFILE_ENVELOPE_VERSION,
+  recoverRoutingProfileStorage,
+  resolveProjectIdentity,
+  routingProfileGenerationPath,
+} from '../src/lib/routingProfileStorage.mjs';
 import {
   AGENT_SURFACE_REGISTRY,
   detectAgentSurfaces,
@@ -875,4 +884,261 @@ test('setup and update skill contracts stay source-first and mirrored', async ()
   const updateSkill = await readFile('.claude/skills/kit-update/SKILL.md', 'utf8');
   assert.match(updateSkill, /Unattended update records[\s\S]*needs-reconcile/);
   assert.match(updateSkill, /Declining the[\s\S]*successful Kit update applied/);
+});
+
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/** A resolved project identity that needs no git, so storage tests stay hermetic. */
+const FIXTURE_IDENTITY = Object.freeze({
+  key: 'b1c26c58-9a2e-4a63-8f0a-5f9c1d3e7a20',
+  value: 'b1c26c58-9a2e-4a63-8f0a-5f9c1d3e7a20',
+  source: 'git-marker',
+  confidence: 'stable',
+  markerPath: null,
+});
+
+const storageProfile = (overrides = {}) => ({
+  schemaVersion: ROUTING_PROFILE_VERSION,
+  registryRevision: 1,
+  selectedSurfaces: ['claude-code', 'codex'],
+  consideredSurfaces: ['claude-code', 'codex'],
+  switching: 'ask',
+  roster: [{ model: 'claude-opus-5', effort: 'high' }],
+  standardRoutes: { ...NO_STANDARD_ROUTES, development: { model: 'claude-opus-5', effort: 'high' } },
+  advanced: null,
+  ...overrides,
+});
+
+/** Git without the hook-exported GIT_* environment, which would retarget the repo. */
+const GIT_ENV = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
+);
+
+function git(cwd, ...args) {
+  const result = spawnSync('git', ['-c', 'user.email=t@example.com', '-c', 'user.name=T', ...args], {
+    cwd, encoding: 'utf8', env: GIT_ENV, timeout: 20_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout;
+}
+
+const exists = (path) => access(path).then(() => true, () => false);
+
+test('global and project documents carry immutable generations in a storage envelope, never in the profile schema', async () => {
+  const consumer = await makeEmptyDir();
+  const profileRoot = join(consumer, '.test-user-state');
+  const root = routingProfileStorageRoot(profileRoot);
+  try {
+    const first = await commitRoutingProfilePair({
+      profileRoot,
+      identity: FIXTURE_IDENTITY,
+      global: storageProfile(),
+      project: storageProfile({ selectedSurfaces: ['codex'] }),
+    });
+    assert.deepEqual([first.globalGeneration, first.projectGeneration], [1, 1]);
+
+    const globalFile = routingProfileGenerationPath({ root, scope: 'global', generation: 1 });
+    const envelope = JSON.parse(await readFile(globalFile, 'utf8'));
+    assert.equal(envelope.envelopeVersion, ROUTING_PROFILE_ENVELOPE_VERSION);
+    assert.equal(envelope.scope, 'global');
+    assert.equal(envelope.generation, 1);
+    assert.ok(Number.isFinite(Date.parse(envelope.committedAt)));
+    assert.deepEqual(envelope.document, validateRoutingProfile(storageProfile()));
+    for (const field of ['generation', 'envelopeVersion', 'committedAt', 'revision']) {
+      assert.equal(field in envelope.document, false, field);
+    }
+    assert.throws(
+      () => validateRoutingProfile({ ...storageProfile(), generation: 1 }),
+      /unknown routing profile field: generation/,
+    );
+
+    const projectEnvelope = JSON.parse(await readFile(routingProfileGenerationPath({
+      root, scope: 'project', projectKey: FIXTURE_IDENTITY.key, generation: 1,
+    }), 'utf8'));
+    assert.equal(projectEnvelope.projectKey, FIXTURE_IDENTITY.key);
+    assert.deepEqual(projectEnvelope.identity, { source: 'git-marker', confidence: 'stable' });
+    assert.equal(projectEnvelope.authoredAgainstGlobalGeneration, 1);
+
+    const bytes = await readFile(globalFile, 'utf8');
+    const second = await commitRoutingProfilePair({
+      profileRoot, identity: FIXTURE_IDENTITY, global: storageProfile({ switching: 'automatic' }),
+    });
+    assert.equal(second.globalGeneration, 2);
+    assert.equal(second.projectGeneration, null);
+    assert.equal(await readFile(globalFile, 'utf8'), bytes);
+
+    await assert.rejects(commitRoutingProfilePair({
+      profileRoot,
+      identity: FIXTURE_IDENTITY,
+      global: storageProfile({ switching: 'current-surface-only' }),
+      expectedGlobalGeneration: 1,
+    }), /stale routing profile generation: expected 1, found 2/);
+    await assert.rejects(commitRoutingProfilePair({
+      profileRoot,
+      identity: FIXTURE_IDENTITY,
+      project: storageProfile({ selectedSurfaces: ['codex'] }),
+      expectedProjectGeneration: null,
+    }), /stale routing profile generation: expected none, found 1/);
+    const latest = JSON.parse(await readFile(
+      routingProfileGenerationPath({ root, scope: 'global', generation: 2 }), 'utf8',
+    ));
+    assert.equal(latest.document.switching, 'automatic');
+  } finally {
+    await cleanup(consumer);
+  }
+});
+
+test('composition reads the latest committed global generation plus the project narrowing', async () => {
+  const consumer = await makeEmptyDir();
+  const profileRoot = join(consumer, '.test-user-state');
+  try {
+    const empty = await readComposedRoutingProfile({ profileRoot, identity: FIXTURE_IDENTITY });
+    assert.equal(empty.global, null);
+    assert.equal(empty.project, null);
+    assert.deepEqual(empty.reasons, ['no-global-authorization', 'no-project-narrowing']);
+
+    await commitRoutingProfilePair({
+      profileRoot,
+      identity: FIXTURE_IDENTITY,
+      global: storageProfile(),
+      project: storageProfile({ selectedSurfaces: ['codex'] }),
+    });
+    await commitRoutingProfilePair({
+      profileRoot, identity: FIXTURE_IDENTITY, global: storageProfile({ switching: 'automatic' }),
+    });
+
+    const composed = await readComposedRoutingProfile({ profileRoot, identity: FIXTURE_IDENTITY });
+    assert.equal(composed.global.generation, 2);
+    assert.equal(composed.global.profile.switching, 'automatic');
+    assert.equal(composed.project.generation, 1);
+    assert.deepEqual(composed.project.profile.selectedSurfaces, ['codex']);
+    assert.equal(composed.project.authoredAgainstGlobalGeneration, 1);
+    assert.deepEqual(composed.reasons, []);
+    assert.equal(composed.pendingTransactionId, null);
+
+    const fresh = await readComposedRoutingProfile({
+      profileRoot, identity: { ...FIXTURE_IDENTITY, key: 'a0e1b2c3-d4e5-4f60-8a9b-0c1d2e3f4a5b' },
+    });
+    assert.equal(fresh.global.generation, 2);
+    assert.equal(fresh.project, null);
+    assert.deepEqual(fresh.reasons, ['no-project-narrowing']);
+  } finally {
+    await cleanup(consumer);
+  }
+});
+
+test('a crash between the global and the project write recovers to the last committed pair', async () => {
+  const consumer = await makeEmptyDir();
+  const profileRoot = join(consumer, '.test-user-state');
+  const root = routingProfileStorageRoot(profileRoot);
+  const projectDir = dirname(routingProfileGenerationPath({
+    root, scope: 'project', projectKey: FIXTURE_IDENTITY.key, generation: 1,
+  }));
+  const pair = {
+    global: storageProfile({ switching: 'automatic' }),
+    project: storageProfile({ selectedSurfaces: ['codex'], switching: 'current-surface-only' }),
+  };
+  try {
+    await commitRoutingProfilePair({
+      profileRoot,
+      identity: FIXTURE_IDENTITY,
+      global: storageProfile(),
+      project: storageProfile({ selectedSurfaces: ['codex'] }),
+    });
+
+    // The crash: the global generation reaches the disk, the project generation
+    // never does — reproduced by making only the project side unwritable.
+    await chmod(projectDir, 0o555);
+    await assert.rejects(commitRoutingProfilePair({
+      profileRoot, identity: FIXTURE_IDENTITY, ...pair,
+    }));
+    const halfWritten = routingProfileGenerationPath({ root, scope: 'global', generation: 2 });
+    assert.equal(await exists(halfWritten), true);
+
+    const afterCrash = await readComposedRoutingProfile({ profileRoot, identity: FIXTURE_IDENTITY });
+    assert.equal(afterCrash.global.generation, 1);
+    assert.equal(afterCrash.global.profile.switching, 'ask');
+    assert.equal(afterCrash.project.generation, 1);
+    assert.equal(afterCrash.project.profile.switching, 'ask');
+    assert.ok(UUID_SHAPE.test(afterCrash.pendingTransactionId));
+
+    await chmod(projectDir, 0o700);
+    const recovered = await recoverRoutingProfileStorage({ root });
+    assert.equal(recovered.transactionId, afterCrash.pendingTransactionId);
+    assert.deepEqual(recovered.discarded, [halfWritten]);
+    assert.equal(await exists(halfWritten), false);
+
+    const afterRecovery = await readComposedRoutingProfile({
+      profileRoot, identity: FIXTURE_IDENTITY,
+    });
+    assert.equal(afterRecovery.global.generation, 1);
+    assert.equal(afterRecovery.project.generation, 1);
+    assert.equal(afterRecovery.pendingTransactionId, null);
+
+    const retried = await commitRoutingProfilePair({
+      profileRoot, identity: FIXTURE_IDENTITY, ...pair,
+    });
+    assert.deepEqual([retried.globalGeneration, retried.projectGeneration], [2, 2]);
+    const landed = await readComposedRoutingProfile({ profileRoot, identity: FIXTURE_IDENTITY });
+    assert.equal(landed.global.profile.switching, 'automatic');
+    assert.equal(landed.project.profile.switching, 'current-surface-only');
+    assert.equal(landed.project.authoredAgainstGlobalGeneration, 2);
+  } finally {
+    await chmod(projectDir, 0o700).catch(() => {});
+    await cleanup(consumer);
+  }
+});
+
+test('the project key is the marker identity every worktree of a repository shares', async () => {
+  const repo = await makeEmptyDir();
+  const elsewhere = await makeEmptyDir();
+  const consumer = await makeEmptyDir();
+  const profileRoot = join(consumer, '.test-user-state');
+  const worktree = join(elsewhere, 'slice');
+  try {
+    git(repo, 'init', '-q');
+    git(repo, 'commit', '-q', '--allow-empty', '-m', 'root');
+
+    const identity = await resolveProjectIdentity({ projectRoot: repo });
+    assert.equal(identity.source, 'git-marker');
+    assert.equal(identity.confidence, 'stable');
+    assert.ok(UUID_SHAPE.test(identity.key));
+    assert.equal(identity.markerPath, join(repo, '.git', 'agent-workflow-kit', 'project-id'));
+    assert.equal((await readFile(identity.markerPath, 'utf8')).trim(), identity.key);
+    assert.equal((await resolveProjectIdentity({ projectRoot: repo })).key, identity.key);
+    assert.equal(git(repo, 'status', '--porcelain'), '');
+
+    git(repo, 'worktree', 'add', '-q', '-b', 'slice', worktree);
+    assert.equal((await resolveProjectIdentity({ projectRoot: worktree })).key, identity.key);
+
+    await commitRoutingProfilePair({
+      profileRoot,
+      projectRoot: worktree,
+      global: storageProfile(),
+      project: storageProfile({ selectedSurfaces: ['codex'] }),
+    });
+    const composed = await readComposedRoutingProfile({ profileRoot, projectRoot: repo });
+    assert.equal(composed.identity.key, identity.key);
+    assert.deepEqual(composed.project.profile.selectedSurfaces, ['codex']);
+    assert.equal(await exists(routingProfileGenerationPath({
+      root: routingProfileStorageRoot(profileRoot),
+      scope: 'project',
+      projectKey: identity.key,
+      generation: 1,
+    })), true);
+
+    const outsideGit = await resolveProjectIdentity({ projectRoot: consumer });
+    assert.equal(outsideGit.source, 'project-path');
+    assert.equal(outsideGit.confidence, 'lower');
+    assert.match(outsideGit.key, /^path-[0-9a-f]{20}$/);
+    assert.equal(outsideGit.value, consumer);
+    assert.equal(outsideGit.markerPath, null);
+
+    await writeFile(identity.markerPath, 'not-a-uuid\n');
+    await assert.rejects(
+      resolveProjectIdentity({ projectRoot: repo }),
+      /routing project identity marker is unreadable/,
+    );
+  } finally {
+    await cleanup(repo, elsewhere, consumer);
+  }
 });
