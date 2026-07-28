@@ -593,6 +593,45 @@ def require_landable_head(step: str, cwd: str) -> str:
     return branch
 
 
+class TeardownTarget(NamedTuple):
+    """What Step 4 may act on, decided before anything is removed."""
+
+    worktree: str | None
+    reason: str
+    is_main_working_tree: bool = False
+
+
+def resolve_teardown_target(main_tree: str, worktree: str | None) -> TeardownTarget:
+    """Resolve the teardown target and its admissibility — before any removal.
+
+    Deletion is the one irreversible half of a landing, so every state that
+    refuses it is enumerated here, while nothing has been removed yet. The
+    state that matters is the main working tree: teardown's safety argument is
+    that ignored means "the repository declared this is not work", and that
+    holds for a worktree this session is discarding — never for the checkout
+    every other session lives in, where ignored means node_modules, planning
+    artifacts and, once the worktree root is ignored, every sibling worktree of
+    every parallel agent.
+
+    Having no worktree to tear down is an ordinary outcome, not a refusal: the
+    branch merged, and there is simply nothing to discard.
+    """
+    if worktree is None:
+        return TeardownTarget(
+            None, "teardown: no worktree holds this branch — nothing to tear down"
+        )
+    if os.path.realpath(worktree) == os.path.realpath(main_tree):
+        return TeardownTarget(
+            None,
+            f"teardown: {worktree} is the main working tree — /wrapup never tears "
+            "that down, so there is nothing to tear down",
+            is_main_working_tree=True,
+        )
+    if not Path(worktree).is_dir():
+        return TeardownTarget(None, "teardown: the worktree is already removed")
+    return TeardownTarget(worktree, "")
+
+
 def assess_teardown(wt: str, main_tree: str):
     """Classify the worktree's current state — the only teardown authority."""
     classify = load_teardown_classifier()
@@ -1836,6 +1875,10 @@ def cmd_land(args) -> dict:
                    "/wrapup lands a slice branch, never the integration branch")
     wt = branches.get(branch)
     wt_exists = wt is not None and Path(wt).is_dir()
+    # Step 4's target is resolved here, before the merge and long before the
+    # first deletion: a teardown a later step would refuse must refuse now,
+    # while nothing has been removed yet.
+    teardown = resolve_teardown_target(main_tree, wt)
     profile = load_profile()
     default_section = profile.get("headings", {}).get("vorBau", "Vor Bau zu klären")
 
@@ -1943,11 +1986,13 @@ def cmd_land(args) -> dict:
     report["merged"] = True
 
     # Step 2 — quiesce this worktree's own dev servers, then Step 4 — teardown.
-    # Teardown always runs: a direct /wrapup invocation is its authorization,
-    # and the classifier's four rules are the only protection.
-    if not wt_exists:
-        report["skipped"].append("teardown: the worktree is already removed")
+    # Teardown runs on the target resolved above and on nothing else: a direct
+    # /wrapup invocation is its authorization, and the classifier's four rules
+    # are the only protection once it does run.
+    if teardown.worktree is None:
+        report["skipped"].append(teardown.reason)
     else:
+        wt = teardown.worktree
         git(["fetch", "origin", integration], cwd=main_tree, check=True)
         report["killed_processes"] = kill_worktree_processes(wt)
         assessment = assess_teardown(wt, main_tree)
@@ -1967,8 +2012,16 @@ def cmd_land(args) -> dict:
         git(["worktree", "prune"], cwd=main_tree)
         report["worktree_removed"] = wt
 
-    # Step 5 — integration ff + branch retirement by authority (after the pull)
-    retire_local_branch(branch, main_tree, integration, report, pr=args.pr)
+    # Step 5 — integration ff + branch retirement by authority (after the pull).
+    # Retirement checks out the integration branch first, so when the main
+    # working tree is the checkout holding this branch it would switch that
+    # tree off the branch it is sitting on. The landing reports and stops here.
+    if teardown.is_main_working_tree:
+        retired = "refused: the main working tree has this branch checked out"
+        report["branch_retired"] = retired
+        report["skipped"].append(f"branch retire: {retired}")
+    else:
+        retire_local_branch(branch, main_tree, integration, report, pr=args.pr)
 
     # Step 5b — verify declared auto-closes (backtick-swallowed `closes`
     # misses). Targets come from the merged PR body's close keywords, never

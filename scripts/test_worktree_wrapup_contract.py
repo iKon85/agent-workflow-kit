@@ -404,6 +404,90 @@ class ExternalWorktreeContract(unittest.TestCase):
         self.assertIn("protected branch", stopped.exception.reason)
 
 
+class TeardownTargetContract(unittest.TestCase):
+    """Step 4 resolves its target before anything is removed (#385).
+
+    Teardown's safety argument is that ignored means "the repository declared
+    this is not work". That holds for a worktree this session is discarding. In
+    the main working tree the same word means node_modules, planning artifacts
+    and — once the worktree root is ignored — every sibling worktree of every
+    parallel agent, so the target is decided before the first deletion, not
+    after it. The positive control that teardown does delete when the target is
+    a linked worktree is `ExternalWorktreeContract` above.
+    """
+
+    def test_a_branch_held_by_the_main_checkout_is_never_torn_down(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            main, _ = make_repo(root)
+            # A concurrently live worktree of a different session, under the
+            # ignored worktree root — deletable scratch by classification.
+            sibling = add_worktree(main, main / ".worktrees/sibling", "feat/1-sibling")
+            (sibling / "work.txt").write_text("another session\n", encoding="utf-8")
+            branch = "spike/385-main-checkout"
+            command(["git", "switch", "-c", branch], main)
+            (main / "change.txt").write_text("landed\n", encoding="utf-8")
+            command(["git", "add", "change.txt"], main)
+            command(["git", "commit", "-m", "change"], main)
+            (main / "PLAN.md").write_text("this session's planning\n", encoding="utf-8")
+
+            hub = FakeHub(wrapup.run)
+            report = run_land(wrapup, main, land_args(branch), hub=hub)
+
+            self.assertTrue(report["merged"])
+            self.assertNotIn("worktree_removed", report)
+            self.assertNotIn("scratch_removed", report)
+            self.assertTrue(
+                any("main working tree" in entry for entry in report["skipped"]),
+                report["skipped"],
+            )
+            # Nothing ignored in the main checkout was deleted, and the sibling
+            # worktree of the parallel session is untouched.
+            self.assertEqual(
+                (main / "PLAN.md").read_text(encoding="utf-8"),
+                "this session's planning\n",
+            )
+            self.assertTrue(sibling.is_dir())
+            self.assertEqual(
+                (sibling / "work.txt").read_text(encoding="utf-8"), "another session\n"
+            )
+            self.assertIn(
+                str(sibling),
+                command(["git", "worktree", "list"], main).stdout,
+            )
+            # Branch retirement would switch the checkout off the branch it
+            # holds, so it is refused rather than performed.
+            self.assertEqual(
+                command(["git", "rev-parse", "--abbrev-ref", "HEAD"], main).stdout.strip(),
+                branch,
+            )
+            self.assertIn("main working tree", str(report["branch_retired"]))
+
+    def test_no_worktree_at_all_is_a_reported_outcome_not_a_stop(self):
+        """The Content route's landing: a branch no checkout holds."""
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            main, _ = make_repo(root)
+            branch = "docs/385-content"
+            command(["git", "switch", "-c", branch], main)
+            (main / "note.md").write_text("durable\n", encoding="utf-8")
+            command(["git", "add", "note.md"], main)
+            command(["git", "commit", "-m", "note"], main)
+            command(["git", "switch", INTEGRATION_BRANCH], main)
+
+            hub = FakeHub(wrapup.run)
+            report = run_land(wrapup, main, land_args(branch), hub=hub)
+
+            self.assertTrue(report["merged"])
+            self.assertTrue(
+                any("nothing to tear down" in entry for entry in report["skipped"]),
+                report["skipped"],
+            )
+            self.assertNotIn("worktree_removed", report)
+
+
 class ProcessKillContract(unittest.TestCase):
     """`.dev-ports`-scoped, never signal on doubt."""
 
@@ -570,7 +654,13 @@ class ResumeByRecheckContract(unittest.TestCase):
             second = run_land(wrapup, main, land_args(branch), hub=hub)
 
         self.assertEqual(first["worktree_removed"], str(worktree))
-        self.assertIn("teardown: the worktree is already removed", second["skipped"])
+        # The first run removed *and* pruned it, so the second run finds no
+        # worktree holding the branch at all — the same outcome the Content
+        # route's landing has from the start.
+        self.assertIn(
+            "teardown: no worktree holds this branch — nothing to tear down",
+            second["skipped"],
+        )
         self.assertEqual(second["branch_retired"], "already absent")
         self.assertTrue(second["merged"])
 
