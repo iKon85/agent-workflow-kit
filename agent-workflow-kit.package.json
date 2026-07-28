@@ -3099,7 +3099,7 @@
       "path": "src/lib/routingResolver.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "da8bbdc924a172ca9cfb3e24b35efd9cbf2d3157e2d29e65032600b840ad01d3",
+      "sha256": "b1ba5d4efa28254a375620a2b30da7d6680e37fb3c73fc0dfeedc712dc6a5f94",
       "mode": 420,
       "origin": "kit"
     },
