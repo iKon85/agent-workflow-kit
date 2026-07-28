@@ -1,0 +1,109 @@
+{
+  "snapshotVersion": 1,
+  "surface": "codex",
+  "provider": "openai",
+  "provenance": {
+    "sourceKind": "capability-cache",
+    "sourceRef": "local Codex capability cache (models_cache.json) fetched under the existing subscription login, ETag-versioned; client 0.145.0",
+    "capturedAt": "2026-07-28",
+    "integrity": "sha256-SS-M-6oo94SpVYbsyIw7-SfiEf_pQyGmX5RaFWACtns"
+  },
+  "models": [
+    {
+      "modelId": "gpt-5.6-sol",
+      "identifiers": ["gpt-5.6-sol"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
+      "defaultEffort": "low",
+      "visibility": "list",
+      "supportedInApi": true,
+      "contextWindow": 272000,
+      "maxContextWindow": 272000,
+      "effortSource": "capability-cache"
+    },
+    {
+      "modelId": "gpt-5.6-terra",
+      "identifiers": ["gpt-5.6-terra"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
+      "defaultEffort": "medium",
+      "visibility": "list",
+      "supportedInApi": true,
+      "contextWindow": 272000,
+      "maxContextWindow": 272000,
+      "effortSource": "capability-cache"
+    },
+    {
+      "modelId": "gpt-5.6-luna",
+      "identifiers": ["gpt-5.6-luna"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "defaultEffort": "medium",
+      "visibility": "list",
+      "supportedInApi": true,
+      "contextWindow": 272000,
+      "maxContextWindow": 272000,
+      "effortSource": "capability-cache"
+    },
+    {
+      "modelId": "gpt-5.5",
+      "identifiers": ["gpt-5.5"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh"],
+      "defaultEffort": "medium",
+      "visibility": "list",
+      "supportedInApi": true,
+      "contextWindow": 272000,
+      "maxContextWindow": 272000,
+      "effortSource": "capability-cache"
+    },
+    {
+      "modelId": "gpt-5.4",
+      "identifiers": ["gpt-5.4"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh"],
+      "defaultEffort": "medium",
+      "visibility": "list",
+      "supportedInApi": true,
+      "contextWindow": 272000,
+      "maxContextWindow": 1000000,
+      "effortSource": "capability-cache"
+    },
+    {
+      "modelId": "gpt-5.4-mini",
+      "identifiers": ["gpt-5.4-mini"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh"],
+      "defaultEffort": "medium",
+      "visibility": "list",
+      "supportedInApi": true,
+      "contextWindow": 272000,
+      "maxContextWindow": 272000,
+      "effortSource": "capability-cache"
+    },
+    {
+      "modelId": "gpt-5.3-codex-spark",
+      "identifiers": ["gpt-5.3-codex-spark"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh"],
+      "defaultEffort": "high",
+      "visibility": "list",
+      "supportedInApi": false,
+      "contextWindow": 128000,
+      "maxContextWindow": 128000,
+      "effortSource": "capability-cache"
+    },
+    {
+      "modelId": "codex-auto-review",
+      "identifiers": ["codex-auto-review"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh"],
+      "defaultEffort": "medium",
+      "visibility": "hide",
+      "supportedInApi": true,
+      "contextWindow": 272000,
+      "maxContextWindow": 1000000,
+      "effortSource": "capability-cache"
+    }
+  ]
+}
