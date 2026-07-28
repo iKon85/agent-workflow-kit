@@ -9,11 +9,17 @@ import { update } from '../src/commands/update.mjs';
 import { activateCandidate } from '../src/lib/updateCandidate.mjs';
 import {
   ROUTING_PROFILE_PATH,
+  ROUTING_PROFILE_VERSION,
+  STANDARD_ROUTE_CLASSES,
+  decodeRoutingProfile,
   inspectRoutingProfile,
+  normalizeRosterModelId,
   readRoutingProfile,
   reconcileRoutingProfile,
+  routingProfileBackupPath,
   routingProfilePath,
   setupRoutingProfile,
+  validateRoutingProfile,
 } from '../src/lib/routingProfile.mjs';
 import {
   AGENT_SURFACE_REGISTRY,
@@ -26,6 +32,7 @@ import { sha256 } from '../src/lib/hash.mjs';
 const P = '.claude/skills/to-prd/SKILL.md';
 const CLI = fileURLToPath(new URL('../src/cli.mjs', import.meta.url));
 const verify = async () => {};
+const NO_STANDARD_ROUTES = { mechanical: null, development: null, judgment: null };
 
 function releaseIdentities(version = '0.1.0') {
   const identity = {
@@ -92,11 +99,13 @@ test('first setup live fixture preselects Claude and Codex and asks only surface
       !('providers' in question) && !('transports' in question) &&
       !('model' in question) && !('effort' in question)));
     assert.deepEqual(await readRoutingProfile(consumer, profileRoot), {
-      schemaVersion: 1,
+      schemaVersion: 2,
       registryRevision: 1,
       selectedSurfaces: ['claude-code', 'codex'],
       consideredSurfaces: ['claude-code', 'codex'],
       switching: 'ask',
+      roster: [],
+      standardRoutes: NO_STANDARD_ROUTES,
       advanced: null,
     });
   } finally {
@@ -161,8 +170,7 @@ test('activation supports back and optional advanced choices without entering de
       'activation', 'advanced', 'activation',
     ]);
     assert.deepEqual((await readRoutingProfile(consumer, profileRoot)).advanced, {
-      optimization: 'quality',
-      preferredModels: ['optional-user-choice'],
+      legacy: { optimization: 'quality', preferredModels: ['optional-user-choice'] },
     });
   } finally {
     await cleanup(consumer);
@@ -390,12 +398,14 @@ test('typed reconcile changes only the surfaced delta and preserves unaffected c
     assert.equal(result.status, 'reconciled');
     assert.equal(prompts, 1);
     assert.deepEqual(await readRoutingProfile(consumer, profileRoot), {
-      schemaVersion: 1,
+      schemaVersion: 2,
       registryRevision: 1,
       selectedSurfaces: ['claude-code'],
       consideredSurfaces: ['claude-code', 'codex'],
       switching: 'automatic',
-      advanced,
+      roster: [],
+      standardRoutes: NO_STANDARD_ROUTES,
+      advanced: { legacy: advanced },
     });
     assert.equal((await inspectRoutingProfile({
       consumerRoot: consumer,
@@ -442,7 +452,17 @@ test('a concurrent profile mutation during reconcile is preserved and blocks sta
         return { action: 'apply', addSurfaceIds: ['codex'] };
       },
     }, inspection), /concurrent routing profile mutation/);
-    assert.deepEqual(await readRoutingProfile(consumer, profileRoot), concurrent);
+    assert.deepEqual(JSON.parse(await readFile(path, 'utf8')), concurrent);
+    assert.deepEqual(await readRoutingProfile(consumer, profileRoot), {
+      schemaVersion: 2,
+      registryRevision: 1,
+      selectedSurfaces: ['codex'],
+      consideredSurfaces: ['codex'],
+      switching: 'current-surface-only',
+      roster: [],
+      standardRoutes: NO_STANDARD_ROUTES,
+      advanced: { legacy: { optimization: 'cost' } },
+    });
   } finally {
     await cleanup(consumer);
   }
@@ -484,7 +504,17 @@ test('update re-inspects after activation and adopts a concurrent valid personal
     });
     assert.equal(result.routingProfile.status, 'still valid');
     assert.equal(prompts, 0);
-    assert.deepEqual(await readRoutingProfile(consumer, profileRoot), concurrent);
+    assert.deepEqual(JSON.parse(await readFile(path, 'utf8')), concurrent);
+    assert.deepEqual(await readRoutingProfile(consumer, profileRoot), {
+      schemaVersion: 2,
+      registryRevision: 1,
+      selectedSurfaces: ['codex'],
+      consideredSurfaces: ['codex'],
+      switching: 'current-surface-only',
+      roster: [],
+      standardRoutes: NO_STANDARD_ROUTES,
+      advanced: { legacy: { optimization: 'cost' } },
+    });
   } finally {
     await cleanup(kit, consumer);
   }
@@ -513,6 +543,149 @@ test('shipped CLI wires init and update while unattended init never prompts or i
     assert.match(cli, /p\.multiselect/);
     assert.match(cli, /question\.options\.map/);
     assert.doesNotMatch(cli, /Claude Code.*Codex|Codex.*Claude Code/);
+  } finally {
+    await cleanup(consumer);
+  }
+});
+
+test('schema v2 carries a Model roster and three Standard routes and rejects the removed dial', () => {
+  assert.equal(ROUTING_PROFILE_VERSION, 2);
+  assert.deepEqual(STANDARD_ROUTE_CLASSES, ['mechanical', 'development', 'judgment']);
+  const base = {
+    schemaVersion: 2,
+    registryRevision: 1,
+    selectedSurfaces: ['claude-code'],
+    consideredSurfaces: ['claude-code'],
+    switching: 'current-surface-only',
+    roster: [
+      { model: 'claude-opus-5[1m]', effort: 'high' },
+      { model: 'claude-opus-5', effort: 'high' },
+      { model: 'claude-haiku-4-5', effort: null },
+    ],
+    standardRoutes: {
+      mechanical: { model: 'claude-haiku-4-5', effort: null },
+      development: { model: 'claude-opus-5', effort: 'high' },
+      judgment: { model: 'claude-opus-5[1m]', effort: 'high' },
+    },
+    advanced: null,
+  };
+  const profile = validateRoutingProfile(base);
+  assert.deepEqual(profile.roster, [
+    { model: 'claude-opus-5', effort: 'high' },
+    { model: 'claude-haiku-4-5', effort: null },
+  ]);
+  assert.deepEqual(profile.standardRoutes, {
+    mechanical: { model: 'claude-haiku-4-5', effort: null },
+    development: { model: 'claude-opus-5', effort: 'high' },
+    judgment: { model: 'claude-opus-5', effort: 'high' },
+  });
+  assert.equal(normalizeRosterModelId('  opus[1m] '), 'opus');
+
+  const rejects = [
+    [{ ...base, advanced: { optimization: 'quality' } }, /advanced field: optimization/],
+    [{ ...base, standardRoutes: { mechanical: null, development: null } }, /workload class/],
+    [
+      { ...base, standardRoutes: { ...base.standardRoutes, judgment: { model: 'gpt-5.6-sol', effort: 'high' } } },
+      /standardRoutes\.judgment must name a roster pair/,
+    ],
+    [{ ...base, roster: [{ model: 'claude-opus-5' }] }, /roster\[0\]\.effort/],
+    [{ ...base, roster: [{ model: 'claude-opus-5', effort: '' }] }, /roster\[0\]\.effort/],
+    [{ ...base, roster: [{ model: '[1m]', effort: 'high' }] }, /roster\[0\]\.model/],
+    [{ ...base, schemaVersion: 1 }, /schemaVersion must be 2/],
+  ];
+  for (const [input, message] of rejects) assert.throws(() => validateRoutingProfile(input), message);
+});
+
+test('a v1 profile decodes through its own decoder and migrates without losing a choice', () => {
+  const v1 = {
+    schemaVersion: 1,
+    registryRevision: 1,
+    selectedSurfaces: ['claude-code', 'codex'],
+    consideredSurfaces: ['claude-code', 'codex'],
+    switching: 'ask',
+    advanced: {
+      optimization: 'quality',
+      preferredModels: [
+        'claude-opus-5[1m]',
+        { model: 'gpt-5.6-terra[1m]', effort: 'medium' },
+        { model: 'claude-haiku-4-5', effort: null },
+        42,
+      ],
+      unknownEvidence: { keep: 'me' },
+    },
+  };
+  const { profile, migration } = decodeRoutingProfile(structuredClone(v1));
+
+  assert.equal(profile.schemaVersion, 2);
+  assert.deepEqual(profile.selectedSurfaces, ['claude-code', 'codex']);
+  assert.equal(profile.switching, 'ask');
+  assert.deepEqual(profile.standardRoutes, NO_STANDARD_ROUTES);
+  assert.deepEqual(profile.roster, [
+    { model: 'gpt-5.6-terra', effort: 'medium' },
+    { model: 'claude-haiku-4-5', effort: null },
+  ]);
+  assert.deepEqual(profile.advanced, { legacy: v1.advanced });
+  assert.deepEqual(migration.backup, v1);
+  assert.equal(migration.from, 1);
+  assert.equal(migration.to, 2);
+  assert.deepEqual(migration.notes, [
+    { code: 'optimization-removed', value: 'quality' },
+    { code: 'model-preference-needs-effort', model: 'claude-opus-5' },
+    { code: 'roster-pair-admitted', model: 'gpt-5.6-terra', effort: 'medium' },
+    { code: 'roster-pair-admitted', model: 'claude-haiku-4-5', effort: null },
+    { code: 'model-preference-unreadable', index: 3 },
+  ]);
+
+  assert.deepEqual(decodeRoutingProfile({ ...v1, advanced: null }).profile.advanced, null);
+  assert.equal(decodeRoutingProfile({ ...v1, schemaVersion: 2, roster: [], standardRoutes: NO_STANDARD_ROUTES, advanced: null }).migration, null);
+  assert.throws(() => decodeRoutingProfile({ schemaVersion: 99 }), /unsupported routing profile schemaVersion/);
+});
+
+test('a stored v1 profile stays untouched until an authorized write backs the original up', async () => {
+  const consumer = await makeEmptyDir();
+  const profileRoot = join(consumer, '.test-user-state');
+  const path = routingProfilePath(consumer, profileRoot);
+  const backup = routingProfileBackupPath(consumer, profileRoot, 1);
+  const bytes = `${JSON.stringify({
+    schemaVersion: 1,
+    registryRevision: 1,
+    selectedSurfaces: ['claude-code'],
+    consideredSurfaces: ['claude-code'],
+    switching: 'automatic',
+    advanced: { optimization: 'cost', preferredModels: [{ model: 'gpt-5.6-sol', effort: 'high' }] },
+  })}\n`;
+  try {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, bytes);
+
+    const inspection = await inspectRoutingProfile({
+      consumerRoot: consumer,
+      profileRoot,
+      detectedSurfaceIds: ['claude-code', 'codex'],
+    });
+    assert.equal(inspection.migration.from, 1);
+    assert.deepEqual(inspection.profile.roster, [{ model: 'gpt-5.6-sol', effort: 'high' }]);
+    assert.equal(await readFile(path, 'utf8'), bytes);
+    assert.equal(await access(backup).then(() => true, () => false), false);
+
+    const result = await reconcileRoutingProfile({
+      consumerRoot: consumer,
+      profileRoot,
+      detectedSurfaceIds: ['claude-code', 'codex'],
+      prompt: async () => ({ action: 'apply', addSurfaceIds: ['codex'] }),
+    }, inspection);
+
+    assert.equal(result.status, 'reconciled');
+    assert.equal(await readFile(backup, 'utf8'), bytes);
+    const stored = JSON.parse(await readFile(path, 'utf8'));
+    assert.equal(stored.schemaVersion, 2);
+    assert.deepEqual(stored.roster, [{ model: 'gpt-5.6-sol', effort: 'high' }]);
+    assert.deepEqual(stored.advanced, { legacy: JSON.parse(bytes).advanced });
+    assert.equal((await inspectRoutingProfile({
+      consumerRoot: consumer,
+      profileRoot,
+      detectedSurfaceIds: ['claude-code', 'codex'],
+    })).migration, null);
   } finally {
     await cleanup(consumer);
   }
