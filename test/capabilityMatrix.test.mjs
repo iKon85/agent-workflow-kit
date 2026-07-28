@@ -17,6 +17,12 @@ import {
   selectOrchestrationReference,
 } from '../src/lib/capabilityMatrix.mjs';
 import { dispatchResolvedRoute } from '../src/lib/routeDispatcher.mjs';
+import {
+  PLAN_AUTHORIZATION_MISMATCH,
+  PLAN_UNIT_UNAUTHORIZED,
+  authorizeDispatchPlan,
+  buildDispatchPlan,
+} from '../src/lib/dispatchPlan.mjs';
 import { ROUTING_POLICY_VERSION } from '../src/lib/routingPolicy.mjs';
 import {
   ACCESS_GRAPH_VERSION,
@@ -884,21 +890,167 @@ test('adapter mismatch diagnostics cannot inject secrets into a blocked receipt'
   assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
 });
 
-test('unreachable handoff, inherit, and block policy outcomes do not spawn', async () => {
-  for (const unreachable of ['handoff', 'inherit', 'block']) {
-    const fixture = routingFixture({ allowedTransports: [], unreachable });
-    const result = await dispatchResolvedRoute({
-      executionId: `execution-${unreachable}`,
-      afk: false,
-      resolverInput: fixture.resolverInput,
-      adapter: { prepare: async () => { throw new Error('must not prepare'); } },
-      dispatchedAt: '2026-07-23T12:00:01.000Z',
-    });
-    const expectedStatus = unreachable === 'block' ? 'blocked' : unreachable;
-    assert.equal(result.decision.status, expectedStatus);
-    assert.equal(result.receipt.status, 'blocked');
-    assert.match(result.receipt.reason, new RegExp(`^${expectedStatus}:`));
+const NEVER_PREPARES = {
+  prepare: async () => { throw new Error('must not prepare'); },
+};
+
+/** The session default a Claude transcript attested, in the roster's own pair. */
+const SESSION_DEFAULT = Object.freeze({
+  appliedRoute: Object.freeze({
+    providerId: 'anthropic',
+    modelId: 'reasoning-model[1m]',
+    effort: 'high',
+    surfaceId: 'claude',
+    transportId: 'claude-native',
+  }),
+  attestation: Object.freeze({
+    source: 'session-transcript',
+    model: 'reasoning-model[1m]',
+    effort: 'high',
+    observedAt: '2026-07-23T11:59:00.000Z',
+  }),
+});
+
+const unreachableDispatch = (unreachable, overrides = {}) => dispatchResolvedRoute({
+  executionId: `execution-${unreachable}`,
+  afk: false,
+  resolverInput: routingFixture({ allowedTransports: [], unreachable }).resolverInput,
+  adapter: NEVER_PREPARES,
+  dispatchedAt: '2026-07-23T12:00:01.000Z',
+  ...overrides,
+});
+
+test('handoff hands the work back with the resolved intent and dispatches nothing', async () => {
+  const result = await unreachableDispatch('handoff');
+
+  assert.equal(result.decision.status, 'handoff');
+  assert.equal(result.receipt.kind, 'handoff');
+  assert.equal(result.receipt.status, 'handoff');
+  assert.deepEqual(result.receipt.handoff, { to: 'claude' });
+  assert.match(result.receipt.reason, /^handoff:/);
+  assert.equal(result.receipt.appliedRoute, null);
+  assert.equal(result.receipt.enforcement, null);
+  assert.equal(result.handoff.intent.workload, 'development');
+  assert.equal(result.dispatchResult, null);
+});
+
+test('inherit is the constrained non-AFK path and every other way into it stays closed', async () => {
+  const inherited = await unreachableDispatch('inherit', { sessionDefault: SESSION_DEFAULT });
+  assert.equal(inherited.decision.status, 'inherit');
+  assert.equal(inherited.receipt.kind, 'inherited-dispatch');
+  assert.equal(inherited.receipt.status, 'dispatched');
+  assert.deepEqual(inherited.receipt.enforcement, {
+    model: 'session-default', effort: 'session-default',
+  });
+  // The pair is identified against the roster under the normalization rule: the
+  // session reports a context variant the roster never spells out.
+  assert.equal(inherited.receipt.appliedRoute.modelId, 'reasoning-model[1m]');
+  assert.equal(inherited.receipt.attestation.source, 'session-transcript');
+  assert.equal(inherited.receipt.requestedRoute, null);
+  assert.equal(inherited.dispatchResult, null);
+
+  const foreignPair = {
+    appliedRoute: { ...SESSION_DEFAULT.appliedRoute, modelId: 'unauthorized-model' },
+    attestation: { ...SESSION_DEFAULT.attestation, model: 'unauthorized-model' },
+  };
+  const settingsFile = {
+    ...SESSION_DEFAULT,
+    // A configured value is not an applied one, so no such channel attests.
+    attestation: { ...SESSION_DEFAULT.attestation, source: 'settings-file' },
+  };
+  for (const [label, overrides, reason] of [
+    ['unattested', {}, 'inherit requires an attested session-default pair'],
+    ['configured', { sessionDefault: settingsFile },
+      'inherit requires an attested session-default pair'],
+    ['unauthorized', { sessionDefault: foreignPair },
+      'session-default pair is not in the effective roster'],
+    ['afk', { sessionDefault: SESSION_DEFAULT, afk: true },
+      'AFK dispatch cannot inherit a session default'],
+  ]) {
+    const blocked = await unreachableDispatch('inherit', overrides);
+    assert.equal(blocked.receipt.kind, 'blocked', label);
+    assert.equal(blocked.receipt.reason, reason, label);
   }
+});
+
+test('an unreachable route under a block policy fails closed', async () => {
+  for (const afk of [false, true]) {
+    const result = await unreachableDispatch('block', { afk });
+    assert.equal(result.decision.status, 'blocked');
+    assert.equal(result.receipt.kind, 'blocked');
+    assert.match(result.receipt.reason, /^blocked:/);
+    assert.equal(result.dispatchResult, null);
+  }
+});
+
+test('a dispatch references its plan authorization and a mismatch blocks before the spawn', async () => {
+  const { route, resolverInput } = routingFixture();
+  let invoked = 0;
+  const adapter = claudeAdapter(route, async () => {
+    invoked += 1;
+    return { taskId: 'native-1' };
+  });
+  const planFor = (input) => buildDispatchPlan({
+    units: [{ unitId: 'slice-1', intent: input.intent }], resolverInput: input,
+  });
+  const plan = planFor(resolverInput);
+  const record = authorizeDispatchPlan(plan, {
+    id: 'plan-authorization-22',
+    scope: 'wave-22',
+    mode: 'fixed',
+    timestamp: '2026-07-23T11:00:00.000Z',
+    actor: 'niko',
+  });
+  const dispatch = (overrides) => dispatchResolvedRoute({
+    executionId: 'execution-planned',
+    afk: true,
+    resolverInput,
+    adapter,
+    plan,
+    planAuthorization: record,
+    unitId: 'slice-1',
+    dispatchedAt: '2026-07-23T12:00:01.000Z',
+    ...overrides,
+  });
+
+  const authorized = await dispatch({});
+  assert.equal(authorized.receipt.status, 'dispatched');
+  assert.equal(authorized.receipt.authorizationId, 'plan-authorization-22');
+  assert.equal(invoked, 1);
+
+  // A unit the authorized plan never named is not covered by it.
+  const foreign = await dispatch({ unitId: 'slice-2' });
+  assert.equal(foreign.receipt.status, 'blocked');
+  assert.equal(foreign.receipt.reason, PLAN_UNIT_UNAUTHORIZED);
+  assert.equal(foreign.receipt.authorizationId, 'plan-authorization-22');
+
+  // The catalog moved under the plan: the same authorization no longer covers it.
+  const moved = routingFixture();
+  moved.resolverInput.catalog.revision = 'catalog-8';
+  const movedPlan = planFor(moved.resolverInput);
+  const stale = await dispatch({
+    resolverInput: moved.resolverInput, plan: movedPlan,
+  });
+  assert.equal(stale.receipt.status, 'blocked');
+  assert.equal(stale.receipt.reason, PLAN_AUTHORIZATION_MISMATCH);
+  assert.equal(invoked, 1, 'a mismatch blocks pending a newly attributed authorization');
+
+  // Unless the record itself permits bounded re-resolution inside that axis.
+  const bounded = await dispatch({
+    resolverInput: moved.resolverInput,
+    plan: movedPlan,
+    planAuthorization: authorizeDispatchPlan(plan, {
+      id: 'plan-authorization-23',
+      scope: 'wave-22',
+      mode: 'bounded-re-resolution',
+      bounds: { axes: ['catalog'] },
+      timestamp: '2026-07-23T11:00:00.000Z',
+      actor: 'niko',
+    }),
+  });
+  assert.equal(bounded.receipt.status, 'dispatched');
+  assert.equal(bounded.receipt.authorizationId, 'plan-authorization-23');
+  assert.equal(invoked, 2);
 });
 
 test('receipt and output never expose injected secret fixture values', async () => {

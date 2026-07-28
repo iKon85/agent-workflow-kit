@@ -66,6 +66,7 @@ import {
   DISPATCH_RECEIPT_VERSION,
   createDispatchReceipt,
 } from '../src/lib/dispatchReceipt.mjs';
+import { resolveRoutingIntent } from '../src/lib/routingIntentClassifier.mjs';
 import { classifyFrontendWorkload } from '../src/lib/frontendWorkloads.mjs';
 import { codeArenaSource } from '../src/lib/routingSources/codeArena.mjs';
 import { openHandsFrontendSource } from '../src/lib/routingSources/openhandsFrontend.mjs';
@@ -1767,4 +1768,45 @@ test('a blocked receipt names a resulting access revision only for a graph-mutat
     () => createDispatchReceipt({ ...base, authorizationId: 42 }),
     /authorizationId must be a non-empty string/,
   );
+});
+
+test('intent resolution and route selection stay two stages, never one chain', async () => {
+  const source = async (module) =>
+    readFile(new URL(`../src/lib/${module}`, import.meta.url), 'utf8');
+  const importsModule = (text, module) =>
+    new RegExp(`from '\\./${module.replace(/[.]/g, '[.]')}'`).test(text);
+
+  // Stage one knows nothing about stage two: no resolver, no policy, no Access
+  // graph, no surface adapter — so no chosen route can justify the intent that
+  // chose it.
+  const classifier = await source('routingIntentClassifier.mjs');
+  for (const module of [
+    'routingResolver.mjs', 'routingPolicy.mjs', 'routingProfile.mjs',
+    'routingCatalog.mjs', 'routingAccessGraph.mjs', 'routingAccessGraphStore.mjs',
+    'routeDispatcher.mjs', 'routingAdapters/claude.mjs', 'routingAdapters/codex.mjs',
+    'routingAdapters/hostBridge.mjs',
+  ]) {
+    assert.equal(importsModule(classifier, module), false, module);
+  }
+  assert.equal(importsModule(classifier, 'routingIntent.mjs'), true);
+
+  // The Dispatch plan is the one place that runs them, and in that order.
+  const plan = await source('dispatchPlan.mjs');
+  assert.equal(importsModule(plan, 'routingIntentClassifier.mjs'), true);
+  assert.equal(importsModule(plan, 'routingResolver.mjs'), true);
+  assert.ok(plan.indexOf('resolveRoutingIntent(') < plan.indexOf('resolveRoute('));
+
+  // A Route decision fed back in is refused rather than silently accepted.
+  assert.throws(() => resolveRoutingIntent({
+    signals: { modelId: 'model-a', effort: 'high', surfaceId: 'claude' },
+  }), /a route is never an intent source/);
+
+  const context = await readFile(new URL('../CONTEXT.md', import.meta.url), 'utf8');
+  const entry = context.split('\n## ').find((section) => section.startsWith('Dispatch plan\n'));
+  assert.ok(entry, 'CONTEXT.md must define the Dispatch plan');
+  const prose = entry.split(/\s+/).join(' ');
+  for (const fragment of ['Routing intent', 'chosen route', 'reason that route won']) {
+    assert.ok(prose.includes(fragment), fragment);
+  }
+  assert.match(prose, /authorized once for the whole run, never per dispatch/);
 });

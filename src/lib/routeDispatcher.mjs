@@ -13,8 +13,21 @@
  * after, and a dispatch that finds an indeterminate entry from an earlier run
  * blocks pending reconciliation instead of spawning a second agent — unless the
  * surface pre-assigned a spawn id that makes the retry provably safe.
+ *
+ * A dispatch that runs under a Dispatch plan references its authorization record
+ * before anything else happens: the plan is re-checked against the record and the
+ * unit's authorized route, and a mismatch blocks pending a newly attributed
+ * authorization instead of quietly running something the user never saw.
+ *
+ * A Route decision that is not `ready` takes one of three paths rather than one
+ * blocked receipt: `handoff` hands the work back with the resolved intent,
+ * `inherit` is the constrained non-AFK path that runs the session default only
+ * when that pair is attested by a readback channel *and* inside the effective
+ * roster, and everything else — including any inherit under AFK — fails closed.
  */
 import { createDispatchReceipt } from './dispatchReceipt.mjs';
+import { authorizeDispatchUnit } from './dispatchPlan.mjs';
+import { normalizeRosterModelId } from './routingProfile.mjs';
 import {
   appendDispatchJournalEntry,
   dispatchIdempotencyKey,
@@ -51,11 +64,15 @@ function receiptRevisions(decision) {
 }
 
 /**
- * The plan-authorization a dispatch runs under: what the caller named, or the
- * approval the Route decision already recorded.
+ * The plan-authorization a dispatch runs under: the record that bound the
+ * Dispatch plan, what the caller named, or the approval the Route decision
+ * already recorded.
  */
 function authorizationId(input, decision) {
-  return input.authorizationId ?? decision.approval?.authorizationId ?? null;
+  return input.planAuthorization?.id
+    ?? input.authorizationId
+    ?? decision.approval?.authorizationId
+    ?? null;
 }
 
 function blockedReceipt(input, decision, reason, details = {}) {
@@ -115,6 +132,12 @@ const SAFE_FAILURE_REASONS = Object.freeze([
   'dispatch lease expired',
   'dispatch is indeterminate pending reconciliation',
   'dispatch is already recorded',
+  'dispatch plan authorization does not cover this dispatch',
+  'dispatch plan authorization names no such unit',
+  'dispatch route differs from the authorized dispatch plan',
+  'inherit requires an attested session-default pair',
+  'session-default pair is not in the effective roster',
+  'AFK dispatch cannot inherit a session default',
 ]);
 
 /**
@@ -309,6 +332,108 @@ async function blockedOutcome(input, decision, { journal, requestedRoute, error 
   return Object.freeze({ decision, receipt, dispatchResult: null });
 }
 
+const blockedOnly = (input, decision, reason) => Object.freeze({
+  decision, receipt: blockedReceipt(input, decision, reason), dispatchResult: null,
+});
+
+/**
+ * The authorization gate. It runs before the dispatch paths so a mismatch can
+ * never present itself as ordinary policy behaviour, and the blocked receipt
+ * still names the record it was checked against.
+ */
+function planAuthorizationFailure(input, decision) {
+  if (input.planAuthorization == null) return null;
+  if (input.plan == null || typeof input.unitId !== 'string') {
+    throw new TypeError('a plan-authorized dispatch needs its plan and unit id');
+  }
+  return authorizeDispatchUnit({
+    authorization: input.planAuthorization,
+    plan: input.plan,
+    unitId: input.unitId,
+    route: decision.bestExecutable ? receiptRoute(decision.bestExecutable) : null,
+  }).reason;
+}
+
+/** Handing back is not a dispatch: it proves nothing ran, and carries the intent on. */
+function handoffOutcome(input, decision) {
+  const receipt = createDispatchReceipt({
+    executionId: input.executionId,
+    kind: 'handoff',
+    afk: input.afk,
+    handoff: { to: input.handoffTo ?? input.resolverInput.activeSurface },
+    reason: decisionReason(decision),
+    revisions: receiptRevisions(decision),
+    authorizationId: authorizationId(input, decision),
+    dispatchedAt: input.dispatchedAt,
+  });
+  return Object.freeze({
+    decision,
+    receipt,
+    dispatchResult: null,
+    handoff: Object.freeze({ to: receipt.handoff.to, intent: decision.intent ?? null }),
+  });
+}
+
+/**
+ * Whether the attested session default is a pair the policy authorized. The
+ * roster is matched under its own normalization rule, because one session
+ * reports its model in several forms while the roster spells out only one.
+ */
+function rosterAuthorizesPair(roster, attested) {
+  if (!Array.isArray(roster)) return false;
+  const model = normalizeRosterModelId(attested.model);
+  return roster.some((pair) => pair && typeof pair.model === 'string'
+    && pair.model.trim() !== ''
+    && normalizeRosterModelId(pair.model) === model
+    && (pair.effort ?? null) === attested.effort);
+}
+
+function inheritFailure(input) {
+  if (input.afk === true) return 'AFK dispatch cannot inherit a session default';
+  const attested = input.sessionDefault?.attestation;
+  if (input.sessionDefault?.appliedRoute == null
+      || typeof attested?.model !== 'string' || typeof attested?.effort !== 'string') {
+    return 'inherit requires an attested session-default pair';
+  }
+  return rosterAuthorizesPair(input.resolverInput?.policy?.roster, attested)
+    ? null
+    : 'session-default pair is not in the effective roster';
+}
+
+function inheritOutcome(input, decision) {
+  const failure = inheritFailure(input);
+  if (failure) return blockedOnly(input, decision, failure);
+  try {
+    return Object.freeze({
+      decision,
+      receipt: createDispatchReceipt({
+        executionId: input.executionId,
+        kind: 'inherited-dispatch',
+        afk: input.afk,
+        appliedRoute: receiptRoute(input.sessionDefault.appliedRoute),
+        enforcement: { model: 'session-default', effort: 'session-default' },
+        precedence: { model: 'session-default', effort: 'session-default' },
+        attestation: input.sessionDefault.attestation,
+        revisions: receiptRevisions(decision),
+        authorizationId: authorizationId(input, decision),
+        dispatchedAt: input.dispatchedAt,
+      }),
+      dispatchResult: null,
+    });
+  } catch {
+    // The readback the caller offered is no attestation; its own diagnostic
+    // never travels into a receipt.
+    return blockedOnly(input, decision, 'inherit requires an attested session-default pair');
+  }
+}
+
+/** The three paths a Route decision that cannot dispatch takes. */
+function unreadyOutcome(input, decision) {
+  if (decision.status === 'handoff') return handoffOutcome(input, decision);
+  if (decision.status === 'inherit') return inheritOutcome(input, decision);
+  return blockedOnly(input, decision, decisionReason(decision));
+}
+
 export async function dispatchResolvedRoute(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new TypeError('dispatch input must be an object');
@@ -317,13 +442,9 @@ export async function dispatchResolvedRoute(input) {
     throw new TypeError('dispatch adapter must expose prepare');
   }
   const decision = resolveRoute(input.resolverInput);
-  if (decision.status !== 'ready') {
-    return Object.freeze({
-      decision,
-      receipt: blockedReceipt(input, decision, decisionReason(decision)),
-      dispatchResult: null,
-    });
-  }
+  const unauthorized = planAuthorizationFailure(input, decision);
+  if (unauthorized) return blockedOnly(input, decision, unauthorized);
+  if (decision.status !== 'ready') return unreadyOutcome(input, decision);
   const journal = journalOptions(input, decision);
   const requestedRoute = receiptRoute(decision.bestExecutable);
   try {
