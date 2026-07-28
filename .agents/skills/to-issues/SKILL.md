@@ -436,6 +436,20 @@ Reference the blocking ticket(s), or "None - can start immediately".
 **Decision:** <chosen option + why it wins on the criteria that matter + what was consciously traded off>
 **Verdict sink:** <ADR / this body / follow-up slice #N>
 
+## Routing intent
+<!-- Provider-neutral and durable: the dimensions of the WORK, never a model,
+     effort, or provider name. Written as ONE blank-line-delimited block so the
+     dispatching surface can read it as the explicit intent instead of guessing
+     from workflow signals; a second such block in the body makes it ambiguous
+     and unreadable. Keys and vocabularies are owned by the intent schema. -->
+intent-version: 2
+routing-intent: <judgment | development | mechanical>
+reasoning-intent: <deep | balanced | light>
+task-shape: <single-step | multi-step | long-horizon>
+risk: <low | moderate | high>
+autonomy-requirement: <supervised | afk>
+context-need: <focused | repository | long-context>
+
 ## Handoff Start Command
 <!-- SELF-CONTAINED: scope + live-verify live HERE, never as a "see anchor
      handoff" pointer — the anchor carries no per-slice handoff blocks anymore, and a
@@ -444,7 +458,7 @@ Reference the blocking ticket(s), or "None - can start immediately".
 ```
 Welle <N> · Slice <X> (<closes #x | refs #<prd#>, Parent #<prd#>>). Read #<prd#> for decisions.
 Start skill: 🧭 Design Grill → /grill-with-docs · 🔬 Verify Spike → /verify-spike · 📐 Trade-off/Research → /decision-gate · AFK → /implement · HITL → /grill-me → /implement.
-Routing intent: `routing-intent: <judgment | development | mechanical>` · `reasoning-intent: <deep | balanced | light>`. The dispatching surface resolves the current executable route; never persist that provider route here.
+Routing intent: the body's `## Routing intent` block — read it as the explicit intent. The dispatching surface resolves the current executable route from it; never persist that provider route here.
 Worktree: your project's worktree helper, or `git worktree add`
 Scope (<N> files) — REQUIRED FIELD, blast-radius estimate at cut time; the build session checks it against its own recon findings, >2x deviation → STOP:
 - <concrete file + change>
@@ -453,10 +467,17 @@ PR: <closes #x | Part of #<prd#> — NEVER closes on the anchor>.
 ```
 <!-- mirror-xform:end -->
 
+Every published issue carries that block, gate slices included — an unstated
+intent forces the dispatching surface to classify from workflow signals, and a
+guess is what the block exists to replace. Fill each dimension from the slice
+itself: `autonomy-requirement: afk` only for the AFK bucket (§5c), `supervised`
+for every HITL slice.
+
 At execution time, consume that provider-neutral intent only through
-`src/lib/routeDispatcher.mjs` and its shared spawn guard. The active Claude or
-Codex adapter must produce Dispatch receipt v2 with requested/applied route,
-model/effort enforcement, precedence, and catalog/access/policy revisions
+`src/lib/routeDispatcher.mjs` and its shared spawn guard, under the Dispatch
+plan that authorized the run. The active Claude or Codex adapter must produce
+Dispatch receipt v2 with requested/applied route, model/effort enforcement,
+precedence, the plan's authorization id, and catalog/access/policy revisions
 before an AFK subagent starts; the durable issue never claims that proof.
 </issue-template>
 

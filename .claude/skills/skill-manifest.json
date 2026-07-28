@@ -50,6 +50,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "writesIntent": ["SKILL.md"] },
       "provenance": "matt-pocock"
     },
     "grill-with-docs": {
@@ -130,6 +131,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "own"
     },
     "setup-workflow": {
@@ -210,6 +212,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["INTERFACE-DESIGN.md", "SKILL.md"] },
       "provenance": "matt-pocock"
     },
     "prototype": {
@@ -240,6 +243,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["DESIGN-IT-TWICE.md"] },
       "provenance": "matt-pocock"
     },
     "domain-modeling": {
@@ -305,6 +309,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "matt-pocock"
     },
     "git-guardrails-claude-code": {
@@ -329,6 +334,7 @@
       "surfaces": [
         "claude"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "chase"
     },
     "grill-with-docs-codex": {
@@ -337,6 +343,7 @@
       "surfaces": [
         "claude"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "chase"
     },
     "codex-review": {
@@ -345,6 +352,7 @@
       "surfaces": [
         "claude"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "chase"
     },
     "codex-build": {
@@ -353,6 +361,7 @@
       "surfaces": [
         "claude"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "chase"
     },
     "codex-adapter-sync": {
@@ -372,6 +381,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["SKILL.md"] },
       "provenance": "own"
     },
     "local-ci": {
@@ -397,6 +407,7 @@
         "claude",
         "codex"
       ],
+      "routing": { "dispatch": ["SKILL.md", "references/dispatch-subagents.md", "references/dispatch-workflow.md"] },
       "provenance": "own"
     },
     "git-worktree-recover": {
