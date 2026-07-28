@@ -579,6 +579,18 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.44.2
+
+- changed: `src/cli.mjs`
+- changed: `src/commands/update.mjs`
+- changed: `src/consumer-migrations.json`
+- changed: `src/lib/consumerMigrations.mjs`
+
+### 0.44.1
+
+- changed: `.claude/skills/skill-manifest.json`
+- changed: `agent-workflow-kit.package.json`
+
 ### 0.44.0
 
 - added: `scripts/worktree-lifecycle/classify.py`

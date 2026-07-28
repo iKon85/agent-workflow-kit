@@ -20,7 +20,9 @@ import {
 import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
 import { nonInteractiveUpdateDecision } from './lib/updateDecisions.mjs';
 import { sanitizeReadinessText } from './lib/updateCandidate.mjs';
-import { renderRequiredMigration } from './lib/consumerMigrations.mjs';
+import {
+  renderConsumerAdvisory, renderRequiredMigration,
+} from './lib/consumerMigrations.mjs';
 import { currentAgentSurface, surfaceById } from './lib/agentSurfaceRegistry.mjs';
 import { routingProfilePath } from './lib/routingProfile.mjs';
 import { createCommandAdapter } from '../scripts/release-state.mjs';
@@ -336,6 +338,9 @@ function printPlan(r) {
   for (const action of r.requiredMigrations ?? []) {
     lines.push(renderRequiredMigration(action));
     lines.push(`  ${action.consequence} ${action.remediation}`);
+  }
+  for (const advisory of r.advisories ?? []) {
+    lines.push(renderConsumerAdvisory(advisory));
   }
   for (const owned of r.ownedDiffs ?? []) {
     lines.push(`${owned.state} ${owned.path}`);

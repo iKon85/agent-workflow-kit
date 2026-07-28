@@ -8,8 +8,8 @@ import { init } from '../src/commands/init.mjs';
 import { update } from '../src/commands/update.mjs';
 import { diff } from '../src/commands/diff.mjs';
 import {
-  CONSUMER_MIGRATION_SCHEMA_VERSION, evaluateConsumerMigrations,
-  readShippedConsumerMigrationRegistry, renderRequiredMigration,
+  CONSUMER_MIGRATION_SCHEMA_VERSION, evaluateConsumerAdvisories, evaluateConsumerMigrations,
+  readShippedConsumerMigrationRegistry, renderConsumerAdvisory, renderRequiredMigration,
   validateConsumerMigrationRegistry,
 } from '../src/lib/consumerMigrations.mjs';
 import { PACKAGE_MANIFEST_NAME, readManifest, writeManifest } from '../src/lib/manifest.mjs';
@@ -98,20 +98,66 @@ function runHeadless(args, { kit, consumer }) {
   });
 }
 
-test('the shipped registry is declarative versioned data and owes nothing today', async () => {
+test('the shipped registry separates required migrations from retired-key advisories', async () => {
   const registry = await readShippedConsumerMigrationRegistry();
 
   assert.equal(registry.schemaVersion, CONSUMER_MIGRATION_SCHEMA_VERSION);
   assert.deepEqual([...registry.migrations], []);
+  assert.deepEqual(
+    registry.advisories.map(({ id, retiredIn, detect }) => ({
+      id, retiredIn, path: detect.path, key: detect.key,
+    })),
+    [
+      {
+        id: 'retired-worktree-scratch-patterns',
+        retiredIn: '0.44.0',
+        path: POLICY_PATH,
+        key: ['worktreeLifecycle', 'scratchPatterns'],
+      },
+      {
+        id: 'retired-wrapup-generated-artifact-patterns',
+        retiredIn: '0.44.0',
+        path: POLICY_PATH,
+        key: ['wrapup', 'landingGeneratedArtifactPatterns'],
+      },
+    ],
+  );
 });
 
-test('the removed teardown pattern decisions are not registered anywhere', async () => {
-  // ADR-0009 §6 removes the keys without migration: the shipped registry must
-  // not keep asking a consumer to commit a decision the kit no longer reads.
-  const body = await readFile(REGISTRY, 'utf8');
+test('retired teardown keys are advisory only and render as safe consumer-owned cleanup', async () => {
+  const consumer = await makeEmptyDir();
+  try {
+    await writeConsumerPolicy(consumer, {
+      worktreeLifecycle: { scratchPatterns: ['PLAN.md'] },
+      wrapup: { landingGeneratedArtifactPatterns: ['dist/**'] },
+    });
 
-  for (const key of ['scratchPatterns', 'landingGeneratedArtifactPatterns']) {
-    assert.equal(body.includes(key), false, `registry still names ${key}`);
+    const advisories = await evaluateConsumerAdvisories({
+      consumerRoot: consumer,
+      kitVersion: '0.44.1',
+    });
+
+    assert.deepEqual(
+      advisories.map(({ id, state, key }) => ({ id, state, key })),
+      [
+        {
+          id: 'retired-worktree-scratch-patterns',
+          state: 'advisory',
+          key: 'worktreeLifecycle.scratchPatterns',
+        },
+        {
+          id: 'retired-wrapup-generated-artifact-patterns',
+          state: 'advisory',
+          key: 'wrapup.landingGeneratedArtifactPatterns',
+        },
+      ],
+    );
+    for (const advisory of advisories) {
+      assert.match(renderConsumerAdvisory(advisory), /safe to delete/);
+      assert.match(renderConsumerAdvisory(advisory), new RegExp(advisory.key));
+    }
+  } finally {
+    await cleanup(consumer);
   }
 });
 
@@ -244,8 +290,9 @@ test('applying reports the migration state and never writes the policy', async (
   }
 });
 
-test('a profile still carrying the removed teardown keys owes no action', async () => {
-  const kit = await makeKit({ [P]: 'v1\n' }, KIT_VERSION);
+test('update and diff report retired keys without changing the consumer profile', async () => {
+  const targetVersion = '0.44.1';
+  const kit = await makeKit({ [P]: 'v1\n' }, targetVersion);
   const consumer = await makeEmptyDir();
   try {
     await init({ kitRoot: kit, consumerRoot: consumer });
@@ -258,11 +305,23 @@ test('a profile still carrying the removed teardown keys owes no action', async 
 
     const preview = await diff({ kitRoot: kit, consumerRoot: consumer });
     const applied = await update({
-      kitRoot: kit, consumerRoot: consumer, releaseIdentities: releaseIdentities(), verify,
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(targetVersion),
+      verify,
     });
 
     assert.deepEqual(preview.requiredMigrations, []);
     assert.deepEqual(applied.report.requiredMigrations, []);
+    assert.deepEqual(
+      preview.advisories.map(({ key }) => key),
+      [
+        'worktreeLifecycle.scratchPatterns',
+        'wrapup.landingGeneratedArtifactPatterns',
+      ],
+    );
+    assert.deepEqual(preview.report.advisories, preview.advisories);
+    assert.deepEqual(applied.report.advisories, preview.advisories);
     assert.deepEqual(await readFile(join(consumer, POLICY_PATH)), policyBefore);
   } finally {
     await cleanup(kit, consumer);
