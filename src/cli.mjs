@@ -16,12 +16,22 @@ import {
 } from './lib/contributionRouting.mjs';
 import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
 import { nonInteractiveUpdateDecision } from './lib/updateDecisions.mjs';
+import { sanitizeReadinessText } from './lib/updateCandidate.mjs';
 import { renderRequiredMigration } from './lib/consumerMigrations.mjs';
 import { currentAgentSurface } from './lib/agentSurfaceRegistry.mjs';
 import { createCommandAdapter } from '../scripts/release-state.mjs';
 import { installedIdentityFromDir } from '../scripts/release-parity.mjs';
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+// Declared before the self-invocation below: `runCli` renders the plan during
+// module evaluation, so a later `const` would be in its temporal dead zone.
+const READINESS_STATE_PHRASE = {
+  missing: 'not configured yet',
+  pending: 'deferred as pending',
+  invalid: 'present but not valid',
+  'not-applicable': 'recorded as not applicable',
+};
 
 function stamp() {
   // backup suffix: YYYYMMDDTHHMMSS (no separators that collide with shells)
@@ -233,10 +243,11 @@ function printPlan(r) {
   if (r.availability) {
     for (const [key, label] of [
       ['newlyAvailable', 'newly available'], ['newlyDegraded', 'newly degraded'],
-      ['newlyBlocked', 'newly blocked'], ['stillUnresolved', 'still unresolved'],
+      ['newlyBlocked', 'newly blocked'],
     ]) {
       lines.push(`${label}: ${r.availability[key].join(', ') || 'none'}`);
     }
+    lines.push(...renderReadinessAvailability(r.availability));
   }
   for (const action of r.requiredMigrations ?? []) {
     lines.push(renderRequiredMigration(action));
@@ -252,6 +263,30 @@ function printPlan(r) {
     }
   }
   p.note(lines.join('\n') || 'no changes', 'plan');
+}
+
+/**
+ * Render unresolved readiness in plain terms — one sentence naming the
+ * capability and its state, one next step. Every line comes from the readiness
+ * catalog, so a new capability reads correctly without a code change; the
+ * legacy `capability:state` list stays the fallback for an older record.
+ */
+export function renderReadinessAvailability(availability) {
+  const entries = availability?.unresolved;
+  if (!Array.isArray(entries) || !entries.length) {
+    return [`still unresolved: ${availability?.stillUnresolved?.join(', ') || 'none'}`];
+  }
+  const lines = ['still unresolved:'];
+  for (const entry of entries) {
+    const subject = sanitizeReadinessText(entry.title) ?? entry.capability;
+    const phrase = READINESS_STATE_PHRASE[entry.state] ?? entry.state;
+    const evidence = (entry.evidencePaths ?? [])
+      .map(sanitizeReadinessText).filter(Boolean).join(', ');
+    lines.push(`  ${subject} is ${phrase}${evidence ? ` (evidence: ${evidence})` : ''}.`);
+    const remedy = sanitizeReadinessText(entry.remedy);
+    if (remedy) lines.push(`    next step: ${remedy}`);
+  }
+  return lines;
 }
 
 async function decideUpdate(action, path, yes, classification, choices = {}) {
