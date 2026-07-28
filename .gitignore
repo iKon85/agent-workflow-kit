@@ -15,17 +15,14 @@ PLAN.md
 PLAN-REVIEW-LOG.md
 ANNAHMEN.md
 
-# Linked worktrees. CLAUDE.md places them at `.worktrees/<slug>`, so the parent
-# checkout sees a live sibling worktree as an untracked directory: it blocks
-# every landing from the main tree and a wholesale `git add` commits it as an
-# embedded repository (#370).
-.worktrees/
-
-# Tool and prototype scratch. `/prototype` and the Playwright MCP server write
-# these into the repository root; ignoring them is what makes them deletable at
-# teardown, which is this repo's only mechanism for that.
-.playwright-mcp/
-variant-*.png
+# NOT ignored on purpose: `.worktrees/`, and tool/prototype scratch in the
+# repository root. 0.45.1 ignored them to unblock a landing; ten minutes later
+# teardown deleted a parallel session's live worktree, because ignored means
+# "deletable scratch" and nothing checked that the deletion target was the main
+# checkout (#385). Until that is fixed, an untracked sibling worktree BLOCKING a
+# landing is the safe failure and deleting it is not. Re-adding these entries
+# needs #385 closed first; the embedded-repo hazard they addressed (#370) is
+# visible in a diff and reversible, which the data loss is not.
 
 # Local Claude/Codex state and personal overrides. Checked-in skills, project
 # config, hooks, and agent definitions remain trackable.
