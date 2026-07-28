@@ -19,6 +19,19 @@ This is a **deliberate, high-stakes tool** — reach for it on auth, data models
 
 ## Prerequisites (verify once, fast)
 
+Before dispatch, resolve a provider-neutral Routing intent — an explicit intent
+block first, otherwise the workflow classifier — and authorize the whole run
+once through a Dispatch plan whose hash binds every unit, intent, route and
+reason. Dispatch only through `src/lib/routeDispatcher.mjs`, and require a
+Dispatch receipt from the shared spawn guard that carries the authorization id
+the plan recorded. A detected transport is not authorization; AFK dispatch
+stops unless requested/applied route, model/effort enforcement, environment
+precedence, and catalog/access/policy revisions are proved.
+
+`scripts/codex-exec.sh` is the transport that decision names, never a
+second router: the wrapper applies the resolved pair and its rollout file
+is the readback the receipt quotes. Echoing a config default is not proof.
+
 - Let `scripts/codex-exec.sh` preflight Codex before launch. It enforces the
   exact tested-version allowlist, authentication, platform, and capabilities;
   surface any failure to the user rather than retrying silently.

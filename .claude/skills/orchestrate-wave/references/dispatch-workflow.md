@@ -48,6 +48,15 @@ current reconciled batch, make one `agent()` call per slice with explicit
 the reconciled allowlist and required commands in each verbatim builder prompt;
 the main thread still performs `semanticVerify` on every returned report.
 
+Before dispatch, resolve a provider-neutral Routing intent — an explicit intent
+block first, otherwise the workflow classifier — and authorize the whole run
+once through a Dispatch plan whose hash binds every unit, intent, route and
+reason. Dispatch only through `src/lib/routeDispatcher.mjs`, and require a
+Dispatch receipt from the shared spawn guard that carries the authorization id
+the plan recorded. A detected transport is not authorization; AFK dispatch
+stops unless requested/applied route, model/effort enforcement, environment
+precedence, and catalog/access/policy revisions are proved.
+
 Before each `agent()` call, resolve its provider-neutral Routing intent and pass
 the decision through the shared spawn guard and active surface adapter. The
 Claude adapter must attest Workflow model/effort precedence in the current
