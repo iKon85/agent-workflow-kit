@@ -1,8 +1,18 @@
 import { validateEvidenceCatalog } from './routingCatalog.mjs';
 import { validateAccessGraph } from './routingAccessGraph.mjs';
 import { validateRoutingPolicy } from './routingPolicy.mjs';
+import { deriveRoutingPolicy } from './routingProfilePolicy.mjs';
 
 export const ROUTING_EVIDENCE_CACHE_VERSION = 1;
+export const ROUTING_STORE_SNAPSHOT_VERSION = 1;
+
+/** Every axis a store-backed snapshot compares, each named by what moved. */
+export const ROUTING_STORE_SNAPSHOT_FIELDS = Object.freeze([
+  'globalGeneration', 'projectGeneration', 'inventoryRevision', 'accessGraph', 'policy', 'catalog',
+]);
+
+const PROFILE_MUTATION = 'concurrent routing profile mutation';
+const CATALOG_MUTATION = 'concurrent evidence catalog mutation';
 
 function object(value, field) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -198,6 +208,74 @@ export function commitRoutingEvidenceCache({
   }, { now: refreshedAt });
 }
 
+function snapshotReader(source, field) {
+  if (typeof source[field] !== 'function') {
+    throw new TypeError(`routing store snapshot ${field} must be a function`);
+  }
+  return source[field];
+}
+
+/**
+ * The store-backed snapshot token: the revisions of the *persisted* routing
+ * inputs, taken by re-reading them. The Routing policy is recomputed from the
+ * generations and the inventory revision just read — a policy is derived and is
+ * never read back from a store — so a revision a caller merely states cannot
+ * authorize a dispatch, which comparing a resolver input with itself would allow.
+ */
+export async function captureRoutingStoreSnapshot(source) {
+  object(source, 'routing store snapshot source');
+  const [readProfile, readAccessGraph, readCatalog] = ['readProfile', 'readAccessGraph',
+    'readCatalog'].map((field) => snapshotReader(source, field));
+  const profile = await readProfile();
+  if (!profile?.global || !profile.composed) {
+    throw new Error('routing profile store carries no committed authorization');
+  }
+  const projectGeneration = profile.project?.generation ?? null;
+  const policy = deriveRoutingPolicy({
+    composed: profile.composed,
+    globalGeneration: profile.global.generation,
+    projectGeneration,
+    ...(source.policyOptions ?? {}),
+  });
+  const accessGraph = await readAccessGraph();
+  const catalog = validateEvidenceCatalog(await readCatalog());
+  return Object.freeze({
+    schemaVersion: ROUTING_STORE_SNAPSHOT_VERSION,
+    globalGeneration: profile.global.generation,
+    projectGeneration,
+    inventoryRevision: profile.composed.rosterState?.inventoryRevision
+      ?? profile.composed.inventoryRevision ?? null,
+    accessGraph: accessGraph?.revision ?? null,
+    policy: policy.revision,
+    catalog: catalog.revision,
+  });
+}
+
+/**
+ * Compare the named axes of two snapshot tokens. A moved axis names itself and
+ * fails the dispatch; the receipt reduces the message to a constant reason, so
+ * the compared values never leave this call.
+ */
+export function assertRoutingSnapshotMatches(expected, actual, fields) {
+  for (const token of [expected, actual]) object(token, 'routing store snapshot');
+  for (const field of fields) {
+    if (expected[field] === actual[field]) continue;
+    throw new Error(`${field === 'catalog' ? CATALOG_MUTATION : PROFILE_MUTATION}: `
+      + `${field} changed from ${expected[field]} to ${actual[field]}`);
+  }
+  return true;
+}
+
+/** The full-axis comparison a held lease runs before it releases the spawn. */
+export function assertRoutingStoreSnapshotUnchanged(before, after) {
+  return assertRoutingSnapshotMatches(before, after, ROUTING_STORE_SNAPSHOT_FIELDS);
+}
+
+/**
+ * The in-process check over one caller's own resolver input. It only sees a
+ * mutation this process made to that object, so it is the degenerate case for a
+ * dispatch without a store-backed lease — never the authority over the store.
+ */
 export function captureRoutingProfileSnapshot({ accessGraph, policy }) {
   const access = validateAccessGraph(accessGraph);
   const routingPolicy = validateRoutingPolicy(policy);
