@@ -8,6 +8,7 @@ import {
   selectOrchestrationReference,
 } from '../src/lib/capabilityMatrix.mjs';
 import { dispatchResolvedRoute } from '../src/lib/routeDispatcher.mjs';
+import { ROUTING_POLICY_VERSION } from '../src/lib/routingPolicy.mjs';
 import {
   ACCESS_GRAPH_VERSION,
   buildAccessGraph,
@@ -272,12 +273,17 @@ function routingFixture({
         }],
       },
       policy: {
-        schemaVersion: 1,
+        schemaVersion: ROUTING_POLICY_VERSION,
         revision: 'policy-9',
         allowedSurfaces: [surfaceId],
         allowedTransports,
         switching: 'automatic',
-        optimization: 'quality',
+        roster: [{ model: route.modelId, effort: route.effort }],
+        standardRoutes: {
+          mechanical: { model: route.modelId, effort: route.effort, state: 'configured' },
+          development: { model: route.modelId, effort: route.effort, state: 'configured' },
+          judgment: { model: route.modelId, effort: route.effort, state: 'configured' },
+        },
         unreachable,
         missingInfrastructure: 'block',
       },

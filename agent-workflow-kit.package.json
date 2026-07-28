@@ -3067,7 +3067,7 @@
       "path": "src/lib/routingPolicy.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "e5e23ff59ffa2147ed8c799f925c8b8f3f480ab7d370e52663fea005623861c1",
+      "sha256": "1daf1c889ce528278a8ba652254ed1665a7a5bef4156b4497ac69316c5413d93",
       "mode": 420,
       "origin": "kit"
     },
@@ -3076,6 +3076,14 @@
       "kind": "script",
       "installRole": "consumer",
       "sha256": "1525040c6f804f7c419d162b5878bd68ab581fc068663f03b8a928b34265dfb7",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingProfilePolicy.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "3bea7dae2cf231145b0479b340e8fee61e4c2bbf31848f9e25e6303fed3d257f",
       "mode": 420,
       "origin": "kit"
     },
