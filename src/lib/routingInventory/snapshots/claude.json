@@ -6,7 +6,7 @@
     "sourceKind": "maintainer-reading",
     "sourceRef": "claude --help model and effort domains, Claude Code 2.1.220; the surface publishes no machine-readable model inventory, so this half is pinned by maintainer reading rather than by a fetch",
     "capturedAt": "2026-07-28",
-    "integrity": "sha256-B2mGRS1jnYS_2JCmvkZum0vV-yliwOGS1Gtu_1Ghv2k"
+    "integrity": "sha256-9SfRsE7aASC52nVKWSwYk4wRGW-aFTPBZBxWM8hIh-I"
   },
   "models": [
     {
@@ -20,7 +20,7 @@
     },
     {
       "modelId": "sonnet",
-      "identifiers": ["sonnet"],
+      "identifiers": ["sonnet", "claude-sonnet-5"],
       "effortAxis": true,
       "efforts": ["low", "medium", "high", "xhigh", "max"],
       "defaultEffort": null,
