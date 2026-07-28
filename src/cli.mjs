@@ -9,6 +9,9 @@ import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
 import { setOwnership } from './commands/own.mjs';
 import {
+  routingRefresh, routingRefreshFailure,
+} from './commands/routing-refresh.mjs';
+import {
   routeOrigin, routingStatus, routingStatusFailure,
 } from './commands/routing-status.mjs';
 import {
@@ -109,6 +112,7 @@ export async function runCli({
   hasTTY = Boolean(process.stdin.isTTY && process.stdout.isTTY),
   readUpdateRelease: releaseReader = readUpdateRelease,
   updateCommand = update,
+  routingRefreshCommand = routingRefresh,
 } = {}) {
   const args = argv;
   const cmd = args[0];
@@ -246,18 +250,28 @@ export async function runCli({
       p.outro(`prepared local contribution artifact ${output}; no remote was changed`);
     }
   } else if (cmd === 'routing') {
-    if (args[1] !== 'status') {
-      throw new Error('Usage: agent-workflow-kit routing status --intent-file=<file> ' +
-        '[--surface=<id>] [--json]');
+    if (args[1] === 'refresh') {
+      const summary = await routingRefreshCommand();
+      if (routingJson) {
+        process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+        return summary.exitCode;
+      }
+      p.note(renderRoutingRefresh(summary), 'routing refresh');
+      p.outro(`routing refresh: ${summary.outcome}`);
+      exitCode = summary.exitCode;
+    } else if (args[1] === 'status') {
+      const status = await routingStatus({ argv: args.slice(2), consumerRoot });
+      if (routingJson) {
+        process.stdout.write(`${JSON.stringify(status.document, null, 2)}\n`);
+        return status.exitCode;
+      }
+      p.note(renderRoutingStatus(status.document), 'routing status');
+      p.outro(`routing status: ${status.document.outcome}`);
+      exitCode = status.exitCode;
+    } else {
+      throw new Error('Usage: agent-workflow-kit routing <status|refresh> ' +
+        '[--intent-file=<file>] [--surface=<id>] [--json]');
     }
-    const status = await routingStatus({ argv: args.slice(2), consumerRoot });
-    if (routingJson) {
-      process.stdout.write(`${JSON.stringify(status.document, null, 2)}\n`);
-      return status.exitCode;
-    }
-    p.note(renderRoutingStatus(status.document), 'routing status');
-    p.outro(`routing status: ${status.document.outcome}`);
-    exitCode = status.exitCode;
   } else if (cmd === 'own' || cmd === 'disown') {
     if (!args[1]) {
       throw new Error(
@@ -275,7 +289,7 @@ export async function runCli({
       (origin === CONSUMER_ORIGIN ? ` (${ownershipState ?? 'explicit-fork'})` : ''));
   } else {
     p.note('Usage: agent-workflow-kit ' +
-      '<init|update|diff|uninstall|own|disown|contribute|routing status> ' +
+      '<init|update|diff|uninstall|own|disown|contribute|routing status|routing refresh> ' +
       '[<path>] [--force] [--yes] [--keep-deleted|--restore-deleted] [--owned] ' +
       '[--as=contribution-bridge|explicit-fork] ' +
       '[--intent-file=<file>] [--surface=<id>] [--json]');
@@ -289,7 +303,9 @@ export async function runCli({
     return 1;
   }
   if (routingJson) {
-    const document = routingStatusFailure(err.message);
+    const document = args[1] === 'refresh'
+      ? routingRefreshFailure(err.message)
+      : routingStatusFailure(err.message);
     process.stdout.write(`${JSON.stringify(document, null, 2)}\n`);
     return document.exitCode;
   }
@@ -420,6 +436,38 @@ export function renderRoutingStatus(document) {
     lines.push(`revisions: policy ${document.revisions?.policy ?? 'none'} · `
       + `catalog ${document.revisions?.catalog ?? 'none'} · `
       + `access graph ${document.revisions?.accessGraph ?? 'none'}`);
+  }
+  for (const { code, detail } of document.diagnostics) lines.push(`${code}: ${detail}`);
+  return lines.join('\n');
+}
+
+/**
+ * The refresh in the terms the run is judged by: what each source did and under
+ * which endpoint, what was written, and every published model id the identity
+ * join could not place. A source with no fetchable artifact is declared, so its
+ * quarantine reads as the steady state it is rather than as a broken run.
+ */
+export function renderRoutingRefresh(document) {
+  const lines = [`outcome: ${document.outcome} (exit ${document.exitCode})`];
+  for (const source of document.sources) {
+    lines.push(`${source.sourceId}: ${source.status} · ${source.endpoint ?? 'injected'} endpoint`
+      + `${source.reason ? ` (${source.reason})` : ''}`);
+  }
+  if (document.catalog) {
+    lines.push(`catalog: ${document.catalog.written
+      ? 'written' : `kept (${document.catalog.reason})`} · `
+      + `revision ${document.catalog.revision ?? 'none'} · `
+      + `${document.catalog.observations} observations`);
+  }
+  if (document.accessGraph) {
+    lines.push(`access graph: ${document.accessGraph.changed ? 'written' : 'unchanged'} · `
+      + `revision ${document.accessGraph.revision} · `
+      + `${document.accessGraph.paths} attested paths`);
+    lines.push(`unobserved agent apps: `
+      + `${document.accessGraph.unobservedSurfaces.join(', ') || 'none'}`);
+  }
+  for (const { sourceId, publishedId, reason } of document.unresolved) {
+    lines.push(`unresolved model id: ${sourceId} publishes ${publishedId} (${reason})`);
   }
   for (const { code, detail } of document.diagnostics) lines.push(`${code}: ${detail}`);
   return lines.join('\n');
