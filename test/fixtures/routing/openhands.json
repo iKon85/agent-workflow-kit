@@ -11,13 +11,13 @@
     {
       "provider": "anthropic",
       "model": "coding-model-b",
-      "effort": "high",
+      "effort": "unknown",
       "resolvedRate": 0.61,
       "standardError": 0.02,
       "meanCost": {
         "amount": 5.2,
         "currency": "USD",
-        "unit": "task"
+        "unit": "attempt"
       }
     }
   ]

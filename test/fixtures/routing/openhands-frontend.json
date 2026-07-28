@@ -23,7 +23,7 @@
       "cost": {
         "amount": 1.85,
         "currency": "USD",
-        "unit": "task"
+        "unit": "attempt"
       }
     }
   ]

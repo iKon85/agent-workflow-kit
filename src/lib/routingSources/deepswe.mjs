@@ -1,7 +1,15 @@
+import {
+  assertPublishedEffort,
+  evidenceFreshness,
+  evidenceIdentity,
+  evidenceSourceClaim,
+} from '../routingCatalog.mjs';
+
 const SOURCE_ID = 'deepswe';
 const OWNER = 'DataCurve';
 const ARTIFACT_URL =
   'https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json';
+const WORKLOAD = evidenceIdentity({ workload: 'repository-repair', axis: 'functional' });
 
 function object(value, field) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -34,7 +42,9 @@ function context({ snapshotHash, observedAt, expiresAt }) {
 }
 
 function ingest({ payload, ...inputContext }) {
-  const { snapshotHash, observedAt, expiresAt } = context(inputContext);
+  // The caller's window bounds the refresh; the observation is dated by the
+  // Kit-side freshness policy for this source, never by the owner artifact.
+  const { snapshotHash, observedAt } = context(inputContext);
   object(payload, 'DeepSWE payload');
   const artifact = object(payload.artifact, 'DeepSWE artifact');
   if (artifact.owner !== OWNER || artifact.url !== ARTIFACT_URL) {
@@ -54,7 +64,10 @@ function ingest({ payload, ...inputContext }) {
     object(row, `DeepSWE rows[${index}]`);
     const providerId = string(row.provider, `DeepSWE rows[${index}].provider`);
     const modelId = string(row.model, `DeepSWE rows[${index}].model`);
-    const effort = string(row.effort, `DeepSWE rows[${index}].effort`);
+    const effort = assertPublishedEffort({
+      sourceId: SOURCE_ID,
+      effort: string(row.effort, `DeepSWE rows[${index}].effort`),
+    });
     const id = `${SOURCE_ID}:${benchmarkVersion}:${providerId}:${modelId}:${effort}`;
     if (observationIds.has(id)) throw new TypeError(`duplicate DeepSWE observation: ${id}`);
     observationIds.add(id);
@@ -64,7 +77,7 @@ function ingest({ payload, ...inputContext }) {
       providerId,
       modelId,
       effort,
-      workload: 'development',
+      workload: WORKLOAD,
       harness: { id: harnessId, version: harnessVersion },
       score: number(row.score, `DeepSWE rows[${index}].score`),
       source: {
@@ -82,11 +95,11 @@ function ingest({ payload, ...inputContext }) {
           `DeepSWE rows[${index}].confidence95HalfWidth`,
         ),
       },
-      freshness: { observedAt, expiresAt },
+      freshness: evidenceFreshness({ sourceId: SOURCE_ID, observedAt }),
       cost: {
         amount: number(row.averageCostUsd, `DeepSWE rows[${index}].averageCostUsd`),
         currency: 'USD',
-        unit: 'task',
+        unit: 'attempt',
       },
     });
   });
@@ -102,5 +115,6 @@ export const deepSweSource = Object.freeze({
   sourceId: SOURCE_ID,
   owner: OWNER,
   artifactUrl: ARTIFACT_URL,
+  claim: evidenceSourceClaim(SOURCE_ID),
   ingest,
 });

@@ -1,3 +1,5 @@
+import { evidenceFreshness, evidenceSourceClaim } from '../routingCatalog.mjs';
+
 const SOURCE_ID = 'benchlm';
 const ARTIFACT_URL = 'https://benchlm.ai/data';
 const OWNER_URLS = Object.freeze({
@@ -128,6 +130,8 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
       generatedAt,
       sourceLastUpdated,
       snapshotHash,
+      // The owner publishes no cadence, so the Kit dates its own expiry.
+      ...evidenceFreshness({ sourceId: SOURCE_ID, observedAt }),
     });
     signals.push({
       kind: 'corroboration-candidate',
@@ -147,5 +151,6 @@ export const benchLmSource = Object.freeze({
   sourceId: SOURCE_ID,
   owner: 'BenchLM',
   artifactUrl: ARTIFACT_URL,
+  claim: evidenceSourceClaim(SOURCE_ID),
   ingest,
 });

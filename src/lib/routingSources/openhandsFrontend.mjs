@@ -1,4 +1,10 @@
 import { frontendEvidenceWorkload } from '../frontendWorkloads.mjs';
+import {
+  assertCostUnit,
+  assertPublishedEffort,
+  evidenceFreshness,
+  evidenceSourceClaim,
+} from '../routingCatalog.mjs';
 
 const OWNER_URL = 'https://www.openhands.dev/blog/openhands-index';
 const SOURCE_ID = 'openhands-frontend';
@@ -70,7 +76,10 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
     object(row, `OpenHands rows[${index}]`);
     const providerId = string(row.providerId, `OpenHands rows[${index}].providerId`);
     const modelId = string(row.modelId, `OpenHands rows[${index}].modelId`);
-    const effort = string(row.effort, `OpenHands rows[${index}].effort`);
+    const effort = assertPublishedEffort({
+      sourceId: SOURCE_ID,
+      effort: string(row.effort, `OpenHands rows[${index}].effort`),
+    });
     const modelIdentity = `${providerId}:${modelId}`;
     if (!modelIds.has(modelIdentity)) {
       models.push({ providerId, modelId });
@@ -116,11 +125,11 @@ function ingest({ payload, snapshotHash, observedAt, expiresAt }) {
         status: row.status,
         sampleSize: finite(row.sampleSize, `OpenHands rows[${index}].sampleSize`),
       },
-      freshness: { observedAt, expiresAt },
+      freshness: evidenceFreshness({ sourceId: SOURCE_ID, observedAt }),
       cost: {
         amount: finite(row.cost.amount, `OpenHands rows[${index}].cost.amount`),
         currency: string(row.cost.currency, `OpenHands rows[${index}].cost.currency`),
-        unit: string(row.cost.unit, `OpenHands rows[${index}].cost.unit`),
+        unit: assertCostUnit(row.cost.unit, `OpenHands rows[${index}].cost.unit`),
       },
     });
   }
@@ -131,5 +140,6 @@ export const openHandsFrontendSource = Object.freeze({
   sourceId: SOURCE_ID,
   owner: 'OpenHands',
   artifactUrl: OWNER_URL,
+  claim: evidenceSourceClaim(SOURCE_ID),
   ingest,
 });
