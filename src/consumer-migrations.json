@@ -1,4 +1,26 @@
 {
   "schemaVersion": 1,
-  "migrations": []
+  "migrations": [],
+  "advisories": [
+    {
+      "id": "retired-worktree-scratch-patterns",
+      "kind": "retired-key",
+      "retiredIn": "0.44.0",
+      "detect": {
+        "type": "json-key",
+        "path": "docs/agents/workflow-capabilities.json",
+        "key": ["worktreeLifecycle", "scratchPatterns"]
+      }
+    },
+    {
+      "id": "retired-wrapup-generated-artifact-patterns",
+      "kind": "retired-key",
+      "retiredIn": "0.44.0",
+      "detect": {
+        "type": "json-key",
+        "path": "docs/agents/workflow-capabilities.json",
+        "key": ["wrapup", "landingGeneratedArtifactPatterns"]
+      }
+    }
+  ]
 }

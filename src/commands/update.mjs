@@ -14,7 +14,9 @@ import {
 import {
   inspectRoutingProfile, reconcileRoutingProfile,
 } from '../lib/routingProfile.mjs';
-import { evaluateConsumerMigrations } from '../lib/consumerMigrations.mjs';
+import {
+  evaluateConsumerAdvisories, evaluateConsumerMigrations,
+} from '../lib/consumerMigrations.mjs';
 
 const RELEASE_NAME = '@ikon85/agent-workflow-kit';
 
@@ -82,8 +84,12 @@ async function updatePackage(options) {
   const requiredMigrations = await evaluateConsumerMigrations({
     consumerRoot, kitVersion: pkg.kitVersion,
   });
+  const advisories = await evaluateConsumerAdvisories({
+    consumerRoot, kitVersion: pkg.kitVersion,
+  });
   const preview = await reconcile({ kitRoot, consumerRoot, decide: choosePreview, dryRun: true });
   preview.requiredMigrations = requiredMigrations;
+  preview.advisories = advisories;
   let previewFailure;
   try {
     Object.assign(preview, await previewReadinessAdoption({
@@ -109,6 +115,7 @@ async function updatePackage(options) {
     kitRoot, consumerRoot, preview, decisions, decide, transition,
   });
   resolvedPreview.requiredMigrations = requiredMigrations;
+  resolvedPreview.advisories = advisories;
   if (resolvedPreview.collisions.length) {
     return terminal(resolvedPreview, 'conflicted', history, transition);
   }
@@ -297,6 +304,7 @@ function reportOf(result) {
     },
     recommendation: updateRecommendation(result),
     requiredMigrations: result.requiredMigrations ?? [],
+    advisories: result.advisories ?? [],
   };
 }
 
