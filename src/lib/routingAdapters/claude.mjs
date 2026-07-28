@@ -1,9 +1,9 @@
 import { adaptClaudeRoutingInventory } from '../capabilityMatrix.mjs';
-
-function matchesRoute(path, route) {
-  return ['surfaceId', 'providerId', 'modelId', 'transportId']
-    .every((field) => path[field] === route[field]);
-}
+import {
+  attestAccessPath,
+  capabilityPathMatchesPair,
+  selectCapabilityPath,
+} from '../routingAccessGraph.mjs';
 
 function appliedRoute(path, requestedRoute) {
   return Object.freeze({
@@ -25,13 +25,28 @@ function mismatchReason(path, requested, applied) {
   return null;
 }
 
+/**
+ * Attest the Claude surface's access paths for the Access-graph builder. The
+ * attestation carries capability facts and their observation dates only —
+ * authorization stays with the Routing profile and the capability probe.
+ */
+export function claudeAccessAttestations(inventory, dates) {
+  return Object.freeze(adaptClaudeRoutingInventory(inventory).paths
+    .map((path) => attestAccessPath(path, dates)));
+}
+
 export function createClaudeRoutingAdapter({ inventory, dispatchers = {} }) {
   const capabilities = adaptClaudeRoutingInventory(inventory);
   return Object.freeze({
     async prepare(requestedRoute) {
-      const path = capabilities.paths.find((candidate) => matchesRoute(candidate, requestedRoute));
+      const path = selectCapabilityPath(capabilities.paths, requestedRoute);
       if (!path) throw new Error('Claude route capability is not attested');
       if (!path.verified) throw new Error(path.verificationFailures.join('; '));
+      if (!capabilityPathMatchesPair(path, requestedRoute)) {
+        throw new Error(
+          `access pair is not attested: ${requestedRoute.modelId}+${requestedRoute.effort}`,
+        );
+      }
       const invoke = dispatchers[path.transportId];
       if (typeof invoke !== 'function') {
         throw new Error(`transport has no approved dispatcher: ${path.transportId}`);

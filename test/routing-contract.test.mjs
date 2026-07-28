@@ -17,8 +17,16 @@ import {
 } from '../src/lib/routingCatalog.mjs';
 import {
   ACCESS_GRAPH_VERSION,
+  accessPathMatchesPair,
+  buildAccessGraph,
+  resolveAccessRoute,
+  selectAccessPaths,
   validateAccessGraph,
 } from '../src/lib/routingAccessGraph.mjs';
+import {
+  PROBE_FAILURE_KINDS,
+  classifyProbeFailure,
+} from '../src/lib/routingAccessGraphStore.mjs';
 import {
   ROUTING_POLICY_VERSION,
   validateRoutingPolicy,
@@ -314,11 +322,22 @@ test('evidence catalog rejects duplicate observations and incomplete identities'
   );
 });
 
+const accessAttestation = (overrides = {}) => ({
+  result: 'available',
+  failureKind: null,
+  probeId: 'capability-probe:minimal',
+  authorizationId: 'probe-authorization-1',
+  observedAt: '2026-07-22T00:00:00.000Z',
+  expiresAt: '2026-07-24T00:00:00.000Z',
+  ...overrides,
+});
+
 const accessPath = (overrides = {}) => ({
   id: 'codex:native:model-a',
   surfaceId: 'codex',
   providerId: 'provider-a',
   modelId: 'model-a',
+  effort: 'high',
   transportId: 'native',
   availability: 'available',
   enforcement: { model: 'per-spawn', effort: 'per-spawn' },
@@ -327,6 +346,7 @@ const accessPath = (overrides = {}) => ({
     observedAt: '2026-07-22T00:00:00.000Z',
     expiresAt: '2026-07-24T00:00:00.000Z',
   },
+  attestation: accessAttestation(),
   ...overrides,
 });
 
@@ -367,6 +387,184 @@ test('access graph rejects credentials and duplicate path identities', () => {
     }),
     /unknown access path field: credential/,
   );
+});
+
+const pairGraph = () => validateAccessGraph({
+  schemaVersion: ACCESS_GRAPH_VERSION,
+  revision: 'access-r4',
+  paths: [
+    accessPath({ id: 'codex:native:model-a:high', effort: 'high' }),
+    accessPath({
+      id: 'codex:native:model-a:low',
+      effort: 'low',
+      availability: 'unknown',
+      attestation: null,
+    }),
+  ],
+});
+
+test('an access path identifies model and effort and only an exact pair match resolves', () => {
+  const graph = pairGraph();
+  const pair = { providerId: 'provider-a', modelId: 'model-a', effort: 'high' };
+
+  assert.deepEqual(
+    selectAccessPaths(graph, pair).map(({ id }) => id),
+    ['codex:native:model-a:high'],
+  );
+  assert.equal(accessPathMatchesPair(graph.paths[0], pair), true);
+  assert.equal(accessPathMatchesPair(graph.paths[1], pair), false);
+  assert.deepEqual(
+    selectAccessPaths(graph, { ...pair, effort: 'medium' }),
+    [],
+    'an effort the path never attested must not resolve',
+  );
+  assert.deepEqual(
+    selectAccessPaths(graph, { ...pair, transportId: 'approved-plugin' }),
+    [],
+    'an explicit transport narrows the pair match further',
+  );
+
+  const withoutEffort = accessPath();
+  delete withoutEffort.effort;
+  assert.throws(
+    () => validateAccessGraph({
+      schemaVersion: ACCESS_GRAPH_VERSION,
+      revision: 'access-r4',
+      paths: [withoutEffort],
+    }),
+    /paths\[0\]\.effort must be a non-empty string/,
+  );
+  assert.throws(
+    () => validateAccessGraph({
+      schemaVersion: ACCESS_GRAPH_VERSION,
+      revision: 'access-r4',
+      paths: [accessPath(), accessPath({ id: 'codex:native:model-a:duplicate' })],
+    }),
+    /duplicate access pair/,
+  );
+});
+
+test('an access path attestation is dated proof and never contradicts its availability', () => {
+  const graphOf = (path) => validateAccessGraph({
+    schemaVersion: ACCESS_GRAPH_VERSION,
+    revision: 'access-r4',
+    paths: [path],
+  });
+  const rejectedAttestation = accessAttestation({
+    result: 'unavailable',
+    failureKind: 'not-authorized',
+  });
+
+  const graph = graphOf(accessPath({
+    availability: 'unavailable',
+    attestation: rejectedAttestation,
+  }));
+  assert.equal(graph.paths[0].attestation.failureKind, 'not-authorized');
+  assert.ok(Object.isFrozen(graph.paths[0].attestation));
+
+  assert.throws(
+    () => graphOf(accessPath({ availability: 'available', attestation: rejectedAttestation })),
+    /attestation result must match the recorded availability/,
+  );
+  assert.throws(
+    () => graphOf(accessPath({ availability: 'unknown', attestation: rejectedAttestation })),
+    /unknown availability must carry no attestation/,
+  );
+  for (const availability of ['available', 'unavailable']) {
+    assert.throws(
+      () => graphOf(accessPath({ availability, attestation: null })),
+      /availability requires a dated attestation/,
+      availability,
+    );
+  }
+  assert.throws(
+    () => graphOf(accessPath({
+      attestation: accessAttestation({ expiresAt: '2026-07-21T00:00:00.000Z' }),
+    })),
+    /attestation\.expiresAt must follow observedAt/,
+  );
+});
+
+test('only a deterministic unsupported or authorization failure may mutate availability', () => {
+  assert.deepEqual(
+    Object.entries(PROBE_FAILURE_KINDS)
+      .filter(([, determinism]) => determinism === 'deterministic')
+      .map(([kind]) => kind)
+      .sort(),
+    ['not-authorized', 'unsupported-effort', 'unsupported-model'],
+  );
+  for (const kind of ['timeout', 'rate-limited', 'malformed-response', 'provider-failure']) {
+    assert.deepEqual(classifyProbeFailure(kind), {
+      kind,
+      determinism: 'transient',
+      mutatesAvailability: false,
+    });
+  }
+  assert.equal(classifyProbeFailure('not-authorized').mutatesAvailability, true);
+  assert.equal(
+    classifyProbeFailure('a-kind-nobody-typed').mutatesAvailability,
+    false,
+    'an unclassified failure must never poison the graph',
+  );
+  assert.equal(classifyProbeFailure(undefined).kind, 'unclassified');
+});
+
+test('the access-graph builder assembles surface attestations into dated unknown paths', () => {
+  const attestation = (overrides = {}) => ({
+    id: 'claude:claude-native:reasoning-model:high',
+    surfaceId: 'claude',
+    providerId: 'anthropic',
+    modelId: 'reasoning-model',
+    effort: 'high',
+    transportId: 'claude-native',
+    attested: true,
+    attestationFailures: [],
+    enforcement: { model: 'per-spawn', effort: 'per-spawn' },
+    capabilityEvidence: {
+      revision: 'capability-r1',
+      observedAt: '2026-07-28T00:00:00.000Z',
+      expiresAt: '2026-07-29T00:00:00.000Z',
+    },
+    ...overrides,
+  });
+
+  const graph = buildAccessGraph({ attestations: [attestation()] });
+  assert.equal(graph.schemaVersion, ACCESS_GRAPH_VERSION);
+  assert.equal(graph.paths[0].availability, 'unknown');
+  assert.match(graph.revision, /^sha256-/);
+  assert.equal(
+    buildAccessGraph({ attestations: [attestation()] }).revision,
+    graph.revision,
+    'the revision is content-derived and stable',
+  );
+
+  assert.deepEqual(
+    buildAccessGraph({
+      attestations: [attestation({ attested: false, attestationFailures: ['effort control is not enforced'] })],
+    }).paths,
+    [],
+  );
+
+  assert.throws(
+    () => buildAccessGraph({
+      attestations: [attestation({ effort: 'ultra' })],
+      effortDomains: { 'anthropic:reasoning-model': ['low', 'medium', 'high'] },
+    }),
+    /effort is outside the model effort domain/,
+  );
+
+  const afk = resolveAccessRoute(graph, {
+    providerId: 'anthropic',
+    modelId: 'reasoning-model',
+    effort: 'high',
+  }, { afk: true });
+  assert.equal(afk.state, 'blocked');
+  const supervised = resolveAccessRoute(graph, {
+    providerId: 'anthropic',
+    modelId: 'reasoning-model',
+    effort: 'high',
+  }, { afk: false });
+  assert.equal(supervised.state, 'verification-required');
 });
 
 const routingPolicy = (overrides = {}) => ({
