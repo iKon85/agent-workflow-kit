@@ -315,11 +315,22 @@ def _required_checks_snapshot(pr: str, command_runner) -> list[dict]:
             "cannot inspect required PR checks",
             sanitize_external_detail(result.stderr or result.stdout),
         )
+    payload = (result.stdout or "").strip()
+    if not payload:
+        # An empty body is not an error: it is the platform saying no check run
+        # has been reported yet — the ordinary state in the seconds after a PR
+        # is opened, and precisely the state the poll below exists to wait
+        # through. Parsing it as JSON blamed the platform for a race this
+        # script opened itself.
+        return []
     try:
-        checks = json.loads(result.stdout)
+        checks = json.loads(payload)
     except json.JSONDecodeError as error:
         raise Stop(
-            "0c merge-gate", "invalid required PR check response", str(error)
+            "0c merge-gate",
+            "malformed required PR check response",
+            f"{error} — the response carried a body that is not JSON: "
+            f"{sanitize_external_detail(payload)}",
         ) from error
     if not isinstance(checks, list) or not all(
         isinstance(check, dict) for check in checks
