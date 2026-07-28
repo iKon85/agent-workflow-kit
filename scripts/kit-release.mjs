@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { verifyBundle } from '../src/lib/bundle.mjs';
 import { applyProjectRelease } from '../src/lib/release-apply.mjs';
 import { previewProjectRelease } from '../src/lib/release-preview.mjs';
 import { nextVersion } from '../src/lib/semver.mjs';
@@ -50,12 +51,31 @@ async function updateMetadata(repoRoot, targetVersion, delta) {
   return resumed;
 }
 
-async function freshManifest(repoRoot) {
+/**
+ * Build the bundle and keep it on disk until it has been verified — the
+ * manifest is only believable together with the bytes it describes. The build
+ * reads the committed, provenance-hashed inventory snapshots from the
+ * repository; nothing here reaches the network.
+ */
+async function freshBundle(repoRoot) {
   const distDir = await mkdtemp(join(tmpdir(), 'awkit-release-'));
   try {
     await buildKit({ repoRoot, distDir });
-    return JSON.parse(await readFile(join(distDir, 'agent-workflow-kit.package.json'), 'utf8'));
-  } finally { await rm(distDir, { recursive: true, force: true }); }
+    return {
+      manifest: JSON.parse(await readFile(join(distDir, 'agent-workflow-kit.package.json'), 'utf8')),
+      bundleRoot: distDir,
+      cleanup: () => rm(distDir, { recursive: true, force: true }),
+    };
+  } catch (error) {
+    await rm(distDir, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function assertVerified(report) {
+  if (report.ok) return;
+  const detail = report.findings.map(({ check, detail: line }) => `  ${check}: ${line}`).join('\n');
+  throw new Error(`bundle verification failed:\n${detail}`);
 }
 
 async function defaultRun(command, args, repoRoot) {
@@ -66,16 +86,28 @@ export async function prepareRelease(options) {
   const { repoRoot, targetVersion, delta } = options;
   if (!/^\d+\.\d+\.\d+$/.test(targetVersion)) throw new Error(`invalid target version: ${targetVersion}`);
   const resumed = await updateMetadata(repoRoot, targetVersion, delta);
-  const manifest = await (options.buildManifest ?? freshManifest)(repoRoot);
-  if (manifest.kitVersion !== targetVersion) {
-    throw new Error(`built manifest version ${manifest.kitVersion} != target ${targetVersion}`);
-  }
-  await writeFile(join(repoRoot, 'agent-workflow-kit.package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  const built = await (options.buildBundle ?? freshBundle)(repoRoot);
+  let report;
+  try {
+    const { manifest } = built;
+    if (manifest.kitVersion !== targetVersion) {
+      throw new Error(`built manifest version ${manifest.kitVersion} != target ${targetVersion}`);
+    }
+    report = await (options.verifyBundle ?? verifyBundle)({
+      bundleRoot: built.bundleRoot, manifest,
+    });
+    assertVerified(report);
+    await writeFile(join(repoRoot, 'agent-workflow-kit.package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  } finally { await built.cleanup?.(); }
   const run = options.run ?? ((command, args) => defaultRun(command, args, repoRoot));
   await run('npm', ['run', 'release:guard']);
   await run('npm', ['test']);
   await run('npm', ['pack', '--dry-run']);
-  return { status: resumed ? 'resumed' : 'prepared', targetVersion };
+  return {
+    status: resumed ? 'resumed' : 'prepared',
+    targetVersion,
+    inventoryRevision: report.inventoryRevision,
+  };
 }
 
 async function main() {

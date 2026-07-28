@@ -1,0 +1,49 @@
+{
+  "snapshotVersion": 1,
+  "surface": "claude-code",
+  "provider": "anthropic",
+  "provenance": {
+    "sourceKind": "maintainer-reading",
+    "sourceRef": "claude --help model and effort domains, Claude Code 2.1.220; the surface publishes no machine-readable model inventory, so this half is pinned by maintainer reading rather than by a fetch",
+    "capturedAt": "2026-07-28",
+    "integrity": "sha256-B2mGRS1jnYS_2JCmvkZum0vV-yliwOGS1Gtu_1Ghv2k"
+  },
+  "models": [
+    {
+      "modelId": "opus",
+      "identifiers": ["opus", "opus[1m]", "claude-opus-5", "claude-opus-5[1m]"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "defaultEffort": null,
+      "visibility": "list",
+      "effortSource": "cli-effort-domain; applied effort attested by per-spawn readback in verify-spike 18c"
+    },
+    {
+      "modelId": "sonnet",
+      "identifiers": ["sonnet"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "defaultEffort": null,
+      "visibility": "list",
+      "effortSource": "cli-effort-domain"
+    },
+    {
+      "modelId": "haiku",
+      "identifiers": ["haiku"],
+      "effortAxis": false,
+      "efforts": [],
+      "defaultEffort": null,
+      "visibility": "list",
+      "effortSource": "attested absent: a haiku run records no effort because none is applied"
+    },
+    {
+      "modelId": "fable",
+      "identifiers": ["fable", "claude-fable-5"],
+      "effortAxis": true,
+      "efforts": ["low", "medium", "high", "xhigh", "max"],
+      "defaultEffort": null,
+      "visibility": "list",
+      "effortSource": "cli-effort-domain"
+    }
+  ]
+}
