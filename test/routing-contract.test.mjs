@@ -61,6 +61,8 @@ import {
   validateRoutingEvidenceCache,
 } from '../src/lib/routingEvidenceCache.mjs';
 import {
+  APPLIED_PAIR_ATTESTATION_SOURCES,
+  DISPATCH_RECEIPT_KINDS,
   DISPATCH_RECEIPT_VERSION,
   createDispatchReceipt,
 } from '../src/lib/dispatchReceipt.mjs';
@@ -1558,4 +1560,211 @@ test('receipt v2 keeps non-AFK callers compatible with explicit unreported prece
   });
 
   assert.deepEqual(receipt.precedence, { model: 'unreported', effort: 'unreported' });
+});
+
+const receiptRevisions = {
+  catalog: 'catalog-r7',
+  accessGraph: 'access-r4',
+  policy: 'policy-r5',
+};
+
+test('every receipt kind validates its own field set and names its revisions', () => {
+  assert.deepEqual(DISPATCH_RECEIPT_KINDS, [
+    'routed-dispatch', 'inherited-dispatch', 'handoff', 'blocked',
+  ]);
+
+  const routed = createDispatchReceipt({
+    kind: 'routed-dispatch',
+    executionId: 'run-routed',
+    afk: true,
+    requestedRoute: dispatchedRoute(),
+    appliedRoute: dispatchedRoute(),
+    enforcement: { model: 'per-spawn', effort: 'per-spawn' },
+    precedence: { model: 'explicit-argument', effort: 'explicit-argument' },
+    revisions: receiptRevisions,
+    authorizationId: 'plan-authorization-1',
+    dispatchedAt: '2026-07-23T00:01:00.000Z',
+  });
+  assert.equal(routed.kind, 'routed-dispatch');
+  assert.equal(routed.status, 'dispatched');
+  assert.equal(routed.catalogRevision, 'catalog-r7');
+  assert.equal(routed.decisionAccessRevision, 'access-r4');
+  assert.equal(routed.policyRevision, 'policy-r5');
+  assert.equal(routed.resultingAccessRevision, null);
+  assert.equal(routed.authorizationId, 'plan-authorization-1');
+  assert.equal(routed.attestation, null);
+  assert.equal(routed.handoff, null);
+  // The legacy dispatched status keeps deriving the routed-dispatch kind.
+  assert.equal(createDispatchReceipt({
+    executionId: 'run-legacy',
+    status: 'dispatched',
+    afk: false,
+    requestedRoute: dispatchedRoute(),
+    appliedRoute: dispatchedRoute(),
+    enforcement: { model: 'per-spawn', effort: 'per-spawn' },
+    revisions: receiptRevisions,
+    dispatchedAt: '2026-07-23T00:01:00.000Z',
+  }).kind, 'routed-dispatch');
+
+  const handoff = createDispatchReceipt({
+    kind: 'handoff',
+    executionId: 'run-handoff',
+    afk: false,
+    requestedRoute: dispatchedRoute(),
+    handoff: { to: 'user' },
+    revisions: receiptRevisions,
+    dispatchedAt: '2026-07-23T00:01:00.000Z',
+    reason: 'handoff:no-executable-route',
+  });
+  assert.equal(handoff.status, 'handoff');
+  assert.deepEqual(handoff.handoff, { to: 'user' });
+  assert.equal(handoff.appliedRoute, null);
+  assert.equal(handoff.enforcement, null);
+
+  for (const [label, input] of Object.entries({
+    'a handoff that claims something ran': {
+      kind: 'handoff',
+      appliedRoute: dispatchedRoute(),
+      handoff: { to: 'user' },
+      reason: 'handoff:no-executable-route',
+      expected: /unknown handoff receipt field: appliedRoute/,
+    },
+    'a routed dispatch carrying a handoff target': {
+      kind: 'routed-dispatch',
+      requestedRoute: dispatchedRoute(),
+      appliedRoute: dispatchedRoute(),
+      enforcement: { model: 'per-spawn', effort: 'per-spawn' },
+      handoff: { to: 'user' },
+      expected: /unknown routed-dispatch receipt field: handoff/,
+    },
+    'a routed dispatch claiming an inherited attestation': {
+      kind: 'routed-dispatch',
+      requestedRoute: dispatchedRoute(),
+      appliedRoute: dispatchedRoute(),
+      enforcement: { model: 'per-spawn', effort: 'per-spawn' },
+      attestation: { source: 'session-transcript', model: 'model-a', effort: 'high' },
+      expected: /unknown routed-dispatch receipt field: attestation/,
+    },
+    'a blocked receipt sold as a dispatched one': {
+      kind: 'blocked',
+      status: 'dispatched',
+      reason: 'transport is not detected',
+      expected: /blocked receipt status must be blocked/,
+    },
+    'an unknown kind': {
+      kind: 'best-effort',
+      reason: 'transport is not detected',
+      expected: /dispatch receipt kind must be one of/,
+    },
+  })) {
+    const { expected, ...fields } = input;
+    assert.throws(() => createDispatchReceipt({
+      executionId: 'run-invalid',
+      afk: false,
+      revisions: receiptRevisions,
+      dispatchedAt: '2026-07-23T00:01:00.000Z',
+      ...fields,
+    }), expected, label);
+  }
+});
+
+test('an inherited dispatch is rejected without an attested applied pair and enforcement', () => {
+  const base = {
+    kind: 'inherited-dispatch',
+    executionId: 'run-inherited',
+    afk: false,
+    requestedRoute: dispatchedRoute({ modelId: 'unreachable-model' }),
+    appliedRoute: dispatchedRoute(),
+    enforcement: { model: 'session-default', effort: 'session-default' },
+    attestation: {
+      source: 'session-transcript',
+      model: 'model-a',
+      effort: 'high',
+      observedAt: '2026-07-23T00:00:30.000Z',
+    },
+    revisions: receiptRevisions,
+    dispatchedAt: '2026-07-23T00:01:00.000Z',
+  };
+
+  const receipt = createDispatchReceipt(base);
+  assert.equal(receipt.kind, 'inherited-dispatch');
+  assert.equal(receipt.status, 'dispatched');
+  // The inherited pair may differ from the unreachable route that was requested.
+  assert.equal(receipt.requestedRoute.modelId, 'unreachable-model');
+  assert.equal(receipt.appliedRoute.modelId, 'model-a');
+  // The transcript returns the model from the server; the effort is the CLI's record.
+  assert.deepEqual(receipt.attestation.providerAttested, { model: true, effort: false });
+  // Codex reads its applied pair from a client-written rollout file.
+  assert.deepEqual(APPLIED_PAIR_ATTESTATION_SOURCES['rollout-turn-context'], {
+    model: false, effort: false,
+  });
+
+  const { attestation: _attestation, ...withoutAttestation } = base;
+  assert.throws(
+    () => createDispatchReceipt(withoutAttestation),
+    /inherited dispatch requires an attested applied pair/,
+  );
+  assert.throws(
+    () => createDispatchReceipt({
+      ...base, enforcement: { model: 'per-spawn', effort: 'per-spawn' },
+    }),
+    /inherited dispatch requires the session-default enforcement method/,
+  );
+  assert.throws(
+    () => createDispatchReceipt({
+      ...base, attestation: { ...base.attestation, source: 'settings-file' },
+    }),
+    /attestation source must be one of: session-transcript, rollout-turn-context/,
+  );
+  assert.throws(
+    () => createDispatchReceipt({
+      ...base, attestation: { ...base.attestation, effort: 'medium' },
+    }),
+    /attested applied pair differs from the applied route/,
+  );
+  assert.throws(
+    () => createDispatchReceipt({ ...base, afk: true }),
+    /AFK dispatch cannot inherit a session default/,
+  );
+});
+
+test('a blocked receipt names a resulting access revision only for a graph-mutating failure', () => {
+  const base = {
+    executionId: 'run-mutating-failure',
+    status: 'blocked',
+    afk: true,
+    requestedRoute: dispatchedRoute(),
+    revisions: receiptRevisions,
+    dispatchedAt: '2026-07-23T00:01:00.000Z',
+    reason: 'transport is not callable',
+  };
+
+  const receipt = createDispatchReceipt({ ...base, resultingAccessRevision: 'access-r5' });
+  assert.equal(receipt.kind, 'blocked');
+  assert.equal(receipt.decisionAccessRevision, 'access-r4');
+  assert.equal(receipt.resultingAccessRevision, 'access-r5');
+  assert.equal(createDispatchReceipt(base).resultingAccessRevision, null);
+
+  assert.throws(
+    () => createDispatchReceipt({ ...base, resultingAccessRevision: 'access-r4' }),
+    /resultingAccessRevision names no access graph mutation/,
+  );
+  assert.throws(
+    () => createDispatchReceipt({
+      executionId: 'run-dispatched',
+      status: 'dispatched',
+      afk: false,
+      requestedRoute: dispatchedRoute(),
+      appliedRoute: dispatchedRoute(),
+      enforcement: { model: 'per-spawn', effort: 'per-spawn' },
+      revisions: receiptRevisions,
+      dispatchedAt: '2026-07-23T00:01:00.000Z',
+      resultingAccessRevision: 'access-r5',
+    }),
+    /unknown routed-dispatch receipt field: resultingAccessRevision/,
+  );
+  assert.throws(
+    () => createDispatchReceipt({ ...base, authorizationId: 42 }),
+    /authorizationId must be a non-empty string/,
+  );
 });
