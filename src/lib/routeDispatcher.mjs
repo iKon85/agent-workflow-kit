@@ -1,5 +1,16 @@
+/**
+ * Dispatching a resolved Route decision.
+ *
+ * The dispatch holds a revision-bound dispatch lease across the spawn handoff
+ * whenever one is configured: the store is re-read and the Routing policy
+ * recomputed before the adapter prepares, and again after it, so an
+ * authorization revoked in that window fails the dispatch instead of racing it.
+ * Without a lease the only remaining guard is the in-process comparison of the
+ * caller's own resolver input, which cannot see another process at all.
+ */
 import { createDispatchReceipt } from './dispatchReceipt.mjs';
 import { resolveRoute } from './routingResolver.mjs';
+import { openDispatchLease } from './routingDispatchLease.mjs';
 import {
   assertRoutingProfileUnchanged,
   captureRoutingProfileSnapshot,
@@ -46,33 +57,44 @@ function decisionReason(decision) {
   return `${decision.status}:${decision.reason}${blockers}`;
 }
 
+/**
+ * The closed set of failure reasons a receipt may name. A message is reduced to
+ * the reason it starts with, so neither a revision value nor an adapter
+ * diagnostic can travel into a receipt.
+ */
+const SAFE_FAILURE_REASONS = Object.freeze([
+  'Claude route capability is not attested',
+  'route identity is incomplete',
+  'transport is not detected',
+  'transport is not callable',
+  'transport is not permitted',
+  'model control is not enforced',
+  'effort control is not enforced',
+  'model environment precedence is unverified',
+  'effort environment precedence is unverified',
+  'model applied value is unverified',
+  'effort applied value is unverified',
+  'transport has no approved dispatcher',
+  'environment precedence mismatch: model',
+  'environment precedence mismatch: effort',
+  'applied route mismatch',
+  'spawn guard received no callable dispatcher',
+  'applied route differs from requested route',
+  'applied enforcement differs from attested access path',
+  'AFK dispatch requires enforced model and effort selection',
+  'AFK dispatch requires verified environment precedence',
+  'concurrent routing profile mutation',
+  'concurrent evidence catalog mutation',
+  'routing profile store carries no committed authorization',
+  'dispatch lease is reserved for a writer',
+  'dispatch lease is held',
+  'dispatch lease superseded',
+  'dispatch lease expired',
+]);
+
 function safeFailureReason(error) {
   const message = error instanceof Error ? error.message : '';
-  const safeReasons = [
-    ['Claude route capability is not attested', 'Claude route capability is not attested'],
-    ['route identity is incomplete', 'route identity is incomplete'],
-    ['transport is not detected', 'transport is not detected'],
-    ['transport is not callable', 'transport is not callable'],
-    ['transport is not permitted', 'transport is not permitted'],
-    ['model control is not enforced', 'model control is not enforced'],
-    ['effort control is not enforced', 'effort control is not enforced'],
-    ['model environment precedence is unverified', 'model environment precedence is unverified'],
-    ['effort environment precedence is unverified', 'effort environment precedence is unverified'],
-    ['model applied value is unverified', 'model applied value is unverified'],
-    ['effort applied value is unverified', 'effort applied value is unverified'],
-    ['transport has no approved dispatcher', 'transport has no approved dispatcher'],
-    ['environment precedence mismatch: model', 'environment precedence mismatch: model'],
-    ['environment precedence mismatch: effort', 'environment precedence mismatch: effort'],
-    ['applied route mismatch', 'applied route mismatch'],
-    ['spawn guard received no callable dispatcher', 'spawn guard received no callable dispatcher'],
-    ['applied route differs from requested route', 'applied route differs from requested route'],
-    ['applied enforcement differs from attested access path', 'applied enforcement differs from attested access path'],
-    ['AFK dispatch requires enforced model and effort selection', 'AFK dispatch requires enforced model and effort selection'],
-    ['AFK dispatch requires verified environment precedence', 'AFK dispatch requires verified environment precedence'],
-    ['concurrent routing profile mutation', 'concurrent routing profile mutation'],
-    ['concurrent evidence catalog mutation', 'concurrent evidence catalog mutation'],
-  ];
-  return safeReasons.find(([prefix]) => message.startsWith(prefix))?.[1]
+  return SAFE_FAILURE_REASONS.find((reason) => message.startsWith(reason))
     ?? 'dispatch adapter rejected route';
 }
 
@@ -92,6 +114,57 @@ function assertAppliedEnforcement(decision, applied) {
   }
 }
 
+/**
+ * The in-process comparison over the caller's own resolver input. It catches only
+ * a mutation this process made to that object; a store-backed lease is what sees
+ * an external writer.
+ */
+function inProcessGuard(resolverInput) {
+  const snapshot = captureRoutingProfileSnapshot(resolverInput);
+  const catalogRevision = resolverInput.catalog.revision;
+  return () => {
+    assertRoutingProfileUnchanged(snapshot, resolverInput);
+    if (catalogRevision !== resolverInput.catalog?.revision) {
+      throw new Error('concurrent evidence catalog mutation');
+    }
+  };
+}
+
+/** The lease is bound to the revisions the Route decision itself named. */
+function leaseOptions(input, decision) {
+  if (input.lease == null) return null;
+  if (typeof input.lease !== 'object' || Array.isArray(input.lease)) {
+    throw new TypeError('dispatch lease options must be an object');
+  }
+  return {
+    ...input.lease,
+    holder: input.lease.holder ?? input.executionId,
+    expected: decision.revisions,
+  };
+}
+
+function preparedReceipt(input, decision, requestedRoute, prepared) {
+  const applied = {
+    requestedRoute,
+    appliedRoute: receiptRoute(prepared.appliedRoute),
+    enforcement: prepared.enforcement,
+    precedence: prepared.precedence,
+  };
+  if (prepared.mismatchReason) {
+    return blockedReceipt(
+      input, decision, safeFailureReason(new Error(prepared.mismatchReason)), applied,
+    );
+  }
+  return createDispatchReceipt({
+    executionId: input.executionId,
+    status: 'dispatched',
+    afk: input.afk,
+    ...applied,
+    revisions: receiptRevisions(decision),
+    dispatchedAt: input.dispatchedAt,
+  });
+}
+
 export async function dispatchResolvedRoute(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new TypeError('dispatch input must be an object');
@@ -107,42 +180,20 @@ export async function dispatchResolvedRoute(input) {
       dispatchResult: null,
     });
   }
-  const profileSnapshot = captureRoutingProfileSnapshot(input.resolverInput);
-  const catalogRevision = input.resolverInput.catalog.revision;
-
+  const assertInProcessUnchanged = inProcessGuard(input.resolverInput);
+  const lease = leaseOptions(input, decision);
   const requestedRoute = receiptRoute(decision.bestExecutable);
+  let held = null;
   try {
+    if (lease) held = await openDispatchLease(lease);
     const prepared = await input.adapter.prepare(requestedRoute);
-    assertRoutingProfileUnchanged(profileSnapshot, input.resolverInput);
-    if (catalogRevision !== input.resolverInput.catalog?.revision) {
-      throw new Error('concurrent evidence catalog mutation');
-    }
+    assertInProcessUnchanged();
+    if (held) await held.revalidate();
     assertAppliedEnforcement(decision, prepared.enforcement);
-    if (prepared.mismatchReason) {
-      return Object.freeze({
-        decision,
-        receipt: blockedReceipt(input, decision, safeFailureReason(
-          new Error(prepared.mismatchReason),
-        ), {
-          requestedRoute,
-          appliedRoute: receiptRoute(prepared.appliedRoute),
-          enforcement: prepared.enforcement,
-          precedence: prepared.precedence,
-        }),
-        dispatchResult: null,
-      });
+    const receipt = preparedReceipt(input, decision, requestedRoute, prepared);
+    if (receipt.status !== 'dispatched') {
+      return Object.freeze({ decision, receipt, dispatchResult: null });
     }
-    const receipt = createDispatchReceipt({
-      executionId: input.executionId,
-      status: 'dispatched',
-      afk: input.afk,
-      requestedRoute,
-      appliedRoute: receiptRoute(prepared.appliedRoute),
-      enforcement: prepared.enforcement,
-      precedence: prepared.precedence,
-      revisions: receiptRevisions(decision),
-      dispatchedAt: input.dispatchedAt,
-    });
     if (typeof prepared.dispatch !== 'function') {
       throw new Error('spawn guard received no callable dispatcher');
     }
@@ -154,5 +205,7 @@ export async function dispatchResolvedRoute(input) {
       receipt: blockedReceipt(input, decision, safeFailureReason(error), { requestedRoute }),
       dispatchResult: null,
     });
+  } finally {
+    held?.release();
   }
 }

@@ -52,8 +52,11 @@ import {
 } from '../src/lib/routingResolver.mjs';
 import {
   ROUTING_EVIDENCE_CACHE_VERSION,
+  ROUTING_STORE_SNAPSHOT_VERSION,
   assertRoutingProfileUnchanged,
+  assertRoutingStoreSnapshotUnchanged,
   captureRoutingProfileSnapshot,
+  captureRoutingStoreSnapshot,
   commitRoutingEvidenceCache,
   validateRoutingEvidenceCache,
 } from '../src/lib/routingEvidenceCache.mjs';
@@ -1363,6 +1366,72 @@ test('concurrent user-local profile mutation blocks dispatch', () => {
       policy: { ...fixture.policy, revision: 'policy-r6' },
     }),
     /concurrent routing profile mutation: policy/,
+  );
+});
+
+test('a store-backed snapshot token recomputes the policy from the reread generations', async () => {
+  const fixture = resolverFixture();
+  const store = {
+    globalGeneration: 4,
+    projectGeneration: 2,
+    accessGraph: { revision: fixture.accessGraph.revision },
+    catalog: fixture.catalog,
+  };
+  const readers = (overrides = {}) => ({
+    readProfile: async () => ({
+      global: { generation: store.globalGeneration, profile: globalAuthorization() },
+      project: { generation: store.projectGeneration },
+      composed: composeRoutingProfile({
+        global: globalAuthorization(), inventory: POLICY_INVENTORY,
+      }),
+    }),
+    readAccessGraph: async () => store.accessGraph,
+    readCatalog: async () => store.catalog,
+    ...overrides,
+  });
+
+  const token = await captureRoutingStoreSnapshot(readers());
+  assert.equal(token.schemaVersion, ROUTING_STORE_SNAPSHOT_VERSION);
+  // The policy is derived here, never read back from a store.
+  assert.equal(token.policy, routingPolicyRevision({
+    globalGeneration: 4, projectGeneration: 2, inventoryRevision: POLICY_INVENTORY.revision,
+  }));
+  assert.deepEqual(
+    { accessGraph: token.accessGraph, catalog: token.catalog, inventory: token.inventoryRevision },
+    { accessGraph: 'access-r4', catalog: 'catalog-r7', inventory: POLICY_INVENTORY.revision },
+  );
+  const reread = await captureRoutingStoreSnapshot(readers());
+  assert.equal(
+    assertRoutingStoreSnapshotUnchanged(token, reread),
+    true,
+    'a re-read of an unmoved store compares equal',
+  );
+
+  store.globalGeneration = 5;
+  const moved = await captureRoutingStoreSnapshot(readers());
+  assert.notEqual(moved.policy, token.policy, 'the recomputed policy moves with the generation');
+  assert.throws(
+    () => assertRoutingStoreSnapshotUnchanged(token, moved),
+    /concurrent routing profile mutation: globalGeneration changed from 4 to 5/,
+  );
+
+  store.globalGeneration = 4;
+  store.catalog = { ...fixture.catalog, revision: 'catalog-r8' };
+  const refreshed = await captureRoutingStoreSnapshot(readers());
+  assert.throws(
+    () => assertRoutingStoreSnapshotUnchanged(token, refreshed),
+    /concurrent evidence catalog mutation: catalog changed from catalog-r7 to catalog-r8/,
+  );
+
+  await assert.rejects(
+    captureRoutingStoreSnapshot(readers({
+      readProfile: async () => ({ global: null, project: null, composed: null }),
+    })),
+    /routing profile store carries no committed authorization/,
+  );
+  await assert.rejects(
+    captureRoutingStoreSnapshot(readers({ readCatalog: null })),
+    /routing store snapshot readCatalog must be a function/,
   );
 });
 
