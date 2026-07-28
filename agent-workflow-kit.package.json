@@ -3075,7 +3075,7 @@
       "path": "src/lib/routingProfile.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "c44479f1a41e15b383c659b404ce61cfe654baa862f81e64877dc19c1c2ee6ef",
+      "sha256": "1525040c6f804f7c419d162b5878bd68ab581fc068663f03b8a928b34265dfb7",
       "mode": 420,
       "origin": "kit"
     },
