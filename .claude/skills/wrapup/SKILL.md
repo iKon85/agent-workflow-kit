@@ -112,9 +112,13 @@ already at this commit? does the PR exist? is it merged? is the worktree still
 there?) and skips what is already done, so an interrupted landing resumes
 exactly where it stopped. The report's `skipped` list names what it found done.
 
-Teardown always runs, and running `/wrapup` in a worktree *is* its
-authorization — including a worktree an external tool created under a foreign
-name and path, and a branch that carries no issue number. Teardown authority is
+Teardown runs on the target resolved before the merge, and running `/wrapup` in
+a worktree *is* its authorization — including a worktree an external tool
+created under a foreign name and path, and a branch that carries no issue
+number. Two targets yield nothing to tear down and are reported, not refused:
+no worktree holds the branch, and the tree holding it is the main checkout,
+which `/wrapup` never tears down. Everything a refusal would reject is decided
+there, while nothing has been removed yet. Teardown authority is
 the repository's current state, nothing else: a tracked change or an unmerged
 path blocks, an untracked non-ignored file blocks with a bounded report (count
 plus top directories, never a path dump), and an ignored entry is deletable

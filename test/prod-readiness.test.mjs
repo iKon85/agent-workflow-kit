@@ -72,7 +72,12 @@ test('setup and wrapup publish the bounded Prod readiness contract on both surfa
     assert.match(wrapup, /Prod readiness is pending or missing; deploy reporting omitted\./);
     assert.match(wrapup, /landing continues/);
     assert.match(wrapup, /never signals on doubt/);
-    assert.match(wrapup, /Teardown always runs/);
+    // The old assertion pinned the phrase "Teardown always runs", which the
+    // resolved-target fix made false: it enforced the documentation of a
+    // behaviour the code had stopped having. These two carry the property that
+    // literal stood for — teardown is authorized, and it is bounded.
+    assert.match(wrapup, /Teardown runs on the target resolved before the merge/);
+    assert.match(wrapup, /never tears down/);
   }
 });
 
