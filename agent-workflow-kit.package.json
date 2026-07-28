@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.45.1",
+  "kitVersion": "0.45.2",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -997,7 +997,7 @@
       "ownerSkill": "wrapup",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "da15a597d296e57a1d9d42ab6ebee218d777dc544feb3b7cb9f9a3318925e39e",
+      "sha256": "e7eccb8e2828af063ecc8eebca67c3dbc97ddbbf266c60c115971ba12c69839c",
       "mode": 420,
       "origin": "kit"
     },
@@ -2347,7 +2347,7 @@
       "ownerSkill": "wrapup",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "da15a597d296e57a1d9d42ab6ebee218d777dc544feb3b7cb9f9a3318925e39e",
+      "sha256": "e7eccb8e2828af063ecc8eebca67c3dbc97ddbbf266c60c115971ba12c69839c",
       "mode": 420,
       "origin": "kit"
     },

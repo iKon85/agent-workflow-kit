@@ -579,6 +579,15 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.45.2
+
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `package.json`
+- changed: `scripts/wrapup-land.py`
+
 ### 0.45.1
 
 - changed: `README.md`
