@@ -2920,6 +2920,14 @@
       "origin": "kit"
     },
     {
+      "path": "src/lib/dispatchPlan.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "a6ad2c03b22f3fb6f3f021630d131f99f949bd043e5f440c82d28146a2561635",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "src/lib/dispatchReceipt.mjs",
       "kind": "script",
       "installRole": "consumer",
@@ -2995,7 +3003,7 @@
       "path": "src/lib/routeDispatcher.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "3896f29bbc6882a91c061144bd0803c069d507feb61eecda5fc571a4a8a94583",
+      "sha256": "4afc372ed265ac94ccc40f34e1f5cf405b50277d5e7af0ccfe3741aa9ba15469",
       "mode": 420,
       "origin": "kit"
     },
@@ -3068,6 +3076,14 @@
       "kind": "script",
       "installRole": "consumer",
       "sha256": "3718434157f63e16b7e8c99fe5daf6bc0e71a7422cce0e020d9c0da67ab679d5",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingIntentClassifier.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "9a80f565016db2061c0cbfb089d497b2028354ee7fb5dd0fd7182a5d13be3ed5",
       "mode": 420,
       "origin": "kit"
     },
