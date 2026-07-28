@@ -18,7 +18,8 @@ import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
 import { nonInteractiveUpdateDecision } from './lib/updateDecisions.mjs';
 import { sanitizeReadinessText } from './lib/updateCandidate.mjs';
 import { renderRequiredMigration } from './lib/consumerMigrations.mjs';
-import { currentAgentSurface } from './lib/agentSurfaceRegistry.mjs';
+import { currentAgentSurface, surfaceById } from './lib/agentSurfaceRegistry.mjs';
+import { routingProfilePath } from './lib/routingProfile.mjs';
 import { createCommandAdapter } from '../scripts/release-state.mjs';
 import { installedIdentityFromDir } from '../scripts/release-parity.mjs';
 
@@ -31,6 +32,59 @@ const READINESS_STATE_PHRASE = {
   pending: 'deferred as pending',
   invalid: 'present but not valid',
   'not-applicable': 'recorded as not applicable',
+};
+
+// Declared here for the same reason: `promptRoutingProfile` runs inside
+// `runCli`, i.e. during module evaluation, so these tables must be initialized
+// before the self-invocation below.
+
+/** What choosing an option means, per routing prompt. */
+const ROUTING_HINTS = {
+  autonomy: {
+    automatic: 'the Kit may move a task to another selected app on its own',
+    ask: 'the Kit proposes a switch and waits for your confirmation',
+    'current-surface-only': 'every task stays in the app it started in',
+  },
+  activation: {
+    approve: 'store this routing profile exactly as summarized above',
+    'safe-current-surface': 'store it, but keep every task in the current app',
+    back: 'answer the app and switching questions again',
+    advanced: 'add optional preferences to the draft before anything is stored',
+    decline: 'store nothing; the Kit asks again on the next update',
+  },
+  advanced: {
+    balanced: 'note a preference for a balance of quality and cost',
+    quality: 'note a preference for the strongest model even when it costs more',
+    cost: 'note a preference for the cheaper model when it can do the job',
+  },
+  reconcile: {
+    review: 'answer the routing questions now and store an updated profile',
+    decline: 'change nothing now; the Kit asks again on the next update',
+  },
+};
+
+/** Option labels the routing question does not carry itself. */
+const ROUTING_LABELS = {
+  activation: {
+    approve: 'Approve',
+    'safe-current-surface': 'Safe current surface',
+    back: 'Back',
+    advanced: 'Advanced',
+    decline: 'Decline',
+  },
+  advanced: { balanced: 'Balanced', quality: 'Quality', cost: 'Cost' },
+  reconcile: { review: 'Review routing choices now', decline: 'Not now' },
+};
+
+const ADVANCED_OPTIMIZATIONS = ['balanced', 'quality', 'cost'];
+const RECONCILE_MIGRATION_ACTIONS = ['review', 'decline'];
+
+const ROUTING_PAYLOADS = {
+  surfaces: surfacesPayload,
+  autonomy: autonomyPayload,
+  activation: activationPayload,
+  advanced: advancedPayload,
+  reconcile: reconcilePayload,
 };
 
 function stamp() {
@@ -85,7 +139,7 @@ export async function runCli({
         (r.skipped.length ? `\nskipped (pre-existing, use --force): ${r.skipped.join(', ')}` : ''),
       'init'
     );
-    printRoutingProfile(r.routingProfile);
+    printRoutingProfile(r.routingProfile, consumerRoot);
     p.outro('Next: run /setup-workflow to fill the project layer + board profile. ' +
       'To enable the drift-guard hook, add .claude/hooks/drift-guard.py to your settings.json hooks.');
   } else if (cmd === 'diff') {
@@ -113,7 +167,7 @@ export async function runCli({
       return r.state === 'conflicted' ? 2 : 0;
     }
     printPlan(r);
-    printRoutingProfile(r.routingProfile);
+    printRoutingProfile(r.routingProfile, consumerRoot);
     for (const c of r.conflicts) p.note(c.diff || '(binary/!text)', `conflict (not applied): ${c.path}`);
     if (r.state === 'failed') throw new Error(renderUpdateFailure(r));
     if (r.state === 'conflicted') {
@@ -319,86 +373,191 @@ function routingProfileOptions(yes) {
   };
 }
 
-function printRoutingProfile(result) {
-  if (!result) return;
-  const suffix = result.reasons?.length ? ` · ${result.reasons.join(', ')}` : '';
-  p.note(`${result.status}${suffix}`, 'routing profile');
+function printRoutingProfile(result, consumerRoot) {
+  const note = routingResultNote(result, consumerRoot);
+  if (note) p.note(note, 'routing profile');
+}
+
+/**
+ * The routing outcome in the terms a user can act on: what was decided, why,
+ * which profile it produced, and the user-local file that now holds it.
+ */
+export function routingResultNote(result, consumerRoot, profileRoot) {
+  if (!result) return null;
+  const lines = [`status: ${result.status}`];
+  if (result.reasons?.length) lines.push(`reasons: ${result.reasons.join(', ')}`);
+  if (result.profile) {
+    lines.push(`agent apps: ${surfaceLabels(result.profile.selectedSurfaces)}`);
+    lines.push(`switching: ${describeSwitching(result.profile.switching)}`);
+  }
+  lines.push(`profile file: ${routingProfilePath(consumerRoot, profileRoot)}`);
+  return lines.join('\n');
+}
+
+/**
+ * The exact payload a routing question renders as — every option carries a
+ * hint saying what choosing it means, so no prompt asks a user to guess.
+ */
+export function routingPromptPayload(question) {
+  const build = ROUTING_PAYLOADS[question?.kind];
+  if (!build) throw new Error(`unknown routing profile question: ${question?.kind}`);
+  return build(question);
+}
+
+/** An option the Kit cannot explain is a bug, not a silently bare label. */
+function hintedOptions(kind, options) {
+  return options.map(({ value, label }) => {
+    const hint = ROUTING_HINTS[kind]?.[value];
+    if (!hint) throw new Error(`missing routing prompt hint: ${kind}.${value}`);
+    return { value, label: label ?? value, hint };
+  });
+}
+
+function labelledOptions(kind, values) {
+  return values.map((value) => ({ value, label: ROUTING_LABELS[kind]?.[value] ?? value }));
+}
+
+function surfacesPayload(question) {
+  const preselected = new Set(question.preselected ?? []);
+  return {
+    control: 'multiselect',
+    label: 'surface selection',
+    message: question.message,
+    options: question.options.map(({ id, label }) => ({
+      value: id,
+      label,
+      hint: preselected.has(id)
+        ? `preselected — selecting it lets the Kit route work to ${label}`
+        : `not preselected — select it only if you actually use ${label}`,
+    })),
+    initialValues: question.preselected,
+    required: true,
+  };
+}
+
+function autonomyPayload(question) {
+  return {
+    control: 'select',
+    label: 'switching choice',
+    message: question.message,
+    options: hintedOptions('autonomy', question.options ?? []),
+  };
+}
+
+function activationPayload(question) {
+  return {
+    control: 'select',
+    label: 'activation choice',
+    message: `${question.message}\n${activationSummary(question)}`,
+    options: hintedOptions('activation', labelledOptions('activation', question.actions ?? [])),
+  };
+}
+
+/** What the activation review is actually reviewing. */
+function activationSummary(question) {
+  return [
+    `agent apps: ${surfaceLabels(question.selectedSurfaces)}`,
+    `switching: ${describeSwitching(question.switching)}`,
+    `advanced draft: ${describeDraft(question.advancedDraft)}`,
+  ].join('\n');
+}
+
+function surfaceLabels(ids) {
+  const labels = (ids ?? [])
+    .map((id) => sanitizeReadinessText(surfaceById(id)?.label ?? id))
+    .filter(Boolean);
+  return labels.join(', ') || 'none';
+}
+
+function describeSwitching(value) {
+  const name = sanitizeReadinessText(value) ?? 'unknown';
+  const hint = ROUTING_HINTS.autonomy[value];
+  return hint ? `${name} — ${hint}` : name;
+}
+
+function describeDraft(draft) {
+  if (!draft || typeof draft !== 'object') return 'none';
+  const rendered = Object.entries(draft)
+    .map(([key, value]) => `${key}=${typeof value === 'string' ? value : JSON.stringify(value)}`)
+    .join(' · ');
+  return sanitizeReadinessText(rendered) ?? 'none';
+}
+
+function advancedPayload(question) {
+  return {
+    control: 'select',
+    label: 'advanced choice',
+    message: `${question.message} — kept as an optional note`,
+    options: hintedOptions('advanced', labelledOptions('advanced', ADVANCED_OPTIMIZATIONS)),
+    initialValue: question.draft?.optimization ?? 'balanced',
+  };
+}
+
+function reconcilePayload(question) {
+  const delta = question.delta;
+  if (delta.type === 'missing-profile' || delta.type === 'invalid-profile') {
+    return {
+      control: 'select',
+      label: 'routing migration choice',
+      message: question.message,
+      options: hintedOptions(
+        'reconcile', labelledOptions('reconcile', RECONCILE_MIGRATION_ACTIONS),
+      ),
+    };
+  }
+  if (delta.newSurfaces.length) return reconcileAdditionsPayload(delta);
+  const removed = delta.removedSurfaces.map(({ label }) => label).join(', ');
+  return {
+    control: 'confirm',
+    label: 'routing reconcile choice',
+    message: removed
+      ? `Remove unavailable agent app from routing: ${removed}?`
+      : 'Refresh the routing profile registry revision?',
+    active: 'Apply the change to the stored routing profile',
+    inactive: 'Leave the stored routing profile as it is',
+  };
+}
+
+function reconcileAdditionsPayload(delta) {
+  const removed = delta.removedSurfaces.map(({ label }) => label);
+  const change = [
+    `new: ${delta.newSurfaces.map(({ label }) => label).join(', ')}`,
+    ...(removed.length ? [`unavailable: ${removed.join(', ')}`] : []),
+  ].join(' · ');
+  return {
+    control: 'multiselect',
+    label: 'routing reconcile choice',
+    message: `Routing choices changed — ${change}`,
+    options: delta.newSurfaces.map(({ id, label }) => ({
+      value: id,
+      label,
+      hint: `newly available — select it to let the Kit route work to ${label}`,
+    })),
+    initialValues: [],
+    required: false,
+  };
 }
 
 async function promptRoutingProfile(question) {
-  if (question.kind === 'surfaces') {
-    return ensurePrompt(await p.multiselect({
-      message: question.message,
-      options: question.options.map(({ id, label }) => ({ value: id, label })),
-      initialValues: question.preselected,
-      required: true,
-    }), 'surface selection');
-  }
-  if (question.kind === 'autonomy') {
-    return ensurePrompt(await p.select({
-      message: question.message,
-      options: question.options,
-    }), 'switching choice');
-  }
-  if (question.kind === 'activation') {
-    const draft = question.advancedDraft ? ' · advanced draft ready' : '';
-    return ensurePrompt(await p.select({
-      message: `${question.message}${draft}`,
-      options: [
-        { value: 'approve', label: 'Approve' },
-        { value: 'safe-current-surface', label: 'Safe current surface' },
-        { value: 'back', label: 'Back' },
-        { value: 'advanced', label: 'Advanced' },
-        { value: 'decline', label: 'Decline' },
-      ],
-    }), 'activation choice');
-  }
-  if (question.kind === 'advanced') {
-    const optimization = ensurePrompt(await p.select({
-      message: question.message,
-      options: [
-        { value: 'balanced', label: 'Balanced' },
-        { value: 'quality', label: 'Quality' },
-        { value: 'cost', label: 'Cost' },
-      ],
-      initialValue: question.draft?.optimization ?? 'balanced',
-    }), 'advanced choice');
-    return { ...question.draft, optimization };
-  }
-  if (question.kind === 'reconcile') {
-    if (question.delta.type === 'missing-profile' || question.delta.type === 'invalid-profile') {
-      return ensurePrompt(await p.select({
-        message: question.message,
-        options: [
-          { value: 'review', label: 'Review routing choices now' },
-          { value: 'decline', label: 'Not now' },
-        ],
-      }), 'routing migration choice');
-    }
-    const additions = question.delta.newSurfaces;
-    if (additions.length) {
-      const removed = question.delta.removedSurfaces.map(({ label }) => label);
-      const change = [
-        `new: ${additions.map(({ label }) => label).join(', ')}`,
-        ...(removed.length ? [`unavailable: ${removed.join(', ')}`] : []),
-      ].join(' · ');
-      const addSurfaceIds = ensurePrompt(await p.multiselect({
-        message: `Routing choices changed — ${change}`,
-        options: additions.map(({ id, label }) => ({ value: id, label })),
-        initialValues: [],
-        required: false,
-      }), 'routing reconcile choice');
-      return { action: 'apply', addSurfaceIds };
-    }
-    const removed = question.delta.removedSurfaces.map(({ label }) => label).join(', ');
-    const message = removed
-      ? `Remove unavailable agent app from routing: ${removed}?`
-      : 'Refresh the routing profile registry revision?';
-    return ensurePrompt(await p.confirm({ message }), 'routing reconcile choice')
-      ? { action: 'apply', addSurfaceIds: [] }
-      : { action: 'decline' };
-  }
-  throw new Error(`unknown routing profile question: ${question.kind}`);
+  const { control, label, ...payload } = routingPromptPayload(question);
+  const answer = ensurePrompt(await askRouting(control, payload), label);
+  return decodeRoutingAnswer(question, answer);
+}
+
+function askRouting(control, payload) {
+  if (control === 'multiselect') return p.multiselect(payload);
+  if (control === 'confirm') return p.confirm(payload);
+  return p.select(payload);
+}
+
+/** The answer shape `routingProfile` expects back, per question. */
+function decodeRoutingAnswer(question, answer) {
+  if (question.kind === 'advanced') return { ...question.draft, optimization: answer };
+  if (question.kind !== 'reconcile') return answer;
+  const delta = question.delta;
+  if (delta.type === 'missing-profile' || delta.type === 'invalid-profile') return answer;
+  if (delta.newSurfaces.length) return { action: 'apply', addSurfaceIds: answer };
+  return answer === true ? { action: 'apply', addSurfaceIds: [] } : { action: 'decline' };
 }
 
 function ensurePrompt(value, label) {
