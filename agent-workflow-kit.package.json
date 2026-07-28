@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.44.0",
+  "kitVersion": "0.44.1",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -2107,7 +2107,7 @@
       "path": ".claude/skills/skill-manifest.json",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "d2f918149db5d75cc389279afc93516d7c12aca790ddb49de23b198d055c8377",
+      "sha256": "90772c05c46085f0642b1b434c494adb4f89e0a3c4c66da3d099f86a37bab6df",
       "mode": 420,
       "origin": "kit"
     },
