@@ -2880,6 +2880,14 @@
       "origin": "kit"
     },
     {
+      "path": "src/commands/routing-refresh.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "1d7c364437bae61642412c261bd23a092c0a525008d16ca92586557a4569b539",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "src/commands/routing-status.mjs",
       "kind": "script",
       "installRole": "consumer",
