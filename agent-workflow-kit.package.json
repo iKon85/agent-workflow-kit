@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.44.2",
+  "kitVersion": "0.45.0",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -2883,7 +2883,7 @@
       "path": "src/commands/routing-status.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "1649b5bc1df22849418455ca15a8e43cf368773ba78f6fe36b52c0ee3bcd61ad",
+      "sha256": "3831280f4e80941750016778b7b07cd8f08af0819ce263d3e471c368df8181e7",
       "mode": 420,
       "origin": "kit"
     },
@@ -3196,6 +3196,14 @@
       "kind": "script",
       "installRole": "consumer",
       "sha256": "b1515b44f2f85d14a6f926a37e349e5a01381adef22c75555b9838d4ac04c412",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/safeText.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "bfaa96bb0100b903078bfd8f3b7fa60420d79c10dccb37ff469169ea52a2e306",
       "mode": 420,
       "origin": "kit"
     },

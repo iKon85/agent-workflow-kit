@@ -35,7 +35,7 @@ import { deriveRoutingPolicy } from '../lib/routingProfilePolicy.mjs';
 import {
   ROUTE_DECISION_ORIGINS, ROUTE_DECISION_STATES, resolveRoute,
 } from '../lib/routingResolver.mjs';
-import { sanitizeReadinessText } from '../lib/updateCandidate.mjs';
+import { sanitizeReadinessText } from '../lib/safeText.mjs';
 
 export const ROUTING_STATUS_DOCUMENT_VERSION = 1;
 

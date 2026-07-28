@@ -101,6 +101,7 @@ export const HELPER_FILES = [
   { path: 'src/lib/dispatchReceipt.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/frontendWorkloads.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routeDispatcher.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/safeText.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingAccessGraph.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingAccessGraphStore.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingAdapters/claude.mjs', kind: 'script', mode: 0o644 },

@@ -579,6 +579,70 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.45.0
+
+- added: `scripts/doctrine-migration/index.mjs`
+- added: `src/commands/routing-status.mjs`
+- added: `src/lib/dispatchJournal.mjs`
+- added: `src/lib/dispatchPlan.mjs`
+- added: `src/lib/routingAccessGraphStore.mjs`
+- added: `src/lib/routingAdapters/hostBridge.mjs`
+- added: `src/lib/routingDispatchLease.mjs`
+- added: `src/lib/routingIntentClassifier.mjs`
+- added: `src/lib/routingInventory.mjs`
+- added: `src/lib/routingInventory/snapshots/claude.json`
+- added: `src/lib/routingInventory/snapshots/codex.json`
+- added: `src/lib/routingProfilePolicy.mjs`
+- added: `src/lib/routingProfileStorage.mjs`
+- changed: `.agents/skills/audit-skills/SKILL.md`
+- changed: `.agents/skills/code-review/SKILL.md`
+- changed: `.agents/skills/codebase-design/DESIGN-IT-TWICE.md`
+- changed: `.agents/skills/improve-codebase-architecture/INTERFACE-DESIGN.md`
+- changed: `.agents/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/references/dispatch-subagents.md`
+- changed: `.agents/skills/orchestrate-wave/references/dispatch-workflow.md`
+- changed: `.agents/skills/research/SKILL.md`
+- changed: `.agents/skills/to-issues/SKILL.md`
+- changed: `.claude/skills/audit-skills/SKILL.md`
+- changed: `.claude/skills/code-review/SKILL.md`
+- changed: `.claude/skills/codebase-design/DESIGN-IT-TWICE.md`
+- changed: `.claude/skills/codex-build/SKILL.md`
+- changed: `.claude/skills/codex-review/SKILL.md`
+- changed: `.claude/skills/grill-me-codex/SKILL.md`
+- changed: `.claude/skills/grill-with-docs-codex/SKILL.md`
+- changed: `.claude/skills/improve-codebase-architecture/INTERFACE-DESIGN.md`
+- changed: `.claude/skills/improve-codebase-architecture/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/references/dispatch-subagents.md`
+- changed: `.claude/skills/orchestrate-wave/references/dispatch-workflow.md`
+- changed: `.claude/skills/research/SKILL.md`
+- changed: `.claude/skills/skill-manifest.json`
+- changed: `.claude/skills/to-issues/SKILL.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `scripts/kit-release.mjs`
+- changed: `src/cli.mjs`
+- changed: `src/lib/bundle.mjs`
+- changed: `src/lib/dispatchReceipt.mjs`
+- changed: `src/lib/frontendWorkloads.mjs`
+- changed: `src/lib/routeDispatcher.mjs`
+- changed: `src/lib/routingAccessGraph.mjs`
+- changed: `src/lib/routingAdapters/claude.mjs`
+- changed: `src/lib/routingAdapters/codex.mjs`
+- changed: `src/lib/routingCatalog.mjs`
+- changed: `src/lib/routingEvidenceCache.mjs`
+- changed: `src/lib/routingIntent.mjs`
+- changed: `src/lib/routingPolicy.mjs`
+- changed: `src/lib/routingProfile.mjs`
+- changed: `src/lib/routingResolver.mjs`
+- changed: `src/lib/routingSources/artificialAnalysis.mjs`
+- changed: `src/lib/routingSources/benchlm.mjs`
+- changed: `src/lib/routingSources/codeArena.mjs`
+- changed: `src/lib/routingSources/deepswe.mjs`
+- changed: `src/lib/routingSources/openhands.mjs`
+- changed: `src/lib/routingSources/openhandsFrontend.mjs`
+- changed: `src/lib/updateCandidate.mjs`
+
 ### 0.44.2
 
 - changed: `src/cli.mjs`

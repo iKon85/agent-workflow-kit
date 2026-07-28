@@ -11,6 +11,7 @@ import { validateConsumerFile } from './consumerPath.mjs';
 import { sha256File } from './hash.mjs';
 import { stubSentinel } from './sentinel.mjs';
 import { STUB_TARGETS } from './bundle.mjs';
+import { sanitizeReadinessText } from './safeText.mjs';
 import {
   CONSUMER_MANIFEST_NAME, CONSUMER_ORIGIN, READINESS_MANIFEST_PATH,
   filesForInstallRole, indexByPath, readManifest, validateManifest, writeManifest,
@@ -572,15 +573,14 @@ async function readinessSnapshot(root, manifest) {
  * Manifest prose is Kit-authored but reaches a terminal verbatim, so every
  * catalog string is validated (must be a string) and stripped of C0/C1 control
  * characters — an escape sequence would otherwise repaint the update plan.
+ *
+ * The implementation moved to `./safeText.mjs` when `routing status` needed the
+ * same guarantee: that command ships to consumers, this module does not, so
+ * importing it from here would have escaped the installed consumer. Imported
+ * and re-exported rather than relocated, so this module keeps using it and
+ * every existing caller keeps its import path.
  */
-export function sanitizeReadinessText(value) {
-  if (typeof value !== 'string') return null;
-  const cleaned = value
-    .replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return cleaned || null;
-}
+export { sanitizeReadinessText };
 
 /** One unresolved capability in plain terms: what it is and what closes it. */
 function unresolvedEntry(capability, state, catalogEntry) {
