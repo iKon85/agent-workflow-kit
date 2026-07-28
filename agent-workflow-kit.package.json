@@ -2555,7 +2555,7 @@
       "path": "scripts/kit-release.mjs",
       "kind": "script",
       "installRole": "maintainer",
-      "sha256": "3c86eb5fc4b2071b423d87f023ba4c3f778ffe716a2603dcecdbe4e83ec1b8df",
+      "sha256": "577f9f3794808e5276c503b720884ade36ecbce93a3adac47928b19a391d7096",
       "mode": 420,
       "origin": "kit"
     },
@@ -3027,7 +3027,31 @@
       "path": "src/lib/routingIntent.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "1b6f599dc5f9fa3a5af41c48d7993cc05f2c2dd26ab60a23fc4a3026d0cc341a",
+      "sha256": "3718434157f63e16b7e8c99fe5daf6bc0e71a7422cce0e020d9c0da67ab679d5",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingInventory.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "6e318ac49269136730953bcb8211d54e965de61ba9f63afead22b46f8fb84c24",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingInventory/snapshots/claude.json",
+      "kind": "doc",
+      "installRole": "consumer",
+      "sha256": "be338d12c4350e2776d00b1dc08910a5cff57e435f0b24e0e0d26564b94ada26",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingInventory/snapshots/codex.json",
+      "kind": "doc",
+      "installRole": "consumer",
+      "sha256": "b164acd179ee04b7cf7d6689c03e1f6f3ba62c84b9c07d9c2217e64b2a481f19",
       "mode": 420,
       "origin": "kit"
     },
@@ -3043,7 +3067,7 @@
       "path": "src/lib/routingProfile.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "3f28b39352fe517ab44dd7e896505ac0047a3a2f4f63ce7a55ce47feac7351a7",
+      "sha256": "031715471f1469b7c2a46d06588910b45cae46b66c4bc17a523fb7812e12e054",
       "mode": 420,
       "origin": "kit"
     },
