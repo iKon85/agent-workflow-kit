@@ -15,14 +15,23 @@ PLAN.md
 PLAN-REVIEW-LOG.md
 ANNAHMEN.md
 
-# NOT ignored on purpose: `.worktrees/`, and tool/prototype scratch in the
-# repository root. 0.45.1 ignored them to unblock a landing; ten minutes later
-# teardown deleted a parallel session's live worktree, because ignored means
-# "deletable scratch" and nothing checked that the deletion target was the main
-# checkout (#385). Until that is fixed, an untracked sibling worktree BLOCKING a
-# landing is the safe failure and deleting it is not. Re-adding these entries
-# needs #385 closed first; the embedded-repo hazard they addressed (#370) is
-# visible in a diff and reversible, which the data loss is not.
+# Worktree roots. A sibling worktree is a full checkout living inside this one,
+# so leaving it visible is not neutral: `npm pack` packs it (616 of 999 files in
+# one measured tarball were worktree contents), and a wholesale `git add` commits
+# it as an embedded repository (#370).
+#
+# These entries were briefly removed after teardown deleted a live sibling
+# worktree, on the reasoning that a blocked landing beats a deleted one. That was
+# the right call while the cause was open and the wrong one afterwards: teardown
+# now resolves its target before removing anything and never treats a main
+# checkout as scratch (#385, 0.45.2), so ignoring these no longer arms a
+# deletion — while leaving them visible does arm a publish.
+.worktrees/
+.claude/worktrees/
+
+# Tool and prototype scratch written into the repository root.
+.playwright-mcp/
+variant-*.png
 
 # Local Claude/Codex state and personal overrides. Checked-in skills, project
 # config, hooks, and agent definitions remain trackable.
