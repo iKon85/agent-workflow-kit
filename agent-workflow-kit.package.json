@@ -2912,10 +2912,18 @@
       "origin": "kit"
     },
     {
+      "path": "src/lib/dispatchJournal.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "d58c475f23952d76fc29c6d68d1424fa63896a2130ba8661f1f411162343ea66",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "src/lib/dispatchReceipt.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "fa995be02e1325c9e98f0ab0677ee5cb82b15cf4b696f44d056407cb72906081",
+      "sha256": "16c4fd515f9919bd99a87094701d391db701c3433077d2360867bfa2383b9769",
       "mode": 420,
       "origin": "kit"
     },
@@ -2987,7 +2995,7 @@
       "path": "src/lib/routeDispatcher.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "d208e60686b3ca479f3019059a7ea9c698aa97ee8846e37eb69afa252990e7f2",
+      "sha256": "3896f29bbc6882a91c061144bd0803c069d507feb61eecda5fc571a4a8a94583",
       "mode": 420,
       "origin": "kit"
     },
@@ -3011,7 +3019,7 @@
       "path": "src/lib/routingAdapters/claude.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "ee11debdb891614132b4f9d73931cc6a828dafc51ab649fa6bcd2a7f0d32c765",
+      "sha256": "7deee3951beb3bb16f0564da9536196b7932808e4fb1e2415ffe4f8dc82cbca8",
       "mode": 420,
       "origin": "kit"
     },
@@ -3019,7 +3027,15 @@
       "path": "src/lib/routingAdapters/codex.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "67ee9a7b7936e2fe36085a941cfcf26fc0842710b86b346a739a53717fadadc9",
+      "sha256": "47d0f81eec42bde841399f7a193c96136cd19857fc25ef49b5b8f52c6ca055d2",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingAdapters/hostBridge.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "a8b6e5d370a9e2089c73345f47e9bc203b02f536133d5dc9acc3bbc9511e0d6e",
       "mode": 420,
       "origin": "kit"
     },

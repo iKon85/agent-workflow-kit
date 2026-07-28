@@ -96,6 +96,7 @@ export const HELPER_FILES = [
   { path: 'src/commands/routing-policy-update.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/commands/routing-status.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/agentSurfaceRegistry.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/dispatchJournal.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/dispatchReceipt.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/frontendWorkloads.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routeDispatcher.mjs', kind: 'script', mode: 0o644 },
@@ -103,6 +104,7 @@ export const HELPER_FILES = [
   { path: 'src/lib/routingAccessGraphStore.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingAdapters/claude.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingAdapters/codex.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingAdapters/hostBridge.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingCatalog.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingDispatchLease.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingEvidenceCache.mjs', kind: 'script', mode: 0o644 },
@@ -342,7 +344,7 @@ const CONSUMER_ROLE = 'consumer';
 
 /** The routing unit an installed consumer must receive whole. */
 export const ROUTING_UNIT_PATTERN =
-  /^src\/(?:lib\/routing|lib\/(?:routeDispatcher|dispatchReceipt)\.mjs$|commands\/routing-)/;
+  /^src\/(?:lib\/routing|lib\/(?:routeDispatcher|dispatchReceipt|dispatchJournal)\.mjs$|commands\/routing-)/;
 const ROUTING_INVENTORY_MODULE = 'src/lib/routingInventory.mjs';
 // `from './x'`, the side-effect `import './x'`, and dynamic `import('./x')`.
 const RELATIVE_IMPORT = /\b(?:from|import)\s*\(?\s*['"](\.[^'"]+)['"]/g;
