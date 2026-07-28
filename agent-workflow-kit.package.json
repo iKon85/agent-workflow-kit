@@ -3075,7 +3075,15 @@
       "path": "src/lib/routingProfile.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "031715471f1469b7c2a46d06588910b45cae46b66c4bc17a523fb7812e12e054",
+      "sha256": "c44479f1a41e15b383c659b404ce61cfe654baa862f81e64877dc19c1c2ee6ef",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingProfileStorage.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "f530d4b864e267e198e72d551d37ea836cdf54d454088944f3b9bf9313371619",
       "mode": 420,
       "origin": "kit"
     },

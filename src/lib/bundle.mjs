@@ -107,6 +107,7 @@ export const HELPER_FILES = [
   { path: 'src/lib/routingIntent.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingPolicy.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingProfile.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingProfileStorage.mjs', kind: 'script', mode: 0o644 },
   // Pinned Model inventory: the module resolves its provenance-hashed source
   // snapshots beside itself, so the three files are one indivisible unit. A
   // consumer gets the model-and-effort table without any discovery request.
