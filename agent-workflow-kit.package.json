@@ -2880,6 +2880,14 @@
       "origin": "kit"
     },
     {
+      "path": "src/commands/routing-status.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "1649b5bc1df22849418455ca15a8e43cf368773ba78f6fe36b52c0ee3bcd61ad",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "src/lib/agentSurfaceRegistry.mjs",
       "kind": "script",
       "installRole": "consumer",
@@ -2979,7 +2987,7 @@
       "path": "src/lib/routeDispatcher.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "937274005959b1d96ef08a69af2fc4632571376787fa79a25b2109ab762a585c",
+      "sha256": "d208e60686b3ca479f3019059a7ea9c698aa97ee8846e37eb69afa252990e7f2",
       "mode": 420,
       "origin": "kit"
     },
@@ -3024,10 +3032,18 @@
       "origin": "kit"
     },
     {
+      "path": "src/lib/routingDispatchLease.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "ef743d0c7f6594714a79ca7be8ae9648708a5a2bc8e27170cab6e4615b2b9be0",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "src/lib/routingEvidenceCache.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "3515f35815be245959f509c4c8defdf640b58a854d7f450c74b17fd14819ee04",
+      "sha256": "7c18bce97ee5eeb429a7f360aa9039cc85b3d42f37721d3aaa786dce36b0be7f",
       "mode": 420,
       "origin": "kit"
     },

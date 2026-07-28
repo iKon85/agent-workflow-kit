@@ -94,6 +94,7 @@ export const HELPER_FILES = [
   // These modules form one consumer unit; omitting one leaves shipped dispatch
   // prose pointing at a resolver or adapter that cannot execute.
   { path: 'src/commands/routing-policy-update.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/commands/routing-status.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/agentSurfaceRegistry.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/dispatchReceipt.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/frontendWorkloads.mjs', kind: 'script', mode: 0o644 },
@@ -103,6 +104,7 @@ export const HELPER_FILES = [
   { path: 'src/lib/routingAdapters/claude.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingAdapters/codex.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingCatalog.mjs', kind: 'script', mode: 0o644 },
+  { path: 'src/lib/routingDispatchLease.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingEvidenceCache.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingIntent.mjs', kind: 'script', mode: 0o644 },
   { path: 'src/lib/routingPolicy.mjs', kind: 'script', mode: 0o644 },
