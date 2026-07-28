@@ -579,6 +579,11 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.44.1
+
+- changed: `.claude/skills/skill-manifest.json`
+- changed: `agent-workflow-kit.package.json`
+
 ### 0.44.0
 
 - added: `scripts/worktree-lifecycle/classify.py`
