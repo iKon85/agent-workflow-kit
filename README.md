@@ -579,6 +579,18 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.46.0
+
+- added: `src/commands/routing-refresh.mjs`
+- added: `src/lib/routingFetch.mjs`
+- added: `src/lib/routingHostCapabilities.mjs`
+- added: `src/lib/routingModelIdentity.mjs`
+- added: `src/lib/routingSources/endpoints.mjs`
+- changed: `agent-workflow-kit.package.json`
+- changed: `src/cli.mjs`
+- changed: `src/lib/bundle.mjs`
+- changed: `src/lib/routingInventory/snapshots/claude.json`
+
 ### 0.45.2
 
 - changed: `.agents/skills/wrapup/SKILL.md`
