@@ -290,3 +290,12 @@ A falsifiable statement the planning phase makes about what execution will
 find — that a slice carries no unresolved decision, that slices are disjoint,
 that a named assumption holds. Execution confirms or refutes it.
 _Avoid_: Planning assumption, spec guarantee, precondition
+
+## Analysis substrate
+
+The shared, committed evidence base an analysis wave derives exactly once:
+the scripted inventory, the derived journey set with its station tables, and
+the evidence exports. Downstream analyses read it and record their own
+verdicts against it; none re-derives it, and a defect found in it is fixed in
+the substrate, not patched in a consumer.
+_Avoid_: Shared phase 0, common groundwork, prep work
