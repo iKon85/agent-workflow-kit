@@ -241,7 +241,13 @@ test('the Claude readback identifies a server-returned alias and blocks a mismat
   await rejects(harness(CLAUDE_OVER_CODEX, { home, cwd }).dispatch(),
     'host bridge applied pair differs from the requested pair');
 
+  // A listed alias identifies its model, so a wrong model reads back as a pair
+  // mismatch; only a form the inventory does not list stays unidentifiable.
   await writeTranscript(home, cwd, { model: 'claude-sonnet-5', effort: 'high' });
+  await rejects(harness(CLAUDE_OVER_CODEX, { home, cwd }).dispatch(),
+    'host bridge applied pair differs from the requested pair');
+
+  await writeTranscript(home, cwd, { model: 'claude-sonnet-4-6', effort: 'high' });
   await rejects(harness(CLAUDE_OVER_CODEX, { home, cwd }).dispatch(),
     'host bridge could not read back the applied pair');
   await cleanup(home, cwd);
