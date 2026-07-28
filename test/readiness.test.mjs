@@ -184,6 +184,21 @@ test('every manifest catalog entry has deterministic absent, invalid, and valid 
   }
 });
 
+test('locProfile evidence lives where the shipped readers and setup-workflow seed it (repo root)', async () => {
+  const source = JSON.parse(await readFile(join(import.meta.dirname, '../.claude/skills/skill-manifest.json'), 'utf8'));
+  const entry = source.readiness.capabilities.locProfile;
+  const root = await makeEmptyDir();
+  try {
+    // The exact seed setup-workflow §8b writes at the repo root — the single
+    // threshold SSOT that loc_offender_gate.py and board-sync.py read.
+    await write(root, 'max-lines-allowlist.json',
+      `${JSON.stringify({ maxLines: 300, vendored: [], offenders: [] })}\n`);
+    assert.equal((await evaluateCapability({ root, capability: entry })).state, 'ready');
+  } finally {
+    await cleanup(root);
+  }
+});
+
 test('skill verdict reports required failures and optional active/inactive block IDs', async () => {
   const root = await makeEmptyDir();
   const manifest = {

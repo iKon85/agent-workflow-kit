@@ -25,7 +25,7 @@
       "workflowAdvisories": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["workflowAdvisories"] } },
       "safetyGuardrails": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["safetyGuardrails"] } },
       "workflowSummary": { "evidence": { "type": "nonempty", "paths": ["CLAUDE.md", "AGENTS.md"] } },
-      "locProfile": { "evidence": { "type": "json", "paths": ["docs/agents/max-lines-allowlist.json"] } },
+      "locProfile": { "evidence": { "type": "json", "paths": ["max-lines-allowlist.json"] } },
       "kitOriginHint": { "evidence": { "type": "json", "paths": ["docs/agents/workflow-capabilities.json"], "required": ["kitOriginHint"] } }
     }
   },
