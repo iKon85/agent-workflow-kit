@@ -216,8 +216,16 @@ rebuild it from memory.** This holds even when the task partially overrides the
 skill: the remaining lore (verify, landing, gates) stays binding — override ≠
 skip.
 
-**Delegation** is Claude's own per-task judgment (doctrine incl. model × effort
-table lives in the user-global `~/.claude/CLAUDE.md` §Task-Routing). Repo
+**Delegation** is Claude's own per-task judgment, but **model and effort are
+configuration, not doctrine**: where a Routing profile exists it decides them
+(Model roster and Standard routes → Routing policy → Route decision), and it
+decides them whether or not the hand-maintained model × effort table is still
+present in the user-global `~/.claude/CLAUDE.md` §Task-Routing. That section
+keeps only the judgment that is not data — when delegation pays for itself, the
+two-strikes escalation rule, one worktree per parallel writing agent. Retiring
+the table is a previewed, backed-up, explicitly accepted migration:
+`node scripts/doctrine-migration/index.mjs` (add `--apply --accept` to write);
+it refuses while no Routing profile can decide, so deferring it is safe. Repo
 specifics: broad read-only recon → delegate to an Explore/investigator agent
 with a terse report back; no spawn for single-value lookups or pre-edit recon.
 **After any delegation: `Read` every edit target in the main thread yourself**
