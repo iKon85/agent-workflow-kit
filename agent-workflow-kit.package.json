@@ -3072,6 +3072,22 @@
       "origin": "kit"
     },
     {
+      "path": "src/lib/routingFetch.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "716e5403b017882115a4ebd6bea13757bbfcc879b8a7ed9a0fe3171d05519b36",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingHostCapabilities.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "aa58261c0944b06e9339f089875f5e3c74199499d8951fc72c62c1b63f410496",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
       "path": "src/lib/routingIntent.mjs",
       "kind": "script",
       "installRole": "consumer",
@@ -3099,7 +3115,7 @@
       "path": "src/lib/routingInventory/snapshots/claude.json",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "be338d12c4350e2776d00b1dc08910a5cff57e435f0b24e0e0d26564b94ada26",
+      "sha256": "bebdd84dac24dc005db110a72c6a551a1c4d1620f6b135f9b87da24ac86c52d9",
       "mode": 420,
       "origin": "kit"
     },
@@ -3108,6 +3124,14 @@
       "kind": "doc",
       "installRole": "consumer",
       "sha256": "b164acd179ee04b7cf7d6689c03e1f6f3ba62c84b9c07d9c2217e64b2a481f19",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingModelIdentity.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "910132d369bd305f571f90b83427b923226a3bc1213241917d69a2e513b7b17e",
       "mode": 420,
       "origin": "kit"
     },
@@ -3180,6 +3204,14 @@
       "kind": "script",
       "installRole": "consumer",
       "sha256": "b6c28ff030465cb217495b09f68f82e1ee52f0b04da9b2dd3f3c344c1f757d82",
+      "mode": 420,
+      "origin": "kit"
+    },
+    {
+      "path": "src/lib/routingSources/endpoints.mjs",
+      "kind": "script",
+      "installRole": "consumer",
+      "sha256": "aa722d39f0027de6bb6597d806cc26a30697951720b3b2b968817827cb566dc8",
       "mode": 420,
       "origin": "kit"
     },
