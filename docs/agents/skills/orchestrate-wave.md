@@ -85,6 +85,13 @@ npm pack --dry-run
 - **`release:guard` red with "shipped delta has no version bump" is not a
   failure of the wave** — it means the wave touched the shipped consumer set and
   the release metadata is missing. See §Landing.
+- **A ticked criterion names what counted it.** The Core skill forbids ticking on
+  a builder's word; here, say which of the two remaining sources did the counting
+  — *you* ran a command and read its output, or a named test assertion carries it
+  (`test/<file>.test.mjs:<line>`). Report both kinds separately. Ticking a whole
+  checklist and then verifying one item rigorously reads, to every later reader
+  including you, as though all of them had been verified. Wave 30 did exactly
+  that with 23 criteria across three slices before the maintainer caught it.
 - **A flaky red is possible.** `scripts/codex-exec.test.mjs` contains
   timing-sensitive tests that fail under CPU contention (#345). Re-run the single
   test in isolation before treating it as a real red; a test that is green in

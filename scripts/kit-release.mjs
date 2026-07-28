@@ -16,6 +16,29 @@ const exec = promisify(execFile);
 
 export { nextVersion };
 
+/**
+ * A release prepared with no delta against its base is not a release. Preparing
+ * one writes a version, a manifest and a release-notes section that claim an
+ * artifact nobody asked for, and its only tell is a note with no entries — which
+ * reads like a quiet success. Fails closed: a delta this cannot read is refused
+ * rather than treated as empty, so the one input it cannot judge is not the one
+ * it waves through.
+ */
+export function assertReleasableDelta(delta) {
+  const fields = ['added', 'removed', 'changed'];
+  if (!delta || typeof delta !== 'object'
+    || !fields.every((field) => Array.isArray(delta[field]))) {
+    throw new Error('release delta is unreadable; refusing to prepare a release');
+  }
+  if (fields.every((field) => delta[field].length === 0)) {
+    throw new Error(
+      'no shipped delta against the base; there is nothing to release. '
+      + 'Check that you are on the branch that carries the change.',
+    );
+  }
+  return delta;
+}
+
 function note(version, delta) {
   const lines = ['added', 'removed', 'changed'].flatMap((kind) =>
     delta[kind].map((path) => `- ${kind}: \`${path}\``));
@@ -121,6 +144,7 @@ async function main() {
     return;
   }
   const targetVersion = process.argv[versionAt + 1];
+  assertReleasableDelta(plan.delta);
   const releasedVersion = JSON.parse(execFileSync('git', ['show', `${baseRef}:package.json`], {
     cwd: repoRoot, encoding: 'utf8',
   })).version;

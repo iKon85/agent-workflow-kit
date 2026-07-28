@@ -241,7 +241,7 @@ Live-verify asserts USER OUTCOME (a DB-/UI value compared), not a tech metric.
 A single browser + single dev DB ⇒ verify is serial and yours. **A subagent's
 "PASS" is a hypothesis, not a gate** — implementers repeatedly mis-report green
 (real case: "gate PASS" while a size gate was red; files declared missing that
-existed). Never merge on the subagent's word.
+existed). Never merge, and never tick a criterion, on the subagent's word.
 
 - When builders authored or changed browser specs, treat each as an unverified artifact: if `§Verify Recipe` names a local e2e runner, give them ONE central green run with it before the central CI/verify gate. Never invent a command under generic fallback.
 - **Re-run your project's full CI/verify gate CENTRALLY yourself** (`§Verify
