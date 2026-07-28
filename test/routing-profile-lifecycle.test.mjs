@@ -25,6 +25,7 @@ import {
   AGENT_SURFACE_REGISTRY,
   detectAgentSurfaces,
 } from '../src/lib/agentSurfaceRegistry.mjs';
+import { routingPromptPayload, routingResultNote } from '../src/cli.mjs';
 import { makeKit, makeEmptyDir, cleanup } from './helpers.mjs';
 import { PACKAGE_MANIFEST_NAME, readManifest, writeManifest } from '../src/lib/manifest.mjs';
 import { sha256 } from '../src/lib/hash.mjs';
@@ -686,6 +687,171 @@ test('a stored v1 profile stays untouched until an authorized write backs the or
       profileRoot,
       detectedSurfaceIds: ['claude-code', 'codex'],
     })).migration, null);
+  } finally {
+    await cleanup(consumer);
+  }
+});
+
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/;
+const REGISTRY_OPTIONS = AGENT_SURFACE_REGISTRY.map(({ id, label }) => ({ id, label }));
+const hintOf = (payload, value) => payload.options.find((option) => option.value === value)?.hint;
+
+test('every routing prompt option explains what choosing it means', () => {
+  const surfaces = routingPromptPayload({
+    kind: 'surfaces',
+    message: 'Which agent apps do you use?',
+    options: REGISTRY_OPTIONS,
+    preselected: [REGISTRY_OPTIONS[0].id],
+  });
+  assert.equal(surfaces.control, 'multiselect');
+  assert.deepEqual(surfaces.options.map(({ value }) => value), REGISTRY_OPTIONS.map(({ id }) => id));
+  assert.deepEqual(surfaces.initialValues, [REGISTRY_OPTIONS[0].id]);
+  assert.ok(surfaces.options.every(({ hint }) => typeof hint === 'string' && hint.length > 0));
+  assert.match(surfaces.options[0].hint, /^preselected —/);
+  assert.ok(surfaces.options[0].hint.includes(REGISTRY_OPTIONS[0].label));
+  assert.match(surfaces.options[1].hint, /^not preselected —/);
+  assert.ok(surfaces.options[1].hint.includes(REGISTRY_OPTIONS[1].label));
+
+  const autonomy = routingPromptPayload({
+    kind: 'autonomy',
+    message: 'May the Kit switch agent apps for a task?',
+    options: [
+      { value: 'automatic', label: 'Switch automatically' },
+      { value: 'ask', label: 'Ask before switching' },
+      { value: 'current-surface-only', label: 'Stay in the current app' },
+    ],
+  });
+  assert.equal(autonomy.control, 'select');
+  assert.deepEqual(autonomy.options.map(({ label }) => label), [
+    'Switch automatically', 'Ask before switching', 'Stay in the current app',
+  ]);
+  assert.equal(new Set(autonomy.options.map(({ hint }) => hint)).size, 3);
+  assert.match(hintOf(autonomy, 'ask'), /confirmation/);
+  assert.match(hintOf(autonomy, 'current-surface-only'), /stays/);
+  assert.match(hintOf(autonomy, 'automatic'), /on its own/);
+
+  const advanced = routingPromptPayload({
+    kind: 'advanced',
+    message: 'Optional model and optimization preferences',
+    draft: { optimization: 'quality' },
+  });
+  assert.equal(advanced.control, 'select');
+  assert.equal(advanced.initialValue, 'quality');
+  assert.match(advanced.message, /optional note/);
+  assert.deepEqual(advanced.options.map(({ value }) => value), ['balanced', 'quality', 'cost']);
+  assert.ok(advanced.options.every(({ hint }) => typeof hint === 'string' && hint.length > 0));
+});
+
+test('the activation summary renders surfaces, switching and the advanced draft', () => {
+  const question = {
+    kind: 'activation',
+    message: 'Review routing activation',
+    selectedSurfaces: AGENT_SURFACE_REGISTRY.map(({ id }) => id),
+    switching: 'ask',
+    advancedDraft: { optimization: 'quality', preferredModels: ['keep-me'] },
+    actions: ['approve', 'back', 'advanced', 'safe-current-surface', 'decline'],
+  };
+  const payload = routingPromptPayload(question);
+
+  assert.equal(payload.control, 'select');
+  assert.match(payload.message, /Review routing activation/);
+  for (const { label } of REGISTRY_OPTIONS) assert.ok(payload.message.includes(label));
+  assert.match(payload.message, /switching: ask — .+confirmation/);
+  assert.match(payload.message, /advanced draft: .*optimization=quality/);
+  assert.match(payload.message, /preferredModels=\["keep-me"\]/);
+  assert.deepEqual(payload.options.map(({ value }) => value), question.actions);
+  assert.ok(payload.options.every(({ hint, label }) => hint?.length && label?.length));
+  assert.equal(new Set(payload.options.map(({ hint }) => hint)).size, question.actions.length);
+
+  const bare = routingPromptPayload({ ...question, advancedDraft: null, selectedSurfaces: [] });
+  assert.match(bare.message, /agent apps: none/);
+  assert.match(bare.message, /advanced draft: none/);
+});
+
+test('reconcile prompts explain both routes and the confirm names each answer', () => {
+  const migration = routingPromptPayload({
+    kind: 'reconcile',
+    message: 'Your routing choices need review.',
+    reasons: ['missing'],
+    delta: { type: 'missing-profile' },
+  });
+  assert.equal(migration.control, 'select');
+  assert.deepEqual(migration.options.map(({ value }) => value), ['review', 'decline']);
+  assert.ok(migration.options.every(({ hint }) => typeof hint === 'string' && hint.length > 0));
+
+  const additions = routingPromptPayload({
+    kind: 'reconcile',
+    message: 'Your routing choices need review.',
+    delta: {
+      type: 'registry-delta',
+      newSurfaces: [REGISTRY_OPTIONS[1]],
+      removedSurfaces: [{ id: 'ghost', label: 'Ghost' }],
+    },
+  });
+  assert.equal(additions.control, 'multiselect');
+  assert.match(additions.message, /new: .*· unavailable: Ghost/);
+  assert.deepEqual(additions.options.map(({ value }) => value), [REGISTRY_OPTIONS[1].id]);
+  assert.ok(additions.options[0].hint.includes(REGISTRY_OPTIONS[1].label));
+
+  const confirm = routingPromptPayload({
+    kind: 'reconcile',
+    message: 'Your routing choices need review.',
+    delta: { type: 'registry-delta', newSurfaces: [], removedSurfaces: [{ id: 'ghost', label: 'Ghost' }] },
+  });
+  assert.equal(confirm.control, 'confirm');
+  assert.match(confirm.message, /Ghost/);
+  assert.ok(confirm.active.length > 0 && confirm.inactive.length > 0);
+
+  assert.throws(() => routingPromptPayload({ kind: 'teleport' }), /unknown routing profile question: teleport/);
+  assert.throws(
+    () => routingPromptPayload({
+      kind: 'autonomy',
+      message: 'May the Kit switch agent apps for a task?',
+      options: [{ value: 'teleport', label: 'Teleport' }],
+    }),
+    /missing routing prompt hint: autonomy\.teleport/,
+  );
+});
+
+test('the result note names the activated profile and its user-local path', async () => {
+  const consumer = await makeEmptyDir();
+  const profileRoot = join(consumer, '.test-user-state');
+  try {
+    const result = await setupRoutingProfile({
+      consumerRoot: consumer,
+      profileRoot,
+      currentSurface: 'claude-code',
+      detectedSurfaceIds: AGENT_SURFACE_REGISTRY.map(({ id }) => id),
+      prompt: async ({ kind }) => {
+        if (kind === 'surfaces') return AGENT_SURFACE_REGISTRY.map(({ id }) => id);
+        if (kind === 'autonomy') return 'ask';
+        return 'approve';
+      },
+    });
+    assert.equal(result.status, 'activated');
+
+    const note = routingResultNote(result, consumer, profileRoot);
+    assert.match(note, /status: activated/);
+    for (const { label } of REGISTRY_OPTIONS) assert.ok(note.includes(label), label);
+    assert.match(note, /switching: ask — .+confirmation/);
+    assert.ok(note.includes(routingProfilePath(consumer, profileRoot)));
+
+    const unresolved = routingResultNote(
+      { status: 'needs-reconcile', reasons: ['missing'] }, consumer, profileRoot,
+    );
+    assert.match(unresolved, /status: needs-reconcile/);
+    assert.match(unresolved, /reasons: missing/);
+    assert.ok(unresolved.includes(routingProfilePath(consumer, profileRoot)));
+
+    const hostile = routingResultNote({
+      status: 'reconciled',
+      reasons: [],
+      profile: { selectedSurfaces: ['gh\u001b[31most'], switching: 'automatic' },
+    }, consumer, profileRoot);
+    for (const line of hostile.split('\n')) assert.doesNotMatch(line, CONTROL_CHARACTERS);
+    assert.match(hostile, /switching: automatic — /);
+
+    assert.equal(routingResultNote(undefined, consumer, profileRoot), null);
   } finally {
     await cleanup(consumer);
   }
