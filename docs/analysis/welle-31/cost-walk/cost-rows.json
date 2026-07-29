@@ -1,0 +1,4598 @@
+{
+  "schema": "welle-31/cost-walk/cost-rows/v1",
+  "slice": "#343",
+  "substrateCommit": "c9f6a4aa8bd80bbc4519fa9925315a6d4f0292f2",
+  "note": "Cost columns over the frozen Analysis substrate (#404). The journey set is the substrate's, verbatim and unmodified (Amendment 1). Every number here is produced by this script; nothing is recalled.",
+  "measurement": {
+    "traversalSourceQuery": "git -C <repo> log --no-merges --since=2026-07-03T00:00:00Z --until=2026-07-29T00:00:00Z --name-only --format=%x00%H c9f6a4aa8bd80bbc4519fa9925315a6d4f0292f2",
+    "traversalWindowUtc": {
+      "since": "2026-07-03T00:00:00Z",
+      "until": "2026-07-29T00:00:00Z"
+    },
+    "traversalPopulationCommits": 327,
+    "hubPathLimit": 10,
+    "hubPaths": [],
+    "gateCountBasis": "a station is a gate iff authorizationBoundary in {human-gate, platform-gate} OR bindingHardness in {mechanical, platform-enforced}; human interactions are counted separately as authorizationBoundary == human-gate; standing-authorization is counted separately again",
+    "outputArtifact": "docs/analysis/welle-31/cost-walk/cost-rows.json"
+  },
+  "thresholds": {
+    "highTraversal": {
+      "rule": "attributedCommits >= median of the attributable population",
+      "value": 9,
+      "population": 70
+    },
+    "gateDensityUpper": {
+      "rule": "upper quartile of gateDensity over all 70 journeys",
+      "value": 1
+    },
+    "gateDensityLower": {
+      "rule": "lower quartile of gateDensity over all 70 journeys",
+      "value": 0.6667
+    }
+  },
+  "totals": {
+    "journeys": 70,
+    "stations": 237,
+    "gates": 173,
+    "humanInteractions": 52,
+    "standingAuthorizations": 6,
+    "journeysWithAttributableTraversal": 70,
+    "journeysBlindToTraversal": 0,
+    "journeysWithNamedRecovery": 37,
+    "journeysCitingAnIssue": 16
+  },
+  "rows": [
+    {
+      "journeyId": "idea-to-board-issue",
+      "title": "An idea becomes a tracked board issue",
+      "actor": "maintainer",
+      "seed": "seed-1",
+      "terminal": "Issue exists on the board with a Status and a type label",
+      "entryPoints": [
+        "canonical-pipeline",
+        "question-turned-work",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 1,
+      "gateStationIds": [
+        "board-write"
+      ],
+      "gateDensity": 0.3333,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 1
+      },
+      "phases": {
+        "intake": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 0,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 2,
+        "root": 0,
+        "paths": [
+          "docs/agents/board-sync.md",
+          "docs/agents/triage-labels.md",
+          "scripts/board-sync.py"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#343",
+          "frozen": true,
+          "title": "Workflow-perspective review: the implemented processes have outgrown their value — walk every journey, price the ceremony, cut",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 11,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "inbound-triage-to-agent-ready",
+      "title": "Bugs and requests you did not create become agent-ready issues",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Issue carries `ready-for-agent` or `needs-info` and a board Status",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "ask-matt-routing",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 1,
+      "gateStationIds": [
+        "execute-ready"
+      ],
+      "gateDensity": 0.3333,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 1
+      },
+      "phases": {
+        "intake": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/triage/SKILL.md",
+          "docs/agents/triage-labels.md",
+          "scripts/execute-ready-check.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 9,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "backlog-to-waves-clustering",
+      "title": "An open backlog is clustered into themed waves",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Cluster/wave STUB issues exist; no PRD, no slicing",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "goal-level-delegation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "cluster-proposal",
+        "stub-only"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "cluster-proposal",
+        "stub-only"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "judgment": 1
+      },
+      "phases": {
+        "plan": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 1,
+        "human-gate": 2
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/board-to-waves/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 9,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "prd-maturation",
+      "title": "A stub or agreed shape is matured into a PRD",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "PRD published on the anchor; Status = Spec",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "shape-agreement",
+        "status-spec"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "shape-agreement"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 1
+      },
+      "phases": {
+        "plan": 3
+      },
+      "authorizationBoundaries": {
+        "human-gate": 1,
+        "agent-autonomous": 2
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 2,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/spec-self-critique/SKILL.md",
+          ".claude/skills/to-prd/SKILL.md",
+          "docs/agents/board-sync.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 14,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "plan-to-executable-slices",
+      "title": "Plan something big -> independently grabbable slices",
+      "actor": "maintainer",
+      "seed": "seed-3",
+      "terminal": "Sub-issues linked to an anchor, each with What + AC, promoted on the board",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "ask-matt-routing",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 4,
+      "gates": 4,
+      "gateStationIds": [
+        "identity-declaration",
+        "complete-preview",
+        "slice-bodies",
+        "anchor-link"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "identity-declaration",
+        "complete-preview"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 2
+      },
+      "phases": {
+        "plan": 4
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 2
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/to-issues/SKILL.md",
+          "docs/conventions/spec-completeness.md",
+          "scripts/board-sync.py"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#341",
+          "frozen": true,
+          "title": "wrapup-land: close-verify authority is the PR body's declared closes, never the branch number",
+          "disclosure": "body"
+        },
+        {
+          "issue": "#343",
+          "frozen": true,
+          "title": "Workflow-perspective review: the implemented processes have outgrown their value — walk every journey, price the ceremony, cut",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "retro-finding",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 26,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "program-graph-decomposition",
+      "title": "A Program identity is decomposed through the internal graph engine",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Program graph validated and published; phases P1..P3 set",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 4,
+      "gates": 4,
+      "gateStationIds": [
+        "facade-entry",
+        "graph-parse",
+        "graph-validate",
+        "graph-publish"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "facade-entry",
+        "graph-publish"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 1,
+        "mechanical": 3
+      },
+      "phases": {
+        "plan": 3,
+        "verify": 1
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 2
+      },
+      "artifactsTouched": {
+        "total": 6,
+        "skills": 1,
+        "scripts": 4,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/to-waves/SKILL.md",
+          "docs/adr/0005-to-issues-is-the-planning-facade.md",
+          "scripts/program_graph.py",
+          "scripts/program_graph_parse.py",
+          "scripts/program_graph_validate.py",
+          "scripts/program_sync.py"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#322",
+          "frozen": true,
+          "title": "to-waves: facade delegation requires model invocation — drop disable-model-invocation",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "recovery-labelled-issue"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 6,
+        "hubPathsExcluded": [],
+        "attributedCommits": 10,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "cross-model-plan-hardening",
+      "title": "A locked plan is adversarially reviewed by a second model",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "VERDICT:APPROVED or MAX_ROUNDS reached; human signs off",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "plan-freeze",
+        "read-only-review",
+        "verdict-loop"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "plan-freeze",
+        "verdict-loop"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 1
+      },
+      "phases": {
+        "plan": 1,
+        "verify": 2
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 1
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 2,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/codex-review/SKILL.md",
+          ".claude/skills/grill-with-docs-codex/SKILL.md",
+          "scripts/codex-exec.sh"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 23,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "domain-grill-and-context-update",
+      "title": "A fuzzy capability is grilled against the project's own domain model",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "CONTEXT.md and ADRs updated inline; plan locked",
+      "entryPoints": [
+        "canonical-pipeline",
+        "question-turned-work",
+        "ask-matt-routing",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 5,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "one-question",
+        "inline-doc-update"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "one-question",
+        "inline-doc-update"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "judgment": 1,
+        "documented": 2
+      },
+      "phases": {
+        "plan": 3
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/grill-with-docs/SKILL.md",
+          "docs/agents/domain.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 8,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "spec-self-critique-before-review",
+      "title": "A freshly written spec is self-critiqued before a human reads it",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "12-point checklist run, issues fixed inline, summary emitted",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 0,
+      "gateStationIds": [],
+      "gateDensity": 0,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 3
+      },
+      "phases": {
+        "verify": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/spec-self-critique/SKILL.md",
+          "docs/agents/skills/spec-self-critique.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 5,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "scale-check-route-a-new-build",
+      "title": "A build of unclear size is routed to program / feature / slice / bug",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "A paste-ready start prompt naming the next skill",
+      "entryPoints": [
+        "question-turned-work",
+        "ask-matt-routing",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "size-dialog",
+        "route-verdict"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "size-dialog",
+        "route-verdict"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "judgment": 1
+      },
+      "phases": {
+        "intake": 3
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 1
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/scale-check/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 5,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "router-recommends-a-starting-point",
+      "title": "The user does not know which skill fits and the router names one",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "A recommended starting skill with a reason",
+      "entryPoints": [
+        "ask-matt-routing",
+        "question-turned-work",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "recommendation",
+        "handoff"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "recommendation",
+        "handoff"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 3
+      },
+      "phases": {
+        "intake": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 1,
+        "human-gate": 2
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/ask-matt/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 8,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "wayfinder-chart-a-foggy-effort",
+      "title": "A huge foggy effort is charted as investigation tickets",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "A shared map of investigation tickets, one resolved per session",
+      "entryPoints": [
+        "ask-matt-routing",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "chart",
+        "ticket-write",
+        "one-per-session"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 3,
+      "humanGateStationIds": [
+        "chart",
+        "ticket-write",
+        "one-per-session"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 1
+      },
+      "phases": {
+        "plan": 3
+      },
+      "authorizationBoundaries": {
+        "human-gate": 3
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/wayfinder/SKILL.md",
+          "scripts/board-sync.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 10,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "verify-a-fact-before-plan-lock",
+      "title": "A binary factual question is answered with a throwaway read-only harness",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "A proven verdict with output-proof; harness removed",
+      "entryPoints": [
+        "canonical-pipeline",
+        "question-turned-work",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 4,
+      "gates": 2,
+      "gateStationIds": [
+        "question-binarisation",
+        "verdict-record"
+      ],
+      "gateDensity": 0.5,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "question-binarisation",
+        "verdict-record"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 4
+      },
+      "phases": {
+        "verify": 4
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 2
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/verify-spike/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 4,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "resolve-a-bounded-tradeoff",
+      "title": "A bounded which-option choice is decided and sunk into a record",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Trade-off table plus a justified pick in an ADR/issue/comment",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "scope-check",
+        "sink-the-decision"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "scope-check",
+        "sink-the-decision"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 3
+      },
+      "phases": {
+        "plan": 3
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/decision-gate/SKILL.md",
+          "docs/agents/domain.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 4,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "research-a-question",
+      "title": "A question is researched against primary sources and captured in the repo",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "A Markdown research file committed in the repo",
+      "entryPoints": [
+        "question-turned-work",
+        "direct-skill-invocation",
+        "goal-level-delegation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 1,
+      "gateStationIds": [
+        "landing"
+      ],
+      "gateDensity": 0.3333,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "landing"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "judgment": 1,
+        "documented": 2
+      },
+      "phases": {
+        "plan": 2,
+        "land": 1
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 2,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/research/SKILL.md",
+          ".claude/skills/wrapup/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 26,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "land-planning-output",
+      "title": "Planning output (ADR, glossary, research) lands without a feature slice",
+      "actor": "maintainer",
+      "seed": "seed-4",
+      "terminal": "Content-route PR merged; no version bump required",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "content-claim",
+        "pr-body"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "land": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/wrapup/SKILL.md",
+          "scripts/pr-body-check.py"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#343",
+          "frozen": true,
+          "title": "Workflow-perspective review: the implemented processes have outgrown their value — walk every journey, price the ceremony, cut",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "retro-finding"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 27,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "small-direct-path",
+      "title": "A tiny fix goes implement -> wrapup with near-zero ceremony",
+      "actor": "maintainer",
+      "seed": "seed-8",
+      "terminal": "PR merged, issue closed",
+      "entryPoints": [
+        "canonical-pipeline",
+        "question-turned-work",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "direct-entry",
+        "land"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "direct-entry",
+        "land"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 1
+      },
+      "phases": {
+        "intake": 1,
+        "build": 1,
+        "land": 1
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 2,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/implement/SKILL.md",
+          ".claude/skills/wrapup/SKILL.md"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#343",
+          "frozen": true,
+          "title": "Workflow-perspective review: the implemented processes have outgrown their value — walk every journey, price the ceremony, cut",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "retro-finding"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 24,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "small-bug-fix-to-merged-and-released",
+      "title": "A small bug fix reaches merged and released",
+      "actor": "maintainer",
+      "seed": "seed-2",
+      "terminal": "npm version published and GitHub release reconciled",
+      "entryPoints": [
+        "canonical-pipeline",
+        "question-turned-work",
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 3,
+      "steps": 5,
+      "gates": 4,
+      "gateStationIds": [
+        "regression-test",
+        "local-gate",
+        "required-check",
+        "publish"
+      ],
+      "gateDensity": 0.8,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 1,
+      "bindingHardness": {
+        "documented": 1,
+        "mechanical": 2,
+        "platform-enforced": 2
+      },
+      "phases": {
+        "build": 2,
+        "verify": 1,
+        "land": 1,
+        "publish": 1
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3,
+        "platform-gate": 1,
+        "standing-authorization": 1
+      },
+      "artifactsTouched": {
+        "total": 5,
+        "skills": 3,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 2,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/diagnose/SKILL.md",
+          ".claude/skills/local-ci/SKILL.md",
+          ".claude/skills/tdd/SKILL.md",
+          ".github/workflows/ci.yml",
+          ".github/workflows/release.yml"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#205",
+          "frozen": true,
+          "title": "release-state: post-publish readback races npm propagation and leaves npm/GitHub parity broken",
+          "disclosure": "body"
+        },
+        {
+          "issue": "#243",
+          "frozen": true,
+          "title": "release: block a version bump while the previous release is still awaiting-tag",
+          "disclosure": "body"
+        },
+        {
+          "issue": "#257",
+          "frozen": true,
+          "title": "release: the confirmed Semver authorizes the tag — the agent publishes without a second gate",
+          "disclosure": "body"
+        },
+        {
+          "issue": "#343",
+          "frozen": true,
+          "title": "Workflow-perspective review: the implemented processes have outgrown their value — walk every journey, price the ceremony, cut",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "recovery-labelled-issue",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 5,
+        "hubPathsExcluded": [],
+        "attributedCommits": 14,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "tdd-red-green-refactor",
+      "title": "One behaviour is built test-first",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Red proven, green reached, refactor done",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "goal-level-delegation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "red",
+        "green",
+        "refactor"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 3
+      },
+      "phases": {
+        "build": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/tdd/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 4,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "bug-diagnosis-to-regression-test",
+      "title": "A bug is reproduced, minimised, fixed and regression-tested",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Regression test green; root cause named",
+      "entryPoints": [
+        "question-turned-work",
+        "direct-skill-invocation",
+        "ask-matt-routing",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 4,
+      "gates": 2,
+      "gateStationIds": [
+        "cause-not-symptom",
+        "regression-test"
+      ],
+      "gateDensity": 0.5,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "cause-not-symptom"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "judgment": 1,
+        "mechanical": 1
+      },
+      "phases": {
+        "build": 3,
+        "verify": 1
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 2,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/diagnose/SKILL.md",
+          ".claude/skills/tdd/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "recovery-labelled-issue"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 6,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "prototype-a-design",
+      "title": "A design question gets a runnable throwaway answer",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Learning folded back; prototype discarded",
+      "entryPoints": [
+        "question-turned-work",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "branch-choice",
+        "fold-back"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "branch-choice",
+        "fold-back"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "judgment": 1
+      },
+      "phases": {
+        "plan": 1,
+        "build": 1,
+        "close": 1
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 1
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/prototype/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 1,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "delegate-build-to-codex",
+      "title": "A frozen spec is handed to Codex to implement in a bounded sandbox",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Human approves the diff before any commit",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "goal-level-delegation"
+      ],
+      "entryPointCount": 2,
+      "steps": 4,
+      "gates": 3,
+      "gateStationIds": [
+        "spec-freeze",
+        "bounded-sandbox",
+        "human-approval"
+      ],
+      "gateDensity": 0.75,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "spec-freeze",
+        "human-approval"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 3,
+        "mechanical": 1
+      },
+      "phases": {
+        "plan": 1,
+        "build": 1,
+        "verify": 1,
+        "land": 1
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 2
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/codex-build/SKILL.md",
+          "docs/evidence/2026-07-28-codex-exec-version-pin.md",
+          "scripts/codex-exec.sh"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 19,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "two-axis-code-review",
+      "title": "A diff is reviewed on Standards and Spec as two separate axes",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Two rankings reported side by side, never merged",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "goal-level-delegation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 4,
+      "gates": 2,
+      "gateStationIds": [
+        "merge-base-preflight",
+        "side-by-side"
+      ],
+      "gateDensity": 0.5,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "side-by-side"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 1,
+        "judgment": 1,
+        "documented": 2
+      },
+      "phases": {
+        "verify": 4
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/code-review/SKILL.md",
+          "docs/agents/code-review.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 5,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "design-a-deep-module",
+      "title": "A module interface is designed or deepened",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "A seam decision with the deep-module vocabulary applied",
+      "entryPoints": [
+        "question-turned-work",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 1,
+      "gateStationIds": [
+        "seam-decision"
+      ],
+      "gateDensity": 0.3333,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "seam-decision"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "judgment": 1
+      },
+      "phases": {
+        "plan": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/codebase-design/SKILL.md",
+          "docs/agents/domain.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 2,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "improve-codebase-architecture",
+      "title": "An existing codebase's architecture is improved",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Refactor landed behind the existing tests",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "goal-level-delegation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "behaviour-preserving",
+        "scope-fence"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "scope-fence"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 1
+      },
+      "phases": {
+        "plan": 1,
+        "build": 2
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/improve-codebase-architecture/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 4,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "security-audit-of-the-app",
+      "title": "The whole application is audited by two models independently",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Merged findings with a hardened remediation plan",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "goal-level-delegation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "gate-run",
+        "harden-plan"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "harden-plan"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 1,
+        "mechanical": 1,
+        "judgment": 1
+      },
+      "phases": {
+        "verify": 2,
+        "plan": 1
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/security-audit/SKILL.md",
+          "scripts/security/audit-gate.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 4,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "run-the-local-gate",
+      "title": "The pre-PR local CI gate is run",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "npm test + staleness + release guard + pack all green",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "goal-level-delegation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 5,
+      "gates": 4,
+      "gateStationIds": [
+        "gate-run",
+        "suite",
+        "staleness",
+        "hook-backstop"
+      ],
+      "gateDensity": 0.8,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 4,
+        "documented": 1
+      },
+      "phases": {
+        "verify": 5
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 5
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 1,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/local-ci/SKILL.md",
+          ".githooks/pre-push",
+          "docs/agents/skills/local-ci.md",
+          "scripts/check-kit-staleness.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 8,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "slice-pr-landing",
+      "title": "A finished slice becomes a pull request and lands",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "PR merged, board Status = Done, worktree cleaned",
+      "entryPoints": [
+        "canonical-pipeline",
+        "goal-level-delegation",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 5,
+      "gates": 3,
+      "gateStationIds": [
+        "pr-body",
+        "land",
+        "worktree-cleanup"
+      ],
+      "gateDensity": 0.6,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "land"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 3
+      },
+      "phases": {
+        "land": 4,
+        "close": 1
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 4,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 1,
+        "scripts": 3,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/wrapup/SKILL.md",
+          "scripts/pr-body-check.py",
+          "scripts/worktree-lifecycle/cleanup.py",
+          "scripts/wrapup-land.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "retro-finding",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 45,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "anchor-reconcile-on-slice-event",
+      "title": "A wave anchor's slice table is reconciled on PR create and merge",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Anchor slice table matches the board, monotone and drift-free",
+      "entryPoints": [
+        "canonical-pipeline",
+        "goal-level-delegation"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "reconcile",
+        "monotonicity"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 1,
+        "mechanical": 2
+      },
+      "phases": {
+        "land": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 0,
+        "scripts": 3,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          "scripts/anchor_table.py",
+          "scripts/board-sync.py",
+          "scripts/render-anchor.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "recovery-labelled-issue"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 13,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "goal-level-delegation-afk-sweep",
+      "title": "The user states an outcome and the agent orchestrates a whole wave AFK",
+      "actor": "maintainer",
+      "seed": "seed-7",
+      "terminal": "Wave landed; one human acceptance at the end",
+      "entryPoints": [
+        "goal-level-delegation",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 5,
+      "gates": 3,
+      "gateStationIds": [
+        "wave-claim",
+        "central-verify",
+        "acceptance"
+      ],
+      "gateDensity": 0.6,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "acceptance"
+      ],
+      "standingAuthorizations": 2,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 3
+      },
+      "phases": {
+        "plan": 1,
+        "build": 1,
+        "land": 1,
+        "verify": 1,
+        "close": 1
+      },
+      "authorizationBoundaries": {
+        "standing-authorization": 2,
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 1,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/orchestrate-wave/SKILL.md",
+          "docs/agents/skills/orchestrate-wave.md",
+          "src/lib/waveClaim.mjs"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#343",
+          "frozen": true,
+          "title": "Workflow-perspective review: the implemented processes have outgrown their value — walk every journey, price the ceremony, cut",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "retro-finding",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 24,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "session-ends",
+      "title": "A session ends and hands over cleanly",
+      "actor": "agent",
+      "seed": "seed-6",
+      "terminal": "Branch, PR and worktree in the state the repo expects",
+      "entryPoints": [
+        "canonical-pipeline",
+        "goal-level-delegation",
+        "direct-skill-invocation",
+        "external-worktree-session",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 5,
+      "steps": 4,
+      "gates": 2,
+      "gateStationIds": [
+        "branch-and-pr",
+        "teardown"
+      ],
+      "gateDensity": 0.5,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "branch-and-pr"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 2
+      },
+      "phases": {
+        "close": 4
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/wrapup/SKILL.md",
+          "docs/adr/0007-session-teardown-requires-provenance-bound-ownership.md",
+          "scripts/worktree-lifecycle/cleanup.py"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#320",
+          "frozen": true,
+          "title": "Program: Simplify the session-end lifecycle (wrapup / teardown / planning artifacts)",
+          "disclosure": "body"
+        },
+        {
+          "issue": "#343",
+          "frozen": true,
+          "title": "Workflow-perspective review: the implemented processes have outgrown their value — walk every journey, price the ceremony, cut",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "retro-finding",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 31,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "retro-after-a-session",
+      "title": "Session friction is turned into concrete config mutations",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Findings land in a Meta section of the PR body",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "offer",
+        "friction-analysis",
+        "meta-section"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "offer",
+        "friction-analysis"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 1,
+        "judgment": 1,
+        "mechanical": 1
+      },
+      "phases": {
+        "close": 3
+      },
+      "authorizationBoundaries": {
+        "human-gate": 2,
+        "agent-autonomous": 1
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/retro/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "retro-finding"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 6,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "resolve-a-merge-conflict",
+      "title": "An in-progress merge or rebase conflict is resolved",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Merge completed with both sides' intent preserved",
+      "entryPoints": [
+        "question-turned-work",
+        "direct-skill-invocation",
+        "external-worktree-session",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "detect",
+        "both-intents",
+        "complete"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "both-intents"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "judgment": 1
+      },
+      "phases": {
+        "recover": 2,
+        "verify": 1
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/resolving-merge-conflicts/SKILL.md"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 1,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "author-or-improve-a-skill",
+      "title": "A skill is created or improved",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Skill passes the frontmatter, portability and language lints",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "question-turned-work"
+      ],
+      "entryPointCount": 2,
+      "steps": 4,
+      "gates": 4,
+      "gateStationIds": [
+        "english-first",
+        "no-hardcoded-board-values",
+        "frontmatter",
+        "mirror-same-pr"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 4
+      },
+      "phases": {
+        "build": 4
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 4
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 1,
+        "scripts": 3,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/write-a-skill/SKILL.md",
+          "scripts/test_skill_frontmatter_lint.py",
+          "scripts/test_skill_language_census.py",
+          "scripts/test_skill_portability_lint.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 7,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "audit-the-skill-surface",
+      "title": "The shipped skill surface is audited",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Drift named per skill against its SOURCES.txt",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "goal-level-delegation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "denominator",
+        "drift-hint"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "verify": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 2,
+        "scripts": 0,
+        "hooks": 1,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/hooks/skill-drift-hint.py",
+          ".claude/skills/audit-skills/SKILL.md",
+          ".claude/skills/skill-manifest.json"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 20,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "sync-the-codex-mirror",
+      "title": "The .agents/ mirror is regenerated in the same PR as the Claude change",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "Mirror matches its primary; the contract test is green",
+      "entryPoints": [
+        "codex-surface-entry",
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "contract-test",
+        "no-claude-only-escalation"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 1,
+        "mechanical": 2
+      },
+      "phases": {
+        "build": 1,
+        "verify": 2
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 1,
+        "scripts": 2,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".agents/skills/codex-adapter-sync/SKILL.md",
+          "scripts/test_codex_adapter_sync_contract.py",
+          "scripts/test_skill_surface_refs.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 6,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "kit-build-and-staleness-check",
+      "title": "The install manifest is rebuilt and checked against the sources",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "agent-workflow-kit.package.json matches a fresh build",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "goal-level-delegation"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "build",
+        "staleness"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "build": 1,
+        "verify": 2
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 0,
+        "scripts": 2,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          "docs/agents/skills/local-ci.md",
+          "scripts/build-kit.mjs",
+          "scripts/check-kit-staleness.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 4,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "release-the-kit",
+      "title": "A confirmed Semver becomes a published npm version and GitHub release",
+      "actor": "maintainer",
+      "seed": "seed-5",
+      "terminal": "npm and the GitHub release agree on the same version",
+      "entryPoints": [
+        "canonical-pipeline",
+        "direct-skill-invocation",
+        "goal-level-delegation"
+      ],
+      "entryPointCount": 3,
+      "steps": 6,
+      "gates": 6,
+      "gateStationIds": [
+        "semver-gate",
+        "prepare",
+        "delta-guard",
+        "merge-integrates",
+        "tag",
+        "parity"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "semver-gate"
+      ],
+      "standingAuthorizations": 3,
+      "bindingHardness": {
+        "documented": 1,
+        "mechanical": 3,
+        "platform-enforced": 2
+      },
+      "phases": {
+        "plan": 1,
+        "build": 1,
+        "verify": 1,
+        "land": 1,
+        "publish": 2
+      },
+      "authorizationBoundaries": {
+        "human-gate": 1,
+        "standing-authorization": 3,
+        "agent-autonomous": 2
+      },
+      "artifactsTouched": {
+        "total": 5,
+        "skills": 1,
+        "scripts": 2,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 1,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/kit-release/SKILL.md",
+          ".github/workflows/release.yml",
+          "docs/adr/0004-release-intent-is-a-version-tag.md",
+          "scripts/kit-release.mjs",
+          "scripts/release-delta-guard.mjs"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#205",
+          "frozen": true,
+          "title": "release-state: post-publish readback races npm propagation and leaves npm/GitHub parity broken",
+          "disclosure": "body"
+        },
+        {
+          "issue": "#243",
+          "frozen": true,
+          "title": "release: block a version bump while the previous release is still awaiting-tag",
+          "disclosure": "body"
+        },
+        {
+          "issue": "#257",
+          "frozen": true,
+          "title": "release: the confirmed Semver authorizes the tag — the agent publishes without a second gate",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "recovery-labelled-issue",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 5,
+        "hubPathsExcluded": [],
+        "attributedCommits": 18,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "ci-required-check-on-a-pull-request",
+      "title": "A pull request is gated by the required CI check",
+      "actor": "platform",
+      "seed": null,
+      "terminal": "Job `test` green with the branch up to date",
+      "entryPoints": [
+        "canonical-pipeline",
+        "goal-level-delegation",
+        "external-worktree-session"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "pr-required",
+        "job-test",
+        "strict-up-to-date"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "platform-enforced": 3
+      },
+      "phases": {
+        "land": 2,
+        "verify": 1
+      },
+      "authorizationBoundaries": {
+        "platform-gate": 3
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 0,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 1,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".github/workflows/ci.yml"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 2,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "tag-triggered-publish",
+      "title": "An annotated version tag on canonical main triggers publication",
+      "actor": "platform",
+      "seed": null,
+      "terminal": "Tag validated, artifact gates passed, release reconciled",
+      "entryPoints": [
+        "canonical-pipeline",
+        "goal-level-delegation"
+      ],
+      "entryPointCount": 2,
+      "steps": 4,
+      "gates": 4,
+      "gateStationIds": [
+        "tag-validation",
+        "artifact-gates",
+        "reconcile",
+        "manual-dispatch"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "manual-dispatch"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "platform-enforced": 3,
+        "mechanical": 1
+      },
+      "phases": {
+        "publish": 2,
+        "verify": 1,
+        "recover": 1
+      },
+      "authorizationBoundaries": {
+        "platform-gate": 3,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 0,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 1,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".github/workflows/release.yml",
+          "scripts/release-state.mjs"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#257",
+          "frozen": true,
+          "title": "release: the confirmed Semver authorizes the tag — the agent publishes without a second gate",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "recovery-labelled-issue",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 8,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "pages-site-publish",
+      "title": "The methodology site is published from main",
+      "actor": "platform",
+      "seed": null,
+      "terminal": "GitHub Pages deployment succeeded (up to three attempts)",
+      "entryPoints": [
+        "canonical-pipeline"
+      ],
+      "entryPointCount": 1,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "build-pages",
+        "deploy",
+        "content-source"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "platform-enforced": 3
+      },
+      "phases": {
+        "publish": 3
+      },
+      "authorizationBoundaries": {
+        "platform-gate": 3
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 0,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 1,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".github/workflows/pages.yml",
+          "docs/index.html"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 2,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-first-init",
+      "title": "A consumer installs the kit into their repository for the first time",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "Files installed and a sha256 manifest recorded",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "external-worktree-session"
+      ],
+      "entryPointCount": 2,
+      "steps": 4,
+      "gates": 3,
+      "gateStationIds": [
+        "install",
+        "manifest",
+        "project-layer-stubs"
+      ],
+      "gateDensity": 0.75,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 3,
+        "documented": 1
+      },
+      "phases": {
+        "intake": 4
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 4
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 0,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 4,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          "src/cli.mjs",
+          "src/commands/init.mjs",
+          "src/lib/bundle.mjs",
+          "src/lib/manifest.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 71,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-setup-workflow-project-layer",
+      "title": "A consumer fills the project layer so the skills become active",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "Every required readiness capability reports satisfied",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "canonical-pipeline",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "readiness",
+        "capability-declaration"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 1,
+        "mechanical": 2
+      },
+      "phases": {
+        "intake": 1,
+        "verify": 2
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 2,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/setup-workflow/SKILL.md",
+          ".claude/skills/skill-manifest.json",
+          "scripts/readiness.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 43,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-first-own-workflow",
+      "title": "A consumer runs their first own workflow in their own repository",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "One change planned, built and landed with the kit's own skills",
+      "entryPoints": [
+        "ask-matt-routing",
+        "direct-skill-invocation",
+        "question-turned-work",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 4,
+      "gates": 0,
+      "gateStationIds": [],
+      "gateDensity": 0,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 4
+      },
+      "phases": {
+        "intake": 1,
+        "plan": 1,
+        "land": 1,
+        "close": 1
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 4
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 2,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/ask-matt/SKILL.md",
+          ".claude/skills/wrapup/SKILL.md"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#343",
+          "frozen": true,
+          "title": "Workflow-perspective review: the implemented processes have outgrown their value — walk every journey, price the ceremony, cut",
+          "disclosure": "body"
+        },
+        {
+          "issue": "#380",
+          "frozen": true,
+          "title": "Mechanism anchor: where the kit's machinery produces fiction — a counted census against what it promises",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 28,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-update-over-local-edits",
+      "title": "A consumer updates the kit over their own local edits",
+      "actor": "consumer",
+      "seed": "seed-5",
+      "terminal": "Untouched files fast-forward; edited files backed up and diffed, never silently overwritten",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "canonical-pipeline",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 5,
+      "gates": 5,
+      "gateStationIds": [
+        "three-way",
+        "fast-forward",
+        "never-silently-overwrite",
+        "project-layer-untouched",
+        "transactional-activation"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 5
+      },
+      "phases": {
+        "intake": 1,
+        "build": 3,
+        "verify": 1
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 5
+      },
+      "artifactsTouched": {
+        "total": 7,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 5,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/kit-update/SKILL.md",
+          "docs/adr/0001-consumer-divergence-policy.md",
+          "src/cli.mjs",
+          "src/lib/ownershipClassifier.mjs",
+          "src/lib/updateDecisions.mjs",
+          "src/lib/updateReconcile.mjs",
+          "src/lib/verifyUpdateCandidateTransaction.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 7,
+        "hubPathsExcluded": [],
+        "attributedCommits": 37,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-diff-inspection",
+      "title": "A consumer inspects what an update would change",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "A per-file divergence report; nothing written",
+      "entryPoints": [
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 1,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "read-only",
+        "per-file-origin"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "verify": 3
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 3,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/kit-update/SKILL.md",
+          "src/cli.mjs",
+          "src/commands/diff.mjs",
+          "src/lib/ownedDiff.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 31,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-uninstall",
+      "title": "A consumer removes the kit",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "Kit-origin files removed; consumer-owned files kept",
+      "entryPoints": [
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 1,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "kit-origin-removal",
+        "consumer-files-kept",
+        "manifest-teardown"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 3
+      },
+      "phases": {
+        "close": 3
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 0,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 3,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          "docs/adr/0003-kit-core-and-project-extension-lifecycle.md",
+          "src/cli.mjs",
+          "src/commands/uninstall.mjs",
+          "src/lib/manifest.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 27,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-routing-profile-decision",
+      "title": "A consumer answers the routing questions and stores a profile",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "A stored routing profile, or an explicit decline",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "canonical-pipeline"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "questions",
+        "stored-profile"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "intake": 2,
+        "plan": 1
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 0,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 3,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          "docs/adr/0006-routing-knowledge-access-and-policy-are-separate.md",
+          "src/cli.mjs",
+          "src/lib/routingProfile.mjs",
+          "src/lib/routingProfileStorage.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 24,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-ownership-override",
+      "title": "A consumer takes or returns ownership of an installed file",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "File origin flipped between kit and consumer",
+      "entryPoints": [
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 1,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "own",
+        "origin-effect"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "build": 3
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 0,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 3,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          "docs/adr/0001-consumer-divergence-policy.md",
+          "src/cli.mjs",
+          "src/commands/own.mjs",
+          "src/lib/ownershipClassifier.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 23,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-contribution-bridge",
+      "title": "A consumer prepares a local change as a contribution back to the kit",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "A prepared contribution artifact",
+      "entryPoints": [
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 1,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "prepare",
+        "routing"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "build": 2,
+        "land": 1
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 0,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 3,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          "src/cli.mjs",
+          "src/lib/contributionBridge.mjs",
+          "src/lib/contributionRouting.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 20,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-automated-update-pr",
+      "title": "A consumer's repository gets an automated kit-update pull request",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "A stable Kit-verified branch and pull request upserted",
+      "entryPoints": [
+        "external-worktree-session",
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "branch-upsert",
+        "pr-upsert"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "build": 1,
+        "land": 2
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 0,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          "docs/adr/0003-kit-core-and-project-extension-lifecycle.md",
+          "scripts/kit-update-pr.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 5,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-kit-update-skill",
+      "title": "A consumer previews and transactionally applies a kit release",
+      "actor": "consumer",
+      "seed": "seed-5",
+      "terminal": "Parity-verified update applied or rolled back as a whole",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "canonical-pipeline",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "parity",
+        "transactional-apply"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 1,
+        "mechanical": 2
+      },
+      "phases": {
+        "verify": 2,
+        "build": 1
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/kit-update/SKILL.md",
+          "scripts/release-parity.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 21,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-project-release",
+      "title": "A consumer prepares one coherent version change across their profiled packages",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "A previewed version change; no commit, tag, push or publish",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "canonical-pipeline",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "profile-scan",
+        "preview-only"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "plan": 2,
+        "verify": 1
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 1,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/project-release/SKILL.md",
+          "scripts/project-release.mjs",
+          "src/lib/release-preview.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 4,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-setup-pre-commit",
+      "title": "A consumer wires a native zero-dependency pre-commit hook",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "core.hooksPath wired; the hook blocks on the project's own checks",
+      "entryPoints": [
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 1,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "hooks-path",
+        "project-checks"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "build": 2,
+        "verify": 1
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/setup-pre-commit/SKILL.md",
+          "scripts/test_skill_precommit_template.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 2,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-census-establish",
+      "title": "A consumer establishes or refreshes the optional project census",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "A verified census candidate activated transactionally",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "canonical-pipeline",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "scan",
+        "transactional-activate"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "intake": 1,
+        "plan": 1,
+        "verify": 1
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 1,
+        "scripts": 3,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/census-update/SKILL.md",
+          "scripts/census/index.mjs",
+          "scripts/census/scan.mjs",
+          "scripts/census/transaction.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 5,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "consumer-memory-lifecycle",
+      "title": "A consumer inspects, archives or recovers agent memories",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "Memory placement previewed and applied without crossing configured roots",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "preview",
+        "evidence-preserved"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "verify": 1,
+        "build": 1,
+        "close": 1
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/memory-lifecycle/SKILL.md",
+          "scripts/memory-lifecycle/index.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 3,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "session-start-context-injection",
+      "title": "A session starts and the shipped SessionStart hooks inject context",
+      "actor": "platform",
+      "seed": null,
+      "terminal": "Branch, board status and drift hints present in the session's opening context",
+      "entryPoints": [
+        "external-worktree-session",
+        "canonical-pipeline",
+        "goal-level-delegation",
+        "question-turned-work"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "branch-context",
+        "board-status",
+        "drift-hints"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 3
+      },
+      "phases": {
+        "intake": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 5,
+        "skills": 0,
+        "scripts": 0,
+        "hooks": 5,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/hooks/branch-context.py",
+          ".claude/hooks/convention-drift-hint.py",
+          ".claude/hooks/loc-offender-forewarn.py",
+          ".claude/hooks/skill-drift-hint.py",
+          ".claude/hooks/sync-board-status.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 5,
+        "hubPathsExcluded": [],
+        "attributedCommits": 4,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "guarded-tool-call-block",
+      "title": "A tool call is blocked or warned by a PreToolUse guard",
+      "actor": "platform",
+      "seed": null,
+      "terminal": "The call is blocked with a named recovery, or allowed",
+      "entryPoints": [
+        "canonical-pipeline",
+        "goal-level-delegation",
+        "question-turned-work",
+        "external-worktree-session"
+      ],
+      "entryPointCount": 4,
+      "steps": 4,
+      "gates": 3,
+      "gateStationIds": [
+        "secret-block",
+        "worktree-enforcement",
+        "guard-core"
+      ],
+      "gateDensity": 0.75,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 3,
+        "documented": 1
+      },
+      "phases": {
+        "build": 3,
+        "recover": 1
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 4
+      },
+      "artifactsTouched": {
+        "total": 5,
+        "skills": 0,
+        "scripts": 1,
+        "hooks": 4,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/hooks/block-secrets.py",
+          ".claude/hooks/drift-guard.py",
+          ".claude/hooks/enforce-worktree.py",
+          ".claude/hooks/grep-shim-guard.py",
+          "scripts/safety-guardrails/core.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "retro-finding",
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 5,
+        "hubPathsExcluded": [],
+        "attributedCommits": 11,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "prompt-and-stop-time-advisory",
+      "title": "A prompt or a stop triggers a non-blocking advisory",
+      "actor": "platform",
+      "seed": null,
+      "terminal": "An advisory printed; nothing blocked",
+      "entryPoints": [
+        "canonical-pipeline",
+        "goal-level-delegation",
+        "question-turned-work"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "prompt-time",
+        "stop-time",
+        "advisory-core"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 3
+      },
+      "phases": {
+        "intake": 2,
+        "close": 1
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 3
+      },
+      "artifactsTouched": {
+        "total": 5,
+        "skills": 0,
+        "scripts": 2,
+        "hooks": 3,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/hooks/pre-refactor-sweep.py",
+          ".claude/hooks/slice-handoff-hint.py",
+          ".claude/hooks/typecheck-on-stop.py",
+          "scripts/workflow-advisories/capabilities.json",
+          "scripts/workflow-advisories/core.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 5,
+        "hubPathsExcluded": [],
+        "attributedCommits": 5,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "worktree-create-and-bind",
+      "title": "A worktree is created and the session is bound to it",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Branch and worktree exist and the session's cwd is inside it",
+      "entryPoints": [
+        "canonical-pipeline",
+        "goal-level-delegation",
+        "external-worktree-session"
+      ],
+      "entryPointCount": 3,
+      "steps": 4,
+      "gates": 3,
+      "gateStationIds": [
+        "create",
+        "bind-cwd",
+        "ignore-seed"
+      ],
+      "gateDensity": 0.75,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 1,
+        "mechanical": 3
+      },
+      "phases": {
+        "plan": 3,
+        "build": 1
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 4
+      },
+      "artifactsTouched": {
+        "total": 4,
+        "skills": 0,
+        "scripts": 3,
+        "hooks": 1,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/hooks/enforce-worktree-cwd.py",
+          "scripts/worktree-lifecycle/core.py",
+          "scripts/worktree-lifecycle/ignore_seed.py",
+          "scripts/worktree-lifecycle/setup.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 4,
+        "hubPathsExcluded": [],
+        "attributedCommits": 26,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "worktree-teardown",
+      "title": "A worktree is torn down after its work landed",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Worktree removed with no loss of tracked work",
+      "entryPoints": [
+        "canonical-pipeline",
+        "goal-level-delegation",
+        "external-worktree-session"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "classify",
+        "no-loss",
+        "provenance-bound"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "no-loss"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 3
+      },
+      "phases": {
+        "close": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 0,
+        "scripts": 2,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          "docs/adr/0009-teardown-authority-is-stateless-repository-classification.md",
+          "scripts/worktree-lifecycle/classify.py",
+          "scripts/worktree-lifecycle/cleanup.py"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#320",
+          "frozen": true,
+          "title": "Program: Simplify the session-end lifecycle (wrapup / teardown / planning artifacts)",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "recovery-labelled-issue",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 11,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "recovery-red-release-run-but-published",
+      "title": "Recovery: a red release run that nevertheless published",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "npm and the GitHub release reconciled without a version bump",
+      "entryPoints": [
+        "question-turned-work",
+        "canonical-pipeline"
+      ],
+      "entryPointCount": 2,
+      "steps": 4,
+      "gates": 3,
+      "gateStationIds": [
+        "read-registry",
+        "reconcile",
+        "never-bump"
+      ],
+      "gateDensity": 0.75,
+      "humanInteractions": 2,
+      "humanGateStationIds": [
+        "reconcile",
+        "never-bump"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 2
+      },
+      "phases": {
+        "recover": 4
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 2
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 0,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 1,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".github/workflows/release.yml",
+          "scripts/release-state.mjs"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#205",
+          "frozen": true,
+          "title": "release-state: post-publish readback races npm propagation and leaves npm/GitHub parity broken",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "recovery-labelled-issue",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 8,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "recovery-awaiting-tag-stacked-bump",
+      "title": "Recovery: a version bump stacked on a still-untagged release",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "The pending version is tagged and published first",
+      "entryPoints": [
+        "canonical-pipeline",
+        "question-turned-work"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "guard-red",
+        "tag-pending-first",
+        "first-release-exemption"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "tag-pending-first"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "recover": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 1,
+        "skills": 0,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          "scripts/release-delta-guard.mjs"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#243",
+          "frozen": true,
+          "title": "release: block a version bump while the previous release is still awaiting-tag",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "recovery-labelled-issue",
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 1,
+        "hubPathsExcluded": [],
+        "attributedCommits": 7,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "recovery-wrong-branch-commit",
+      "title": "Recovery: a commit landed on the wrong branch",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "The commit sits on its intended branch; nothing lost",
+      "entryPoints": [
+        "question-turned-work",
+        "direct-skill-invocation",
+        "external-worktree-session",
+        "codex-surface-entry"
+      ],
+      "entryPointCount": 4,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "reflog-find",
+        "move",
+        "clean-worktree"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "move"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 3
+      },
+      "phases": {
+        "recover": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/git-worktree-recover/SKILL.md",
+          "scripts/worktree-lifecycle/setup.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 9,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "recovery-interrupted-afk-run",
+      "title": "Recovery: an AFK orchestration run was interrupted mid-wave",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "The wave claim is released or re-acquired and the run resumes",
+      "entryPoints": [
+        "goal-level-delegation",
+        "question-turned-work",
+        "external-worktree-session"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "claim-state",
+        "reconcile-slices",
+        "resume-or-release"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "resume-or-release"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "recover": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 1,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 1,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          ".claude/skills/orchestrate-wave/SKILL.md",
+          "scripts/board-sync.py",
+          "src/lib/waveClaim.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 28,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "recovery-update-conflicts-with-local-edits",
+      "title": "Recovery: an update lands on locally edited kit files",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "Edited files backed up and diffed; the consumer decides",
+      "entryPoints": [
+        "direct-skill-invocation",
+        "question-turned-work"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "detect-divergence",
+        "backup-and-diff"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 0,
+      "humanGateStationIds": [],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "recover": 3
+      },
+      "authorizationBoundaries": {
+        "consumer-owned": 3
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 1,
+        "scripts": 0,
+        "hooks": 0,
+        "src": 1,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/skills/kit-update/SKILL.md",
+          "docs/adr/0001-consumer-divergence-policy.md",
+          "src/lib/updateDecisions.mjs"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 22,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "recovery-guard-false-red-blocks-capability",
+      "title": "Recovery: an over-precise guard misattributes a local defect and blocks the capability",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "The real cause is found and the guard's predicate is corrected",
+      "entryPoints": [
+        "question-turned-work",
+        "direct-skill-invocation"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 1,
+      "gateStationIds": [
+        "correct-predicate"
+      ],
+      "gateDensity": 0.3333,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "correct-predicate"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "documented": 2,
+        "mechanical": 1
+      },
+      "phases": {
+        "recover": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 0,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          "docs/evidence/2026-07-28-codex-exec-version-pin.md",
+          "scripts/codex-exec.sh"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "documented-recovery-path"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 13,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "recovery-teardown-blocked-by-symlinks",
+      "title": "Recovery: teardown's identity freeze cannot handle a symlink-heavy worktree",
+      "actor": "consumer",
+      "seed": null,
+      "terminal": "Teardown completes via a fallback route with no protection of its own",
+      "entryPoints": [
+        "question-turned-work",
+        "external-worktree-session"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 2,
+      "gateStationIds": [
+        "identity-freeze-fails",
+        "fallback-route"
+      ],
+      "gateDensity": 0.6667,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "fallback-route"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 1,
+        "documented": 2
+      },
+      "phases": {
+        "recover": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 0,
+        "scripts": 1,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          "docs/adr/0009-teardown-authority-is-stateless-repository-classification.md",
+          "scripts/worktree-lifecycle/cleanup.py"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#380",
+          "frozen": true,
+          "title": "Mechanism anchor: where the kit's machinery produces fiction — a counted census against what it promises",
+          "disclosure": "body"
+        },
+        {
+          "issue": "#2305",
+          "frozen": true,
+          "title": null,
+          "disclosure": "digest-only"
+        }
+      ],
+      "recoveryPaths": [
+        "recovery-labelled-issue"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 9,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "recovery-anchor-closed-early",
+      "title": "Recovery: an anchor or Program-PRD was closed before its slices finished",
+      "actor": "maintainer",
+      "seed": null,
+      "terminal": "The anchor is reopened and its slice table reconciled",
+      "entryPoints": [
+        "question-turned-work",
+        "canonical-pipeline"
+      ],
+      "entryPointCount": 2,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "detect-early-close",
+        "reopen",
+        "reconcile-table"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "reopen"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "recover": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 2,
+        "skills": 0,
+        "scripts": 2,
+        "hooks": 0,
+        "src": 0,
+        "workflows": 0,
+        "docs": 0,
+        "root": 0,
+        "paths": [
+          "scripts/anchor_table.py",
+          "scripts/pr-body-check.py"
+        ]
+      },
+      "failureModesCited": [
+        {
+          "issue": "#341",
+          "frozen": true,
+          "title": "wrapup-land: close-verify authority is the PR body's declared closes, never the branch number",
+          "disclosure": "body"
+        }
+      ],
+      "recoveryPaths": [
+        "recovery-labelled-issue"
+      ],
+      "hasNamedRecovery": true,
+      "traversal": {
+        "specificPaths": 2,
+        "hubPathsExcluded": [],
+        "attributedCommits": 7,
+        "attributable": true,
+        "blindReason": null
+      }
+    },
+    {
+      "journeyId": "recovery-board-status-drift",
+      "title": "Recovery: the board's Status no longer matches the real state of the work",
+      "actor": "agent",
+      "seed": null,
+      "terminal": "Board Status and the anchor slice table agree with the repository",
+      "entryPoints": [
+        "question-turned-work",
+        "goal-level-delegation",
+        "external-worktree-session"
+      ],
+      "entryPointCount": 3,
+      "steps": 3,
+      "gates": 3,
+      "gateStationIds": [
+        "detect-drift",
+        "dry-run-diff",
+        "write-back"
+      ],
+      "gateDensity": 1,
+      "humanInteractions": 1,
+      "humanGateStationIds": [
+        "dry-run-diff"
+      ],
+      "standingAuthorizations": 0,
+      "bindingHardness": {
+        "mechanical": 2,
+        "documented": 1
+      },
+      "phases": {
+        "recover": 3
+      },
+      "authorizationBoundaries": {
+        "agent-autonomous": 2,
+        "human-gate": 1
+      },
+      "artifactsTouched": {
+        "total": 3,
+        "skills": 0,
+        "scripts": 1,
+        "hooks": 1,
+        "src": 0,
+        "workflows": 0,
+        "docs": 1,
+        "root": 0,
+        "paths": [
+          ".claude/hooks/sync-board-status.py",
+          "docs/agents/board-sync.md",
+          "scripts/board-sync.py"
+        ]
+      },
+      "failureModesCited": [],
+      "recoveryPaths": [
+        "unknown-recovery"
+      ],
+      "hasNamedRecovery": false,
+      "traversal": {
+        "specificPaths": 3,
+        "hubPathsExcluded": [],
+        "attributedCommits": 11,
+        "attributable": true,
+        "blindReason": null
+      }
+    }
+  ]
+}
