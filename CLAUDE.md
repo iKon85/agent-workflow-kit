@@ -295,8 +295,9 @@ bare `gh issue create` + `gh project item-*`.
   the worktree's gitignored `ANNAHMEN.md` (wrapup propagates it). (c) "Phase
   comes in a later slice" → a tracking issue in the **same** PR — a code
   comment is not a board item.
-- **Retro:** optional, but offer `/retro` before creating the PR (not after
-  merge); if run, findings go into a Meta section of the PR body.
+- **Retro:** voluntary — `/retro` is available whenever a session earned one,
+  and nothing on the landing path asks for it, waits on it, or records it. If
+  run before the PR, findings go into a Meta section of the PR body.
 
 ## Agent skills
 
