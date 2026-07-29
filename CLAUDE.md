@@ -250,10 +250,11 @@ with a terse report back; no spawn for single-value lookups or pre-edit recon.
 
 ## Routing Rule
 
-Prefer the smallest workflow that produces a clear next action. A tiny fix can
-go straight to `implement`; a cross-cutting feature should become a PRD and then
-slices before implementation. When a skill reports missing project context, run
-`setup-workflow` again and fill only the missing stub.
+Prefer the smallest workflow that produces a clear next action. A tiny fix goes
+straight to `implement` — the agent self-routes, no entry question; a
+cross-cutting feature becomes a PRD and then slices before implementation. When
+a skill reports missing project context, run `setup-workflow` again and fill
+only the missing stub.
 
 ## Depth Ladder
 
