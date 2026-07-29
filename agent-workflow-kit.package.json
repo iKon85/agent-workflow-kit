@@ -747,7 +747,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "a367831b9e972a98a1c7bd6fe046964ef2c83aa138846e90d45d667e6aef8d7c",
+      "sha256": "41c70415b61f3963067c6132d02669fd2bf1377ef135dfab2596458597188a4e",
       "mode": 420,
       "origin": "kit"
     },
@@ -2089,7 +2089,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "a367831b9e972a98a1c7bd6fe046964ef2c83aa138846e90d45d667e6aef8d7c",
+      "sha256": "41c70415b61f3963067c6132d02669fd2bf1377ef135dfab2596458597188a4e",
       "mode": 420,
       "origin": "kit"
     },
