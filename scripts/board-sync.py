@@ -13,6 +13,8 @@ Encapsulates the board mechanics the planning skills used to inline as bare
   7. promotion guard — reject a Wave number already held by another anchor
   8. item-of         — targeted item/field lookup without scanning the whole board
   9. archive-done    — dry-run-first, bounded-batch archival of active Done items
+ 10. publish-anchor  — idempotent publish reconciler (preview → one body write +
+                       promote → reconciliation result; re-run repairs a partial run)
 
 Board-specific values (field IDs, status names, labels) are NOT inlined here —
 board_config reads them from the `board-sync:profile` block in
@@ -909,6 +911,46 @@ def cmd_create(args) -> int:
     return 0
 
 
+def anchor_promote_guard(issue: int, wave: int, labels: list[str], body: str,
+                         current_wave: Optional[int]) -> Optional[str]:
+    """The two promote refusals plus the wave-collision search, or None.
+
+    Shared by `promote` and `publish-anchor` so both routes refuse the same
+    inputs from the same reads — one guard, not one per command.
+    """
+    is_program = (classify_node({"body": body, "labels": labels},
+                                cluster_type_label=CLUSTER_TYPE_LABEL,
+                                wave_stub_label=WAVE_STUB_LABEL) == PROGRAM
+                  or PROGRAM_TYPE_LABEL in labels)
+    refusal = program_prd_refusal(is_program, issue)
+    if refusal:
+        return refusal
+    mismatch = wave_mismatch_guard(current_wave, wave)
+    if mismatch:
+        return mismatch
+    search = _gh_json(["api", "-X", "GET", "search/issues",
+                       "-f", f'q=repo:{REPO} is:issue in:title "{WAVE_TITLE_PREFIX} {wave}"',
+                       "-f", "per_page=100"])
+    return wave_collision_guard(search, wave, issue)
+
+
+def promote_writes(issue: int, wave: int, labels: list[str], title: str,
+                   status: Optional[str], rename: bool, done: list[str]) -> None:
+    """The ordered promote writes; `done` collects what already landed so a
+    mid-transaction GhError can name the partial state to its caller."""
+    strip = type_labels_to_strip(labels)
+    _gh(promote_label_args(issue, strip))
+    done.append("type:cluster label"
+                + (f" (stripped {', '.join(strip)})" if strip else ""))
+    if rename:
+        new_title = wave_title(title, wave)
+        _gh(title_edit_args(issue, new_title))
+        done.append(f"title={new_title!r}")
+    _add_and_stamp(f"https://github.com/{REPO}/issues/{issue}", wave, status,
+                   None, None, None, dry_run=False)
+    done.append(f"Wave={wave}" + (f", Status={status}" if status else ""))
+
+
 def cmd_promote(args) -> int:
     """Promote a Draft-PRD to Anker: type:cluster label + Wave (+ Status), ordered.
 
@@ -933,38 +975,17 @@ def cmd_promote(args) -> int:
         return 0
     labels = _issue_type_labels(args.issue)
     body = _gh(["issue", "view", str(args.issue), "--repo", REPO, "--json", "body", "-q", ".body"])
-    is_program = (classify_node({"body": body, "labels": labels},
-                                cluster_type_label=CLUSTER_TYPE_LABEL,
-                                wave_stub_label=WAVE_STUB_LABEL) == PROGRAM
-                  or PROGRAM_TYPE_LABEL in labels)
-    refusal = program_prd_refusal(is_program, args.issue)
-    if refusal:
-        print(f"error: {refusal}", file=sys.stderr)
-        return 1
     current = _field_value(args.issue, WAVE_FIELD_ID)
-    mismatch = wave_mismatch_guard(current.get("number") if current else None, args.wave)
-    if mismatch:
-        print(f"error: {mismatch}", file=sys.stderr)
-        return 1
-    search = _gh_json(["api", "-X", "GET", "search/issues",
-                       "-f", f'q=repo:{REPO} is:issue in:title "{WAVE_TITLE_PREFIX} {args.wave}"',
-                       "-f", "per_page=100"])
-    collision = wave_collision_guard(search, args.wave, args.issue)
-    if collision:
-        print(f"error: {collision}", file=sys.stderr)
+    guard = anchor_promote_guard(args.issue, args.wave, labels, body,
+                                 current.get("number") if current else None)
+    if guard:
+        print(f"error: {guard}", file=sys.stderr)
         return 1
     done: list[str] = []
     try:
-        strip = type_labels_to_strip(labels)
-        _gh(promote_label_args(args.issue, strip))
-        done.append("type:cluster label"
-                    + (f" (stripped {', '.join(strip)})" if strip else ""))
-        if rename:
-            new_title = wave_title(_issue_title(args.issue), args.wave)
-            _gh(title_edit_args(args.issue, new_title))
-            done.append(f"title={new_title!r}")
-        _add_and_stamp(url, args.wave, args.status, None, None, None, dry_run=False)
-        done.append(f"Wave={args.wave}" + (f", Status={args.status}" if args.status else ""))
+        promote_writes(args.issue, args.wave, labels,
+                       _issue_title(args.issue) if rename else "",
+                       args.status, rename, done)
     except GhError as exc:
         repair = f"python3 scripts/board-sync.py promote --issue {args.issue} --wave {args.wave}"
         if args.status:
@@ -976,6 +997,109 @@ def cmd_promote(args) -> int:
         print(f"  repair (idempotent): {repair}")
         return 1
     print(f"promoted #{args.issue} → Anker (type:cluster, Wave={args.wave})")
+    return 0
+
+
+# --- publish-anchor: the idempotent publish reconciler -----------------------
+# Same shape as scripts/release-state.mjs `reconcileRelease`: read the present
+# state, do only what is missing, return what exists and what was created. The
+# board state IS the journal — no local operation log, no rendered-snapshot
+# byte-compare against the remote body, and never a refetch to verify a write
+# this run just made. A re-run is for an interruption or a reported partial
+# failure; a successful publish never runs twice.
+
+
+def anchor_publish_plan(observed: dict, wave: int, rename: bool) -> dict:
+    """PURE: what the anchor already carries vs. what this run must still write.
+
+    `published` is a board-state predicate — the cluster label, the wave number,
+    and (unless renaming is off) the wave title prefix. No body is compared:
+    the body write is the transition INTO that state, so an unpublished anchor
+    rewrites it idempotently and a published one writes nothing at all.
+    """
+    labels = observed.get("labels") or []
+    title_match = _ANCHOR_TITLE_RE.match(observed.get("title") or "")
+    published = bool(
+        CLUSTER_TYPE_LABEL in labels
+        and observed.get("wave") == wave
+        and (not rename or (title_match and int(title_match.group(1)) == wave))
+    )
+    return {
+        "published": published,
+        "body": "current" if published else "write",
+        "board": "current" if published else "promote",
+    }
+
+
+def _observe_anchor(issue: int) -> dict:
+    """One read pass over the anchor's present state (the reconciler's journal)."""
+    labels = _issue_type_labels(issue)
+    wave_value = _field_value(issue, WAVE_FIELD_ID)
+    return {
+        "labels": labels,
+        "title": _issue_title(issue),
+        "wave": wave_value.get("number") if wave_value else None,
+        "body": _gh(["issue", "view", str(issue), "--repo", REPO,
+                     "--json", "body", "-q", ".body"]),
+    }
+
+
+def body_file_edit_args(issue: int, body_file: str) -> list[str]:
+    """The single `gh issue edit --body-file` argv of a publish run."""
+    return ["issue", "edit", str(issue), "--repo", REPO, "--body-file", body_file]
+
+
+def _publish_result(issue: int, wave: int, body: str, board: str) -> str:
+    return f"publish-anchor #{issue}: wave={wave} body={body} board={board}"
+
+
+def _publish_preview(args, labels: list[str], plan: dict) -> int:
+    """The full preview the approval rests on: every write this run would make."""
+    print("[dry-run] " + _publish_result(args.issue, args.wave,
+                                         plan["body"], plan["board"]))
+    if plan["published"]:
+        print("[dry-run] already published — this run would write nothing")
+        return 0
+    _print_dry(body_file_edit_args(args.issue, args.body_file))
+    _print_dry(promote_label_args(args.issue, type_labels_to_strip(labels)))
+    if not args.no_rename:
+        print(f"[dry-run] gh issue edit {args.issue} --title "
+              f"'{WAVE_TITLE_PREFIX} {args.wave} — <topic>'")
+    _add_and_stamp(f"https://github.com/{REPO}/issues/{args.issue}", args.wave,
+                   args.status, None, None, None, dry_run=True)
+    return 0
+
+
+def cmd_publish_anchor(args) -> int:
+    """One publish run: observe → preview → write → report the reconciliation."""
+    observed = _observe_anchor(args.issue)
+    rename = not args.no_rename
+    plan = anchor_publish_plan(observed, args.wave, rename)
+    if not plan["published"]:
+        guard = anchor_promote_guard(args.issue, args.wave, observed["labels"],
+                                     observed["body"], observed["wave"])
+        if guard:
+            print(f"error: {guard}", file=sys.stderr)
+            return 1
+    if args.dry_run:
+        return _publish_preview(args, observed["labels"], plan)
+    if plan["published"]:
+        print(_publish_result(args.issue, args.wave, "current", "current"))
+        return 0
+    done: list[str] = []
+    try:
+        _gh(body_file_edit_args(args.issue, args.body_file))
+        done.append("body")
+        promote_writes(args.issue, args.wave, observed["labels"], observed["title"],
+                       args.status, rename, done)
+    except GhError as exc:
+        repair = (f"python3 scripts/board-sync.py publish-anchor --issue {args.issue} "
+                  f"--wave {args.wave} --body-file {args.body_file}")
+        print(f"publish of #{args.issue} FAILED mid-run: {exc}")
+        print(f"  already written: {', '.join(done) or 'nothing'}")
+        print(f"  repair (idempotent re-run): {repair}")
+        return 1
+    print(_publish_result(args.issue, args.wave, "written", "promoted"))
     return 0
 
 
@@ -1341,6 +1465,22 @@ def build_parser() -> argparse.ArgumentParser:
                     help="keep the title as-is (skip the wave title prefix)")
     pr.add_argument("--dry-run", action="store_true")
     pr.set_defaults(func=cmd_promote)
+
+    pa = sub.add_parser("publish-anchor",
+                        help="idempotent publish reconciler for a wave anchor: "
+                             "one body write + promote, re-runnable after an "
+                             "interruption")
+    pa.add_argument("--issue", type=int, required=True)
+    pa.add_argument("--wave", type=int, required=True,
+                    help="explicit Wave (read `next-wave` first — no in-publish race)")
+    pa.add_argument("--body-file", dest="body_file", required=True,
+                    help="the rendered anchor body — written at most once per run")
+    _add_status_flags(pa)
+    pa.add_argument("--no-rename", action="store_true",
+                    help="keep the title as-is (skip the wave title prefix)")
+    pa.add_argument("--dry-run", action="store_true",
+                    help="read-only preview of the full plan; makes no write call")
+    pa.set_defaults(func=cmd_publish_anchor)
 
     ad = sub.add_parser("add", help="add an existing issue to the board + stamp fields")
     g = ad.add_mutually_exclusive_group(required=True)
