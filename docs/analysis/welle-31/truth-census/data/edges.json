@@ -1,0 +1,76 @@
+{
+ "schema": "welle-31/truth-census/edges/v1",
+ "nodeTotal": 633,
+ "edgeClasses": {
+  "mirror": {
+   "reviewed": true,
+   "total": 101,
+   "identical": 95,
+   "divergent": 6,
+   "missingPrimary": 1,
+   "finding": "a divergent mirror is a finding on the primary (#380 §1), not a second artifact"
+  },
+  "importCallerToCore": {
+   "reviewed": false,
+   "total": 1663,
+   "files": 297,
+   "why": "each caller->core contract needs its own review of what the caller assumes about inputs, outputs, failure mode and fail-open behaviour. That is a per-caller reading of 1 000+ edges and this round did not run it; it is named in `unexamined.md` with this count rather than implied as covered."
+  }
+ },
+ "divergentMirrors": [
+  {
+   "edge": ".agents/skills/ask-matt/SKILL.md -> .claude/skills/ask-matt/SKILL.md",
+   "primaryExists": true,
+   "mirrorRules": 20,
+   "primaryRules": 20,
+   "onlyInMirror": 1,
+   "onlyInPrimary": 1,
+   "identicalRuleSet": false
+  },
+  {
+   "edge": ".agents/skills/codex-adapter-sync/SKILL.md -> .claude/skills/codex-adapter-sync/SKILL.md",
+   "primaryExists": false,
+   "mirrorRules": 32,
+   "primaryRules": 0,
+   "onlyInMirror": 32,
+   "onlyInPrimary": 0,
+   "identicalRuleSet": false
+  },
+  {
+   "edge": ".agents/skills/decision-gate/SKILL.md -> .claude/skills/decision-gate/SKILL.md",
+   "primaryExists": true,
+   "mirrorRules": 11,
+   "primaryRules": 11,
+   "onlyInMirror": 1,
+   "onlyInPrimary": 1,
+   "identicalRuleSet": false
+  },
+  {
+   "edge": ".agents/skills/local-ci/SKILL.md -> .claude/skills/local-ci/SKILL.md",
+   "primaryExists": true,
+   "mirrorRules": 17,
+   "primaryRules": 17,
+   "onlyInMirror": 1,
+   "onlyInPrimary": 1,
+   "identicalRuleSet": false
+  },
+  {
+   "edge": ".agents/skills/security-audit/SKILL.md -> .claude/skills/security-audit/SKILL.md",
+   "primaryExists": true,
+   "mirrorRules": 11,
+   "primaryRules": 11,
+   "onlyInMirror": 1,
+   "onlyInPrimary": 1,
+   "identicalRuleSet": false
+  },
+  {
+   "edge": ".agents/skills/to-prd/SKILL.md -> .claude/skills/to-prd/SKILL.md",
+   "primaryExists": true,
+   "mirrorRules": 39,
+   "primaryRules": 40,
+   "onlyInMirror": 0,
+   "onlyInPrimary": 1,
+   "identicalRuleSet": false
+  }
+ ]
+}

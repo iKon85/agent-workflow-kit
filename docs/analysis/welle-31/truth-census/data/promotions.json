@@ -1,0 +1,132 @@
+{
+ "schema": "welle-31/truth-census/promotions/v1",
+ "note": "Promotion objects for the only findings this round can carry beyond `hypothesis` (#380 promotion rule). CUT is promoted by `ablation` alone and this round promotes none — no ablation was run, so no CUT exists. Every other verdict here is `keep`, promoted by reproduction or repeated-incident: the mechanism stays load-bearing, and the defect named in `claim` is the finding.",
+ "promotions": [
+  {
+   "rule_id": "scripts/worktree-lifecycle/classify.py#431ec3b36546#0",
+   "verdict": "keep",
+   "column": "truth",
+   "claim": "Teardown decides whether a `.env*` file is work or scratch by byte-comparing it against the main checkout. The decision is 'is this deletable', the proxy is 'is it identical to main' — so a worktree that correctly carries its own port is byte-different and blocks teardown on every correct setup. `CONTEXT.md` bakes the same comparison into the glossary definition of Scratch, so the proxy is not a local implementation detail.",
+   "promotion": {
+    "kind": "reproduction",
+    "command": "python3 docs/analysis/welle-31/truth-census/fixtures/probe-env-proxy.py",
+    "repetitions": 3,
+    "spread": "none — identical output on every repetition",
+    "observed": "arm `identical` -> no block; arm `per-port` (PORT=3101) -> block `.env — differs from the main checkout copy`",
+    "fixtureOnly": true,
+    "scope": "the shipped classifier at src/scripts tree of the census commit; both arms are throwaway git repositories under a temp root"
+   },
+   "confidence": "high",
+   "evidence": [
+    "scripts/worktree-lifecycle/classify.py:253-262 — `_env_problem` returns 'differs from the main checkout copy'",
+    "CONTEXT.md:206-213 — the Scratch definition carries the same comparison",
+    "docs/analysis/welle-31/truth-census/controls/reproductions.json#R1-env-proxy"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/core.py#ce04913b55ca#0",
+   "verdict": "keep",
+   "column": "truth",
+   "claim": "`targets_linked_worktree` authorizes a risky command when the command *string contains* a linked-worktree path. A command that merely mentions such a path — in a comment or an unrelated echo — is authorized while operating elsewhere; the same predicate cannot be satisfied at all by a command that legitimately operates outside the repository, which is then blocked. The mandate carried this as a hypothesis; the fixture demonstrates both directions.",
+   "promotion": {
+    "kind": "reproduction",
+    "command": "python3 docs/analysis/welle-31/truth-census/fixtures/probe-command-substring.py",
+    "repetitions": 3,
+    "spread": "none — identical output on every repetition",
+    "observed": "`git push --force origin main` -> block; the same command with `# see .worktrees/380-truth-census` appended -> allow; `echo \"/fixture/repo/.worktrees/380-truth-census\" && git push --force origin main` -> allow; `cd /srv/other-checkout && git push --force origin main` -> block",
+    "fixtureOnly": true,
+    "scope": "synthetic RepoFacts; no repository is read and no command is executed"
+   },
+   "confidence": "high",
+   "evidence": [
+    "scripts/worktree-lifecycle/core.py:487-493 — `str(worktree) in command`",
+    "scripts/worktree-lifecycle/core.py:508-516 — `command_decision` treats the substring as authorization",
+    "docs/analysis/welle-31/truth-census/controls/reproductions.json#R2-command-substring"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/core.py#8885827ca0f8#0",
+   "verdict": "keep",
+   "column": "truth",
+   "claim": "The risky-command gate itself is a naive regex: the default pattern `\\bgit\\s+(?:commit|push)\\b` does not match `git -C <path> push`, so the most direct way to push from the protected main checkout while pointing at another repository is not classified risky at all and never reaches the authorization branch. This is a fail-open one step upstream of the substring defect, found by the same fixture.",
+   "promotion": {
+    "kind": "reproduction",
+    "command": "python3 docs/analysis/welle-31/truth-census/fixtures/probe-command-substring.py",
+    "repetitions": 3,
+    "spread": "none",
+    "observed": "`git -C /srv/other-checkout push --force origin main` -> allow, targetsLinkedWorktree=false, i.e. never classified risky",
+    "fixtureOnly": true,
+    "scope": "default `riskyCommandPatterns` from scripts/worktree-lifecycle/profile.py:111-114"
+   },
+   "confidence": "high",
+   "evidence": [
+    "scripts/worktree-lifecycle/profile.py:111-114 — the default risky patterns",
+    "scripts/worktree-lifecycle/core.py:503-505 — `risky` decides whether any authorization runs",
+    "docs/analysis/welle-31/truth-census/controls/reproductions.json#R2-command-substring"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/wrapup/SKILL.md#549bd38c2bfe#0",
+   "verdict": "keep",
+   "column": "truth",
+   "claim": "The `## Prod` readiness section is located by exact string equality (`line.trim() === '## Prod'`). A consumer heading that carries its own wording — `## Prod und Deployment`, `## Prod:` — reports `missing-section`, the same code an entirely absent section reports. Two different states collapse onto one, and the collapse is where the false 'you have not configured this' is born. testreporter#2283 is that failure in a live consumer.",
+   "promotion": {
+    "kind": "reproduction",
+    "command": "node docs/analysis/welle-31/truth-census/fixtures/probe-prod-heading.mjs",
+    "repetitions": 3,
+    "spread": "none",
+    "observed": "`## Prod` -> valid; `## Prod und Deployment` -> missing-section; `## Prod:` -> missing-section; `## Deployment` (genuinely absent) -> missing-section",
+    "fixtureOnly": true,
+    "scope": "the shipped `inspectProdSections` against throwaway CLAUDE.md files in a temp directory"
+   },
+   "confidence": "high",
+   "evidence": [
+    "scripts/readiness.mjs:104-107 — `lines.findIndex((line) => line.trim() === heading)`",
+    "scripts/readiness.mjs:117-129 — `inspectProdSections` maps `body === null` to `missing-section`",
+    "docs/evidence/welle-31/issue-bodies.json — testreporter#2283, digest-only",
+    "docs/analysis/welle-31/truth-census/controls/reproductions.json#R3-prod-heading"
+   ]
+  },
+  {
+   "rule_id": "README.md#f7091cf83760#0",
+   "verdict": "keep",
+   "column": "truth",
+   "claim": "`README.md:407` promises that a file the consumer did not touch fast-forwards to the new version. The reconcile is all-or-nothing: `update` returns `conflicted` and activates nothing as soon as ANY file conflicts, so in the very situation the sentence is written for — the consumer edited something — no untouched file fast-forwards. The counter-control's no-conflict arm is green, which isolates the claim to the conflict path rather than to the reconcile as a whole.",
+   "promotion": {
+    "kind": "reproduction",
+    "command": "node docs/analysis/welle-31/truth-census/lib/run-counter-control.mjs",
+    "repetitions": 3,
+    "spread": "none — 0 of 3 pass with a conflict present, 3 of 3 pass without",
+    "observed": "shipped arm C1 fail (untouched file keeps v1 bytes, update state `conflicted`); shippedNoConflict arm C1 pass",
+    "fixtureOnly": true,
+    "scope": "src/ tree 7143160ed66ae6efd562ec1b3966ceb09d6a2c39, consumer fixture built in a temp directory"
+   },
+   "confidence": "high",
+   "evidence": [
+    "README.md:407 — 'a file you didn't touch fast-forwards to the new version'",
+    "CLAUDE.md:76 — the same promise in the maintainer contract",
+    "src/commands/update.mjs:113 — `if (preview.conflicts.length) return terminal(preview, 'conflicted', ...)`",
+    "docs/analysis/welle-31/truth-census/controls/counter-control.json"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/wrapup/SKILL.md#3f8d5975fa8c#0",
+   "verdict": "keep",
+   "column": "form",
+   "claim": "The `**Retro:**` line is bound as hard as the kit binds anything — a machine-checked closed value set, a blocking question, and a second `$wrapup` invocation — and its yield over the whole merged history is 10. Recounted from the frozen export at the substrate freeze: 135 merged pull requests, 74 carrying the marker, 14 carrying any findings heading, 10 of the marker-carrying PRs carrying one, 2 carrying a Meta section. The sensor is the only instrument that reports whether planning was good, so it is kept; the binding is the finding.",
+   "promotion": {
+    "kind": "repeated-incident",
+    "occurrences": 64,
+    "definition": "a merged pull request that carries the enforced `**Retro:**` marker and no findings heading — 74 marker-carrying PRs minus the 10 that carry one",
+    "citation": "docs/evidence/welle-31/aggregate-queries.json — export `merged-pr-retro-marker`, sha256 cf1db4555e04c1a78a589e95254588f149633b230af585aac65fb4cd9dff8426, 135 rows, each row an independently citable PR number",
+    "independence": "each occurrence is a separate pull request with its own body and merge event"
+   },
+   "confidence": "high",
+   "evidence": [
+    ".claude/skills/wrapup/SKILL.md:95 — the mandatory closed-set line",
+    "docs/evidence/welle-31/aggregate-queries.json — merged-pr-retro-marker",
+    "docs/analysis/welle-31/truth-census/data/retro-yield.json"
+   ]
+  }
+ ]
+}

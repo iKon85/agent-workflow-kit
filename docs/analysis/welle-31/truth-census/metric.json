@@ -1,0 +1,2042 @@
+{
+ "schema": "welle-31/truth-census/metric/v1",
+ "headlineDefinition": "size-weighted pooled ratio of refuted to eligible planning claims over the long-tail (+90 d) window; pooled = sum(refuted)/sum(eligible), so a 30-slice program weighs 15x a 2-slice wave",
+ "mapping": {
+  "version": 1,
+  "meanings": {
+   "M1": {
+    "meaning": "a slice was declared executable without further decision",
+    "eligibleCarrier": "issue carrying the AFK-readiness label `ready-for-agent`",
+    "refutationCarrier": "the slice's own body carries a `plan_revision` beyond r1 (the plan was re-cut after publication), or a `type:followup` issue names it"
+   },
+   "M2": {
+    "meaning": "the slices under this anchor were declared independent and completely decomposed",
+    "eligibleCarrier": "issue carrying `type:cluster` or `type:program` with at least one child naming it",
+    "refutationCarrier": "a `type:followup` issue naming the anchor, created after the anchor opened, or the anchor's own `plan_revision` beyond r1"
+   },
+   "M3": {
+    "meaning": "this slice's blast radius is the declared primary set",
+    "eligibleCarrier": "`## Blast-Radius` block with a readable primary estimate AND a merged pull request that closes the issue",
+    "refutationCarrier": "the merged pull request changed more than 2x the estimate — the kit's own STOP threshold"
+   },
+   "M4": {
+    "meaning": "planning for this anchor is complete",
+    "eligibleCarrier": "a closed anchor (`type:cluster` / `type:program`)",
+    "refutationCarrier": "a `type:followup` issue naming the anchor, created after the anchor closed"
+   }
+  },
+  "observabilityLoss": [
+   "removing the `ready-for-agent` label removes the M1 denominator, not the failures it counts",
+   "removing the `plan_revision` marker removes the M1/M2 refutation carrier",
+   "removing the `## Blast-Radius` block removes the M3 claim entirely",
+   "removing `type:followup` removes the only cross-anchor refutation carrier (M2 and M4)",
+   "no carrier exists today for \"the assumption a sibling slice carried was toppled\" — `ANNAHMEN.md` is gitignored by design, so that meaning is unobservable and is counted in the unobserved bound, never as a zero"
+  ]
+ },
+ "inputs": [
+  {
+   "argv": "gh issue list --repo iKon85/agent-workflow-kit --state all --limit 500 --json number,title,state,createdAt,closedAt,labels,body",
+   "rows": 266,
+   "sha256": "c9eece6060efc2219a3897e134de20e6e8709c236ef00cd6682ed072465e2950",
+   "note": "bodies are not copied into the repository; the digest pins the response"
+  },
+  {
+   "argv": "gh pr list --repo iKon85/agent-workflow-kit --state merged --limit 500 --json number,mergedAt,createdAt,body,changedFiles,closingIssuesReferences,title",
+   "rows": 135,
+   "sha256": "4f28b1a8871c13b9a5ced608cb26be36a7febb71e2891806aa9d58ab305e9a69"
+  }
+ ],
+ "headline": {
+  "eligible": 209,
+  "refuted": 68,
+  "ratio": 0.3254
+ },
+ "immediate": {
+  "eligible": 209,
+  "refuted": 68,
+  "ratio": 0.3254
+ },
+ "byMeaning": {
+  "M1": {
+   "eligible": 128,
+   "refuted": 43,
+   "ratio": 0.3359
+  },
+  "M2": {
+   "eligible": 25,
+   "refuted": 13,
+   "ratio": 0.52
+  },
+  "M3": {
+   "eligible": 29,
+   "refuted": 11,
+   "ratio": 0.3793
+  },
+  "M4": {
+   "eligible": 27,
+   "refuted": 1,
+   "ratio": 0.037
+  }
+ },
+ "perProgram": {
+  "programs": 31,
+  "naExcluded": 0,
+  "medianRatio": 0.25,
+  "rows": [
+   {
+    "program": "unattributed",
+    "eligible": 37,
+    "refuted": 6,
+    "ratio": 0.1622,
+    "immediate": 0.1622
+   },
+   {
+    "program": "130",
+    "eligible": 17,
+    "refuted": 1,
+    "ratio": 0.0588,
+    "immediate": 0.0588
+   },
+   {
+    "program": "42",
+    "eligible": 14,
+    "refuted": 1,
+    "ratio": 0.0714,
+    "immediate": 0.0714
+   },
+   {
+    "program": "41",
+    "eligible": 12,
+    "refuted": 6,
+    "ratio": 0.5,
+    "immediate": 0.5
+   },
+   {
+    "program": "25",
+    "eligible": 11,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "167",
+    "eligible": 9,
+    "refuted": 8,
+    "ratio": 0.8889,
+    "immediate": 0.8889
+   },
+   {
+    "program": "207",
+    "eligible": 9,
+    "refuted": 8,
+    "ratio": 0.8889,
+    "immediate": 0.8889
+   },
+   {
+    "program": "81",
+    "eligible": 8,
+    "refuted": 2,
+    "ratio": 0.25,
+    "immediate": 0.25
+   },
+   {
+    "program": "82",
+    "eligible": 8,
+    "refuted": 2,
+    "ratio": 0.25,
+    "immediate": 0.25
+   },
+   {
+    "program": "325",
+    "eligible": 7,
+    "refuted": 2,
+    "ratio": 0.2857,
+    "immediate": 0.2857
+   },
+   {
+    "program": "355",
+    "eligible": 7,
+    "refuted": 3,
+    "ratio": 0.4286,
+    "immediate": 0.4286
+   },
+   {
+    "program": "83",
+    "eligible": 6,
+    "refuted": 2,
+    "ratio": 0.3333,
+    "immediate": 0.3333
+   },
+   {
+    "program": "84",
+    "eligible": 6,
+    "refuted": 2,
+    "ratio": 0.3333,
+    "immediate": 0.3333
+   },
+   {
+    "program": "85",
+    "eligible": 6,
+    "refuted": 5,
+    "ratio": 0.8333,
+    "immediate": 0.8333
+   },
+   {
+    "program": "208",
+    "eligible": 5,
+    "refuted": 3,
+    "ratio": 0.6,
+    "immediate": 0.6
+   },
+   {
+    "program": "210",
+    "eligible": 5,
+    "refuted": 4,
+    "ratio": 0.8,
+    "immediate": 0.8
+   },
+   {
+    "program": "211",
+    "eligible": 5,
+    "refuted": 4,
+    "ratio": 0.8,
+    "immediate": 0.8
+   },
+   {
+    "program": "378",
+    "eligible": 5,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "209",
+    "eligible": 4,
+    "refuted": 3,
+    "ratio": 0.75,
+    "immediate": 0.75
+   },
+   {
+    "program": "323",
+    "eligible": 4,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "324",
+    "eligible": 4,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "326",
+    "eligible": 4,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "327",
+    "eligible": 4,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "403",
+    "eligible": 4,
+    "refuted": 3,
+    "ratio": 0.75,
+    "immediate": 0.75
+   },
+   {
+    "program": "320",
+    "eligible": 2,
+    "refuted": 2,
+    "ratio": 1,
+    "immediate": 1
+   },
+   {
+    "program": "40",
+    "eligible": 1,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "152",
+    "eligible": 1,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "197",
+    "eligible": 1,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "271",
+    "eligible": 1,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   },
+   {
+    "program": "287",
+    "eligible": 1,
+    "refuted": 1,
+    "ratio": 1,
+    "immediate": 1
+   },
+   {
+    "program": "350",
+    "eligible": 1,
+    "refuted": 0,
+    "ratio": 0,
+    "immediate": 0
+   }
+  ]
+ },
+ "multiplicity": {
+  "refutationEvents": 68,
+  "refutedClaims": 68,
+  "followupsNamingAnAnchorOrSlice": 23,
+  "meanEventsPerRefutedClaim": 1
+ },
+ "unobservedClaimBound": {
+  "why": "the metric can only count a claim that left a record. Transient planning conversation, a decision made and revised inside one session, and a toppled assumption carried in the gitignored `ANNAHMEN.md` leave none.",
+  "multiIssuePrClaimsDropped": 114,
+  "sensitivity": [
+   {
+    "unobservedShare": 0.1,
+    "low": 0.2929,
+    "observedPointEstimate": 0.3254,
+    "high": 0.3929
+   },
+   {
+    "unobservedShare": 0.25,
+    "low": 0.2441,
+    "observedPointEstimate": 0.3254,
+    "high": 0.494
+   },
+   {
+    "unobservedShare": 0.5,
+    "low": 0.1627,
+    "observedPointEstimate": 0.3254,
+    "high": 0.6627
+   }
+  ],
+  "reading": "at an unobserved share of 50%, the true ratio lies between half the observed ratio and the observed ratio plus one half — the metric is a floor with a wide ceiling, not a measurement of \"every claim\""
+ },
+ "safetyFloor": {
+  "window": "+90 d, the same window as the headline",
+  "population": {
+   "issues": 266,
+   "mergedPullRequests": 135
+  },
+  "classes": {
+   "tracked work lost": {
+    "candidates": [
+     "issue#197",
+     "issue#40",
+     "pr#389"
+    ]
+   },
+   "protected branch bypassed": {
+    "candidates": []
+   },
+   "wrong artifact published": {
+    "candidates": [
+     "issue#391",
+     "issue#252",
+     "issue#243"
+    ]
+   },
+   "consumer files overwritten without backup": {
+    "candidates": [
+     "issue#380"
+    ]
+   }
+  },
+  "scannerPositiveControl": {
+   "tracked work lost": true,
+   "protected branch bypassed": true,
+   "wrong artifact published": true,
+   "consumer files overwritten without backup": true
+  },
+  "reading": "a candidate is a text match, not a confirmed incident; none of the four classes has a mechanical detector in this repository, so a zero counts the absence of a RECORD, never the absence of the event (#205)"
+ },
+ "claims": [
+  {
+   "meaning": "M1",
+   "issue": 404,
+   "program": 403,
+   "observedAt": 1785273360000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 403,
+   "program": 403,
+   "observedAt": 1785272869000,
+   "refutedAt": 1785274195000
+  },
+  {
+   "meaning": "M1",
+   "issue": 387,
+   "program": "unattributed",
+   "observedAt": 1785246606000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 386,
+   "program": "unattributed",
+   "observedAt": 1785246602000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 384,
+   "program": 378,
+   "observedAt": 1785245465000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 383,
+   "program": 378,
+   "observedAt": 1785245457000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 382,
+   "program": 378,
+   "observedAt": 1785245449000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 380,
+   "program": 403,
+   "observedAt": 1785243635000,
+   "refutedAt": 1785274195000
+  },
+  {
+   "meaning": "M1",
+   "issue": 379,
+   "program": "unattributed",
+   "observedAt": 1785243628000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 378,
+   "program": 378,
+   "observedAt": 1785242985000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 378,
+   "program": 378,
+   "observedAt": 1785242985000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 371,
+   "program": "unattributed",
+   "observedAt": 1785228370000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 370,
+   "program": "unattributed",
+   "observedAt": 1785228362000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 369,
+   "program": 355,
+   "observedAt": 1785227319000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 368,
+   "program": 355,
+   "observedAt": 1785227312000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 367,
+   "program": 355,
+   "observedAt": 1785227304000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 366,
+   "program": 355,
+   "observedAt": 1785227297000,
+   "refutedAt": 1785227319000
+  },
+  {
+   "meaning": "M1",
+   "issue": 365,
+   "program": 355,
+   "observedAt": 1785227288000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 364,
+   "program": 355,
+   "observedAt": 1785227280000,
+   "refutedAt": 1785227288000
+  },
+  {
+   "meaning": "M2",
+   "issue": 355,
+   "program": 355,
+   "observedAt": 1785185628000,
+   "refutedAt": 1785227280000
+  },
+  {
+   "meaning": "M4",
+   "issue": 350,
+   "program": 350,
+   "observedAt": 1785155749000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 348,
+   "program": "unattributed",
+   "observedAt": 1785153243000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 347,
+   "program": "unattributed",
+   "observedAt": 1785152607000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 345,
+   "program": "unattributed",
+   "observedAt": 1785150547000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 343,
+   "program": 403,
+   "observedAt": 1785143575000,
+   "refutedAt": 1785228370000
+  },
+  {
+   "meaning": "M1",
+   "issue": 339,
+   "program": 327,
+   "observedAt": 1785135162000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 338,
+   "program": 327,
+   "observedAt": 1785135158000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 337,
+   "program": 326,
+   "observedAt": 1785135153000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 336,
+   "program": 326,
+   "observedAt": 1785135149000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 335,
+   "program": 325,
+   "observedAt": 1785135145000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 334,
+   "program": 325,
+   "observedAt": 1785135139000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 333,
+   "program": 325,
+   "observedAt": 1785135134000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 332,
+   "program": 325,
+   "observedAt": 1785135129000,
+   "refutedAt": 1785138631000
+  },
+  {
+   "meaning": "M1",
+   "issue": 331,
+   "program": 324,
+   "observedAt": 1785135125000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 330,
+   "program": 324,
+   "observedAt": 1785135121000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 329,
+   "program": 323,
+   "observedAt": 1785135116000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 328,
+   "program": 323,
+   "observedAt": 1785135112000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 327,
+   "program": 327,
+   "observedAt": 1785135096000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 327,
+   "program": 327,
+   "observedAt": 1785135096000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 326,
+   "program": 326,
+   "observedAt": 1785135092000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 326,
+   "program": 326,
+   "observedAt": 1785135092000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 325,
+   "program": 325,
+   "observedAt": 1785135087000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 325,
+   "program": 325,
+   "observedAt": 1785135087000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 324,
+   "program": 324,
+   "observedAt": 1785135082000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 324,
+   "program": 324,
+   "observedAt": 1785135082000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 323,
+   "program": 323,
+   "observedAt": 1785135076000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 323,
+   "program": 323,
+   "observedAt": 1785135076000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 321,
+   "program": 325,
+   "observedAt": 1785134344000,
+   "refutedAt": 1785227288000
+  },
+  {
+   "meaning": "M2",
+   "issue": 320,
+   "program": 320,
+   "observedAt": 1785128876000,
+   "refutedAt": 1785134881000
+  },
+  {
+   "meaning": "M4",
+   "issue": 320,
+   "program": 320,
+   "observedAt": 1785128876000,
+   "refutedAt": 1785227297000
+  },
+  {
+   "meaning": "M2",
+   "issue": 287,
+   "program": 287,
+   "observedAt": 1785094752000,
+   "refutedAt": 1785099072000
+  },
+  {
+   "meaning": "M4",
+   "issue": 271,
+   "program": 271,
+   "observedAt": 1785061489000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 266,
+   "program": "unattributed",
+   "observedAt": 1785053171000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 246,
+   "program": "unattributed",
+   "observedAt": 1784985095000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 245,
+   "program": "unattributed",
+   "observedAt": 1784985091000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 239,
+   "program": "unattributed",
+   "observedAt": 1784964640000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 225,
+   "program": 207,
+   "observedAt": 1784752375000,
+   "refutedAt": 1784843108000
+  },
+  {
+   "meaning": "M1",
+   "issue": 224,
+   "program": 207,
+   "observedAt": 1784752343000,
+   "refutedAt": 1784840486000
+  },
+  {
+   "meaning": "M1",
+   "issue": 223,
+   "program": 207,
+   "observedAt": 1784752313000,
+   "refutedAt": 1784836836000
+  },
+  {
+   "meaning": "M1",
+   "issue": 222,
+   "program": 207,
+   "observedAt": 1784752307000,
+   "refutedAt": 1784837665000
+  },
+  {
+   "meaning": "M1",
+   "issue": 221,
+   "program": 207,
+   "observedAt": 1784752301000,
+   "refutedAt": 1784836571000
+  },
+  {
+   "meaning": "M1",
+   "issue": 219,
+   "program": 211,
+   "observedAt": 1784728238000,
+   "refutedAt": 1784999396000
+  },
+  {
+   "meaning": "M1",
+   "issue": 218,
+   "program": 211,
+   "observedAt": 1784728233000,
+   "refutedAt": 1784999395000
+  },
+  {
+   "meaning": "M1",
+   "issue": 217,
+   "program": 210,
+   "observedAt": 1784728228000,
+   "refutedAt": 1784995772000
+  },
+  {
+   "meaning": "M1",
+   "issue": 216,
+   "program": 210,
+   "observedAt": 1784728222000,
+   "refutedAt": 1784995772000
+  },
+  {
+   "meaning": "M1",
+   "issue": 215,
+   "program": 209,
+   "observedAt": 1784728217000,
+   "refutedAt": 1784988606000
+  },
+  {
+   "meaning": "M1",
+   "issue": 214,
+   "program": 209,
+   "observedAt": 1784728212000,
+   "refutedAt": 1784988606000
+  },
+  {
+   "meaning": "M1",
+   "issue": 213,
+   "program": 207,
+   "observedAt": 1784728207000,
+   "refutedAt": 1784834427000
+  },
+  {
+   "meaning": "M1",
+   "issue": 212,
+   "program": 207,
+   "observedAt": 1784728201000,
+   "refutedAt": 1784832743000
+  },
+  {
+   "meaning": "M2",
+   "issue": 211,
+   "program": 211,
+   "observedAt": 1784728183000,
+   "refutedAt": 1785052212000
+  },
+  {
+   "meaning": "M4",
+   "issue": 211,
+   "program": 211,
+   "observedAt": 1784728183000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 210,
+   "program": 210,
+   "observedAt": 1784728177000,
+   "refutedAt": 1784996166000
+  },
+  {
+   "meaning": "M4",
+   "issue": 210,
+   "program": 210,
+   "observedAt": 1784728177000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 209,
+   "program": 209,
+   "observedAt": 1784728172000,
+   "refutedAt": 1784988612000
+  },
+  {
+   "meaning": "M4",
+   "issue": 209,
+   "program": 209,
+   "observedAt": 1784728172000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 208,
+   "program": 208,
+   "observedAt": 1784728167000,
+   "refutedAt": 1784925377000
+  },
+  {
+   "meaning": "M4",
+   "issue": 208,
+   "program": 208,
+   "observedAt": 1784728167000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 207,
+   "program": 207,
+   "observedAt": 1784728161000,
+   "refutedAt": 1784843669000
+  },
+  {
+   "meaning": "M4",
+   "issue": 207,
+   "program": 207,
+   "observedAt": 1784728161000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 205,
+   "program": 208,
+   "observedAt": 1784714828000,
+   "refutedAt": 1784924725000
+  },
+  {
+   "meaning": "M1",
+   "issue": 204,
+   "program": 208,
+   "observedAt": 1784714366000,
+   "refutedAt": 1784924726000
+  },
+  {
+   "meaning": "M3",
+   "issue": 204,
+   "program": 208,
+   "observedAt": 1784714366000,
+   "refutedAt": null,
+   "estimate": 6,
+   "estimateParts": {
+    "total": 6,
+    "primary": 4,
+    "transitive": 2
+   },
+   "changedFiles": 2
+  },
+  {
+   "meaning": "M1",
+   "issue": 203,
+   "program": "unattributed",
+   "observedAt": 1784704769000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 201,
+   "program": "unattributed",
+   "observedAt": 1784704581000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 198,
+   "program": "unattributed",
+   "observedAt": 1784666549000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 197,
+   "program": 197,
+   "observedAt": 1784666385000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 196,
+   "program": 211,
+   "observedAt": 1784663700000,
+   "refutedAt": 1785003228000
+  },
+  {
+   "meaning": "M1",
+   "issue": 195,
+   "program": "unattributed",
+   "observedAt": 1784663689000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 193,
+   "program": "unattributed",
+   "observedAt": 1784650896000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 190,
+   "program": 210,
+   "observedAt": 1784638909000,
+   "refutedAt": 1784995773000
+  },
+  {
+   "meaning": "M1",
+   "issue": 186,
+   "program": 25,
+   "observedAt": 1784568790000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 186,
+   "program": 25,
+   "observedAt": 1784568790000,
+   "refutedAt": null,
+   "estimate": 14,
+   "estimateParts": {
+    "total": 14,
+    "primary": 9,
+    "transitive": 5
+   },
+   "changedFiles": 12
+  },
+  {
+   "meaning": "M1",
+   "issue": 185,
+   "program": 25,
+   "observedAt": 1784568782000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 184,
+   "program": 25,
+   "observedAt": 1784568774000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 183,
+   "program": 25,
+   "observedAt": 1784568767000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 182,
+   "program": 25,
+   "observedAt": 1784568760000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 181,
+   "program": 25,
+   "observedAt": 1784568753000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 180,
+   "program": 25,
+   "observedAt": 1784568745000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 180,
+   "program": 25,
+   "observedAt": 1784568745000,
+   "refutedAt": null,
+   "estimate": 13,
+   "estimateParts": {
+    "total": 13,
+    "primary": 8,
+    "transitive": 5
+   },
+   "changedFiles": 17
+  },
+  {
+   "meaning": "M1",
+   "issue": 178,
+   "program": "unattributed",
+   "observedAt": 1784547446000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 177,
+   "program": "unattributed",
+   "observedAt": 1784547409000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 175,
+   "program": "unattributed",
+   "observedAt": 1784544900000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 175,
+   "program": "unattributed",
+   "observedAt": 1784544900000,
+   "refutedAt": null,
+   "estimate": 7,
+   "estimateParts": {
+    "total": 7,
+    "primary": 3,
+    "transitive": 4
+   },
+   "changedFiles": 3
+  },
+  {
+   "meaning": "M1",
+   "issue": 174,
+   "program": 167,
+   "observedAt": 1784544636000,
+   "refutedAt": 1784714520000
+  },
+  {
+   "meaning": "M1",
+   "issue": 173,
+   "program": 167,
+   "observedAt": 1784544631000,
+   "refutedAt": 1784714520000
+  },
+  {
+   "meaning": "M1",
+   "issue": 172,
+   "program": 167,
+   "observedAt": 1784544626000,
+   "refutedAt": 1784714519000
+  },
+  {
+   "meaning": "M1",
+   "issue": 171,
+   "program": 167,
+   "observedAt": 1784544621000,
+   "refutedAt": 1784659372000
+  },
+  {
+   "meaning": "M1",
+   "issue": 170,
+   "program": 167,
+   "observedAt": 1784544616000,
+   "refutedAt": 1784714519000
+  },
+  {
+   "meaning": "M1",
+   "issue": 169,
+   "program": 167,
+   "observedAt": 1784544612000,
+   "refutedAt": 1784714518000
+  },
+  {
+   "meaning": "M1",
+   "issue": 168,
+   "program": 167,
+   "observedAt": 1784544606000,
+   "refutedAt": 1784714518000
+  },
+  {
+   "meaning": "M2",
+   "issue": 167,
+   "program": 167,
+   "observedAt": 1784539872000,
+   "refutedAt": 1784714525000
+  },
+  {
+   "meaning": "M4",
+   "issue": 167,
+   "program": 167,
+   "observedAt": 1784539872000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 164,
+   "program": "unattributed",
+   "observedAt": 1784473171000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 163,
+   "program": "unattributed",
+   "observedAt": 1784473085000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 162,
+   "program": "unattributed",
+   "observedAt": 1784473025000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 158,
+   "program": "unattributed",
+   "observedAt": 1784408767000,
+   "refutedAt": 1784470344000
+  },
+  {
+   "meaning": "M1",
+   "issue": 157,
+   "program": "unattributed",
+   "observedAt": 1784408762000,
+   "refutedAt": 1784470344000
+  },
+  {
+   "meaning": "M1",
+   "issue": 156,
+   "program": "unattributed",
+   "observedAt": 1784408758000,
+   "refutedAt": 1784470343000
+  },
+  {
+   "meaning": "M1",
+   "issue": 155,
+   "program": "unattributed",
+   "observedAt": 1784408754000,
+   "refutedAt": 1784470343000
+  },
+  {
+   "meaning": "M1",
+   "issue": 154,
+   "program": "unattributed",
+   "observedAt": 1784408749000,
+   "refutedAt": 1784470343000
+  },
+  {
+   "meaning": "M1",
+   "issue": 153,
+   "program": "unattributed",
+   "observedAt": 1784408744000,
+   "refutedAt": 1784470342000
+  },
+  {
+   "meaning": "M4",
+   "issue": 152,
+   "program": 152,
+   "observedAt": 1784408616000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 149,
+   "program": 130,
+   "observedAt": 1784376661000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 148,
+   "program": 130,
+   "observedAt": 1784376656000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 147,
+   "program": 130,
+   "observedAt": 1784376651000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 146,
+   "program": 130,
+   "observedAt": 1784376647000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 145,
+   "program": 130,
+   "observedAt": 1784376642000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 144,
+   "program": 130,
+   "observedAt": 1784376638000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 141,
+   "program": "unattributed",
+   "observedAt": 1784376072000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 138,
+   "program": 130,
+   "observedAt": 1784370622000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 137,
+   "program": 130,
+   "observedAt": 1784370618000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 136,
+   "program": 130,
+   "observedAt": 1784370614000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 135,
+   "program": 130,
+   "observedAt": 1784370608000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 134,
+   "program": 130,
+   "observedAt": 1784370604000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 133,
+   "program": 130,
+   "observedAt": 1784370599000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 132,
+   "program": 130,
+   "observedAt": 1784370594000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 131,
+   "program": 130,
+   "observedAt": 1784370590000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 131,
+   "program": 130,
+   "observedAt": 1784370590000,
+   "refutedAt": null,
+   "estimate": 8,
+   "estimateParts": {
+    "total": 8,
+    "primary": 6,
+    "transitive": 2
+   },
+   "changedFiles": 7
+  },
+  {
+   "meaning": "M2",
+   "issue": 130,
+   "program": 130,
+   "observedAt": 1784323768000,
+   "refutedAt": 1784376088000
+  },
+  {
+   "meaning": "M4",
+   "issue": 130,
+   "program": 130,
+   "observedAt": 1784323768000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 129,
+   "program": "unattributed",
+   "observedAt": 1784322852000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 128,
+   "program": "unattributed",
+   "observedAt": 1784322843000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 111,
+   "program": "unattributed",
+   "observedAt": 1784198487000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 111,
+   "program": "unattributed",
+   "observedAt": 1784198487000,
+   "refutedAt": null,
+   "estimate": 7,
+   "estimateParts": {
+    "total": 7,
+    "primary": 2,
+    "transitive": 5
+   },
+   "changedFiles": 11
+  },
+  {
+   "meaning": "M1",
+   "issue": 97,
+   "program": 85,
+   "observedAt": 1784151066000,
+   "refutedAt": 1784194370000
+  },
+  {
+   "meaning": "M3",
+   "issue": 97,
+   "program": 85,
+   "observedAt": 1784151066000,
+   "refutedAt": 1784194369000,
+   "estimate": 3,
+   "estimateParts": {
+    "total": 3,
+    "primary": 3,
+    "transitive": 0
+   },
+   "changedFiles": 13
+  },
+  {
+   "meaning": "M1",
+   "issue": 96,
+   "program": 85,
+   "observedAt": 1784151062000,
+   "refutedAt": 1784192875000
+  },
+  {
+   "meaning": "M3",
+   "issue": 96,
+   "program": 85,
+   "observedAt": 1784151062000,
+   "refutedAt": 1784192874000,
+   "estimate": 3,
+   "estimateParts": {
+    "total": 3,
+    "primary": 3,
+    "transitive": 0
+   },
+   "changedFiles": 14
+  },
+  {
+   "meaning": "M1",
+   "issue": 95,
+   "program": 84,
+   "observedAt": 1784151058000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 95,
+   "program": 84,
+   "observedAt": 1784151058000,
+   "refutedAt": 1784193612000,
+   "estimate": 4,
+   "estimateParts": {
+    "total": 4,
+    "primary": 3,
+    "transitive": 1
+   },
+   "changedFiles": 16
+  },
+  {
+   "meaning": "M1",
+   "issue": 94,
+   "program": 84,
+   "observedAt": 1784151054000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 94,
+   "program": 84,
+   "observedAt": 1784151054000,
+   "refutedAt": 1784192248000,
+   "estimate": 3,
+   "estimateParts": {
+    "total": 3,
+    "primary": 3,
+    "transitive": 0
+   },
+   "changedFiles": 14
+  },
+  {
+   "meaning": "M1",
+   "issue": 93,
+   "program": 83,
+   "observedAt": 1784151050000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 93,
+   "program": 83,
+   "observedAt": 1784151050000,
+   "refutedAt": 1784195742000,
+   "estimate": 6,
+   "estimateParts": {
+    "total": 6,
+    "primary": 4,
+    "transitive": 2
+   },
+   "changedFiles": 17
+  },
+  {
+   "meaning": "M1",
+   "issue": 92,
+   "program": 83,
+   "observedAt": 1784151046000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 92,
+   "program": 83,
+   "observedAt": 1784151046000,
+   "refutedAt": 1784194925000,
+   "estimate": 5,
+   "estimateParts": {
+    "total": 5,
+    "primary": 4,
+    "transitive": 1
+   },
+   "changedFiles": 18
+  },
+  {
+   "meaning": "M1",
+   "issue": 91,
+   "program": 82,
+   "observedAt": 1784151042000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 91,
+   "program": 82,
+   "observedAt": 1784151042000,
+   "refutedAt": 1784196066000,
+   "estimate": 5,
+   "estimateParts": {
+    "total": 5,
+    "primary": 3,
+    "transitive": 2
+   },
+   "changedFiles": 12
+  },
+  {
+   "meaning": "M1",
+   "issue": 90,
+   "program": 82,
+   "observedAt": 1784151038000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 90,
+   "program": 82,
+   "observedAt": 1784151038000,
+   "refutedAt": null,
+   "estimate": 4,
+   "estimateParts": {
+    "total": 4,
+    "primary": 4,
+    "transitive": 0
+   },
+   "changedFiles": 8
+  },
+  {
+   "meaning": "M1",
+   "issue": 89,
+   "program": 82,
+   "observedAt": 1784151034000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 89,
+   "program": 82,
+   "observedAt": 1784151034000,
+   "refutedAt": 1784195393000,
+   "estimate": 4,
+   "estimateParts": {
+    "total": 4,
+    "primary": 3,
+    "transitive": 1
+   },
+   "changedFiles": 9
+  },
+  {
+   "meaning": "M1",
+   "issue": 88,
+   "program": 81,
+   "observedAt": 1784151030000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 88,
+   "program": 81,
+   "observedAt": 1784151030000,
+   "refutedAt": 1784193966000,
+   "estimate": 5,
+   "estimateParts": {
+    "total": 5,
+    "primary": 3,
+    "transitive": 2
+   },
+   "changedFiles": 20
+  },
+  {
+   "meaning": "M1",
+   "issue": 87,
+   "program": 81,
+   "observedAt": 1784151026000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 87,
+   "program": 81,
+   "observedAt": 1784151026000,
+   "refutedAt": 1784193272000,
+   "estimate": 4,
+   "estimateParts": {
+    "total": 4,
+    "primary": 3,
+    "transitive": 1
+   },
+   "changedFiles": 14
+  },
+  {
+   "meaning": "M1",
+   "issue": 86,
+   "program": 81,
+   "observedAt": 1784151022000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 86,
+   "program": 81,
+   "observedAt": 1784151022000,
+   "refutedAt": null,
+   "estimate": 5,
+   "estimateParts": {
+    "total": 5,
+    "primary": 3,
+    "transitive": 2
+   },
+   "changedFiles": 10
+  },
+  {
+   "meaning": "M2",
+   "issue": 85,
+   "program": 85,
+   "observedAt": 1784151018000,
+   "refutedAt": 1784194620000
+  },
+  {
+   "meaning": "M4",
+   "issue": 85,
+   "program": 85,
+   "observedAt": 1784151018000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 84,
+   "program": 84,
+   "observedAt": 1784151013000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 84,
+   "program": 84,
+   "observedAt": 1784151013000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 83,
+   "program": 83,
+   "observedAt": 1784151008000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 83,
+   "program": 83,
+   "observedAt": 1784151008000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 82,
+   "program": 82,
+   "observedAt": 1784151004000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 82,
+   "program": 82,
+   "observedAt": 1784151004000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 81,
+   "program": 81,
+   "observedAt": 1784150999000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 81,
+   "program": 81,
+   "observedAt": 1784150999000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 55,
+   "program": 42,
+   "observedAt": 1783880762000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 55,
+   "program": 42,
+   "observedAt": 1783880762000,
+   "refutedAt": null,
+   "estimate": 9,
+   "estimateParts": {
+    "total": 9,
+    "primary": 7,
+    "transitive": 2
+   },
+   "changedFiles": 3
+  },
+  {
+   "meaning": "M1",
+   "issue": 53,
+   "program": 42,
+   "observedAt": 1783880759000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 53,
+   "program": 42,
+   "observedAt": 1783880759000,
+   "refutedAt": null,
+   "estimate": 10,
+   "estimateParts": {
+    "total": 10,
+    "primary": 7,
+    "transitive": 3
+   },
+   "changedFiles": 11
+  },
+  {
+   "meaning": "M1",
+   "issue": 52,
+   "program": 42,
+   "observedAt": 1783880756000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 52,
+   "program": 42,
+   "observedAt": 1783880756000,
+   "refutedAt": null,
+   "estimate": 9,
+   "estimateParts": {
+    "total": 9,
+    "primary": 6,
+    "transitive": 3
+   },
+   "changedFiles": 4
+  },
+  {
+   "meaning": "M1",
+   "issue": 51,
+   "program": 42,
+   "observedAt": 1783880753000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 51,
+   "program": 42,
+   "observedAt": 1783880753000,
+   "refutedAt": null,
+   "estimate": 5,
+   "estimateParts": {
+    "total": 5,
+    "primary": 5,
+    "transitive": 0
+   },
+   "changedFiles": 8
+  },
+  {
+   "meaning": "M1",
+   "issue": 50,
+   "program": 42,
+   "observedAt": 1783880750000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 50,
+   "program": 42,
+   "observedAt": 1783880750000,
+   "refutedAt": null,
+   "estimate": 9,
+   "estimateParts": {
+    "total": 9,
+    "primary": 7,
+    "transitive": 2
+   },
+   "changedFiles": 10
+  },
+  {
+   "meaning": "M1",
+   "issue": 49,
+   "program": 42,
+   "observedAt": 1783880746000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M3",
+   "issue": 49,
+   "program": 42,
+   "observedAt": 1783880746000,
+   "refutedAt": 1784133569000,
+   "estimate": 6,
+   "estimateParts": {
+    "total": 6,
+    "primary": 5,
+    "transitive": 1
+   },
+   "changedFiles": 24
+  },
+  {
+   "meaning": "M1",
+   "issue": 48,
+   "program": 41,
+   "observedAt": 1783880743000,
+   "refutedAt": 1784127571000
+  },
+  {
+   "meaning": "M3",
+   "issue": 48,
+   "program": 41,
+   "observedAt": 1783880743000,
+   "refutedAt": null,
+   "estimate": 12,
+   "estimateParts": {
+    "total": 12,
+    "primary": 12,
+    "transitive": 0
+   },
+   "changedFiles": 12
+  },
+  {
+   "meaning": "M1",
+   "issue": 47,
+   "program": 41,
+   "observedAt": 1783880740000,
+   "refutedAt": 1784122200000
+  },
+  {
+   "meaning": "M3",
+   "issue": 47,
+   "program": 41,
+   "observedAt": 1783880740000,
+   "refutedAt": null,
+   "estimate": 17,
+   "estimateParts": {
+    "total": 17,
+    "primary": 16,
+    "transitive": 1
+   },
+   "changedFiles": 13
+  },
+  {
+   "meaning": "M1",
+   "issue": 46,
+   "program": 41,
+   "observedAt": 1783880736000,
+   "refutedAt": 1784120391000
+  },
+  {
+   "meaning": "M3",
+   "issue": 46,
+   "program": 41,
+   "observedAt": 1783880736000,
+   "refutedAt": null,
+   "estimate": 12,
+   "estimateParts": {
+    "total": 12,
+    "primary": 10,
+    "transitive": 2
+   },
+   "changedFiles": 21
+  },
+  {
+   "meaning": "M1",
+   "issue": 45,
+   "program": 41,
+   "observedAt": 1783880733000,
+   "refutedAt": 1783970397000
+  },
+  {
+   "meaning": "M3",
+   "issue": 45,
+   "program": 41,
+   "observedAt": 1783880733000,
+   "refutedAt": null,
+   "estimate": 14,
+   "estimateParts": {
+    "total": 14,
+    "primary": 11,
+    "transitive": 3
+   },
+   "changedFiles": 14
+  },
+  {
+   "meaning": "M1",
+   "issue": 44,
+   "program": 41,
+   "observedAt": 1783880729000,
+   "refutedAt": 1783969346000
+  },
+  {
+   "meaning": "M3",
+   "issue": 44,
+   "program": 41,
+   "observedAt": 1783880729000,
+   "refutedAt": null,
+   "estimate": 21,
+   "estimateParts": {
+    "total": 21,
+    "primary": 15,
+    "transitive": 6
+   },
+   "changedFiles": 38
+  },
+  {
+   "meaning": "M2",
+   "issue": 42,
+   "program": 42,
+   "observedAt": 1783880635000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 42,
+   "program": 42,
+   "observedAt": 1783880635000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 41,
+   "program": 41,
+   "observedAt": 1783880632000,
+   "refutedAt": 1784127718000
+  },
+  {
+   "meaning": "M4",
+   "issue": 41,
+   "program": 41,
+   "observedAt": 1783880632000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 40,
+   "program": 40,
+   "observedAt": 1783880150000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 37,
+   "program": "unattributed",
+   "observedAt": 1783452168000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M2",
+   "issue": 25,
+   "program": 25,
+   "observedAt": 1783065121000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M4",
+   "issue": 25,
+   "program": 25,
+   "observedAt": 1783065121000,
+   "refutedAt": null
+  },
+  {
+   "meaning": "M1",
+   "issue": 24,
+   "program": "unattributed",
+   "observedAt": 1783065119000,
+   "refutedAt": null
+  }
+ ]
+}

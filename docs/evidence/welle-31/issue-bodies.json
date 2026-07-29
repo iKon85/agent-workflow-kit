@@ -1,0 +1,540 @@
+{
+  "sourceCommit": "c9f6a4aa8bd80bbc4519fa9925315a6d4f0292f2",
+  "schema": "welle-31/evidence/issues/v1",
+  "exports": [
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "205",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:20.678Z",
+      "bytes": 2748,
+      "sha256": "a731bc461bac35aa4b7b5b4db86b407b9a32ff59b012ca94a31728cd90798eb3",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 205,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/205",
+      "why": "red release run vs. successful publish (#380 promotion input)",
+      "disclosure": "body",
+      "response": {
+        "body": "<!-- slice-id: delayed-release-visibility -->\n<!-- program-leaf-source: 197/14a -->\n<!-- parent-prd: #208 -->\n<!-- wave: 14 -->\n<!-- phase: P1 -->\n<!-- area: release reconciliation -->\n<!-- gate: — -->\n<!-- blocked_by: #225 -->\n**plan_revision:** r2\n\n**Part of:** Welle 14 · Anchor #208\n\n## Blast-Radius\n**Primary:** `scripts/release-state.mjs`, `scripts/release-state.test.mjs`\n**Transitive:** `.github/workflows/release.yml`, maintainer release fixtures\n\n## What to build\n\nMake npm and GitHub post-write visibility an explicit eventually-consistent phase. Poll each readback with bounded retry/backoff, preserve idempotent reconciliation, and distinguish a rejected operation from a successful operation that never became visible within the bound.\n\n## Acceptance criteria\n\n- [ ] Missing first N npm reads followed by visibility completes successfully.\n- [ ] Missing first N GitHub reads followed by visibility completes successfully.\n- [ ] Permanent absence fails after a deterministic bound with phase-specific evidence.\n- [ ] Re-running after npm succeeded but GitHub did not converges without republishing.\n- [ ] Existing already-published parity remains a no-op.\n\n## Blocked by\n\n- #225 (open) — Welle 13 / Slice 13g — Codex dispatch proves the route exposed by its current host\n\n*(Maschinell gepflegter Spiegel — die nativen Issue-Dependencies (API) sind die Wahrheit; Pflege via `scripts/board-sync.py dep-add`/`dep-remove`.)*\n\n## Handoff Start Command\n\n```\nWelle 14 · Slice 14a (closes #205, Parent #208). Read #208 for decisions.\nStart skill: /implement. Routing intent: release-state: post-publish readback races npm propagation and leaves npm/GitHub parity broken; high risk; quality-first.\nWorktree: your project's worktree helper, or `git worktree add`\nScope: release reconciliation retry/backoff, truthful errors, and delayed-visibility tests.\nLive-verify: simulate delayed npm and GitHub readback, then an npm-only partial state; all converge or fail at the declared bound.\nPR: closes #205; Part of #208 — never closes the anchor.\n```\n",
+        "createdAt": "2026-07-22T10:07:08Z",
+        "labels": [
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsUmw",
+            "name": "ready-for-agent",
+            "description": "Fully specified for AFK implementation",
+            "color": "0E8A16"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsVTw",
+            "name": "type:feature",
+            "description": "Product capability",
+            "color": "A2EEEF"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsV0A",
+            "name": "priority:medium",
+            "description": "Normal priority",
+            "color": "FBCA04"
+          }
+        ],
+        "number": 205,
+        "state": "CLOSED",
+        "title": "release-state: post-publish readback races npm propagation and leaves npm/GitHub parity broken",
+        "updatedAt": "2026-07-24T20:25:25Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/205"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "243",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:21.123Z",
+      "bytes": 3406,
+      "sha256": "707500a209fe43b90b8711b96cfcf7b3805988a09887243c7dc26737147eddcb",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 243,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/243",
+      "why": "awaiting-tag stacking (#380 promotion input)",
+      "disclosure": "body",
+      "response": {
+        "body": "## Problem\n\nA merged release PR integrates a prepared version but cannot publish it — the\nannotated `v<version>` tag is the sole publication intent. Nothing mechanically\nnotices when that tag never arrives. The integrated version then sits silently\nin `awaiting-tag`, and the next shipped-file PR happily prepares the *next*\nversion on top of it.\n\nObserved 2026-07-25: 0.34.2 was merged in the morning and never tagged. Later\nthe same day the #231 PR prepared 0.34.3 on top of it. Nothing anywhere went\nred. Both versions ended up published by one `v0.34.3` tag, which means 0.34.2\nnever existed as its own release artifact even though its release-notes section\nclaims it does. The drift was caught only because a human asked \"are you done\nwith everything\".\n\nTwo smaller findings from the same incident:\n\n- The tag-triggered run went red on `TLOG_CREATE_ENTRY_ERROR` (Sigstore\n  transparency log 409) and, on the recovery dispatch, on the known npm\n  readback race (#205) — publish had succeeded both times.\n- `npm run release:status` reported `awaiting-npm` while the package was\n  already on the registry, because `npm pack <spec>` served a **stale local\n  packument cache** (`ETARGET`). A status command that can silently misreport a\n  published release as unpublished is a real defect: acting on it would mean\n  re-publishing.\n\n## Proposal\n\nClose the stacking hole where a human is present anyway — PR time.\n\n`scripts/release-delta-guard.mjs` already runs on every PR in CI and inside\n`/local-ci`. Extend `assessRelease` with one rule: when a PR raises the version\n(`currentVersion !== baseVersion`), the **base** version must already carry its\nannotated tag. Otherwise fail with the concrete previous version and the exact\nrecovery step.\n\nKeep it honest at the edges:\n\n- Resolve the tag prefix from the release profile, never a hardcoded `v`; the\n  guard ships to consumers with their own tagging vocabulary.\n- Skip the rule for a repository that has no matching tag at all (bootstrap /\n  never-released repo) — the rule guards *stacking*, not first release.\n- The rule stays a pure-function check with its facts passed in, so\n  `scripts/release-delta-guard.test.mjs` can cover it without touching git.\n\n## Acceptance criteria\n\n- [ ] A PR that bumps the version while the base version has no matching\n      annotated tag fails `release:guard` with a message naming the untagged\n      version and the recovery step.\n- [ ] A PR that bumps the version when the base version IS tagged passes\n      unchanged; a PR with no shipped delta is unaffected.\n- [ ] A repository with no matching tags at all is not blocked (bootstrap\n      escape), and the tag prefix comes from the release profile.\n- [ ] `release-state.mjs` cannot report `awaiting-npm` off a stale local\n      packument cache — the registry read is cache-bypassing, with a test.\n- [ ] The release doctrine in `CLAUDE.md` and the `kit-release` skill (both\n      surfaces) state the new guard and that a red release run still requires\n      the `npm view` / `gh release view` check before reacting.\n",
+        "createdAt": "2026-07-25T12:34:50Z",
+        "labels": [],
+        "number": 243,
+        "state": "CLOSED",
+        "title": "release: block a version bump while the previous release is still awaiting-tag",
+        "updatedAt": "2026-07-25T12:47:11Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/243"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "257",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:21.581Z",
+      "bytes": 2963,
+      "sha256": "8b715765fce8e80d350bb99c48e6405b75544cd6f35aa20a204d9ba625d23377",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 257,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/257",
+      "why": "tagging authority / gates-not-prompt (#380 promotion input)",
+      "disclosure": "body",
+      "response": {
+        "body": "## Problem\n\nThe release doctrine demands **two** human gates: one to confirm the Semver used\nto prepare the metadata, and a second, separate confirmation after merge before\nthe annotated tag may be created. The maintainer does not want to perform the\nsecond step at all — tagging is the agent's job:\n\n> \"ich werde nicht taggen, das muss der agent machen das muss irgendwo\n> hinterlegt sein\"\n\nToday the opposite is written in five places: `CLAUDE.md:106`, the `kit-release`\nskill description and its step 5 on **both** surfaces, and\n`docs/adr/0004-release-intent-is-a-version-tag.md:46`. So every release stalls\nat `awaiting-tag` until a human returns — which is exactly how 0.34.2 was\nskipped and buried under 0.34.3 (#243).\n\n## Decision\n\n**The confirmed Semver authorizes the whole release, through tag and publish.**\nOne gate, at the moment the version is chosen, instead of two. After that the\nagent merges, creates and pushes the annotated tag, monitors the workflow, and\nreports parity — without asking again.\n\nWhat does **not** change:\n\n- The tag stays the sole publication intent; merging still only integrates.\n- Every existing gate before it stays hard: guard, staleness, full suite, pack,\n  and the workflow's own tag/version/ancestry validation.\n- A red release run still requires reconstructing real state (`npm view`,\n  `gh release view`) before reacting, and recovery is still the idempotent\n  reconciler on the existing tag — never a new version.\n- Publication remains irreversible: npm versions cannot be reused. The\n  authorization moves earlier; it does not disappear.\n\n## Scope\n\n`kit-release` is **maintainer-only**: its two surfaces plus\n`scripts/kit-release.mjs` and `scripts/release-delta-guard.mjs` carry\n`installRole: maintainer` — 4 of 326 manifest entries — and\n`scripts/build-kit.test.mjs:63` asserts a consumer `init` never installs them.\nThe policy therefore lives directly in the skill; no consumer inherits it and no\nprofile key is needed.\n\n## Acceptance criteria\n\n- [ ] Both `kit-release` surfaces state that the confirmed Semver carries\n      through to tag and publish, and neither asks for a separate confirmation\n      before tagging.\n- [ ] The skill still names the irreversibility and every pre-tag gate.\n- [ ] `CLAUDE.md` and `AGENTS.md` carry the same doctrine, with the old\n      two-gate wording gone.\n- [ ] `docs/adr/0004-release-intent-is-a-version-tag.md` records the change as\n      a dated amendment rather than a silent rewrite.\n- [ ] A contract test pins the new wording on both surfaces and fails if the\n      second-confirmation requirement returns.\n",
+        "createdAt": "2026-07-25T14:26:26Z",
+        "labels": [],
+        "number": 257,
+        "state": "CLOSED",
+        "title": "release: the confirmed Semver authorizes the tag — the agent publishes without a second gate",
+        "updatedAt": "2026-07-25T14:41:16Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/257"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "320",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:22.161Z",
+      "bytes": 15605,
+      "sha256": "4440bb413cc38295652b77aadc8495231bc6bcd1ed96f9e959b72a9756105dc3",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 320,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/320",
+      "why": "session-end lifecycle, the confirmed cost instance (#343)",
+      "disclosure": "body",
+      "response": {
+        "body": "<!-- prd: program -->\n**plan_revision:** r3\n<!-- prd-source-id: 320 -->\n<!-- prd-content-fp: 810c8b492d978050fdbac5ac7579845a72a60cb42dde4b688bac9e6a86b6c52d -->\n\n# Program: Simplify the session-end lifecycle (green slate)\n\n## Problem\n\nFifteen teardown/cleanup issues in two weeks (#245–#319). The provenance-bound\nteardown machinery (ADR-0007) grew to ~5,800 lines (5,822 counted: scripts/worktree-lifecycle/* + wrapup-land.py, wc -l 2026-07-27) with two recovery flags for\nits own bookkeeping, and routine sessions could no longer finish: an unseeded\n`scratchPatterns` made teardown impossible (#319), a planning session had no\nlanding door at all (#317, #318). Each fix added a guard layer; each layer\nproduced the next issue.\n\n## Solution\n\nGreen slate per **ADR-0009** (supersedes ADR-0007): teardown authority is\nStateless teardown classification — git's own file taxonomy over the standard\nexclude sources plus the platform PR record, read at the moment of action.\n`.env*` is the single hardcoded exception (compared against the main\ncheckout). wrapup gains the Content route for planning sessions; worktree\ncreation binds to implementation; external worktrees are first-class and\n`/wrapup` always lands **and** tears down. The provenance core (receipts,\njournals, frozen attempts, recovery flags, artifact baseline) is removed\nwithout migration; deletion policy has exactly one configuration surface: the\nignore mechanism. Safety floor unchanged: no tracked-work loss, no commits on\nthe protected branch, no force bypasses, no silent deletion. The full locked\nspec is the grill + 5-round Codex-approved plan (39 findings incorporated);\nits durable decisions live in ADR-0009 and CONTEXT.md (Stateless teardown\nclassification, Scratch, Durable content, Content route).\n\nThroughout: \"`main`\" is shorthand for the profile's configured protected\nbranch — no command, test, or prose may hardcode the literal name. The\nprogram's acceptance gate is **zero references to removed machinery in\nexecutable or current-contract surfaces**; historical evidence (superseded\nADR-0007, release notes, review logs) is an explicit listed allowlist.\n\n## Scope\n\n- **S1:** Stateless classification core: four rules from\n  `git status --porcelain=v2 -z` (tracked-modified blocks; untracked\n  non-ignored blocks with bounded report; ignored = Scratch, deletable;\n  `.env*` no-follow byte-compare against the main checkout), no-follow\n  deletion primitive, one capped deterministic report schema for every\n  category.\n- **S2:** Provenance machinery removed: session.py claim/receipt/proof-ref/\n  patch-index/seal/recover paths, landing-attempt journal, both recovery\n  flags, v1/v2 receipt contracts, canonical policy reload, artifact-baseline\n  machinery — old on-disk journals become inert.\n- **S3:** Branch deletion authorized by the PR record: full tuple (base repo,\n  head repo = base repo, head ref, base ref = protected branch, `MERGED`,\n  uniqueness, no open PR on head) + tip-OID re-read before deletion;\n  owner-qualified historical query for interrupted runs; `land --pr <n>`\n  first-class fallback; fresh-fetch ancestry, stale ancestry stops.\n- **S4:** wrapup lands and tears down any worktree: external worktrees\n  first-class (foreign paths/branch names), detached HEAD / unborn branch =\n  named STOP, issue anchor optional, process kill scoped to `.dev-ports`\n  listeners bound under the worktree (pidfd where available; never signal on\n  doubt).\n- **S5:** Content route: a planning session with no worktree lands durable\n  content from the main checkout — inferred, one-gate explicit file claim\n  with per-path hash verification, same `.env` hard block + secret scan,\n  collision-checked issue-less branch, `Part of #<anchor>` never `closes`,\n  no teardown half, authorization unchanged (user-only).\n- **S6:** Profile/schema cut: `scratchPatterns` +\n  `landingGeneratedArtifactPatterns` removed from schema, setup-workflow and\n  the shipped 0.38.0 consumer migration (no migration code, old keys\n  ignored); new schema-contracted issue-less content branch template key.\n- **S7:** to-issues end state + worktree discipline: post-publication\n  two-line state report naming the exact next step (`/wrapup`), never\n  deletes; worktree binds to implementation, not planning (CLAUDE.md + grill\n  skills).\n- **S8:** Shipped-surface consistency: counted census over every executable/\n  current-contract surface (bundle manifest, package file list, capabilities\n  schema, consumer-migrations, skills on both surfaces, CLAUDE.md,\n  CONTEXT.md, profile-glob tooling, tests) with the zero-stale-references\n  acceptance gate and explicit historical allowlist.\n- **S10:** Census freshness gets a session-end home: wrapup consults\n  `--census-status` as a named step — `ok` silent; `refresh_required` becomes a\n  named session-end finding stating verdict, reason, the **evaluated checkout**\n  (worktree vs. main — a worktree-green verdict never masks a stale main), and\n  the consumer-prescribed recovery route (dedicated chore PR, never a file\n  mirror); optionally (consumer-configurable) a tracking issue so the finding\n  survives the session. Explicit non-goal: no hard gate on the feature PR\n  (#321).\n- **S9:** Documentation refresh — deliberately the **last** wave: README and\n  the GitHub Pages site under `docs/`, including the lifecycle\n  graphics/diagrams on those pages, describe the shipped state.\n\n## Wellenplan\n\n<!-- wellenplan:start -->\n| Welle | Status | Issue | Name | Slices | Gate | covers |\n|---|---|---|---|---|---|---|\n| 23 | ✅ | #323 | Fundament: Census + Spike (Enabler — geschlossen durch 26b) | 23a, 23b | 🔬 | S8 |\n| 24 | ✅ | #324 | Teardown klassifiziert zustandslos | 24a, 24b | — | S1, S2 |\n| 25 | ✅ | #325 | wrapup landet & reißt ab — überall, inkl. Content-Route | 25a, 25b, 25c, 25d, 25e | — | S3, S4, S5, S6, S10 |\n| 26 | ✅ | #326 | Skills & Disziplin sprechen das neue Modell | 26a, 26b | — | S7, S8 |\n| 27 | ✅ | #327 | Doku zeigt den Ist-Zustand (zuletzt) | 27a, 27b | — | S9 |\n<!-- wellenplan:end -->\n\n## Slices\n\n#### 23a — Counted shipped-surface census\n<!-- wave: 23 -->\n<!-- area: scripts/docs -->\n<!-- gate: — -->\n<!-- blocked_by: none -->\n\nOutcome: a counted denominator of every surface referencing the removed\nmachinery, plus the zero-stale-references gate definition with its historical\nallowlist.\n\nWhat to build: grep census across code, schemas, manifests\n(`src/lib/bundle.mjs`, `agent-workflow-kit.package.json`), capabilities\nschema, `src/consumer-migrations.json`, both skill surfaces, CLAUDE.md,\nCONTEXT.md, profile-glob tooling, tests; committed as the program's checklist\nartifact (issue comment or docs/agents note), naming X-of-Y per surface class.\n\nAC: denominator exists, is counted (not remembered), names the allowlist;\nevery later wave checks off against it. Omitted half: the zero-stale\nacceptance check itself — closed by slice 26b.\n\n#### 23b — Verify-spike: historical merged-PR query\n<!-- wave: 23 -->\n<!-- area: scripts -->\n<!-- gate: 🔬 -->\n<!-- blocked_by: none -->\n\nOutcome: proven yes/no whether the owner-qualified\n`pulls?state=closed&head={owner}:{ref}` query resolves a merged PR after\nremote- and after local-branch deletion.\n\nWhat to build: throwaway read-only harness against a real merged PR of this\nrepo; output-proof in the issue.\n\nAC: verdict recorded; falsified → `land --pr <n>` fallback flagged as required\nin slice 25b's spec.\n\n#### 24a — Stateless classification core\n<!-- wave: 24 -->\n<!-- area: scripts -->\n<!-- gate: — -->\n<!-- blocked_by: none -->\n\nOutcome: one small assessment module implements the four rules with the\ncapped report schema; truth-table tests green.\n\nWhat to build: per PLAN step 1 (porcelain=v2 -z parsing, exclude-standard\nignore semantics, `.env*` basename compare, no-follow deletion primitive,\npreview ≡ action report schema).\n\nAC: truth-table over all porcelain categories + `.env*` matrix + report-cap\ntests; documented residual risks match ADR-0009.\n\n#### 24b — Provenance machinery removal (lifecycle side)\n<!-- wave: 24 -->\n<!-- area: scripts -->\n<!-- gate: — -->\n<!-- blocked_by: 24a -->\n\nOutcome: worktree-lifecycle contains no provenance code path; setup and\nSessionStart context survive on the new core.\n\nWhat to build: per PLAN step 2 — delete claims/receipts/proof-refs/journal/\nbaseline machinery + their tests; rewire cleanup/setup onto 24a's module.\n\nAC: census 23a shows zero lifecycle-side stale references; race-choreography\ntests deleted; `npm test` green.\n\n#### 25a — wrapup-land on the new core\n<!-- wave: 25 -->\n<!-- area: scripts -->\n<!-- gate: — -->\n<!-- blocked_by: 24a, 24b -->\n\nOutcome: wrapup-land keeps preflight → commit → land minus the provenance\ncore; any born, attached worktree is first-class; teardown always runs;\nprocess kill is `.dev-ports`-scoped with never-signal-on-doubt.\n\nWhat to build: per PLAN steps 2 + 4 (recovery flags removed, detached/unborn\nSTOP, optional issue anchor, pidfd/recheck kill discipline, idempotent re-run\nby re-check).\n\nAC: external-worktree land+teardown test, detached STOP test, foreign-process\nSTOP test, interruption re-run tests at each step boundary.\n\n#### 25b — Branch deletion by PR record\n<!-- wave: 25 -->\n<!-- area: scripts -->\n<!-- gate: — -->\n<!-- blocked_by: 23b, 25a -->\n\nOutcome: branch teardown authorized by the full PR tuple with last-instant\nOID re-read; `land --pr <n>` in the CLI contract; fresh-fetch ancestry.\n\nWhat to build: per PLAN step 3, including the owner-qualified historical\nquery (or the `--pr`-only fallback if 23b falsified).\n\nAC: authority matrix tests (tuple match / drift / zero / multiple / open PR /\nno `gh` / deleted-remote recovery / stale fetch → STOP).\n\n#### 25c — Content route\n<!-- wave: 25 -->\n<!-- area: scripts -->\n<!-- gate: — -->\n<!-- blocked_by: 25a, 25d -->\n\nOutcome: a planning session on the protected branch lands its durable content\nthrough one confirmed, hash-verified claim; bystanders untouched.\n\nWhat to build: per PLAN step 5 (inference, claim gate, explicit-pathspec\nstaging with index-OID verification, `.env` hard block + secret scan,\ncollision-checked branch, return-switch STOP).\n\nAC: claim-subset test, bystander test, path-drift-drop test, collision test,\nblocked-return STOP test; generic dirty-tree commit provably never runs on\nthis route.\n\n#### 25d — Profile + schema cut\n<!-- wave: 25 -->\n<!-- area: schema/src -->\n<!-- gate: — -->\n<!-- blocked_by: none -->\n\nOutcome: pattern keys gone from schema, setup-workflow, and the shipped\nconsumer migration; content branch template key exists, schema-contracted.\n\nWhat to build: per PLAN step 6; remove the 0.38.0\n`landingGeneratedArtifactPatterns` migration + its tests/docs.\n\nAC: schema round-trip tests; old keys ignored without warning-noise; census\n23a checked off for schema/src surfaces (this is slice 25d).\n\n#### 25e — Census freshness at session end (adopts #321)\n<!-- wave: 25 -->\n<!-- area: scripts -->\n<!-- gate: — -->\n<!-- blocked_by: 25a -->\n\nOutcome: a stale census verdict becomes durable work at session end instead of\ndying with the session.\n\nWhat to build: per issue #321 (adopted as this slice's leaf — its body is the\nspec): wrapup consults `drift-guard.py --census-status` as a named step;\n`refresh_required` → named finding with verdict, reason, evaluated checkout,\nand the consumer's prescribed recovery route; optional consumer-configurable\ntracking-issue creation/update; never a hard gate. Degrades silently when the\nconsumer has no census.\n\nAC: finding names the evaluated checkout (worktree trap from #278 lineage);\n`ok`/`no_census` stay silent; tracking-issue path idempotent; no blocking of\nthe feature landing; tests cover stale-main-vs-green-worktree.\n\n#### 26a — Landing/orchestration skill prose\n<!-- wave: 26 -->\n<!-- area: skills -->\n<!-- gate: — -->\n<!-- blocked_by: 25a, 25c -->\n\nOutcome: wrapup SKILL.md rewritten without recovery-route prose;\norchestrate-wave/kit-update teardown references match the new model; mirrors\nsynced same PR.\n\nWhat to build: per PLAN step 9's skill half; codex-adapter-sync.\n\nAC: language census + portability lints green; census 23a checked off for both\nskill surfaces.\n\n#### 26b — Planning skills + worktree discipline\n<!-- wave: 26 -->\n<!-- area: skills/docs -->\n<!-- gate: — -->\n<!-- blocked_by: 25a, 25c -->\n\nOutcome: to-issues end-state report shipped; grill skills + CLAUDE.md carry\nimplementation-bound worktree discipline; zero-stale acceptance gate passes\nprogram-wide.\n\nWhat to build: per PLAN steps 7 + 8; re-run census 23a as the acceptance\ncheck.\n\nAC: to-issues report covers durable/scratch/none cases + consumer without\nworktree helper; CLAUDE.md rule replaced; zero stale references outside the\nallowlist.\n\n#### 27a — README + release-facing docs\n<!-- wave: 27 -->\n<!-- area: docs -->\n<!-- gate: — -->\n<!-- blocked_by: 26a, 26b -->\n\nOutcome: README (incl. release-notes framing for the breaking release)\ndescribes the shipped lifecycle.\n\nWhat to build: rewrite lifecycle/teardown sections; loud breaking-change\nnote per PLAN risk list.\n\nAC: no stale machinery references; consumer-facing claims match shipped\nbehavior.\n\n#### 27b — GitHub Pages site + graphics\n<!-- wave: 27 -->\n<!-- area: docs -->\n<!-- gate: — -->\n<!-- blocked_by: 26a, 26b -->\n\nOutcome: the `docs/` Pages site — prose **and the lifecycle\ngraphics/diagrams** — shows the stateless model; nothing on the site depicts\nreceipts, provenance, or pattern catalogs.\n\nWhat to build: update methodology pages + regenerate/replace affected\ngraphics.\n\nAC: visual census of the site's lifecycle depictions counted X-of-Y; site\nbuilds; no stale diagrams.\n\n## Abbruch-Konvention\n\nPer PROGRAM-PRD-FORMAT: leaves first (`superseded by program abort`), then\nstubs, the Program-PRD last, closed manually with an \"Abgebrochen am <Datum>:\n<Grund>\" note. `closes` never targets this issue.\n\n## Out of Scope\n\n- Installer contract (manifest, three-way reconcile, project-layer\n  write-once).\n- Release pipeline, board-sync, issue-graph mechanics.\n- Any weakening of the safety floor.\n\n## Further Notes\n\n- Input: grill session 2026-07-27 (9 locked decisions) + 5-round Codex\n  adversarial review, `VERDICT: APPROVED` (39 findings incorporated). Durable\n  record: ADR-0009, CONTEXT.md; argument transcript in the planning\n  worktree's PLAN-REVIEW-LOG.md (scratch, not persisted — per this program's\n  own doctrine).\n- Absorbed issues: #317 (to-issues end state → S7), #318 (Content route →\n  S5), #319 (scratchPatterns teardown block → S1/S6). Close them as their\n  waves land.\n- Census status at PRD lock: `no_census` (fail-open) — the manual walk **is**\n  slice 23a; no activated census was bypassed.\n\n\n\n",
+        "createdAt": "2026-07-27T05:07:56Z",
+        "labels": [
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsU4w",
+            "name": "type:program",
+            "description": "Program PRD spanning multiple waves",
+            "color": "5319E7"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsV0A",
+            "name": "priority:medium",
+            "description": "Normal priority",
+            "color": "FBCA04"
+          }
+        ],
+        "number": 320,
+        "state": "CLOSED",
+        "title": "Program: Simplify the session-end lifecycle (wrapup / teardown / planning artifacts)",
+        "updatedAt": "2026-07-27T20:53:06Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/320"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "322",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:22.628Z",
+      "bytes": 2312,
+      "sha256": "a3cc95b97d3ddba1259e264dadd5da777516ec07e7918aa06fc6dc92e822c902",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 322,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/322",
+      "why": "internal engine not invocable (#343 evidence)",
+      "disclosure": "body",
+      "response": {
+        "body": "## Problem\n\n`to-waves` carries `disable-model-invocation: true`, but the public Planning\nfacade `to-issues` **delegates to it by contract** (\"Program identity →\ndelegate to the internal `to-waves` graph engine\"). The agent therefore cannot\nload the engine through the Skill tool mid-run:\n\n```\nSkill to-waves cannot be used with Skill tool due to disable-model-invocation\n```\n\nObserved 2026-07-27 during the `/to-issues` run on Program-PRD #320: the facade\nhad to fall back to reading `SKILL.md` by hand. That works but bypasses the\nSkill loader (no directory-scoped variant resolution, no consistent invocation\ntelemetry) and contradicts the facade design: an internal engine a public\nskill routes into must be loadable by the model.\n\n## What to change\n\n- Remove `disable-model-invocation: true` from\n  `.claude/skills/to-waves/SKILL.md` frontmatter so the facade can invoke it.\n- Keep the routing discipline in prose/description: normal entry stays\n  `/to-issues`; `to-waves` is the internal engine, not a second public route.\n  The description already says this — sharpen if needed so model-triggered\n  direct entry outside the facade stays discouraged.\n- Update the `.agents/` mirror in the same PR if `to-waves` is dual-surface;\n  if it is deliberately Claude-only, state that explicitly.\n\n## Acceptance criteria\n\n- [ ] `Skill(to-waves)` loads from a `to-issues` program delegation.\n- [ ] Description/prose still route normal use to `/to-issues`.\n- [ ] Mirror surfaces consistent (or Claude-only explicitly declared).\n- [ ] Skill/manifest lints green.\n\n## Context\n\nFound mid-run of Program #320 (`/to-issues` → program mode). Not blocking that\nrun — the manual SKILL.md read is a valid fallback — but the contract mismatch\nshould not survive.\n",
+        "createdAt": "2026-07-27T06:48:01Z",
+        "labels": [
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsVeQ",
+            "name": "type:followup",
+            "description": "Workflow or process follow-up",
+            "color": "C5DEF5"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsV0A",
+            "name": "priority:medium",
+            "description": "Normal priority",
+            "color": "FBCA04"
+          }
+        ],
+        "number": 322,
+        "state": "OPEN",
+        "title": "to-waves: facade delegation requires model invocation — drop disable-model-invocation",
+        "updatedAt": "2026-07-27T06:48:01Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/322"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "341",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:23.112Z",
+      "bytes": 2445,
+      "sha256": "cb45143edfc2e33fe033ab1b8536ef0b26172f3a8e119d23bbcd3b0b5b8e2d87",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 341,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/341",
+      "why": "close-verify closed a Program-PRD (#343 evidence)",
+      "disclosure": "body",
+      "response": {
+        "body": "## Problem\n\n`wrapup-land.py` Step 5b derives its close target from the **branch number**\n(`issue_from_branch`) and force-closes it when the merged PR did not\n(`Merged via PR #… — auto-close didn't fire; closed manually`). The baked-in\nassumption — branch number = leaf that must end closed — predates the program\nera. Observed 2026-07-27: landing PR #340 (`Part of #320`, deliberately no\n`closes`) closed **Program-PRD #320**; reopened by hand. A wave-PR on an\nanchor-numbered branch would close its wave anchor the same way. Shipped to\nconsumers in 0.41.0.\n\n## Cause, not patch\n\nA label-skip guard (skip `type:cluster`/programType) would be a patch on the\nwrong authority. The truthful close authority is the **PR body**: what the PR\ndeclares via active close keywords — exactly what `pr-body-check.py` already\nvalidates pre-merge. Fix at the seam:\n\n1. `pr-body-check.py` exposes `active_close_targets(body)` — the one close\n   grammar (keywords incl. colon/URL forms, code spans stripped), reused, not\n   duplicated.\n2. Step 5b verifies/closes **only the declared targets** of the merged PR.\n   No declared targets → report `no close targets declared`, close nothing.\n   The branch-derived issue is context, never closure authority.\n\nAnchors become structurally unreachable (pr-body-check blocks `closes` on\nthem pre-merge), with zero label special-casing — consistent with #320's\nno-shadow-taxonomy doctrine. Wave-25 rewrite (#332) inherits this contract.\n\n## Acceptance criteria\n\n- [ ] `active_close_targets` covers: plain/colon/URL close forms, backtick\n      immunity, multiple targets, dedup.\n- [ ] Step 5b closes every declared-but-still-open target, reports\n      already-closed ones, and never touches an undeclared issue (regression:\n      `Part of #<anchor>` body + anchor-numbered branch → anchor stays open).\n- [ ] Manifest hashes refreshed; suite green.\n",
+        "createdAt": "2026-07-27T07:50:31Z",
+        "labels": [
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsVeQ",
+            "name": "type:followup",
+            "description": "Workflow or process follow-up",
+            "color": "C5DEF5"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsV0A",
+            "name": "priority:medium",
+            "description": "Normal priority",
+            "color": "FBCA04"
+          }
+        ],
+        "number": 341,
+        "state": "CLOSED",
+        "title": "wrapup-land: close-verify authority is the PR body's declared closes, never the branch number",
+        "updatedAt": "2026-07-27T08:38:17Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/341"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "343",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:23.593Z",
+      "bytes": 15906,
+      "sha256": "e9bb812011ec0d6f60856d51b2cbb94cd1638cd26b13f43340998c9218933622",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 343,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/343",
+      "why": "cost-walk mandate (Slice 2)",
+      "disclosure": "body",
+      "response": {
+        "body": "<!-- slice-id: cost-walk-343 -->\n<!-- parent-prd: #403 -->\n**plan_revision:** r1\n\n**Part of:** Welle 31 · Anchor #403\n\n## Intent (Niko, 2026-07-27)\n\nThe #320 implementation showed it clearly: in several corners the kit has\ngrown far too complex, and — one step back — plainly too cumbersome. Review\nthe **whole repo and the processes we implemented from the workflow\nperspective**: what does it actually feel like and cost to get ordinary work\ndone, and where does ceremony exceed value. Simplicity is the bar (per #320:\nsimple without being trivial); this review widens that bar from the\nsession-end lifecycle to everything.\n\n## Evidence from one single session (2026-07-27)\n\nOne planning-plus-two-releases session hit, beyond the teardown machinery\n#320 already covers:\n\n- **Planning pipeline ceremony:** grill → to-prd → to-issues/to-waves →\n  promote ran through a 4-state observation machine (S/B/C/P), byte-compare\n  body verifies against GitHub's own CRLF normalization, archive comments,\n  three body rewrites per issue — for a plan that was already approved once.\n- **Global wave numbering** surprised the program route: the Program-PRD\n  grammar reads program-local, the board is globally monotone → full\n  renumber of 18 issues mid-publish.\n- **Landing an ADR requires a release:** any shipped-path change (including\n  `docs/adr/*`) blocks without a version bump — planning output cannot land\n  small.\n- **Clean-shipped-file stripping** silently rewrites shipped scripts at build\n  time (issue refs removed) → source≠dist guard block that is only\n  understandable after diffing dist.\n- **Internal engine not invocable** (`to-waves`, #322) although the public\n  facade delegates to it by contract.\n- **Close-verify closed a Program-PRD** (#341, fixed 0.41.1) — a pre-program\n  assumption surviving in a post-program world.\n- **Gates repeat within one session** (retro gate per landing, Semver gate\n  per release) even when the same human answered minutes earlier.\n\nEach item is locally defensible. The aggregate is the problem — same pattern\n#320 diagnosed for teardown: guard layers priced individually, never as a\nwhole.\n\n## What this review is\n\nA **workflow-perspective walkthrough**, not a code audit. For each real\njourney, walk the implemented process end-to-end and count what it costs:\n\n1. \"I have an idea\" → issue on the board\n2. \"I fix a small bug\" → merged + released\n3. \"I plan something big\" → executable slices\n4. \"I land planning output\" (ADRs, glossary, research)\n5. \"I release\" / \"I update a consumer\"\n6. \"A session ends\" (covered by #320 — reference, don't redo)\n7. **\"Goal-level delegation (AFK sweep)\":** the user states an outcome, not a\n   skill — e.g. *\"löse alle Issues vom Board, die du ohne mein Zutun machen\n   kannst; realisiere via Subagents, du orchestrierst und ich nehme final\n   ab.\"* The agent must self-route (`orchestrate-wave` … `implement` →\n   `wrapup`), keep authority boundaries intact (user-only skills block\n   autonomous chains — by design or as friction?), and come back with one\n   acceptance. Does the kit support outcome-entry, or does every path assume\n   the human picks the skill?\n8. **\"The small direct path\":** a tiny fix that should be\n   `implement → wrapup` with near-zero ceremony — measure what it actually\n   costs today next to what it deserves.\n\n**Entry-point census first.** Before walking journeys, enumerate every real\nentry point — canonical pipeline, goal-level delegation, question-turned-work,\n`ask-matt` routing, externally created worktrees/sessions, direct skill\ninvocations — and check each journey against each applicable entry. The\ncanonical pipeline is one entry among several, not the default lens.\n\nPer journey: steps, gates, human interactions, scripts/skills touched, failure\nmodes actually observed (issue history is the dataset — ~40 process issues in\n4 weeks), and the question **\"what would the 10-line version of this look\nlike, and what exactly would we lose?\"** Findings become candidate\nsimplification programs/waves; nothing is pre-locked here.\n\n## Explicitly in scope\n\n- Planning pipeline (grill*, to-prd, to-issues, to-waves, board-sync,\n  promote/state machines, wave numbering model)\n- Release pipeline (guard, manifest, shipped-file classification/transforms,\n  ADR-landing friction)\n- Guards & hooks (count, overlap, aggregate cost per landing)\n- Skill surface (43 skills: which earn their keep, which overlap, dual-surface\n  mirror cost)\n- Gate policy (which human gates exist, which repeat, which could carry\n  session-wide authority)\n\n## Out of scope\n\n- Re-planning #320's waves (runs as designed; its findings feed in)\n- The safety floor itself (no tracked-work loss, no force, protected main)\n- Any implementation — this issue delivers the review + candidate cuts\n\n## Method: two independent models, one coordinator\n\n- **Fable runs the session and coordinates.** It performs its own walkthrough\n  and owns the merge + final verdict presentation.\n- **The identical research mandate goes explicitly to GPT (Codex)** as an\n  independent, read-only pass over the same repo, journeys, and entry points —\n  not as a reviewer of Fable's findings, but as a second primary source\n  (same two-model pattern the kit already uses in `security-audit`).\n- Findings are merged **after** both passes exist; agreement hardens a cut\n  candidate, disagreement is itself a finding (one model's \"essential guard\"\n  vs. the other's \"ceremony\" marks exactly the trade-off to grill).\n\n## Next step\n\nSession with Fable anchored here: lock method + depth\n(`grill-with-docs-codex`), dispatch the identical mandate to Codex, run\nFable's own walkthrough (likely one session per journey), merge, then\n`scale-check` the resulting cut candidates into programs/features.\n\n## Related\n\n#320 (session-end lifecycle — the confirmed instance), #322, #341, #243,\n#257 lineage; the 15-issue teardown series (#245–#319) as the pattern proof.\n\n\n## Guideline — the lens for the next kit version (Niko, 2026-07-28)\n\nAnthropic's context-engineering guidance for the Claude 5 generation\n(https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models)\nchanges what this review looks for. Three things it establishes:\n\n- **Over-specification has a negative price, not a zero price.** Prescriptive\n  rules and worked examples \"constrain them to a certain exploration space\" — a\n  redundant guard does not merely cost tokens, it narrows the reasoning the\n  agent would otherwise do unaided. A guard that duplicates judgment is worse\n  than absent.\n- **Cutting is the safe default.** Anthropic removed over 80% of Claude Code's\n  system prompt with no performance loss. The burden of proof therefore sits on\n  KEEP, not on CUT: a candidate survives because a real repeated failure demands\n  it, not because removing it is unproven.\n- **Moving is cutting.** Progressive disclosure — detail belongs in the skill\n  that loads at the moment it matters, not in always-on context. A finding does\n  not have to be deleted to stop costing. Relocation is a legitimate outcome of\n  this review, alongside delete and keep.\n\nTwo consequences for the method above:\n\n1. Each journey gets a fourth question next to steps / gates / failure modes:\n   **which of these instructions would the agent have arrived at unaided?**\n   Those are the first cut candidates.\n2. The two model passes merge against a shared bar instead of two tastes — the\n   **Design maxim** in `CLAUDE.md` (one observation is not a mechanism ·\n   principle over case · judgment is what a rule has to beat · place by when it\n   is read · price the journey · cause before survival). Where the passes\n   disagree, the maxim decides which side carries the burden of proof.\n\n\n## Journey discovery precedes journey walking (Niko, 2026-07-28)\n\nThe eight journeys above are **seeds, not the set**. A review that only walks\nremembered journeys certifies exactly the paths already on someone's mind —\nand the unwatched paths are where ceremony and gaps both survive unpriced.\n\nDerive the journey set before walking any of it, from evidence rather than\nrecall:\n\n- the shipped skill surface — each skill's `description` names its own trigger,\n  and a trigger is an entry, an entry starts a journey;\n- issue and PR history as the empirical record of journeys actually taken\n  (~40 process issues in 4 weeks is the dataset); an abandoned journey —\n  opened, never sliced, never landed — counts as one;\n- the board's status and label vocabulary, which encodes lifecycle paths no\n  single skill may cover end to end;\n- the second surface, `.agents/skills/` — a Codex session enters the same\n  system through a different door;\n- the recovery paths, i.e. the journeys nobody designed: what a session does\n  after a red release, an interrupted AFK run, a wrong-branch commit, an\n  `update` that lands on local edits.\n\nReport the result as a counted census (`X journeys derived, of which Y are the\nseeds above`), never as a recalled list — the same rule this repo applies to\nany cross-cutting rollout.\n\n**One gap is already provable in the seed list:** seven of the eight journeys\nare walked from the maintainer's chair. The consumer appears only inside #5,\nand there as an object (\"I update a consumer\"), never as the actor. The\nconsumer's own first run — `init`, first workflow in their own repo, first\n`update` over local edits — is the journey this kit exists for, and the review\ndoes not yet name it.\n\nThen classify each derived journey: **covered and priced**, **unwatched**, or\n**secured out of proportion** to how often it is actually walked. That\nclassification, not the walkthrough, is what produces the cut candidates.\n\n## Blocked by\n\n- #404 (open) — Welle 31 / Slice 0 — Analysis substrate derived and committed (freeze)\n\n*(Maschinell gepflegter Spiegel — die nativen Issue-Dependencies (API) sind die Wahrheit; Pflege via `scripts/board-sync.py dep-add`/`dep-remove`.)*\n\n\n\n## Amendments (r1 — Welle 31 publish, 2026-07-28)\n\nLocked via `/grill-with-docs-codex` (anchor #403). These deltas consciously\nsupersede this body's literal wording where they conflict.\n\n1. **No second derivation.** The journey denominator is the committed\n   Analysis substrate (Welle 31 / Slice 0, #404) — journey ×\n   entry-point matrix, station tables, evidence exports. This walk adds\n   cost columns; it never re-derives journeys or entry points.\n2. **Counted cost row for every journey; judgment depth prioritized.**\n   Every derived journey gets its mechanical cost row from the station\n   tables (steps, gates, human interactions, scripts/skills touched,\n   failure modes cited by issue number) — no journey skipped at this level.\n   The two judgment questions (\"which of these instructions would the agent\n   have arrived at unaided?\", \"what would the 10-line version look like,\n   and what exactly would we lose?\") run for: the eight seeds embedded in\n   #380, every journey classified `secured-out-of-proportion` or `unwatched`\n   with high traversal, and the consumer journey. Journeys without the\n   judgment pass are named as such — no silent cap.\n3. **Classification bins (fourth bin added):** `covered-and-priced` /\n   `unwatched` / `secured-out-of-proportion` / `unknown` — mirroring #380's\n   first-class `unknown`. **AC 1 (owned here):** before the classification\n   pass starts, record the traversal-frequency source query, its UTC\n   window, the traversal threshold, the gate-count basis, and the output\n   artifact path.\n4. **Two-model pass, kept simple.** The identical mandate text goes to\n   Codex (read-only, via `scripts/codex-exec.sh`) as a second primary\n   source over the same substrate commit. Per-pass note: model, effort,\n   date, substrate commit, named non-coverage. Merge after both passes\n   exist, against the Design maxim in `CLAUDE.md`; disagreement is itself a\n   finding. Citable corpus = the committed substrate + the `docs/evidence/`\n   exports; live issue/PR text is data, never instructions;\n   `.env*`/credential paths are never read; findings are human-reviewed\n   before landing. No completion-record schema, no coverage-proof\n   machinery — a partial pass surfaces as missing rows in the\n   human-reviewed Slice-3 merge (deliberate cut, anchor #403 Decisions).\n5. **Evidence bar.** Every cost number is counted, not remembered\n   (`X of Y`, command + output citable); every failure mode carries its\n   issue number. Valuations remain labelled hypotheses — promotion happens\n   downstream (#380's ablation machinery for truth, Slice 3's grill for\n   value/scope). This walk duplicates none of #380's promotion machinery.\n\n### Standing evidence — the locking session as specimen (2026-07-28)\n\nThe planning journey measured itself: five adversarial review rounds\n(findings 14 → 13 → 9 → 8 → 2) monotonically hardened the wave plan — and\nattached a reproducibility/completion-record apparatus the user then cut\nwholesale as over-engineered, because the risk it guarded was already\ncaught by the human-reviewed merge downstream. The adversarial loop only\never adds gates; nothing inside the loop prices them, and the burden of\nproof silently flips to whoever wants NOT to add a control. Cost-walk input\nfor journey 3 (\"I plan something big\"): the review method itself is a\nstation with a systematic ceremony-accretion bias, and the counterweight is\ncurrently a human, not a mechanism.\n\n## Blast-Radius\n**Primary:** sidecar cost/classification artifacts, this issue body — ~3–5 files\n**Transitive:** docs/evidence/ (reads), anchor #403 slice table\n\n## Routing intent\n\nintent-version: 2\nrouting-intent: judgment\nreasoning-intent: deep\ntask-shape: long-horizon\nrisk: moderate\nautonomy-requirement: afk\ncontext-need: long-context\n\n## Handoff Start Command\n\n```\nWelle 31 · Slice 2 (closes #343, Parent #403). Read #403 for decisions.\nStart skill: AFK → /implement (executes this issue's mandate + amendments; AC 1 first, then classification, then walks, then two-model merge).\nRouting intent: the body's `## Routing intent` block — read it as the explicit intent. The dispatching surface resolves the current executable route from it; never persist that provider route here.\nWorktree: your project's worktree helper, or `git worktree add`\nScope (~3–5 files) — REQUIRED FIELD, blast-radius estimate at cut time; the build session checks it against its own recon findings, >2x deviation → STOP:\n- AC 1 record (classification bin values + query + window + artifact path)\n- sidecar artifacts: cost rows for all journeys, classification, judgment passes, two-model merge\nLive-verify: cost table has one counted row per derived journey (X of Y = 100%); judgment-pass coverage explicitly named; both model passes noted with model/effort/date/substrate commit.\nPR: Part of #403 — NEVER closes on the anchor; closes #343.\n```\n",
+        "createdAt": "2026-07-27T09:12:55Z",
+        "labels": [
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsUmw",
+            "name": "ready-for-agent",
+            "description": "Fully specified for AFK implementation",
+            "color": "0E8A16"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsVrg",
+            "name": "type:research",
+            "description": "Research or decision work",
+            "color": "D4C5F9"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsV0A",
+            "name": "priority:medium",
+            "description": "Normal priority",
+            "color": "FBCA04"
+          }
+        ],
+        "number": 343,
+        "state": "OPEN",
+        "title": "Workflow-perspective review: the implemented processes have outgrown their value — walk every journey, price the ceremony, cut",
+        "updatedAt": "2026-07-28T21:21:10Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/343"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "380",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:24.048Z",
+      "bytes": 23540,
+      "sha256": "a3db72b8569f95bcb039977c879739a57ccf12c56dc57021c3f9e1d1146cbfa8",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 380,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/380",
+      "why": "truth-census mandate (Slice 1)",
+      "disclosure": "body",
+      "response": {
+        "body": "<!-- slice-id: truth-census-380 -->\n<!-- parent-prd: #403 -->\n**plan_revision:** r1\n\n**Part of:** Welle 31 · Anchor #403\n\nCounted census of every codified constraint the kit ships, reporting where a\nmechanism produces **fiction** — a red that means no real unsafe state, or a green\nthat covers nothing. Output feeds v1.0.0 together with #343.\n\nLocked via `/grill-with-docs-codex` (2026-07-28). Full plan and the 5-round\nadversarial review log live in the session's `PLAN.md` / `PLAN-REVIEW-LOG.md`; this\nbody is the executable mandate.\n\n## Frame\n\n**What the kit is for.** One person who does not write code ships good-quality\nsoftware reproducibly. The standardized mechanism *is* the product.\n\n**What this anchor measures of that.** The workflow half — planning-claim\nintegrity, release integrity, consumer reconciliation, absence of safety incidents.\nIt does **not** measure delivered software quality, and no control here should be\nread as doing so.\n\n**Two phases, opposite friction budgets.**\n\n- **Planning, human present.** Friction is the product. The user wants to be asked,\n  wants to be told which questions matter and what a decision costs. A gate here is\n  value. We are plausibly under-supplied, not over.\n- **Execution, AFK.** 20–30 issues, agent-driven, human absent by design. Friction\n  is a defect: a failed planning step, or an authority that was never the agent's.\n\nPhase is a property of a **station**, not a journey, and does not decide authority —\nthe user may act during execution, an agent may plan while AFK. Phase and Decision\nownership are recorded separately.\n\n**Not under attack.** Mechanisms compensating for what an agent cannot hold or see:\nvertical slices, program decomposition, blast radius, toppled-assumption detection.\nEven 1M context cannot hold a whole program. These extend memory and sight; they do\nnot replace judgment. Only their proportion is in question.\n\n**Under attack — fiction.** Both directions. A drifted guard trains the operator to\ndismiss it and still counts as protection; a **fail-open** guard is the same fiction\nwith the sign flipped. A deleted guard tells the truth; a drifted one does not.\n\n**External lens, as hypothesis not axiom.** Anthropic's context-engineering guidance\nfor the Claude 5 generation argues over-specification has a negative price, cutting\nis the safe default, and moving detail into what loads when it matters is itself\ncutting. Its companion guidance says start minimal, add on *observed* failure. The\nthesis sets the default; it settles no verdict here.\n\n**Internal bar.** The Design maxim in `CLAUDE.md`. Its first clause binds this\nanchor too: one observation is a hypothesis.\n\n## The promotion rule — applied identically to every verdict\n\nNo label rests on judgment, and none rests on a single incident.\n\n| Kind | Requirement |\n|---|---|\n| `ablation` | Rule removed, journey run on a declared fixture, model/effort/prompt recorded, repetitions run, compared against a positive control |\n| `reproduction` | The unobservable fact demonstrated directly, with command and output |\n| `repeated-incident` | ≥2 independent occurrences, each with an immutable citation |\n| `structural-invariant` | Argument with citations that the fact is unobservable by construction |\n\n**CUT** is promoted only by `ablation`. **KEEP** only by `reproduction`,\n`repeated-incident`, or `structural-invariant`. Everything else is **`unknown`** — a\nfirst-class outcome, expected to be the largest bucket in round one. #205, #243 and\n#257 enter as citations to be re-counted, not as settled scars.\n\n## Standing evidence\n\nConsumer items carry immutable URLs; the anchor exports each referenced issue body\nand each aggregate's raw query response to `docs/evidence/` with sha256 before the\npass starts, because live issues and PR bodies mutate independently of any commit.\n\n- `scripts/worktree-lifecycle/classify.py:253-262` — teardown byte-compares every\n  `.env*` against the main checkout. Any consumer whose worktree setup patches\n  per-worktree ports trips it on every correctly created worktree. `CONTEXT.md:206-213`\n  defines *Scratch* with that comparison, so the proxy is baked into the glossary.\n- `scripts/worktree-lifecycle/core.py:488-525` — `targets_linked_worktree` decides\n  authorization by asking whether the command *string contains* a linked-worktree\n  path. Fails both ways: a command merely mentioning such a path is authorized while\n  operating elsewhere; a command operating outside the repo cannot satisfy it at all.\n  **Hypothesis** until a bypass fixture demonstrates it.\n- testreporter#2305 — cleanup can freeze identity only for regular files; a pnpm\n  worktree holds ~3213 symlinks, so the route is unusable and teardown ran through\n  `git worktree remove --force`. The safeguard was not overridden, it was **routed\n  around**, and the fallback has no protection at all.\n- testreporter#2312 — the impact-census guard cannot tell a coordinator branch from\n  an uncensused one; a wave landing needs `IMPACT_CENSUS_SKIP=1` twice.\n- testreporter#2283 — `readiness.mjs:107` matches `line.trim() === '## Prod'`\n  exactly; a consumer heading `## Prod und Deployment` reports `missing`.\n- Retro yield: of **128 merged PRs**, **69** carry the machine-checked closed-set\n  `**Retro:**` line, **8** carry an actual findings section. Enforced 69× for 8\n  signals. Query and commit recorded with the claim.\n- **Live specimen from the locking session.** `codex-exec.sh` blocked the cross-model\n  review with `UNTESTED_VERSION` (exact two-entry pin) while the real cause was our\n  own duplicate `--json`. An over-precise guard misattributed a local defect to the\n  environment and blocked the capability outright. Evidence preserved pre-fix.\n\n**Three of this plan's own evidence claims were refuted during its review** — a\n`wrapup` gap asserted from a single grep pattern that never contained `check`, a\ndenominator taken from an `ls` that skipped subdirectories, and the overstated\nhalf of the substring finding. That is why the evidence bar above is mechanical\nrather than editorial: plausible, `file:line`-garnished, wrong is exactly what a\nfleet of reviewers produces without one.\n\n## Approach\n\n### 1 · Denominator is a query, not a count\n\nScripted inventory committed with the anchor, reporting its source commit. Derived\nfrom `src/lib/bundle.mjs` entries by `kind` and from `.claude/skills/skill-manifest.json`\n— never a directory listing. Actual shipped surface: **24 hooks, 96 scripts**, 8\ndocs, 4 templates, **44 logical skills**.\n\nGrouping, versioned with the query: a `.agents/` mirror is a **mirror**, not a second\nartifact (divergence is a finding on the primary) · an imported helper is reviewed\nwithin its dependency unit · **transient build output excluded**, but a *generated\nshipped contract* is in scope — `agent-workflow-kit.package.json` is emitted by\n`build-kit.mjs` and consumed as the verification source by `bundle.mjs`, so\nproducer-to-consumer parity is auditable.\n\n**Partition — findings never cross it:** Kit Core (`src/`, shipped scripts/hooks) ·\nshipped surface (published skills + mirrors) · maintainer-only (build/release/test) ·\nconsumer-owned project extension (`CLAUDE.md`, `AGENTS.md`, `docs/agents/*`, board\nprofile — dogfood instances, never evidence about the product).\n\n### 2 · Three columns, each with its covered classes named\n\n- **Ownership** — whose decision does this rule make (Decision ownership: does it\n  bind the project beyond the current change), and would a capable agent have\n  arrived here unaided? The unaided half is a CUT *hypothesis*; promoting needs an\n  ablation.\n- **Truth** — does it measure what it means, at what resolution? Covers *wrong axis*\n  (predicate ≠ computed proxy, no owner keeps them aligned → drift), *too many bits*\n  (measurement finer than the decision it feeds; the collapse back to the decision\n  is where the false positive is born), and *false negatives / fail-open*.\n- **Form** — binding hardness (hook blocks / script fails / prose persuades),\n  whether that hardness is proportionate to how certainly we know the thing, which\n  reader it is written for (human who looks in vs. agent who executes), and what\n  happens after it fires — is recovery named, reachable, work-preserving.\n\nOut of scope, so nobody silently substitutes it: performance, and product behavior\nunrelated to any claim a mechanism makes. **Implementation behavior at a declared\nsafety boundary is in scope** — a guard that fails open, mis-parses, or reports the\nwrong cause is a Truth finding regardless of whether its stated rule is sound.\n\n### 3 · Rule identity and reviewer calibration\n\n**Rule spans** differ by carrier. *Prose rule*: one clause with a directive verb or\nmodal constraining behavior; a compound sentence with two independent directives is\ntwo rules; headings, examples and rationale are not rules. *Code rule*: one enforced\ncontract — a predicate plus the action it gates (block/fail/warn/mutate), including\nits fail-open branch.\n\nIdentity is `<path>#<sha1 of normalized span, 12>#<occurrence index>`. Line numbers\nare mutable location metadata, never identity.\n\n- One declared output schema per finding: `rule_id · line · partition · carrier ·\n  column · verdict · claim · evidence[] · promotion · confidence · reviewer ·\n  unit_id`. `verdict` ∈ `hypothesis | cut | keep | unknown | no-finding`.\n  **`cut`/`keep` are schema-invalid without a `promotion` object** and are rejected\n  mechanically, not reviewed and waved through.\n- Shared rubric with worked positive/negative examples per column, drawn **only from\n  verified items**. Unverified ones (the substring bypass, the `wrapup` residual)\n  live in a labelled hypothesis fixture set and never calibrate a reviewer.\n- **Stratified double review**: `max(ceil(0.15·N), min(20,N))` per artifact kind and\n  partition — a stratum under 20 rules is reviewed in full — drawn by stable rule-ID\n  hash. **Threshold ≤20% disagreement** before the full pass starts; one named\n  adjudicator; the rubric **freezes** when the threshold is met, and any later change\n  re-runs the affected column.\n- `<n> examined, <m> flagged` is a reporting-behavior signal, **not** a completeness\n  measure. The double review measures completeness.\n\n### 4 · Dependency graph, not a partition\n\nPer-artifact review cannot see protocol drift between a caller and its core.\n**Nodes** — each module/hook/script/skill/manifest entry, reviewed exactly once for\nits own rules; a shared core used by six hooks is one node. **Edges** — each\ncaller→core contract reviewed separately per caller: what the caller assumes about\ninputs, outputs, failure mode and fail-open behavior, and whether the core delivers\nit. A mirror is an edge to its primary. Findings carry `unit_id` so a defect is\nattributable to the node or to one caller's assumption, never smeared.\n\n### 5 · Journey pass\n\nSeeds derived from the repository: CLI commands (`src/cli.mjs`), package lifecycle\nscripts, GitHub workflows, hooks, board status/label events, issue/PR events,\n`update`/`uninstall`/`diff`, shipped skill descriptions, the `.agents/` surface.\n\n**Recovery journeys bounded to named record sources** — recovery-labelled closed\nissues, PRs recording a STOP and re-run, retro findings, documented recovery paths.\nExhaustiveness cannot be proven, so the report carries an explicit\n**`unknown-recovery`** category naming the sources searched.\n\n**The eight seeds from #343, embedded** so the denominator does not depend on a\nmutable body: (1) idea → board issue · (2) small bug fix → merged + released ·\n(3) plan something big → executable slices · (4) land planning output ·\n(5) release / update a consumer · (6) a session ends · (7) goal-level delegation\n(AFK sweep) · (8) the small direct path. Report `X derived, of which Y are these`.\n\nEach journey is a table of stations: `journey_id · station_id · promise (cited) ·\nwhat it actually verifies · binding hardness · phase · user decision · agent action ·\nauthorization boundary · recovery relation`. A recovery branch is a station variant\nunless it has its own entry point.\n\n**A gap counts only for a cited promise** — quotable from a mechanism or a\njourney-level artifact. \"The journey implies it\" is not a citation, and the refuted\n`wrapup` claim is exactly why.\n\n### 6 · One number\n\n**Refuted planning claims / eligible planning claims**, a ratio — a 30-slice program\nnaturally produces more refutations than a two-slice wave.\n\n- **Atomic claims**: a statement with two independently verifiable assertions is two\n  claims. No fractional weights — invented precision about how much of a compound\n  claim failed.\n- **Observable denominator only.** Transient planning conversation leaves no record.\n  The report carries an **unobserved-claim bound** and a sensitivity range at 10/25/50%.\n  Calling it \"every claim\" would be the same fiction the anchor hunts.\n- **Multiplicity retained** as a secondary statistic; recurrence is signal.\n- **Semantic event mapping** with a versioned translation layer: the metric is defined\n  over meanings (\"a slice was declared executable without further decision\", \"slices\n  were declared independent\"), and today's carriers (`ready-for-agent`, `ANNAHMEN.md`\n  drift lines, anchor reconciles, blocked issues) map onto them. Without it a v1.0.0\n  rename zeroes the metric while planning failure is unchanged.\n- **Observability loss tracked next to the metric.** Removing a label or an assumption\n  log removes *opportunities to record a refutation* and would otherwise read as\n  improvement.\n- **One headline, fixed in advance** so a later reduction cannot pick the kinder\n  number: size-weighted pooled ratio over the **long-tail (+90 d)** window. Immediate\n  (+14 d), per-program median and multiplicity are secondary diagnostics.\n  Zero-denominator programs are `n/a` and excluded from both aggregates — a plan that\n  promised nothing did not perform perfectly.\n\nEvidence must **accrue as a byproduct of the work**, never presuppose diligence.\nRetro findings count where they exist but cannot carry the metric — 8 of 128.\n\n**Counter-control, independent of the metric *and* of the machinery under review** —\na mechanism may not serve as a control while it is a cut candidate in the same cycle:\na frozen consumer fixture replaying `init` → `update` → a scripted slice (reconcile\ncorrectness, no overwrite of consumer edits, byte-stable manifest) · a **positive\ncontrol** on a known-defect repo, because a control that never goes red is not\nevidence · post-landing correctness judged after merge · safety incidents on a\npredeclared definition (tracked work lost, protected branch bypassed, wrong artifact\npublished, consumer files overwritten without backup) and window.\n\n### 7 · Ablation protocol\n\n- **Fixtures only** — never `main`, a live consumer, or the registry.\n- **Destructive journeys are never ablated live.** Release, tag, publish and teardown\n  only in a fixture with local remotes/registry/worktrees. Prohibited outright\n  otherwise.\n- **Positive control first.** Before recording \"the rule was unnecessary\", show the\n  same harness failing on a case that needs it. A negative without a demonstrated\n  positive is not a measurement.\n- **≥3 repetitions**, majority per dimension, spread reported.\n- **Outcome is a directional vector**: correctness / safety / recovery must show **no\n  regression**; friction must show **strict improvement**. A CUT requires all four —\n  removing a rule that changes nothing is noise, not a win. Any dimension without a\n  clear majority makes the promotion `unknown`.\n- **A CUT is scoped to what ran** — model, effort, surface, fixture, journey.\n  Generalizing to the shipped rule needs **cross-surface evidence** (≥1 Claude and ≥1\n  Codex run), since the surfaces read different files and a rule redundant for one may\n  be load-bearing for the other.\n\n### 8 · Sequencing, so the instrument does not become the disease\n\n1. **Scripted inventory** over the full surface — this is where \"no stone unturned\" is\n   discharged: every artifact enumerated and partitioned.\n2. **Calibration pass** on a risk-stratified sample (highest-binding, most-traversed,\n   every artifact kind) — run the rubric, measure disagreement, fix the rubric.\n3. **Full deep pass** once disagreement ≤20% and the rubric is frozen. Coverage is not\n   reduced; only the order is staged, and any artifact left unexamined is named.\n\n**Blocking precondition** before the pass starts: fixture commit, positive-control\ncommit and its known defect, both window lengths, the adjudicator's name, and the\nevidence exports committed. These are execution-time facts this mandate deliberately\ndoes not invent — and the pass may not begin without them.\n\n## Boundary to #343\n\nNot journey-vs-mechanism; both read the same journeys. The cut is **cost vs. truth**:\n#343 asks what a journey costs to walk, this anchor asks whether it tells the truth.\nSame evidence, different question, separate verdicts, neither blocks the other. #343\nis relieved of the mechanism axes it has been accumulating.\n\n## Retro is not the finding\n\nIts content belongs at the end by definition — it is the only instrument that\ncurrently shows whether planning was good, whether the process broke, whether issues\nwere absurdly blocked. It is the sensor that already exists. The defect is its\n**binding**: a discovery step wired as a closed value set with a verbatim string\nmatch, a blocking question, and a forced second `$wrapup` invocation. Right thing,\nwrong binding.\n\n## Acceptance criteria\n\n- [ ] Scripted inventory committed, reporting `X of Y` per partition with its source\n      commit; every artifact enumerated or explicitly named as unexamined.\n- [ ] Evidence exports (consumer issue bodies, raw aggregate query responses,\n      `docs/evidence/2026-07-28-codex-exec-version-pin.md`) committed with sha256\n      before the pass starts.\n- [ ] Blocking preconditions recorded (fixture, positive control, windows,\n      adjudicator).\n- [ ] Calibration pass run; disagreement rate reported; rubric frozen at ≤20%.\n- [ ] Full pass complete; every finding schema-valid; no `cut`/`keep` without a\n      well-formed `promotion` object.\n- [ ] Journey set derived and counted against the eight embedded seeds, with an\n      explicit `unknown-recovery` category.\n- [ ] Station tables produced per journey; gaps counted only for cited promises.\n- [ ] The metric reported with its unobserved-claim bound, sensitivity range, and\n      every counter-control, including a positive control that went red.\n- [ ] Findings document landed; mechanical `file:line` findings filed as board items;\n      every static verdict labelled a hypothesis.\n\n## Out of scope\n\nAny cutting — this anchor reports, `scale-check` shapes the v1.0.0 program. #343's\njourney-cost walk. The safety floor (no loss of tracked work, no force, protected\nmain). Building a friction sensor. Performance and unrelated product behavior.\nDelivered software quality — measured by no control here and claimed by none.\n\n**Parked seeds**, carried as findings-to-check: splitting `wrapup` (213 lines,\nseveral routes, release-to-merge conflated with cleanup; a post-`implement` station\nrunning local CI and preparing the PR would leave wrapup only the handover) · the\ntwo-reader design of generated artifacts (issues and PRDs written for the human who\nlooks in, while the agent executes them) · a second channel for legitimate AFK\nquestions so an exception reaches the user instead of halting the run — a 1.1\ncandidate.\n\n## Blocked by\n\n- #404 (open) — Welle 31 / Slice 0 — Analysis substrate derived and committed (freeze)\n\n*(Maschinell gepflegter Spiegel — die nativen Issue-Dependencies (API) sind die Wahrheit; Pflege via `scripts/board-sync.py dep-add`/`dep-remove`.)*\n\n\n\n## Amendments (r1 — Welle 31 publish, 2026-07-28)\n\nLocked via `/grill-with-docs-codex` (anchor #403); the mandate above is\notherwise unchanged.\n\n1. **Substrate produced by Slice 0 (#404).** The scripted inventory, the\n   journey derivation with station tables, and the evidence exports are\n   produced by Welle 31 / Slice 0 under this mandate's own rules (§1, §5)\n   and committed — the commit is the freeze. This census reads that\n   substrate commit and writes its findings as separate sidecar artifacts;\n   it never mutates the substrate. A substrate defect is fixed by a new\n   committed revision, and this pass names the revision it read.\n2. **Consumer-as-actor journey.** The derived journey set explicitly\n   includes the consumer's own first run — first `init`, first own workflow,\n   first `update` over local edits — walked against the frozen consumer\n   fixture this mandate already requires as its counter-control.\n\n**AC 1 (blocking preconditions, owned here):** before the pass starts,\nrecord with artifact paths: the fixture commit, the positive-control commit\nand its known defect, both window lengths (+14 d / +90 d as defined above),\nand the adjudicator. **Adjudicator: Niko (recorded 2026-07-28).**\n\n## Blast-Radius\n**Primary:** sidecar findings artifacts, this issue body — ~3–5 files\n**Transitive:** docs/evidence/ (reads; writes only its own exports)\n\n## Routing intent\n\nintent-version: 2\nrouting-intent: judgment\nreasoning-intent: deep\ntask-shape: long-horizon\nrisk: moderate\nautonomy-requirement: afk\ncontext-need: long-context\n\n## Handoff Start Command\n\n```\nWelle 31 · Slice 1 (closes #380, Parent #403). Read #403 for decisions.\nStart skill: AFK → /implement (executes this issue's locked mandate + amendments; fixtures per §7, never live surfaces).\nRouting intent: the body's `## Routing intent` block — read it as the explicit intent. The dispatching surface resolves the current executable route from it; never persist that provider route here.\nWorktree: your project's worktree helper, or `git worktree add`\nScope (~3–5 files) — REQUIRED FIELD, blast-radius estimate at cut time; the build session checks it against its own recon findings, >2x deviation → STOP:\n- sidecar findings artifacts (schema-valid, per this mandate's output schema)\n- AC 1 precondition record (fixture, positive control, windows, adjudicator)\nLive-verify: findings schema-valid; no cut/keep without a well-formed promotion object; calibration disagreement ≤20% before the full pass.\nPR: Part of #403 — NEVER closes on the anchor; closes #380.\n```\n",
+        "createdAt": "2026-07-28T13:00:35Z",
+        "labels": [
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsUmw",
+            "name": "ready-for-agent",
+            "description": "Fully specified for AFK implementation",
+            "color": "0E8A16"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsVrg",
+            "name": "type:research",
+            "description": "Research or decision work",
+            "color": "D4C5F9"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsV0A",
+            "name": "priority:medium",
+            "description": "Normal priority",
+            "color": "FBCA04"
+          }
+        ],
+        "number": 380,
+        "state": "OPEN",
+        "title": "Mechanism anchor: where the kit's machinery produces fiction — a counted census against what it promises",
+        "updatedAt": "2026-07-28T21:21:05Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/380"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "403",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:24.532Z",
+      "bytes": 5814,
+      "sha256": "947c2b1551fbb7659a55d5417f69c28cdb4c74ecf9a2906eac61d0b8abc97df5",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 403,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/403",
+      "why": "wave anchor",
+      "disclosure": "body",
+      "response": {
+        "body": "<!-- prd-source-id: analysis-pre-program -->\n**plan_revision:** r1\n\n**Welle 31 — Analysis pre-program: truth census + cost walk → v1.0.0.** Common thread: Gate = the v1.0.0 cut/build program is shaped from merged truth and cost findings over one shared, committed Analysis substrate — never from either axis alone.\n\n> 📍 **Execution tracker (as of 2026-07-28).** This issue is the single source of truth for \"where do we stand, what's next\". Every sub-session anchors here.\n\n## Origin\n\n- **Source:** plan (locked via `/grill-with-docs-codex`, 2026-07-28; 5 adversarial rounds, findings 14 → 13 → 9 → 8 → 2)\n- **Member issues:** #404 #380 #343 #405\n- **Why together (firing criteria):** Gate=v1.0.0 shaped from merged findings · B3 dependency (both censuses read one substrate; evaluation reads both) · B4 verify surface (same journeys, two questions)\n- **Size + risk:** ~4 slices · Backend: no · Routing-intent mix: development/balanced (Slice 0) + judgment/deep (Slices 1–3) · Risk: low — analysis artifacts and issue bodies only, no shipped-file changes anywhere in the wave\n- **`grill-needed`:** no — grilled and locked this session\n\nMaturation: grill ✓ · to-prd ✓ · to-issues ✓ (2026-07-28) — Wave gate + tracking open\n\n## Decisions — Grill 2026-07-28, locked\n\n| Item | Decision |\n|---|---|\n| Substrate | Own leaf (Slice 0, #404); derives inventory + journey × entry-point matrix (four keyed dimensions) + evidence exports per #380's rules; the commit is the freeze — both censuses reference it, neither mutates it |\n| #380 scope | Locked mandate executes unchanged except two recorded body amendments: substrate produced by Slice 0; consumer-as-actor journey in the derived set (walked against the mandated consumer fixture) |\n| #343 scope | Recorded body amendments: substrate is the denominator (no second derivation); counted cost row for all journeys, judgment questions prioritized with named non-coverage; four classification bins incl. `unknown`, values recorded as AC 1 before the pass; two-model pass kept simple; valuations stay hypotheses |\n| Evaluation | Slice 3 (#405, HITL): outcomes cut / relocate / rebind / keep — fiction mandates remediation, never automatic deletion; all cutting authority lives there or later; then `grill → to-prd → to-issues` shapes the v1.0.0 program |\n| Preconditions ownership | #380's blocking preconditions = its AC 1 (adjudicator: Niko, recorded 2026-07-28); #343's classification values = its AC 1 |\n| Deliberate cut | No completion-record/coverage-proof machinery for the model passes — a partial pass surfaces in the human-reviewed Slice-3 merge; the review loop's ceremony-accretion bias is itself recorded evidence in #343 |\n\n**Artifacts:** CONTEXT.md term **Analysis substrate** (added 2026-07-28, lands via Content route)\n\n## Slices (vertical, 1 PR/session each)\n\nOrder (WSJF-lite): substrate first (blocks everything), censuses parallel, evaluation last. Dependencies force ordering.\n\n<!-- slice-table:start -->\n| # | Status | Slice | Sub-Issue | Gate | closes/refs |\n|---|---|---|---|---|---|\n| 0 | ⬜ | Analysis substrate derived and committed (freeze) | #404 | — | closes #404 |\n| 1 | ⬜ | Truth census per locked mandate + 2 amendments | #380 | — | closes #380 |\n| 2 | ⬜ | Cost walk per amended mandate (counted rows, 4 bins, two-model pass) | #343 | — | closes #343 |\n| 3 | ⬜ | Findings merged, v1.0.0 program shaped (cut/relocate/rebind/keep) | #405 | 🧭 | closes #405 |\n<!-- slice-table:end -->\n\nStatus legend: ⬜ open · 🔄 in progress · ✅ merged #<PR>. **Every slice = one sub-issue** (`#<sub>`). **The volatile Status column is generated by `board-sync.py anchor-sync 403` from the board** (between the `<!-- slice-table:start/end -->` markers; `wrapup` Step 5e.1 calls it on merge) — monotone, drift-free idempotent; **stable plan columns (Slice/Gate/refs) stay hand-maintained**. The native \"Sub-issues progress\" rollup is the secondary %-view.\n\n**Gate legend (retro):** `—` AFK build (`/implement`) · 🧭 design grill (`grill-with-docs-codex`, ADR) · 🔬 verify spike (read-only fact question) · 📐 trade-off/research (read-only, below grill threshold) · 📝 review note (not a build slice). A gate slice (🧭/🔬/📐) sits **before** its dependent build slice (gate-before-build) and blocks it.\n\n**Closing conditions:** #404 → Slice 0 merged · #380 → Slice 1 complete per its mandate ACs · #343 → Slice 2 complete per its amended ACs · #405 → Slice 3 signed off · Anchor #403 → all slices merged + native sub-issues 100%.\n\n**Mid-wave discovered follow-ups** → schedule as a **slice row in this table** + its own sub-issue (natively linked, counts in the rollup). **No** separate follow-ups table.\n\n**Parallel note:** true parallelism only with a worktree per strand. Slices 1 and 2 run parallel after Slice 0 (separate sidecar artifacts, no shared files); Slice 3 is serial after both.\n\n**Handoff + PRD live elsewhere:** the paste-ready start command sits **self-contained in each slice leaf** (`to-issues` §5d), and the full grilled PRD is **issue comment #1** on this anchor (posted at promotion; rationale archive, not per-session reading). The anchor body itself ends here.\n",
+        "createdAt": "2026-07-28T21:07:49Z",
+        "labels": [
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsVHg",
+            "name": "type:cluster",
+            "description": "Wave or cluster anchor",
+            "color": "7057FF"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsV0A",
+            "name": "priority:medium",
+            "description": "Normal priority",
+            "color": "FBCA04"
+          }
+        ],
+        "number": 403,
+        "state": "OPEN",
+        "title": "Welle 31 — Analysis pre-program: truth census + cost walk + evaluation shape v1.0.0",
+        "updatedAt": "2026-07-28T21:19:00Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/403"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "404",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:24.978Z",
+      "bytes": 4070,
+      "sha256": "a14d52760bb23d1efa1cc530314058656515d48d127462177e4ecc4d50d80870",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 404,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/404",
+      "why": "this slice",
+      "disclosure": "body",
+      "response": {
+        "body": "<!-- slice-id: analysis-substrate -->\n<!-- parent-prd: #403 -->\n**plan_revision:** r1\n\n**Part of:** Welle 31 · Anchor #403\n\n## Blast-Radius\n**Primary:** docs/evidence/ exports (issue bodies + aggregate query responses), substrate artifacts (inventory, journey × entry-point matrix, station tables) — ~5–8 files\n**Transitive:** —\n\n## What to build\n\nDerive the **Analysis substrate** (see `CONTEXT.md`) exactly once, per #380's\nlocked rules, and commit it — the commit is the freeze both censuses\nreference:\n\n- **Scripted inventory** (denominator-as-query per #380 §1): derived from\n  `src/lib/bundle.mjs` entries by kind and `.claude/skills/skill-manifest.json`,\n  never a directory listing; partitioned (Kit Core / shipped surface /\n  maintainer-only / consumer-owned).\n- **Journey set with station tables** (per #380 §5), as four keyed\n  dimensions, never conflated: `journey`, `entryPoint` (canonical pipeline,\n  goal-level delegation, question-turned-work, ask-matt routing, direct\n  skill invocation, external worktrees/sessions, Codex-surface entry),\n  `evidenceSource` (#380 §5's full source-class list, each a distinct\n  provenance category), `recoveryPath` (named record sources,\n  unknown-recovery rule). The **consumer-as-actor journey** (first `init`,\n  first own workflow, first `update` over local edits) is part of the\n  derived set.\n- **Evidence exports**: referenced issue bodies and raw aggregate query\n  responses to `docs/evidence/` with sha256, per #380's standing-evidence\n  rule.\n\nPrep slice: it produces no verdicts — the deferred halves are closed by\nSlice 1 (#380, truth), Slice 2 (#343, cost) and Slice 3 (evaluation).\n\n## Acceptance criteria\n- [ ] Counted census reports both axes: `X journeys derived, of which Y are the eight #343 seeds` and the entry-point axis, each derived by a citable command.\n- [ ] All four dimensions present and keyed; no conflation (an entry point is not an evidence source).\n- [ ] Consumer-as-actor journey present in the derived set.\n- [ ] Evidence exports committed with sha256 before either census starts.\n- [ ] Substrate committed; the commit SHA is named in the anchor #403 (both censuses reference it).\n\n## Blocked by\nNone - can start immediately.\n\n## Routing intent\n\nintent-version: 2\nrouting-intent: development\nreasoning-intent: balanced\ntask-shape: multi-step\nrisk: low\nautonomy-requirement: afk\ncontext-need: repository\n\n## Handoff Start Command\n\n```\nWelle 31 · Slice 0 (closes #404, Parent #403). Read #403 for decisions.\nStart skill: AFK → /implement.\nRouting intent: the body's `## Routing intent` block — read it as the explicit intent. The dispatching surface resolves the current executable route from it; never persist that provider route here.\nWorktree: your project's worktree helper, or `git worktree add`\nScope (~5–8 files) — REQUIRED FIELD, blast-radius estimate at cut time; the build session checks it against its own recon findings, >2x deviation → STOP:\n- docs/evidence/ exports (issue bodies + raw aggregate queries, sha256)\n- substrate artifacts: scripted inventory, journey × entry-point matrix, station tables\nLive-verify: the counted census output (`X journeys derived, of which Y are the eight seeds`, plus the entry-point axis) is committed and each number re-derivable by the cited command.\nPR: Part of #403 — NEVER closes on the anchor; closes #404.\n```\n",
+        "createdAt": "2026-07-28T21:16:00Z",
+        "labels": [
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsUmw",
+            "name": "ready-for-agent",
+            "description": "Fully specified for AFK implementation",
+            "color": "0E8A16"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsVrg",
+            "name": "type:research",
+            "description": "Research or decision work",
+            "color": "D4C5F9"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsV0A",
+            "name": "priority:medium",
+            "description": "Normal priority",
+            "color": "FBCA04"
+          }
+        ],
+        "number": 404,
+        "state": "OPEN",
+        "title": "Welle 31 / Slice 0 — Analysis substrate derived and committed (freeze)",
+        "updatedAt": "2026-07-29T07:02:32Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/404"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "405",
+        "--repo",
+        "iKon85/agent-workflow-kit",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:25.492Z",
+      "bytes": 3644,
+      "sha256": "e463d4bc4ae95f6187f12cbccc267c102146b5876aa26f938ec72b2ff283945b",
+      "repo": "iKon85/agent-workflow-kit",
+      "number": 405,
+      "url": "https://github.com/iKon85/agent-workflow-kit/issues/405",
+      "why": "evaluation slice (Slice 3)",
+      "disclosure": "body",
+      "response": {
+        "body": "<!-- slice-id: analysis-evaluation-v1 -->\n<!-- parent-prd: #403 -->\n**plan_revision:** r1\n\n**Part of:** Welle 31 · Anchor #403\n\n## Blast-Radius\n**Primary:** merged findings document, PRD/planning docs for the v1.0.0 program — ~2–4 files\n**Transitive:** issue bodies of the cut/keep candidates\n\n## What to build\n\nMerge the truth findings (#380) and the cost findings (#343) into one\nevaluated candidate set, then shape the actual v1.0.0 program through the\nformal route `grill → to-prd → to-issues`.\n\n- Candidate outcomes are **cut / relocate (progressive disclosure) / rebind\n  (right rule, wrong binding) / keep**. A truth defect (fiction) mandates\n  remediation in some form, never automatically deletion; a cut additionally\n  requires dispensability evidence per #380's promotion rule or this slice's\n  grill.\n- Where the two model passes of #343 disagree, or where #380 and #343 point\n  in opposite directions on the same mechanism (cheap-but-fiction /\n  expensive-but-true), the Design maxim in `CLAUDE.md` decides which side\n  carries the burden of proof.\n- All cutting authority lives here or later — never in Slices 0–2.\n\n## Acceptance criteria\n- [ ] Merged findings document exists; every candidate carries its truth verdict, its cost row, and one of the four outcomes with reasoning.\n- [ ] Disagreements between passes/axes are listed as findings, not resolved silently.\n- [ ] v1.0.0 program shaped and published via `grill → to-prd → to-issues` (or explicitly deferred with reason).\n- [ ] Sign-off by Niko on the outcome set before any downstream program is published.\n\n## Blocked by\nReference the blocking ticket(s): #380, #343.\n\n## Clarify Before Build\n- Review of the merged candidate set: which cut/relocate/rebind/keep verdicts stand (Niko's sign-off — HITL by design, story 13).\n- Depth and scope of the v1.0.0 program the grill shapes from the surviving candidates.\n\n## Routing intent\n\nintent-version: 2\nrouting-intent: judgment\nreasoning-intent: deep\ntask-shape: long-horizon\nrisk: high\nautonomy-requirement: supervised\ncontext-need: long-context\n\n## Handoff Start Command\n\n```\nWelle 31 · Slice 3 (closes #405, Parent #403). Read #403 for decisions.\nStart skill: 🧭 Design Grill → /grill-with-docs-codex (HITL — merge review with Niko, then grill → to-prd → to-issues).\nRouting intent: the body's `## Routing intent` block — read it as the explicit intent. The dispatching surface resolves the current executable route from it; never persist that provider route here.\nWorktree: your project's worktree helper, or `git worktree add`\nScope (~2–4 files) — REQUIRED FIELD, blast-radius estimate at cut time; the build session checks it against its own recon findings, >2x deviation → STOP:\n- merged findings document (truth × cost × outcome per candidate)\n- v1.0.0 program planning docs via the formal route\nLive-verify: every candidate in the merged document carries truth verdict + cost row + one of cut/relocate/rebind/keep with reasoning; disagreements listed as findings.\nPR: Part of #403 — NEVER closes on the anchor; closes #405.\n```\n",
+        "createdAt": "2026-07-28T21:16:13Z",
+        "labels": [
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsVrg",
+            "name": "type:research",
+            "description": "Research or decision work",
+            "color": "D4C5F9"
+          },
+          {
+            "id": "LA_kwDOS2v7FM8AAAACrZsV0A",
+            "name": "priority:medium",
+            "description": "Normal priority",
+            "color": "FBCA04"
+          }
+        ],
+        "number": 405,
+        "state": "OPEN",
+        "title": "Welle 31 / Slice 3 — Findings merged, v1.0.0 program shaped",
+        "updatedAt": "2026-07-28T21:21:51Z",
+        "url": "https://github.com/iKon85/agent-workflow-kit/issues/405"
+      }
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "2305",
+        "--repo",
+        "iKon85/Testreporter",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:26.003Z",
+      "bytes": 2454,
+      "sha256": "f678c7a299bedf2d70590bf56ad08d44bbd44a69f913415546d8d03fd374294f",
+      "repo": "iKon85/Testreporter",
+      "number": 2305,
+      "url": "https://github.com/iKon85/Testreporter/issues/2305",
+      "why": "symlink identity freeze routed around teardown safeguard (#380)",
+      "disclosure": "digest-only",
+      "withheldReason": "private consumer repository; body withheld from this public repo"
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "2312",
+        "--repo",
+        "iKon85/Testreporter",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:26.497Z",
+      "bytes": 2258,
+      "sha256": "730a8b1285d5964688cf166fd3c2e4aa419f121d293252891b4190d4dd577b56",
+      "repo": "iKon85/Testreporter",
+      "number": 2312,
+      "url": "https://github.com/iKon85/Testreporter/issues/2312",
+      "why": "impact-census guard cannot see a coordinator branch (#380)",
+      "disclosure": "digest-only",
+      "withheldReason": "private consumer repository; body withheld from this public repo"
+    },
+    {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "2283",
+        "--repo",
+        "iKon85/Testreporter",
+        "--json",
+        "number,title,state,url,createdAt,updatedAt,body,labels"
+      ],
+      "fetchedAt": "2026-07-29T07:09:26.987Z",
+      "bytes": 2253,
+      "sha256": "301fd02468c746c778e07d594bf45d7edffdfaa11cdb5dd8831d1768f4a5ef41",
+      "repo": "iKon85/Testreporter",
+      "number": 2283,
+      "url": "https://github.com/iKon85/Testreporter/issues/2283",
+      "why": "readiness.mjs exact heading match reports missing (#380)",
+      "disclosure": "digest-only",
+      "withheldReason": "private consumer repository; body withheld from this public repo"
+    }
+  ]
+}
