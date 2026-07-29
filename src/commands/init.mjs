@@ -1,5 +1,6 @@
 import { readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
+import { summarizeReadiness } from '../../scripts/readiness.mjs';
 import { sha256File } from '../lib/hash.mjs';
 import { writeAtomic } from '../lib/atomicWrite.mjs';
 import { stubSentinel } from '../lib/sentinel.mjs';
@@ -118,6 +119,14 @@ export async function init({ kitRoot, consumerRoot, force = false, routingProfil
           ...options,
           expectedFingerprint: inspection.fingerprint,
         }));
+  }
+
+  // Read-only report, never a gate: the same evaluator `wrapup`/`update` use,
+  // rendered once at the end of install so a fresh consumer sees current
+  // readiness without a separate command. Only meaningful once the readiness
+  // manifest itself is installed — absent in a minimal/legacy kit.
+  if (await exists(join(consumerRoot, READINESS_MANIFEST_PATH))) {
+    result.readiness = await summarizeReadiness({ root: consumerRoot });
   }
 
   return result;
