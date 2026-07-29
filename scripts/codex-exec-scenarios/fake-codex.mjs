@@ -7,6 +7,10 @@ const scenario = process.env.FAKE_CODEX_SCENARIO ?? 'ok';
 const pause = Number(process.env.FAKE_CODEX_PAUSE_MS ?? 1_000);
 
 if (args.includes('--version') || args[0] === '--version') {
+  if (process.env.FAKE_CODEX_VERSION_FAIL === '1') {
+    console.error('codex: unable to determine version');
+    process.exit(1);
+  }
   console.log(`codex-cli ${process.env.FAKE_CODEX_VERSION ?? '0.144.6'}`);
   process.exit(0);
 }
