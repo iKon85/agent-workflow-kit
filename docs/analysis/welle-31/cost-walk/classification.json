@@ -1,0 +1,1671 @@
+{
+  "schema": "welle-31/cost-walk/classification/v1",
+  "slice": "#343",
+  "substrateCommit": "c9f6a4aa8bd80bbc4519fa9925315a6d4f0292f2",
+  "appliedRecord": "docs/analysis/welle-31/cost-walk/ac-1-measurement-record.md",
+  "thresholdsApplied": {
+    "highTraversal": 9,
+    "topQuartileGates": 3
+  },
+  "binCounts": {
+    "unwatched": 10,
+    "covered-and-priced": 29,
+    "secured-out-of-proportion": 8,
+    "unknown": 23
+  },
+  "binTotal": 70,
+  "judgmentPass": {
+    "rule": "seed-carrying journeys + every secured-out-of-proportion + every unwatched with traversal >= threshold + the three consumer journeys the mandate names",
+    "covered": 28,
+    "of": 70,
+    "journeys": [
+      {
+        "journeyId": "idea-to-board-issue",
+        "bin": "unwatched",
+        "reasons": [
+          "carries #343 seed-1",
+          "classified unwatched with high traversal (11 >= 9)"
+        ]
+      },
+      {
+        "journeyId": "inbound-triage-to-agent-ready",
+        "bin": "unwatched",
+        "reasons": [
+          "classified unwatched with high traversal (9 >= 9)"
+        ]
+      },
+      {
+        "journeyId": "backlog-to-waves-clustering",
+        "bin": "unwatched",
+        "reasons": [
+          "classified unwatched with high traversal (9 >= 9)"
+        ]
+      },
+      {
+        "journeyId": "prd-maturation",
+        "bin": "unwatched",
+        "reasons": [
+          "classified unwatched with high traversal (14 >= 9)"
+        ]
+      },
+      {
+        "journeyId": "plan-to-executable-slices",
+        "bin": "covered-and-priced",
+        "reasons": [
+          "carries #343 seed-3"
+        ]
+      },
+      {
+        "journeyId": "wayfinder-chart-a-foggy-effort",
+        "bin": "unwatched",
+        "reasons": [
+          "classified unwatched with high traversal (10 >= 9)"
+        ]
+      },
+      {
+        "journeyId": "research-a-question",
+        "bin": "unwatched",
+        "reasons": [
+          "classified unwatched with high traversal (26 >= 9)"
+        ]
+      },
+      {
+        "journeyId": "land-planning-output",
+        "bin": "covered-and-priced",
+        "reasons": [
+          "carries #343 seed-4"
+        ]
+      },
+      {
+        "journeyId": "small-direct-path",
+        "bin": "covered-and-priced",
+        "reasons": [
+          "carries #343 seed-8"
+        ]
+      },
+      {
+        "journeyId": "small-bug-fix-to-merged-and-released",
+        "bin": "covered-and-priced",
+        "reasons": [
+          "carries #343 seed-2"
+        ]
+      },
+      {
+        "journeyId": "tdd-red-green-refactor",
+        "bin": "secured-out-of-proportion",
+        "reasons": [
+          "classified secured-out-of-proportion"
+        ]
+      },
+      {
+        "journeyId": "run-the-local-gate",
+        "bin": "secured-out-of-proportion",
+        "reasons": [
+          "classified secured-out-of-proportion"
+        ]
+      },
+      {
+        "journeyId": "goal-level-delegation-afk-sweep",
+        "bin": "covered-and-priced",
+        "reasons": [
+          "carries #343 seed-7"
+        ]
+      },
+      {
+        "journeyId": "session-ends",
+        "bin": "covered-and-priced",
+        "reasons": [
+          "carries #343 seed-6"
+        ]
+      },
+      {
+        "journeyId": "retro-after-a-session",
+        "bin": "secured-out-of-proportion",
+        "reasons": [
+          "classified secured-out-of-proportion"
+        ]
+      },
+      {
+        "journeyId": "resolve-a-merge-conflict",
+        "bin": "secured-out-of-proportion",
+        "reasons": [
+          "classified secured-out-of-proportion"
+        ]
+      },
+      {
+        "journeyId": "author-or-improve-a-skill",
+        "bin": "secured-out-of-proportion",
+        "reasons": [
+          "classified secured-out-of-proportion"
+        ]
+      },
+      {
+        "journeyId": "audit-the-skill-surface",
+        "bin": "unwatched",
+        "reasons": [
+          "classified unwatched with high traversal (20 >= 9)"
+        ]
+      },
+      {
+        "journeyId": "release-the-kit",
+        "bin": "covered-and-priced",
+        "reasons": [
+          "carries #343 seed-5"
+        ]
+      },
+      {
+        "journeyId": "consumer-first-init",
+        "bin": "unknown",
+        "reasons": [
+          "the consumer journey the mandate names"
+        ]
+      },
+      {
+        "journeyId": "consumer-first-own-workflow",
+        "bin": "unknown",
+        "reasons": [
+          "the consumer journey the mandate names"
+        ]
+      },
+      {
+        "journeyId": "consumer-update-over-local-edits",
+        "bin": "unknown",
+        "reasons": [
+          "carries #343 seed-5",
+          "the consumer journey the mandate names"
+        ]
+      },
+      {
+        "journeyId": "consumer-kit-update-skill",
+        "bin": "unknown",
+        "reasons": [
+          "carries #343 seed-5"
+        ]
+      },
+      {
+        "journeyId": "recovery-red-release-run-but-published",
+        "bin": "secured-out-of-proportion",
+        "reasons": [
+          "classified secured-out-of-proportion"
+        ]
+      },
+      {
+        "journeyId": "recovery-awaiting-tag-stacked-bump",
+        "bin": "secured-out-of-proportion",
+        "reasons": [
+          "classified secured-out-of-proportion"
+        ]
+      },
+      {
+        "journeyId": "recovery-interrupted-afk-run",
+        "bin": "unwatched",
+        "reasons": [
+          "classified unwatched with high traversal (28 >= 9)"
+        ]
+      },
+      {
+        "journeyId": "recovery-anchor-closed-early",
+        "bin": "secured-out-of-proportion",
+        "reasons": [
+          "classified secured-out-of-proportion"
+        ]
+      },
+      {
+        "journeyId": "recovery-board-status-drift",
+        "bin": "unwatched",
+        "reasons": [
+          "classified unwatched with high traversal (11 >= 9)"
+        ]
+      }
+    ],
+    "namedNonCoverage": {
+      "count": 42,
+      "note": "These journeys carry a counted cost row but no judgment pass. Amendment 2 requires them to be named, not silently capped.",
+      "journeys": [
+        {
+          "journeyId": "program-graph-decomposition",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "cross-model-plan-hardening",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "domain-grill-and-context-update",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "spec-self-critique-before-review",
+          "bin": "unwatched",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "scale-check-route-a-new-build",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "router-recommends-a-starting-point",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "verify-a-fact-before-plan-lock",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "resolve-a-bounded-tradeoff",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "bug-diagnosis-to-regression-test",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "prototype-a-design",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "delegate-build-to-codex",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "two-axis-code-review",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "design-a-deep-module",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "improve-codebase-architecture",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "security-audit-of-the-app",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "slice-pr-landing",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "anchor-reconcile-on-slice-event",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "sync-the-codex-mirror",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "kit-build-and-staleness-check",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "ci-required-check-on-a-pull-request",
+          "bin": "unknown",
+          "actor": "platform"
+        },
+        {
+          "journeyId": "tag-triggered-publish",
+          "bin": "unknown",
+          "actor": "platform"
+        },
+        {
+          "journeyId": "pages-site-publish",
+          "bin": "unknown",
+          "actor": "platform"
+        },
+        {
+          "journeyId": "consumer-setup-workflow-project-layer",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-diff-inspection",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-uninstall",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-routing-profile-decision",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-ownership-override",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-contribution-bridge",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-automated-update-pr",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-project-release",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-setup-pre-commit",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-census-establish",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "consumer-memory-lifecycle",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "session-start-context-injection",
+          "bin": "unknown",
+          "actor": "platform"
+        },
+        {
+          "journeyId": "guarded-tool-call-block",
+          "bin": "unknown",
+          "actor": "platform"
+        },
+        {
+          "journeyId": "prompt-and-stop-time-advisory",
+          "bin": "unknown",
+          "actor": "platform"
+        },
+        {
+          "journeyId": "worktree-create-and-bind",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "worktree-teardown",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "recovery-wrong-branch-commit",
+          "bin": "covered-and-priced",
+          "actor": "agent"
+        },
+        {
+          "journeyId": "recovery-update-conflicts-with-local-edits",
+          "bin": "unknown",
+          "actor": "consumer"
+        },
+        {
+          "journeyId": "recovery-guard-false-red-blocks-capability",
+          "bin": "covered-and-priced",
+          "actor": "maintainer"
+        },
+        {
+          "journeyId": "recovery-teardown-blocked-by-symlinks",
+          "bin": "unknown",
+          "actor": "consumer"
+        }
+      ]
+    }
+  },
+  "journeys": [
+    {
+      "journeyId": "idea-to-board-issue",
+      "title": "An idea becomes a tracked board issue",
+      "actor": "maintainer",
+      "seed": "seed-1",
+      "bin": "unwatched",
+      "rule": "traversal 11 >= 9 and no named recovery record (unknown-recovery)",
+      "steps": 3,
+      "gates": 1,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 11,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 3,
+      "failureModesCited": [
+        "#343"
+      ]
+    },
+    {
+      "journeyId": "inbound-triage-to-agent-ready",
+      "title": "Bugs and requests you did not create become agent-ready issues",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "unwatched",
+      "rule": "traversal 9 >= 9 and no named recovery record (unknown-recovery)",
+      "steps": 3,
+      "gates": 1,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 9,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "backlog-to-waves-clustering",
+      "title": "An open backlog is clustered into themed waves",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "unwatched",
+      "rule": "traversal 9 >= 9 and no named recovery record (unknown-recovery)",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 9,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "prd-maturation",
+      "title": "A stub or agreed shape is matured into a PRD",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "unwatched",
+      "rule": "traversal 14 >= 9 and no named recovery record (unknown-recovery)",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 14,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "plan-to-executable-slices",
+      "title": "Plan something big -> independently grabbable slices",
+      "actor": "maintainer",
+      "seed": "seed-3",
+      "bin": "covered-and-priced",
+      "rule": "4 gates, traversal 26, named recovery present",
+      "steps": 4,
+      "gates": 4,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 26,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": [
+        "#341",
+        "#343"
+      ]
+    },
+    {
+      "journeyId": "program-graph-decomposition",
+      "title": "A Program identity is decomposed through the internal graph engine",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "4 gates, traversal 10, named recovery present",
+      "steps": 4,
+      "gates": 4,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 10,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 6,
+      "failureModesCited": [
+        "#322"
+      ]
+    },
+    {
+      "journeyId": "cross-model-plan-hardening",
+      "title": "A locked plan is adversarially reviewed by a second model",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "3 gates, traversal 23, named recovery present",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 23,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "domain-grill-and-context-update",
+      "title": "A fuzzy capability is grilled against the project's own domain model",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 8, named recovery absent",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 8,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "spec-self-critique-before-review",
+      "title": "A freshly written spec is self-critiqued before a human reads it",
+      "actor": "agent",
+      "seed": null,
+      "bin": "unwatched",
+      "rule": "zero gates — no station on this journey can refuse passage",
+      "steps": 3,
+      "gates": 0,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 5,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "scale-check-route-a-new-build",
+      "title": "A build of unclear size is routed to program / feature / slice / bug",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 5, named recovery absent",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 5,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "router-recommends-a-starting-point",
+      "title": "The user does not know which skill fits and the router names one",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 8, named recovery absent",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 8,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "wayfinder-chart-a-foggy-effort",
+      "title": "A huge foggy effort is charted as investigation tickets",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "unwatched",
+      "rule": "traversal 10 >= 9 and no named recovery record (unknown-recovery)",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 3,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 10,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "verify-a-fact-before-plan-lock",
+      "title": "A binary factual question is answered with a throwaway read-only harness",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 4, named recovery present",
+      "steps": 4,
+      "gates": 2,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 4,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "resolve-a-bounded-tradeoff",
+      "title": "A bounded which-option choice is decided and sunk into a record",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 4, named recovery absent",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 4,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "research-a-question",
+      "title": "A question is researched against primary sources and captured in the repo",
+      "actor": "agent",
+      "seed": null,
+      "bin": "unwatched",
+      "rule": "traversal 26 >= 9 and no named recovery record (unknown-recovery)",
+      "steps": 3,
+      "gates": 1,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 26,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "land-planning-output",
+      "title": "Planning output (ADR, glossary, research) lands without a feature slice",
+      "actor": "maintainer",
+      "seed": "seed-4",
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 27, named recovery present",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 27,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": [
+        "#343"
+      ]
+    },
+    {
+      "journeyId": "small-direct-path",
+      "title": "A tiny fix goes implement -> wrapup with near-zero ceremony",
+      "actor": "maintainer",
+      "seed": "seed-8",
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 24, named recovery present",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 24,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": [
+        "#343"
+      ]
+    },
+    {
+      "journeyId": "small-bug-fix-to-merged-and-released",
+      "title": "A small bug fix reaches merged and released",
+      "actor": "maintainer",
+      "seed": "seed-2",
+      "bin": "covered-and-priced",
+      "rule": "4 gates, traversal 14, named recovery present",
+      "steps": 5,
+      "gates": 4,
+      "humanInteractions": 0,
+      "standingAuthorizations": 1,
+      "traversalAttributedCommits": 14,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 5,
+      "failureModesCited": [
+        "#205",
+        "#243",
+        "#257",
+        "#343"
+      ]
+    },
+    {
+      "journeyId": "tdd-red-green-refactor",
+      "title": "One behaviour is built test-first",
+      "actor": "agent",
+      "seed": null,
+      "bin": "secured-out-of-proportion",
+      "rule": "3 gates (top-quartile gating >= 3) against traversal 4 < 9",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 4,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "bug-diagnosis-to-regression-test",
+      "title": "A bug is reproduced, minimised, fixed and regression-tested",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 6, named recovery present",
+      "steps": 4,
+      "gates": 2,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 6,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "prototype-a-design",
+      "title": "A design question gets a runnable throwaway answer",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 1, named recovery absent",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 1,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "delegate-build-to-codex",
+      "title": "A frozen spec is handed to Codex to implement in a bounded sandbox",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "3 gates, traversal 19, named recovery present",
+      "steps": 4,
+      "gates": 3,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 19,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "two-axis-code-review",
+      "title": "A diff is reviewed on Standards and Spec as two separate axes",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 5, named recovery absent",
+      "steps": 4,
+      "gates": 2,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 5,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "design-a-deep-module",
+      "title": "A module interface is designed or deepened",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "1 gates, traversal 2, named recovery absent",
+      "steps": 3,
+      "gates": 1,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 2,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "improve-codebase-architecture",
+      "title": "An existing codebase's architecture is improved",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 4, named recovery absent",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 4,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "security-audit-of-the-app",
+      "title": "The whole application is audited by two models independently",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 4, named recovery present",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 4,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "run-the-local-gate",
+      "title": "The pre-PR local CI gate is run",
+      "actor": "agent",
+      "seed": null,
+      "bin": "secured-out-of-proportion",
+      "rule": "4 gates (top-quartile gating >= 3) against traversal 8 < 9",
+      "steps": 5,
+      "gates": 4,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 8,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "slice-pr-landing",
+      "title": "A finished slice becomes a pull request and lands",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "3 gates, traversal 45, named recovery present",
+      "steps": 5,
+      "gates": 3,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 45,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "anchor-reconcile-on-slice-event",
+      "title": "A wave anchor's slice table is reconciled on PR create and merge",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 13, named recovery present",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 13,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "goal-level-delegation-afk-sweep",
+      "title": "The user states an outcome and the agent orchestrates a whole wave AFK",
+      "actor": "maintainer",
+      "seed": "seed-7",
+      "bin": "covered-and-priced",
+      "rule": "3 gates, traversal 24, named recovery present",
+      "steps": 5,
+      "gates": 3,
+      "humanInteractions": 1,
+      "standingAuthorizations": 2,
+      "traversalAttributedCommits": 24,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": [
+        "#343"
+      ]
+    },
+    {
+      "journeyId": "session-ends",
+      "title": "A session ends and hands over cleanly",
+      "actor": "agent",
+      "seed": "seed-6",
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 31, named recovery present",
+      "steps": 4,
+      "gates": 2,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 31,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": [
+        "#320",
+        "#343"
+      ]
+    },
+    {
+      "journeyId": "retro-after-a-session",
+      "title": "Session friction is turned into concrete config mutations",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "secured-out-of-proportion",
+      "rule": "3 gates (top-quartile gating >= 3) against traversal 6 < 9",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 6,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "resolve-a-merge-conflict",
+      "title": "An in-progress merge or rebase conflict is resolved",
+      "actor": "agent",
+      "seed": null,
+      "bin": "secured-out-of-proportion",
+      "rule": "3 gates (top-quartile gating >= 3) against traversal 1 < 9",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 1,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "author-or-improve-a-skill",
+      "title": "A skill is created or improved",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "secured-out-of-proportion",
+      "rule": "4 gates (top-quartile gating >= 3) against traversal 7 < 9",
+      "steps": 4,
+      "gates": 4,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 7,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "audit-the-skill-surface",
+      "title": "The shipped skill surface is audited",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "unwatched",
+      "rule": "traversal 20 >= 9 and no named recovery record (unknown-recovery)",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 20,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "sync-the-codex-mirror",
+      "title": "The .agents/ mirror is regenerated in the same PR as the Claude change",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 6, named recovery absent",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 6,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "kit-build-and-staleness-check",
+      "title": "The install manifest is rebuilt and checked against the sources",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "2 gates, traversal 4, named recovery present",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 4,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "release-the-kit",
+      "title": "A confirmed Semver becomes a published npm version and GitHub release",
+      "actor": "maintainer",
+      "seed": "seed-5",
+      "bin": "covered-and-priced",
+      "rule": "6 gates, traversal 18, named recovery present",
+      "steps": 6,
+      "gates": 6,
+      "humanInteractions": 1,
+      "standingAuthorizations": 3,
+      "traversalAttributedCommits": 18,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 5,
+      "failureModesCited": [
+        "#205",
+        "#243",
+        "#257"
+      ]
+    },
+    {
+      "journeyId": "ci-required-check-on-a-pull-request",
+      "title": "A pull request is gated by the required CI check",
+      "actor": "platform",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"platform\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 2,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 1,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "tag-triggered-publish",
+      "title": "An annotated version tag on canonical main triggers publication",
+      "actor": "platform",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"platform\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 4,
+      "gates": 4,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 8,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": [
+        "#257"
+      ]
+    },
+    {
+      "journeyId": "pages-site-publish",
+      "title": "The methodology site is published from main",
+      "actor": "platform",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"platform\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 2,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-first-init",
+      "title": "A consumer installs the kit into their repository for the first time",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 4,
+      "gates": 3,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 71,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-setup-workflow-project-layer",
+      "title": "A consumer fills the project layer so the skills become active",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 43,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-first-own-workflow",
+      "title": "A consumer runs their first own workflow in their own repository",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 4,
+      "gates": 0,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 28,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": [
+        "#343",
+        "#380"
+      ]
+    },
+    {
+      "journeyId": "consumer-update-over-local-edits",
+      "title": "A consumer updates the kit over their own local edits",
+      "actor": "consumer",
+      "seed": "seed-5",
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 5,
+      "gates": 5,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 37,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 7,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-diff-inspection",
+      "title": "A consumer inspects what an update would change",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 31,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-uninstall",
+      "title": "A consumer removes the kit",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 27,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-routing-profile-decision",
+      "title": "A consumer answers the routing questions and stores a profile",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 24,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-ownership-override",
+      "title": "A consumer takes or returns ownership of an installed file",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 23,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-contribution-bridge",
+      "title": "A consumer prepares a local change as a contribution back to the kit",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 20,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-automated-update-pr",
+      "title": "A consumer's repository gets an automated kit-update pull request",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 5,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-kit-update-skill",
+      "title": "A consumer previews and transactionally applies a kit release",
+      "actor": "consumer",
+      "seed": "seed-5",
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 21,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-project-release",
+      "title": "A consumer prepares one coherent version change across their profiled packages",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 4,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-setup-pre-commit",
+      "title": "A consumer wires a native zero-dependency pre-commit hook",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 2,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-census-establish",
+      "title": "A consumer establishes or refreshes the optional project census",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 5,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "consumer-memory-lifecycle",
+      "title": "A consumer inspects, archives or recovers agent memories",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 3,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "session-start-context-injection",
+      "title": "A session starts and the shipped SessionStart hooks inject context",
+      "actor": "platform",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"platform\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 4,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 5,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "guarded-tool-call-block",
+      "title": "A tool call is blocked or warned by a PreToolUse guard",
+      "actor": "platform",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"platform\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 4,
+      "gates": 3,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 11,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 5,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "prompt-and-stop-time-advisory",
+      "title": "A prompt or a stop triggers a non-blocking advisory",
+      "actor": "platform",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"platform\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 5,
+      "traversalObservable": false,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 5,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "worktree-create-and-bind",
+      "title": "A worktree is created and the session is bound to it",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "3 gates, traversal 26, named recovery present",
+      "steps": 4,
+      "gates": 3,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 26,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 4,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "worktree-teardown",
+      "title": "A worktree is torn down after its work landed",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "3 gates, traversal 11, named recovery present",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 11,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": [
+        "#320"
+      ]
+    },
+    {
+      "journeyId": "recovery-red-release-run-but-published",
+      "title": "Recovery: a red release run that nevertheless published",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "secured-out-of-proportion",
+      "rule": "3 gates (top-quartile gating >= 3) against traversal 8 < 9",
+      "steps": 4,
+      "gates": 3,
+      "humanInteractions": 2,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 8,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": [
+        "#205"
+      ]
+    },
+    {
+      "journeyId": "recovery-awaiting-tag-stacked-bump",
+      "title": "Recovery: a version bump stacked on a still-untagged release",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "secured-out-of-proportion",
+      "rule": "3 gates (top-quartile gating >= 3) against traversal 7 < 9",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 7,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 1,
+      "failureModesCited": [
+        "#243"
+      ]
+    },
+    {
+      "journeyId": "recovery-wrong-branch-commit",
+      "title": "Recovery: a commit landed on the wrong branch",
+      "actor": "agent",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "3 gates, traversal 9, named recovery present",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 9,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "recovery-interrupted-afk-run",
+      "title": "Recovery: an AFK orchestration run was interrupted mid-wave",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "unwatched",
+      "rule": "traversal 28 >= 9 and no named recovery record (unknown-recovery)",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 28,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "recovery-update-conflicts-with-local-edits",
+      "title": "Recovery: an update lands on locally edited kit files",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 0,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 22,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "recovery-guard-false-red-blocks-capability",
+      "title": "Recovery: an over-precise guard misattributes a local defect and blocks the capability",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "covered-and-priced",
+      "rule": "1 gates, traversal 13, named recovery present",
+      "steps": 3,
+      "gates": 1,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 13,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": []
+    },
+    {
+      "journeyId": "recovery-teardown-blocked-by-symlinks",
+      "title": "Recovery: teardown's identity freeze cannot handle a symlink-heavy worktree",
+      "actor": "consumer",
+      "seed": null,
+      "bin": "unknown",
+      "rule": "actor \"consumer\" walks outside this repository — change-traffic cannot observe traversal",
+      "steps": 3,
+      "gates": 2,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 9,
+      "traversalObservable": false,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": [
+        "#380",
+        "#2305"
+      ]
+    },
+    {
+      "journeyId": "recovery-anchor-closed-early",
+      "title": "Recovery: an anchor or Program-PRD was closed before its slices finished",
+      "actor": "maintainer",
+      "seed": null,
+      "bin": "secured-out-of-proportion",
+      "rule": "3 gates (top-quartile gating >= 3) against traversal 7 < 9",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 7,
+      "traversalObservable": true,
+      "hasNamedRecovery": true,
+      "artifactsTouched": 2,
+      "failureModesCited": [
+        "#341"
+      ]
+    },
+    {
+      "journeyId": "recovery-board-status-drift",
+      "title": "Recovery: the board's Status no longer matches the real state of the work",
+      "actor": "agent",
+      "seed": null,
+      "bin": "unwatched",
+      "rule": "traversal 11 >= 9 and no named recovery record (unknown-recovery)",
+      "steps": 3,
+      "gates": 3,
+      "humanInteractions": 1,
+      "standingAuthorizations": 0,
+      "traversalAttributedCommits": 11,
+      "traversalObservable": true,
+      "hasNamedRecovery": false,
+      "artifactsTouched": 3,
+      "failureModesCited": []
+    }
+  ]
+}
