@@ -1,0 +1,44 @@
+{
+ "totalRules": 4116,
+ "reviewedMechanical": 4116,
+ "reviewedRead": 687,
+ "byPartition": {
+  "shipped-surface": {
+   "rules": 2627,
+   "findings": 423,
+   "sampled": 395
+  },
+  "kit-core": {
+   "rules": 946,
+   "findings": 124,
+   "sampled": 192
+  },
+  "consumer-owned": {
+   "rules": 113,
+   "findings": 25,
+   "sampled": 20
+  },
+  "maintainer-only": {
+   "rules": 354,
+   "findings": 37,
+   "sampled": 60
+  },
+  "residual": {
+   "rules": 76,
+   "findings": 14,
+   "sampled": 20
+  }
+ },
+ "byVerdict": {
+  "hypothesis": 507,
+  "no-finding": 3493,
+  "unknown": 110,
+  "keep": 6
+ },
+ "byColumn": {
+  "ownership": 224,
+  "form": 103,
+  "truth": 296
+ },
+ "noFinding": 3493
+}

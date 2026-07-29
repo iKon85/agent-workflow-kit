@@ -1,0 +1,903 @@
+{
+ "schema": "welle-31/truth-census/journey-gaps/v1",
+ "substrateCommit": "16325e59f9c1815231f8e37c431881219fac9762",
+ "substrateSourceCommit": "c9f6a4aa8bd80bbc4519fa9925315a6d4f0292f2",
+ "stationsExamined": 237,
+ "journeysExamined": 70,
+ "citedPromises": 237,
+ "citationResolverControl": {
+  "positive": true,
+  "negativeMissingPath": false,
+  "negativeUnfrozenIssue": false,
+  "negativeProse": false
+ },
+ "gapClasses": {
+  "G1": "narrowed verification — the station names what it does not establish",
+  "G2": "prose binding under an enforcement promise",
+  "G3": "unresolvable citation — the promise cannot be read back",
+  "G4": "a blocking station on a journey carrying `unknown-recovery`"
+ },
+ "totalGaps": 109,
+ "byClass": {
+  "G1": 30,
+  "G4": 71,
+  "G2": 8
+ },
+ "stationsWithGap": 102,
+ "journeysWithGap": 49,
+ "unknownRecoveryJourneys": 34,
+ "gaps": [
+  {
+   "gapClass": "G1",
+   "station": "idea-to-board-issue#capture",
+   "promise": "Every finding becomes a `gh` issue at session end",
+   "citation": "CLAUDE.md",
+   "verifies": "that an issue was opened, not that the idea was worth tracking",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "idea-to-board-issue#board-write",
+   "promise": "All board writes go through `scripts/board-sync.py`, never bare `gh issue create`",
+   "citation": "scripts/board-sync.py",
+   "verifies": "that field ids and status names came from the board profile, not from an inline literal",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "idea-to-board-issue#board-write",
+   "promise": "All board writes go through `scripts/board-sync.py`, never bare `gh issue create`",
+   "citation": "scripts/board-sync.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "idea-to-board-issue#classify",
+   "promise": "Board status is primary; only information-waiting and AFK-readiness use labels",
+   "citation": "docs/agents/triage-labels.md",
+   "verifies": "that a Status value and a type label are set, not that they are the right ones",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "inbound-triage-to-agent-ready#sweep",
+   "promise": "Bugs or requests you did not create are moved into agent-ready issues",
+   "citation": ".claude/skills/triage/SKILL.md",
+   "verifies": "that the open inbound set was listed; not that every item was understood",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "inbound-triage-to-agent-ready#readiness-label",
+   "promise": "Only information-waiting and AFK-readiness use labels",
+   "citation": "docs/agents/triage-labels.md",
+   "verifies": "that a label was applied, not that the issue is executable",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "inbound-triage-to-agent-ready#execute-ready",
+   "promise": "An agent-ready issue carries a complete What + AC",
+   "citation": "scripts/execute-ready-check.py",
+   "verifies": "that the required sections are present — presence, not sufficiency",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "inbound-triage-to-agent-ready#execute-ready",
+   "promise": "An agent-ready issue carries a complete What + AC",
+   "citation": "scripts/execute-ready-check.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "backlog-to-waves-clustering#cluster-proposal",
+   "promise": "Groups by the Gate+Booster+Splitter heuristic with size, risk and grill-needed per candidate",
+   "citation": ".claude/skills/board-to-waves/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "backlog-to-waves-clustering#stub-only",
+   "promise": "STOPS at stubs: no PRD, no slicing, no sub-issue links, no promotion",
+   "citation": ".claude/skills/board-to-waves/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "prd-maturation#shape-agreement",
+   "promise": "Publish the agreed shape as a PRD",
+   "citation": ".claude/skills/to-prd/SKILL.md",
+   "verifies": "that a PRD document exists, not that it matches what was agreed",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "prd-maturation#shape-agreement",
+   "promise": "Publish the agreed shape as a PRD",
+   "citation": ".claude/skills/to-prd/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "prd-maturation#status-spec",
+   "promise": "Status values come from the board profile, never an inline literal",
+   "citation": "docs/agents/board-sync.md",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "plan-to-executable-slices#identity-declaration",
+   "promise": "Explicit Feature identity selects tracer-bullet decomposition; explicit Program identity selects the internal graph path",
+   "citation": ".claude/skills/to-issues/SKILL.md",
+   "verifies": "that an identity was declared before decomposition — not that it was the right one",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "plan-to-executable-slices#complete-preview",
+   "promise": "A complete preview precedes any write",
+   "citation": ".claude/skills/to-issues/SKILL.md",
+   "verifies": "that a preview was rendered; not that the human read it",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "program-graph-decomposition#graph-parse",
+   "promise": "A Program plan is parsed into a dependency graph before any issue is written",
+   "citation": "scripts/program_graph_parse.py",
+   "verifies": "that the plan text parsed — not that the dependencies are real",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "cross-model-plan-hardening#read-only-review",
+   "promise": "The second model reviews in a read-only sandbox",
+   "citation": "scripts/codex-exec.sh",
+   "verifies": "that the critic process ran read-only — the sandbox flag, not the critique quality",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "cross-model-plan-hardening#verdict-loop",
+   "promise": "Revise and re-submit to the SAME session until APPROVED or MAX_ROUNDS",
+   "citation": ".claude/skills/grill-with-docs-codex/SKILL.md",
+   "verifies": "that a verdict token came back; not that the objections were addressed",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "domain-grill-and-context-update#one-question",
+   "promise": "Claude interviews one question at a time until every branch is resolved",
+   "citation": ".claude/skills/grill-with-docs/SKILL.md",
+   "verifies": "that questions were asked; not that the decision tree was exhausted",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "domain-grill-and-context-update#one-question",
+   "promise": "Claude interviews one question at a time until every branch is resolved",
+   "citation": ".claude/skills/grill-with-docs/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "domain-grill-and-context-update#challenge-against-docs",
+   "promise": "The plan is challenged against the project’s existing domain model and glossary",
+   "citation": "CONTEXT.md",
+   "verifies": "that the glossary was read; not that a conflict would be noticed",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "domain-grill-and-context-update#inline-doc-update",
+   "promise": "CONTEXT.md and ADRs are updated inline as decisions crystallise",
+   "citation": "docs/agents/domain.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "spec-self-critique-before-review#visible-summary",
+   "promise": "Issues are fixed inline and a visible summary is emitted",
+   "citation": ".claude/skills/spec-self-critique/SKILL.md",
+   "verifies": "that a summary was printed — not that every finding was fixed",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "scale-check-route-a-new-build#size-dialog",
+   "promise": "A short plain-language dialog routes a build of unclear size",
+   "citation": ".claude/skills/scale-check/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "scale-check-route-a-new-build#route-verdict",
+   "promise": "Routes to a program, a feature, a single slice, or a bug",
+   "citation": "CLAUDE.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "router-recommends-a-starting-point#router-scan",
+   "promise": "A router over every skill in the entry-point list",
+   "citation": ".claude/skills/ask-matt/SKILL.md",
+   "verifies": "that the routed set is the entry-point list — not the full installed surface",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "router-recommends-a-starting-point#recommendation",
+   "promise": "Returns a recommended starting point and why",
+   "citation": ".claude/skills/ask-matt/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "router-recommends-a-starting-point#handoff",
+   "promise": "Prefer the smallest workflow that produces a clear next action",
+   "citation": "CLAUDE.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "wayfinder-chart-a-foggy-effort#chart",
+   "promise": "A huge foggy effort is charted as a shared map of investigation tickets",
+   "citation": ".claude/skills/wayfinder/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "wayfinder-chart-a-foggy-effort#ticket-write",
+   "promise": "Each unknown becomes an investigation ticket on the tracker",
+   "citation": "scripts/board-sync.py",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "wayfinder-chart-a-foggy-effort#one-per-session",
+   "promise": "One investigation resolves per session",
+   "citation": ".claude/skills/wayfinder/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "verify-a-fact-before-plan-lock#harness-run",
+   "promise": "A minimal throwaway, read-only harness with output-proof",
+   "citation": ".claude/skills/verify-spike/SKILL.md",
+   "verifies": "that a command ran and produced output — read-only is asserted, not sandboxed",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "resolve-a-bounded-tradeoff#scope-check",
+   "promise": "Above a binary yes/no fact and below an ADR-worthy decision",
+   "citation": ".claude/skills/decision-gate/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "resolve-a-bounded-tradeoff#sink-the-decision",
+   "promise": "The pick is sunk into an ADR, issue or comment",
+   "citation": "docs/agents/domain.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "research-a-question#landing",
+   "promise": "Durable planning output lands through wrapup’s Content route",
+   "citation": ".claude/skills/wrapup/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "land-planning-output#content-claim",
+   "promise": "Durable output lands through the Content route as ordinary work",
+   "citation": ".claude/skills/wrapup/SKILL.md",
+   "verifies": "that the claimed paths are durable, not scratch",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G2",
+   "station": "land-planning-output#no-release-coupling",
+   "promise": "Landing an ADR must not require a release",
+   "citation": "#343",
+   "bindingHardness": "documented",
+   "why": "the promise asserts that something is enforced; the binding that carries it is prose"
+  },
+  {
+   "gapClass": "G2",
+   "station": "small-direct-path#red-green",
+   "promise": "Execute = red→green test-first, never test-after",
+   "citation": "CLAUDE.md",
+   "bindingHardness": "documented",
+   "why": "the promise asserts that something is enforced; the binding that carries it is prose"
+  },
+  {
+   "gapClass": "G1",
+   "station": "small-bug-fix-to-merged-and-released#repro",
+   "promise": "A bug is reproduced before it is fixed",
+   "citation": ".claude/skills/diagnose/SKILL.md",
+   "verifies": "that a reproduction was recorded; not that it is minimal",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "small-bug-fix-to-merged-and-released#required-check",
+   "promise": "The CI job `test` must be green with the branch up to date",
+   "citation": ".github/workflows/ci.yml",
+   "verifies": "that GitHub’s required context passed — the job name, not the workflow name",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "tdd-red-green-refactor#red",
+   "promise": "A failing test comes first and is proven failing",
+   "citation": ".claude/skills/tdd/SKILL.md",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "tdd-red-green-refactor#green",
+   "promise": "The smallest change makes it pass",
+   "citation": ".claude/skills/tdd/SKILL.md",
+   "verifies": "that the suite is green — not that the change was minimal",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "tdd-red-green-refactor#green",
+   "promise": "The smallest change makes it pass",
+   "citation": ".claude/skills/tdd/SKILL.md",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "tdd-red-green-refactor#refactor",
+   "promise": "Refactor happens under a green suite",
+   "citation": ".claude/skills/tdd/SKILL.md",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "bug-diagnosis-to-regression-test#minimise-and-instrument",
+   "promise": "Minimise, hypothesise, instrument",
+   "citation": ".claude/skills/diagnose/SKILL.md",
+   "verifies": "that instrumentation output was read; not that the hypothesis was falsifiable",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "prototype-a-design#branch-choice",
+   "promise": "Routes between a runnable terminal app and several UI variations",
+   "citation": ".claude/skills/prototype/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "prototype-a-design#fold-back",
+   "promise": "What was learned is folded back in",
+   "citation": ".claude/skills/prototype/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "delegate-build-to-codex#bounded-sandbox",
+   "promise": "The build runs inside a bounded workspace-write sandbox with a declared allowed-write set",
+   "citation": "scripts/codex-exec.sh",
+   "verifies": "that the sandbox flags were passed — not that the build honoured the write set",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "two-axis-code-review#merge-base-preflight",
+   "promise": "A three-dot merge-base preflight runs before either axis starts",
+   "citation": ".claude/skills/code-review/SKILL.md",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G2",
+   "station": "two-axis-code-review#side-by-side",
+   "promise": "The two axes are reported side by side, never merged or re-ranked",
+   "citation": ".claude/skills/code-review/SKILL.md",
+   "bindingHardness": "documented",
+   "why": "the promise asserts that something is enforced; the binding that carries it is prose"
+  },
+  {
+   "gapClass": "G4",
+   "station": "two-axis-code-review#side-by-side",
+   "promise": "The two axes are reported side by side, never merged or re-ranked",
+   "citation": ".claude/skills/code-review/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "design-a-deep-module#deepening-pass",
+   "promise": "Find deepening opportunities: interface narrower than implementation",
+   "citation": ".claude/skills/codebase-design/SKILL.md",
+   "verifies": "nothing mechanical — depth is argued, not measured",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "design-a-deep-module#seam-decision",
+   "promise": "The seam decision is recorded where the next session will read it",
+   "citation": "docs/agents/domain.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "improve-codebase-architecture#behaviour-preserving",
+   "promise": "Refactor lands behind the existing tests",
+   "citation": ".claude/skills/improve-codebase-architecture/SKILL.md",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "improve-codebase-architecture#scope-fence",
+   "promise": "A finding out of scope is censused and tracked, not silently widened",
+   "citation": "CLAUDE.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G2",
+   "station": "run-the-local-gate#gate-rerun",
+   "promise": "A red gate is fixed and the gate re-runs; never bypassed with `--no-verify`",
+   "citation": "docs/agents/skills/local-ci.md",
+   "bindingHardness": "documented",
+   "why": "the promise asserts that something is enforced; the binding that carries it is prose"
+  },
+  {
+   "gapClass": "G1",
+   "station": "goal-level-delegation-afk-sweep#wave-claim",
+   "promise": "A wave is claimed before dispatch so two runs cannot orchestrate it at once",
+   "citation": "src/lib/waveClaim.mjs",
+   "verifies": "that the claim was acquired — the lease, not the intent behind it",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G1",
+   "station": "session-ends#durable-capture",
+   "promise": "Every finding becomes a `gh` issue at session end",
+   "citation": "CLAUDE.md",
+   "verifies": "that issues were created; not that every finding was captured",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "author-or-improve-a-skill#english-first",
+   "promise": "Every published skill’s prose is English",
+   "citation": "scripts/test_skill_language_census.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "author-or-improve-a-skill#no-hardcoded-board-values",
+   "promise": "Skills read labels, headings and field ids from the board profile",
+   "citation": "scripts/test_skill_portability_lint.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "author-or-improve-a-skill#frontmatter",
+   "promise": "Frontmatter shape is uniform across the shipped surface",
+   "citation": "scripts/test_skill_frontmatter_lint.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "author-or-improve-a-skill#mirror-same-pr",
+   "promise": "The `.agents/` mirror is updated in the SAME PR, never after merge",
+   "citation": "CLAUDE.md",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "audit-the-skill-surface#denominator",
+   "promise": "Skill-surface claims derive from the manifest and lints, not a recalled list",
+   "citation": ".claude/skills/skill-manifest.json",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "audit-the-skill-surface#drift-hint",
+   "promise": "A drift hint surfaces the divergence in-session",
+   "citation": ".claude/hooks/skill-drift-hint.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "sync-the-codex-mirror#contract-test",
+   "promise": "The mirror contract is enforced by a test, not by memory",
+   "citation": "scripts/test_codex_adapter_sync_contract.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "sync-the-codex-mirror#no-claude-only-escalation",
+   "promise": "A Codex-surface skill never references or escalates to a Claude-only target",
+   "citation": "scripts/test_skill_surface_refs.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "release-the-kit#parity",
+   "promise": "A red run does not prove nothing was published",
+   "citation": "#205",
+   "verifies": "that npm and the GitHub release agree — checked, not inferred from the run colour",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "pages-site-publish#build-pages",
+   "promise": "The methodology site publishes from main",
+   "citation": ".github/workflows/pages.yml",
+   "authorizationBoundary": "platform-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "pages-site-publish#deploy",
+   "promise": "Deployment succeeds or retries within the workflow’s attempts",
+   "citation": ".github/workflows/pages.yml",
+   "authorizationBoundary": "platform-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "pages-site-publish#content-source",
+   "promise": "The published content is the docs site, not the project layer",
+   "citation": "docs/index.html",
+   "authorizationBoundary": "platform-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-diff-inspection#read-only",
+   "promise": "`diff` reports what an update would change and writes nothing",
+   "citation": "src/commands/diff.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-diff-inspection#per-file-origin",
+   "promise": "Divergence is reported per file against its recorded origin",
+   "citation": "src/lib/ownedDiff.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-uninstall#kit-origin-removal",
+   "promise": "`uninstall` removes kit-origin files",
+   "citation": "src/commands/uninstall.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-uninstall#consumer-files-kept",
+   "promise": "Consumer-owned files are kept",
+   "citation": "docs/adr/0003-kit-core-and-project-extension-lifecycle.md",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-uninstall#manifest-teardown",
+   "promise": "The manifest is removed with the installation it describes",
+   "citation": "src/lib/manifest.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-routing-profile-decision#questions",
+   "promise": "The routing profile is answered, not inferred",
+   "citation": "src/lib/routingProfile.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-routing-profile-decision#stored-profile",
+   "promise": "A stored profile decides model and effort where it exists",
+   "citation": "src/lib/routingProfileStorage.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-ownership-override#own",
+   "promise": "A consumer can take ownership of an installed file",
+   "citation": "src/commands/own.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-ownership-override#origin-effect",
+   "promise": "Ownership changes what update may do to the file",
+   "citation": "src/lib/ownershipClassifier.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-contribution-bridge#prepare",
+   "promise": "A local change can be prepared as a contribution back to the kit",
+   "citation": "src/lib/contributionBridge.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-contribution-bridge#routing",
+   "promise": "The contribution is routed to the right kit surface",
+   "citation": "src/lib/contributionRouting.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-automated-update-pr#branch-upsert",
+   "promise": "A stable Kit-verified branch is upserted rather than duplicated",
+   "citation": "scripts/kit-update-pr.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-automated-update-pr#pr-upsert",
+   "promise": "The pull request is upserted, not stacked",
+   "citation": "scripts/kit-update-pr.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-project-release#profile-scan",
+   "promise": "One coherent version change across the profiled packages",
+   "citation": "scripts/project-release.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-project-release#preview-only",
+   "promise": "No commits, tags, pushes, publishes or merges",
+   "citation": "src/lib/release-preview.mjs",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-setup-pre-commit#hooks-path",
+   "promise": "A native hook via `core.hooksPath`, no Husky and no Node dependency",
+   "citation": ".claude/skills/setup-pre-commit/SKILL.md",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "consumer-setup-pre-commit#project-checks",
+   "promise": "The hook runs the project’s own checks, not the kit’s",
+   "citation": "scripts/test_skill_precommit_template.py",
+   "authorizationBoundary": "consumer-owned",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G2",
+   "station": "consumer-setup-pre-commit#never-bypass",
+   "promise": "Never bypass with `--no-verify`",
+   "citation": "CLAUDE.md",
+   "bindingHardness": "documented",
+   "why": "the promise asserts that something is enforced; the binding that carries it is prose"
+  },
+  {
+   "gapClass": "G1",
+   "station": "session-start-context-injection#branch-context",
+   "promise": "The session opens with the branch and its issue context",
+   "citation": ".claude/hooks/branch-context.py",
+   "verifies": "that the hook produced output; not that the agent used it",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "session-start-context-injection#branch-context",
+   "promise": "The session opens with the branch and its issue context",
+   "citation": ".claude/hooks/branch-context.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "session-start-context-injection#board-status",
+   "promise": "Board status is synced into the session’s opening context",
+   "citation": ".claude/hooks/sync-board-status.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "session-start-context-injection#drift-hints",
+   "promise": "Skill, convention and LoC drift surface as hints, not blocks",
+   "citation": ".claude/hooks/convention-drift-hint.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "guarded-tool-call-block#secret-block",
+   "promise": "Secrets are never printed by a read tool",
+   "citation": ".claude/hooks/block-secrets.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "guarded-tool-call-block#worktree-enforcement",
+   "promise": "Writing work happens inside its own worktree",
+   "citation": ".claude/hooks/enforce-worktree.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "guarded-tool-call-block#guard-core",
+   "promise": "Guard decisions come from one shared core, not per-hook logic",
+   "citation": "scripts/safety-guardrails/core.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G2",
+   "station": "guarded-tool-call-block#named-recovery",
+   "promise": "A block names its recovery rather than only refusing",
+   "citation": ".claude/hooks/drift-guard.py",
+   "bindingHardness": "documented",
+   "why": "the promise asserts that something is enforced; the binding that carries it is prose"
+  },
+  {
+   "gapClass": "G4",
+   "station": "prompt-and-stop-time-advisory#prompt-time",
+   "promise": "Prompt-time advisories inform without blocking",
+   "citation": ".claude/hooks/pre-refactor-sweep.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "prompt-and-stop-time-advisory#stop-time",
+   "promise": "Stop-time checks run after the turn, never in the way of it",
+   "citation": ".claude/hooks/typecheck-on-stop.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "prompt-and-stop-time-advisory#advisory-core",
+   "promise": "Advisories are declared as capabilities, not hardcoded per project",
+   "citation": "scripts/workflow-advisories/capabilities.json",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G2",
+   "station": "recovery-red-release-run-but-published#never-bump",
+   "promise": "Never recover by bumping the version",
+   "citation": "CLAUDE.md",
+   "bindingHardness": "documented",
+   "why": "the promise asserts that something is enforced; the binding that carries it is prose"
+  },
+  {
+   "gapClass": "G1",
+   "station": "recovery-awaiting-tag-stacked-bump#first-release-exemption",
+   "promise": "Only a repository with no matching tag at all is exempt",
+   "citation": "scripts/release-delta-guard.mjs",
+   "verifies": "that the exemption applies to a first release, not to a stack",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G4",
+   "station": "recovery-interrupted-afk-run#claim-state",
+   "promise": "A wave claim records who is orchestrating the wave",
+   "citation": "src/lib/waveClaim.mjs",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "recovery-interrupted-afk-run#reconcile-slices",
+   "promise": "The anchor slice table is reconciled on every slice event",
+   "citation": "scripts/board-sync.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "recovery-interrupted-afk-run#resume-or-release",
+   "promise": "The run resumes or the claim is released deliberately",
+   "citation": ".claude/skills/orchestrate-wave/SKILL.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G1",
+   "station": "recovery-update-conflicts-with-local-edits#detect-divergence",
+   "promise": "A file whose digest no longer matches its manifest entry is consumer-edited",
+   "citation": "src/lib/updateDecisions.mjs",
+   "verifies": "that divergence was detected by digest, not by guesswork",
+   "why": "the station names, in its own verification column, the part of the promise it does not establish"
+  },
+  {
+   "gapClass": "G2",
+   "station": "recovery-update-conflicts-with-local-edits#consumer-decides",
+   "promise": "Conflicts are never auto-resolved",
+   "citation": ".claude/skills/kit-update/SKILL.md",
+   "bindingHardness": "documented",
+   "why": "the promise asserts that something is enforced; the binding that carries it is prose"
+  },
+  {
+   "gapClass": "G4",
+   "station": "recovery-board-status-drift#detect-drift",
+   "promise": "Board status is primary, so drift is a defect and not a cosmetic",
+   "citation": "docs/agents/board-sync.md",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "recovery-board-status-drift#dry-run-diff",
+   "promise": "`--dry-run` first, review the diff, then write",
+   "citation": "CLAUDE.md",
+   "authorizationBoundary": "human-gate",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  },
+  {
+   "gapClass": "G4",
+   "station": "recovery-board-status-drift#write-back",
+   "promise": "All board writes go through `scripts/board-sync.py`",
+   "citation": "scripts/board-sync.py",
+   "authorizationBoundary": "agent-autonomous",
+   "why": "a station that can stop the journey sits on a journey whose recovery is `unknown-recovery` — the route out is not a named record"
+  }
+ ]
+}

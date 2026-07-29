@@ -1,0 +1,320 @@
+{
+ "schema": "welle-31/truth-census/counter-control/v1",
+ "censusCommit": "320dece903a09ee63588d9b050713f8f0a63b594",
+ "fixtureCommit": "320dece903a09ee63588d9b050713f8f0a63b594",
+ "srcTree": "7143160ed66ae6efd562ec1b3966ceb09d6a2c39",
+ "fixtureSource": "built in a temp directory from the V1/V2 literals in this file; the reconcile under test is `src/` at the recorded srcTree",
+ "repetitions": 3,
+ "checks": {
+  "C1": "an untouched installed file fast-forwards to the incoming bytes",
+  "C2": "a consumer-edited file keeps consumer bytes AND is reported",
+  "C3": "the project layer is not overwritten by ordinary reconciliation",
+  "C4": "the consumer manifest is byte-stable across a repeated update"
+ },
+ "positiveControl": {
+  "mutation": {
+   "file": "src/lib/updateReconcile.mjs",
+   "from": "const userEdited = current !== prior.installedSha256;",
+   "to": "const userEdited = false; // POSITIVE CONTROL: reconcile forgets consumer edits",
+   "defect": "reconcile treats every destination as untouched, so a consumer-edited file is silently overwritten by the incoming kit bytes — exactly the consumer-contract violation C2 exists to catch"
+  },
+  "appliedTo": "copy of src/ at tree 7143160ed66ae6efd562ec1b3966ceb09d6a2c39",
+  "ranFirst": true,
+  "wentRed": true,
+  "redChecks": [
+   "C1",
+   "C2"
+  ],
+  "perCheck": {
+   "C1": {
+    "passes": 0,
+    "of": 3,
+    "majority": "fail",
+    "spread": "none"
+   },
+   "C2": {
+    "passes": 0,
+    "of": 3,
+    "majority": "fail",
+    "spread": "none"
+   },
+   "C3": {
+    "passes": 3,
+    "of": 3,
+    "majority": "pass",
+    "spread": "none"
+   },
+   "C4": {
+    "passes": 3,
+    "of": 3,
+    "majority": "pass",
+    "spread": "none"
+   }
+  },
+  "runs": [
+   {
+    "C1": {
+     "pass": false,
+     "observed": "# to-issues\n\nstep one\n"
+    },
+    "C2": {
+     "pass": false,
+     "observed": "# to-prd\n\nstep one\nMY OWN LOCAL EDIT\n",
+     "reported": false
+    },
+    "C3": {
+     "pass": true,
+     "observed": "# Issue tracker\n\nOur board lives in Linear.\n"
+    },
+    "C4": {
+     "pass": true
+    },
+    "state": {
+     "first": "failed",
+     "second": "failed"
+    }
+   },
+   {
+    "C1": {
+     "pass": false,
+     "observed": "# to-issues\n\nstep one\n"
+    },
+    "C2": {
+     "pass": false,
+     "observed": "# to-prd\n\nstep one\nMY OWN LOCAL EDIT\n",
+     "reported": false
+    },
+    "C3": {
+     "pass": true,
+     "observed": "# Issue tracker\n\nOur board lives in Linear.\n"
+    },
+    "C4": {
+     "pass": true
+    },
+    "state": {
+     "first": "failed",
+     "second": "failed"
+    }
+   },
+   {
+    "C1": {
+     "pass": false,
+     "observed": "# to-issues\n\nstep one\n"
+    },
+    "C2": {
+     "pass": false,
+     "observed": "# to-prd\n\nstep one\nMY OWN LOCAL EDIT\n",
+     "reported": false
+    },
+    "C3": {
+     "pass": true,
+     "observed": "# Issue tracker\n\nOur board lives in Linear.\n"
+    },
+    "C4": {
+     "pass": true
+    },
+    "state": {
+     "first": "failed",
+     "second": "failed"
+    }
+   }
+  ]
+ },
+ "shipped": {
+  "arm": "consumer edited one installed file that upstream also changed",
+  "green": false,
+  "perCheck": {
+   "C1": {
+    "passes": 0,
+    "of": 3,
+    "majority": "fail",
+    "spread": "none"
+   },
+   "C2": {
+    "passes": 3,
+    "of": 3,
+    "majority": "pass",
+    "spread": "none"
+   },
+   "C3": {
+    "passes": 3,
+    "of": 3,
+    "majority": "pass",
+    "spread": "none"
+   },
+   "C4": {
+    "passes": 3,
+    "of": 3,
+    "majority": "pass",
+    "spread": "none"
+   }
+  },
+  "runs": [
+   {
+    "C1": {
+     "pass": false,
+     "observed": "# to-issues\n\nstep one\n"
+    },
+    "C2": {
+     "pass": true,
+     "observed": "# to-prd\n\nstep one\nMY OWN LOCAL EDIT\n",
+     "reported": true
+    },
+    "C3": {
+     "pass": true,
+     "observed": "# Issue tracker\n\nOur board lives in Linear.\n"
+    },
+    "C4": {
+     "pass": true
+    },
+    "state": {
+     "first": "conflicted",
+     "second": "conflicted"
+    }
+   },
+   {
+    "C1": {
+     "pass": false,
+     "observed": "# to-issues\n\nstep one\n"
+    },
+    "C2": {
+     "pass": true,
+     "observed": "# to-prd\n\nstep one\nMY OWN LOCAL EDIT\n",
+     "reported": true
+    },
+    "C3": {
+     "pass": true,
+     "observed": "# Issue tracker\n\nOur board lives in Linear.\n"
+    },
+    "C4": {
+     "pass": true
+    },
+    "state": {
+     "first": "conflicted",
+     "second": "conflicted"
+    }
+   },
+   {
+    "C1": {
+     "pass": false,
+     "observed": "# to-issues\n\nstep one\n"
+    },
+    "C2": {
+     "pass": true,
+     "observed": "# to-prd\n\nstep one\nMY OWN LOCAL EDIT\n",
+     "reported": true
+    },
+    "C3": {
+     "pass": true,
+     "observed": "# Issue tracker\n\nOur board lives in Linear.\n"
+    },
+    "C4": {
+     "pass": true
+    },
+    "state": {
+     "first": "conflicted",
+     "second": "conflicted"
+    }
+   }
+  ]
+ },
+ "shippedNoConflict": {
+  "arm": "no consumer edit — isolates the fast-forward promise from the conflict path",
+  "green": true,
+  "perCheck": {
+   "C1": {
+    "passes": 3,
+    "of": 3,
+    "majority": "pass",
+    "spread": "none"
+   },
+   "C2": {
+    "passes": 3,
+    "of": 3,
+    "majority": "pass",
+    "spread": "none"
+   },
+   "C3": {
+    "passes": 3,
+    "of": 3,
+    "majority": "pass",
+    "spread": "none"
+   },
+   "C4": {
+    "passes": 3,
+    "of": 3,
+    "majority": "pass",
+    "spread": "none"
+   }
+  },
+  "runs": [
+   {
+    "C1": {
+     "pass": true,
+     "observed": "# to-issues\n\nstep one\nstep two (upstream)\n"
+    },
+    "C2": {
+     "pass": true,
+     "observed": "# to-prd\n\nstep one\nstep two (upstream)\n",
+     "reported": false
+    },
+    "C3": {
+     "pass": true,
+     "observed": "# Issue tracker\n\nOur board lives in Linear.\n"
+    },
+    "C4": {
+     "pass": true
+    },
+    "state": {
+     "first": "applied",
+     "second": "applied"
+    }
+   },
+   {
+    "C1": {
+     "pass": true,
+     "observed": "# to-issues\n\nstep one\nstep two (upstream)\n"
+    },
+    "C2": {
+     "pass": true,
+     "observed": "# to-prd\n\nstep one\nstep two (upstream)\n",
+     "reported": false
+    },
+    "C3": {
+     "pass": true,
+     "observed": "# Issue tracker\n\nOur board lives in Linear.\n"
+    },
+    "C4": {
+     "pass": true
+    },
+    "state": {
+     "first": "applied",
+     "second": "applied"
+    }
+   },
+   {
+    "C1": {
+     "pass": true,
+     "observed": "# to-issues\n\nstep one\nstep two (upstream)\n"
+    },
+    "C2": {
+     "pass": true,
+     "observed": "# to-prd\n\nstep one\nstep two (upstream)\n",
+     "reported": false
+    },
+    "C3": {
+     "pass": true,
+     "observed": "# Issue tracker\n\nOur board lives in Linear.\n"
+    },
+    "C4": {
+     "pass": true
+    },
+    "state": {
+     "first": "applied",
+     "second": "applied"
+    }
+   }
+  ]
+ },
+ "valid": true
+}

@@ -1,0 +1,5897 @@
+{
+ "schema": "welle-31/truth-census/reviewer/v1",
+ "reviewer": "A-mechanical",
+ "revision": "r2",
+ "scope": "sample",
+ "total": 687,
+ "byColumn": {
+  "none": 263,
+  "ownership": 28,
+  "form": 311,
+  "truth": 85
+ },
+ "labels": [
+  {
+   "rule_id": "docs/agents/skills/orchestrate-wave.md#ad1b4128a672#0",
+   "index": 1,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "CLAUDE.md#670c6166be59#0",
+   "index": 2,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "CLAUDE.md#948148728255#0",
+   "index": 3,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/agents/skills/orchestrate-wave.md#247e3e535904#0",
+   "index": 4,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "AGENTS.md#63cac6cbb29b#0",
+   "index": 5,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/agents/skills/orchestrate-wave.md#72b432ddda9a#0",
+   "index": 6,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "CLAUDE.md#fc34a19f3aac#0",
+   "index": 7,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "CONTEXT.md#f9dddb1e7f4d#0",
+   "index": 8,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5"
+   ]
+  },
+  {
+   "rule_id": "CLAUDE.md#e7207e281edb#0",
+   "index": 9,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "AGENTS.md#49474101fad7#0",
+   "index": 10,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "CLAUDE.md#1f7db2ba8b78#0",
+   "index": 11,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "CLAUDE.md#61123495eb41#0",
+   "index": 12,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "CONTEXT.md#e2ede560c982#0",
+   "index": 13,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "CLAUDE.md#4592b7f97da0#0",
+   "index": 14,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/agents/skills/local-ci.md#ae95562d4630#0",
+   "index": 15,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "CLAUDE.md#faba3a2d5179#0",
+   "index": 16,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "CLAUDE.md#c91cb50fb67e#0",
+   "index": 17,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "AGENTS.md#12ac91e80ba9#0",
+   "index": 18,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "CLAUDE.md#498bfdbd34ef#0",
+   "index": 19,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5",
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "CLAUDE.md#1c2eb9d3f8ab#0",
+   "index": 20,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#17bfa50a25e5#0",
+   "index": 21,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#58834d6fb5a5#0",
+   "index": 22,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#4af18bcd63fc#0",
+   "index": 23,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#d7b0ab9dc1de#0",
+   "index": 24,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#5ca77ab2795b#0",
+   "index": 25,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#77aa6dae5d7d#0",
+   "index": 26,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#2c832fffff4e#0",
+   "index": 27,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#d6844770c0d0#0",
+   "index": 28,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#1f30ae7a5003#0",
+   "index": 29,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5",
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#64f0935fa53b#0",
+   "index": 30,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#b9c8439c830c#0",
+   "index": 31,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#08b317259b64#0",
+   "index": 32,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#663a26613d44#0",
+   "index": 33,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#8957070d0bca#0",
+   "index": 34,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#1441b767e19f#0",
+   "index": 35,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#713cbecb3247#0",
+   "index": 36,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#6507acd07dce#0",
+   "index": 37,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#6b6aaa726740#0",
+   "index": 38,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#4c4447a50d2a#0",
+   "index": 39,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/README.md#ff26b3965e3d#0",
+   "index": 40,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#5d73627942f1#0",
+   "index": 41,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": ".claude/hooks/_hook_utils.py#619c1a8e30b1#0",
+   "index": 42,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#9b508cb090f5#0",
+   "index": 43,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/_hook_utils.py#51ed9a2d7b9c#0",
+   "index": 44,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T3"
+   ]
+  },
+  {
+   "rule_id": ".claude/hooks/_hook_utils.py#b225df825b77#0",
+   "index": 45,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#99bbe0e0d7a7#0",
+   "index": 46,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/_safety_guard.py#9f5d9f587730#0",
+   "index": 47,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#6dc4c27e6474#0",
+   "index": 48,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/_hook_utils.py#2ef76b42e315#0",
+   "index": 49,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#a9011fcef402#0",
+   "index": 50,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#e2b7372634f9#0",
+   "index": 51,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#a20163441c21#0",
+   "index": 52,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#97cd0f062c1c#0",
+   "index": 53,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/_hook_utils.py#db9422eba172#0",
+   "index": 54,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/_hook_utils.py#a4a9f4191a24#0",
+   "index": 55,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#5d4904737025#0",
+   "index": 56,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#e218061587ac#0",
+   "index": 57,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#f85e758a75e8#0",
+   "index": 58,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#89e102527d18#0",
+   "index": 59,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/hooks/drift-guard.py#759a92ba0b26#0",
+   "index": 60,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/doctrine-migration/index.mjs#4b70b0018b7b#0",
+   "index": 61,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingSources/openhandsFrontend.mjs#710a7c7d7e00#0",
+   "index": 62,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/skillRegistry.mjs#f17e864022e1#0",
+   "index": 63,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingDispatchLease.mjs#e4d01c077992#0",
+   "index": 64,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/release-apply.mjs#f7d11f7d57fd#0",
+   "index": 65,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/pr-body-check.py#08e99f6bc573#0",
+   "index": 66,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/release-state.mjs#6d8b5a31f8cc#0",
+   "index": 67,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/program_graph_parse.py#b07d03cc7f7a#0",
+   "index": 68,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/updateDecisions.mjs#d4417c0f5050#0",
+   "index": 69,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingEvidenceCache.mjs#e1b7049d91ca#0",
+   "index": 70,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/release-preview.mjs#726c149761ec#0",
+   "index": 71,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/ignore_seed.py#614e3438931f#0",
+   "index": 72,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2",
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/cleanup.py#254532dd86c5#0",
+   "index": 73,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/manifest.mjs#1e33b05b46fe#0",
+   "index": 74,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingIntent.mjs#06463ad965d4#0",
+   "index": 75,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingProfile.mjs#df26c4d0056c#0",
+   "index": 76,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingSources/endpoints.mjs#d4c26f787b88#0",
+   "index": 77,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/board_bootstrap.py#2504b2a30b0b#0",
+   "index": 78,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/dispatchJournal.mjs#09fafe3a7784#0",
+   "index": 79,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/memory-lifecycle/setup.mjs#84cefa8e3556#0",
+   "index": 80,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/project-skill-extension.mjs#33af9a01914d#0",
+   "index": 81,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#f63074aab08f#0",
+   "index": 82,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#587d3d5a36f6#0",
+   "index": 83,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#c5964575d498#0",
+   "index": 84,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#50f15a4ae6a1#2",
+   "index": 85,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/ignore_seed.py#6882bedfac2d#0",
+   "index": 86,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#533eb8e49c9a#0",
+   "index": 87,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "src/lib/manifest.mjs#9551452b1c7e#0",
+   "index": 88,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingProfile.mjs#977576f8941a#0",
+   "index": 89,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/manifest.mjs#bf7ee0a1f6fa#0",
+   "index": 90,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "F3",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#c6b09a8931eb#0",
+   "index": 91,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "src/lib/dispatchPlan.mjs#8b9ed2656018#0",
+   "index": 92,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingAccessGraph.mjs#24cfd1600306#0",
+   "index": 93,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingCatalog.mjs#fb9c623c386f#0",
+   "index": 94,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingInventory.mjs#7d1ef5f09980#0",
+   "index": 95,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/manifest.mjs#1dbd83fbb874#0",
+   "index": 96,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/cleanup.py#830dc05a1349#0",
+   "index": 97,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingProfile.mjs#1ffba3f9cad8#0",
+   "index": 98,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/core.py#c6401059b40a#0",
+   "index": 99,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T3"
+   ]
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#e39d0e76e42b#0",
+   "index": 100,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/setup.py#dbd2f5d34a98#0",
+   "index": 101,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingSources/deepswe.mjs#b444e1eff034#0",
+   "index": 102,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/skillRegistry.mjs#3fb1283d3341#0",
+   "index": 103,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/codex_proc.py#dc3f4a5a6b02#0",
+   "index": 104,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#12fa9db9a37b#0",
+   "index": 105,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingProfilePolicy.mjs#3e4faf21dc3a#0",
+   "index": 106,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/census/transaction.mjs#838132d2a26b#0",
+   "index": 107,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#a2dba140ec99#0",
+   "index": 108,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/setup.py#beada3de72db#0",
+   "index": 109,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/codex_proc.py#bba4c87294ad#0",
+   "index": 110,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/ignore_seed.py#d9a3f192476c#0",
+   "index": 111,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/cleanup.py#da3972056d0f#0",
+   "index": 112,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/commands/routing-policy-update.mjs#e2366e8a05e5#0",
+   "index": 113,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingIntent.mjs#6e0b7b140d8a#0",
+   "index": 114,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/security/audit-gate.mjs#eba45b18765f#0",
+   "index": 115,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "scripts/board_bootstrap.py#4ef01bcadca3#0",
+   "index": 116,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingIntent.mjs#792a2b0ac056#0",
+   "index": 117,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingSources/openhandsFrontend.mjs#fe892ec34a75#0",
+   "index": 118,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingAccessGraph.mjs#a89427589470#0",
+   "index": 119,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingSources/artificialAnalysis.mjs#20337b33b325#0",
+   "index": 120,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#78850046a1fd#0",
+   "index": 121,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingCatalog.mjs#2283f0eeeed0#0",
+   "index": 122,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/dispatchReceipt.mjs#b444e1eff034#0",
+   "index": 123,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#91f7ac7ab119#0",
+   "index": 124,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/release-state.mjs#fff42b7f00cf#0",
+   "index": 125,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/commands/routing-policy-update.mjs#10727974dc5e#0",
+   "index": 126,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/frontendWorkloads.mjs#3a4d05c30d47#0",
+   "index": 127,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingProfile.mjs#1885712efe84#0",
+   "index": 128,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingSources/openhands.mjs#b444e1eff034#0",
+   "index": 129,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#b84ae33ea2fa#0",
+   "index": 130,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingSources/openhands.mjs#8aec88b8ed55#0",
+   "index": 131,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingSources/openhandsFrontend.mjs#e6160c4068a7#0",
+   "index": 132,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingAccessGraphStore.mjs#b444e1eff034#0",
+   "index": 133,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingAdapters/hostBridge.mjs#81b223b2ba90#0",
+   "index": 134,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/dispatchReceipt.mjs#619b71a85974#0",
+   "index": 135,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingIntent.mjs#69d71d6dfded#0",
+   "index": 136,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "scripts/board-sync.py#3bb59b177ede#0",
+   "index": 137,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingDispatchLease.mjs#b444e1eff034#0",
+   "index": 138,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingProfilePolicy.mjs#3aef9b9958f5#0",
+   "index": 139,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/skillRegistry.mjs#13c6cc642a37#0",
+   "index": 140,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/census/transaction.mjs#9c7ff4cedeed#0",
+   "index": 141,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#59a9f4186c56#0",
+   "index": 142,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingEvidenceCache.mjs#8123a7eb334b#0",
+   "index": 143,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingProfile.mjs#4497c77c8868#0",
+   "index": 144,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/manifest.mjs#88b0ac529d22#0",
+   "index": 145,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/board_config.py#63709dfa63b3#0",
+   "index": 146,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingCatalog.mjs#b1dcceab37ec#0",
+   "index": 147,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingCatalog.mjs#fd615bb7c508#0",
+   "index": 148,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routeDispatcher.mjs#470be48474a9#0",
+   "index": 149,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingEvidenceCache.mjs#ced2d4e151d2#0",
+   "index": 150,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/memory-lifecycle/setup.mjs#d250278dfd18#0",
+   "index": 151,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingSources/deepswe.mjs#98e1e1f7802f#0",
+   "index": 152,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingPolicy.mjs#26a39d7eed05#0",
+   "index": 153,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/release-preview.mjs#2183884e924a#0",
+   "index": 154,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/dispatchJournal.mjs#c70da944dcd5#0",
+   "index": 155,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingProfile.mjs#6145a1977705#0",
+   "index": 156,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/routingAccessGraph.mjs#b444e1eff034#0",
+   "index": 157,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/waveClaim.mjs#28e82e6c3769#0",
+   "index": 158,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#d79c4cd13642#0",
+   "index": 159,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingAdapters/hostBridge.mjs#6fc37b75c734#0",
+   "index": 160,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/profile.py#a75a6050bd5b#1",
+   "index": 161,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/dispatchReceipt.mjs#e2634ede40f8#0",
+   "index": 162,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/worktree-lifecycle/profile.py#c422de9ddd25#0",
+   "index": 163,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/wrapup-land.py#c91013180ee9#0",
+   "index": 164,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "src/lib/routingPolicy.mjs#8fa198d3a804#0",
+   "index": 165,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/board_bootstrap.py#332559b01b08#0",
+   "index": 166,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/projectSkillExtension.mjs#b2e6844b7d9b#0",
+   "index": 167,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/consumerPath.mjs#dc9deea3df41#0",
+   "index": 168,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidateArtifacts.mjs#8c1e4c971e83#0",
+   "index": 169,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidate.mjs#99caf64e7bb4#0",
+   "index": 170,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/updateCandidate.mjs#f5f82fd51d2a#0",
+   "index": 171,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidate.mjs#d8d82ceaad65#0",
+   "index": 172,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidateProtocol.mjs#f3f4c65babfd#0",
+   "index": 173,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidateTransaction.mjs#4a8244309ce4#0",
+   "index": 174,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidateProtocol.mjs#0133da4da6d6#0",
+   "index": 175,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/contributionBridge.mjs#87fdbd798afc#0",
+   "index": 176,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "T4"
+   ]
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidateTransaction.mjs#cf90e307de53#0",
+   "index": 177,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidateProtocol.mjs#c7971eb05462#0",
+   "index": 178,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidate.mjs#9f625429e7b3#0",
+   "index": 179,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/consumerMigrations.mjs#fd37f02cd2e6#0",
+   "index": 180,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/cli.mjs#f5a336a47b73#0",
+   "index": 181,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/consumerMigrations.mjs#8cbe79c54b7b#0",
+   "index": 182,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidateTransaction.mjs#08e758a4f073#0",
+   "index": 183,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/consumerPath.mjs#c0bf43f63a65#0",
+   "index": 184,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/consumerPath.mjs#46fa15af15d8#0",
+   "index": 185,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidateTransaction.mjs#9cba7a3187c4#0",
+   "index": 186,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/updateCandidate.mjs#600408716339#0",
+   "index": 187,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidate.mjs#282e17c6b42e#0",
+   "index": 188,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidate.mjs#1ad81132c1d5#0",
+   "index": 189,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "src/lib/verifyUpdateCandidate.mjs#3e56f298d7f8#0",
+   "index": 190,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "src/lib/updateCandidate.mjs#567d78e1d5c1#0",
+   "index": 191,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "src/lib/updateCandidate.mjs#927c8642df59#0",
+   "index": 192,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/security-audit-runbook-template.md#c585a5c77286#0",
+   "index": 193,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "assets/memory-templates/meta_memory_lifecycle.md#b2b2c62da790#0",
+   "index": 194,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/wave-anchor-template.md#35338ef4d77d#0",
+   "index": 195,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "assets/memory-templates/meta_memory_lifecycle.md#91284e0190fb#0",
+   "index": 196,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/agents/security-audit-runbook-template.md#870d25b64ff5#0",
+   "index": 197,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "assets/memory-templates/meta_memory_lifecycle.md#e38ae453f2e2#0",
+   "index": 198,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/security-audit-runbook-template.md#43df82015b1e#0",
+   "index": 199,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/wave-anchor-template.md#2a831f4793a2#0",
+   "index": 200,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/agents/wave-anchor-template.md#038291192c50#0",
+   "index": 201,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/wave-anchor-template.md#4d231930b9a0#0",
+   "index": 202,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "assets/memory-templates/meta_memory_lifecycle.md#7698a0500614#0",
+   "index": 203,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/agents/security-audit-runbook-template.md#9d88063cc6fd#0",
+   "index": 204,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/security-audit-runbook-template.md#501960812ba1#0",
+   "index": 205,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "assets/memory-templates/meta_memory_lifecycle.md#e8719ff3fc02#0",
+   "index": 206,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/wave-anchor-template.md#abb85a7e85ce#0",
+   "index": 207,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/security-audit-runbook-template.md#c30024f01019#0",
+   "index": 208,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "assets/memory-templates/meta_memory_lifecycle.md#530ca56d0bde#0",
+   "index": 209,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/wave-anchor-template.md#778ea98e622d#0",
+   "index": 210,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O1"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/wave-anchor-template.md#59eb81355c44#0",
+   "index": 211,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": "docs/agents/security-audit-runbook-template.md#81d547102746#0",
+   "index": 212,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "test/routing-refresh.test.mjs#c60d0bb075c4#0",
+   "index": 213,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "test/routing-evidence.test.mjs#6aa0c4b75b74#0",
+   "index": 214,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/research/model-effort-routing-benchmarks.md#4b9cf7093eee#0",
+   "index": 215,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/research/agent-task-taxonomy-benchmark-coverage.md#7a3e7ddc1060#0",
+   "index": 216,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "test/routing-profile-lifecycle.test.mjs#70ad54f3265c#0",
+   "index": 217,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "docs/research/frontend-agent-benchmarks.md#8cd3dbb1c6d3#0",
+   "index": 218,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/adr/0002-capability-gated-orchestration.md#38a2fcfc4afe#0",
+   "index": 219,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/research/provider-neutral-agent-routing.md#90230c27bb81#0",
+   "index": 220,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/adr/0007-session-teardown-requires-provenance-bound-ownership.md#d28b0ff56ec0#0",
+   "index": 221,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "test/routingSourceEndpoints.test.mjs#27da1230b3a3#0",
+   "index": 222,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "docs/adr/0008-planning-ignore-rules-are-offered-never-installed.md#85a997492237#0",
+   "index": 223,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "scripts/test_skill_delegating_dispatch.py#e455e5372e8c#0",
+   "index": 224,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "docs/adr/0002-capability-gated-orchestration.md#1a80a4ad8636#0",
+   "index": 225,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "scripts/test_codex_adapter_sync_contract.py#aa796c52b0eb#0",
+   "index": 226,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/adr/0005-to-issues-is-the-planning-facade.md#737400a3d723#0",
+   "index": 227,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "scripts/test_skill_selfcontainment_lint.py#444ebecc3d20#0",
+   "index": 228,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "test/routing-refresh.test.mjs#3526a64e7f1a#0",
+   "index": 229,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "docs/research/agent-task-taxonomy-benchmark-coverage.md#9fadfd42de17#0",
+   "index": 230,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/research/benchlm-routing-source.md#32c2d21d8ef8#0",
+   "index": 231,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": "docs/adr/0010-model-roster-replaces-the-optimization-dial.md#6c6190f623b9#0",
+   "index": 232,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "test/workflow-advisories.test.mjs#25119679385e#0",
+   "index": 233,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "test/contribution-routing.test.mjs#fc416fb9b3bc#0",
+   "index": 234,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/test_skill_frontmatter_lint.py#10a9d7dfae6c#0",
+   "index": 235,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "scripts/test_skill_readiness_contract.py#4dcdd84c68f5#0",
+   "index": 236,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "docs/research/consumer-owned-protocol-files.md#f5fcb2d834ba#0",
+   "index": 237,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/adr/0003-kit-core-and-project-extension-lifecycle.md#3297676b5378#0",
+   "index": 238,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "test/update-collisions.test.mjs#f8ae3858d317#0",
+   "index": 239,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "test/workflow-advisories.test.mjs#1c7fa561e9e3#0",
+   "index": 240,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/test_skill_frontmatter_lint.py#c591c6eacc60#0",
+   "index": 241,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "docs/research/agent-task-taxonomy-benchmark-coverage.md#df76165f8f1c#0",
+   "index": 242,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/adr/0007-session-teardown-requires-provenance-bound-ownership.md#a74f6e791697#0",
+   "index": 243,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5",
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/adr/0004-release-intent-is-a-version-tag.md#d3d285ba3895#0",
+   "index": 244,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/research/wave-152-consumer-acceptance.md#b212e5ee71f2#0",
+   "index": 245,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".github/workflows/release.yml#8716e7ce23f0#0",
+   "index": 246,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/research/benchlm-routing-source.md#34e02125c5b3#0",
+   "index": 247,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5",
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "docs/research/provider-neutral-agent-routing.md#a32831411bbe#0",
+   "index": 248,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/research/provider-neutral-agent-routing.md#4a2c16ea7899#0",
+   "index": 249,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/research/benchlm-routing-source.md#ac4bbaa80d16#0",
+   "index": 250,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "test/routingInventory.test.mjs#043bb85aafce#0",
+   "index": 251,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/adr/0008-planning-ignore-rules-are-offered-never-installed.md#5acd8827b0e8#0",
+   "index": 252,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "scripts/grill-census-wiring-guard.mjs#86484f702b26#0",
+   "index": 253,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "docs/research/provider-neutral-agent-routing.md#a6ed4b8c5475#0",
+   "index": 254,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/test_skill_setup_workflow_seeds.py#50b9edfbd287#0",
+   "index": 255,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/research/provider-neutral-agent-routing.md#ddd5119bad5a#0",
+   "index": 256,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "docs/research/provider-neutral-agent-routing.md#6c7d5afb50e0#0",
+   "index": 257,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "scripts/census/transaction.test.mjs#2f6e7ad475b4#0",
+   "index": 258,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/adr/0002-capability-gated-orchestration.md#97a67fbc223d#0",
+   "index": 259,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "docs/adr/0010-model-roster-replaces-the-optimization-dial.md#b91ff50f2813#0",
+   "index": 260,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": "docs/research/provider-neutral-agent-routing.md#4818e52bf40f#0",
+   "index": 261,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/research/agent-task-taxonomy-benchmark-coverage.md#26faacd5771e#0",
+   "index": 262,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "docs/research/provider-neutral-agent-routing.md#e9a81f065299#0",
+   "index": 263,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": "docs/research/consumer-owned-protocol-files.md#9489c9659dbe#0",
+   "index": 264,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "docs/adr/0002-capability-gated-orchestration.md#29065b74be46#0",
+   "index": 265,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/kit-release.mjs#f12f33cd1d25#0",
+   "index": 266,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/kit-release.mjs#bbf41f00f668#0",
+   "index": 267,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/kit-release.mjs#35ae47f63192#0",
+   "index": 268,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "scripts/kit-release.mjs#d461dddf2136#0",
+   "index": 269,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T2"
+   ]
+  },
+  {
+   "rule_id": "scripts/kit-release.mjs#07a36dad678d#0",
+   "index": 270,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "scripts/kit-release.mjs#2451d96420c8#0",
+   "index": 271,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1"
+   ]
+  },
+  {
+   "rule_id": "scripts/kit-release.mjs#848dc5ce45c5#0",
+   "index": 272,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T1",
+    "O2"
+   ]
+  },
+  {
+   "rule_id": "README.md#e0b709d39153#0",
+   "index": 273,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5",
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "README.md#929ace6ca0ea#0",
+   "index": 274,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "README.md#1f26272d9daf#0",
+   "index": 275,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "README.md#b3c3bb34bde8#0",
+   "index": 276,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "README.md#7e7fb0a74669#1",
+   "index": 277,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "README.md#5154bacbb961#0",
+   "index": 278,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5",
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "README.md#207a18bb8bc3#0",
+   "index": 279,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": "README.md#eef0488d1ad5#0",
+   "index": 280,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "README.md#db2107f1a218#0",
+   "index": 281,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "README.md#aa56d5cdb6a2#0",
+   "index": 282,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "README.md#2d8e1c624df2#0",
+   "index": 283,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": "README.md#0c67a97fa97e#0",
+   "index": 284,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "README.md#46dd31b9cf00#0",
+   "index": 285,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "README.md#32c8aab017f6#0",
+   "index": 286,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "README.md#e152bc2f4ce1#0",
+   "index": 287,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "README.md#ad93b4c81f99#0",
+   "index": 288,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "README.md#546a13a74793#0",
+   "index": 289,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": "README.md#251caadfb6e3#0",
+   "index": 290,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "README.md#57cf25029e4b#0",
+   "index": 291,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": "README.md#5f647148af03#0",
+   "index": 292,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/audit-skills/SKILL.md#b39b816f2e5b#0",
+   "index": 293,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/wrapup/SKILL.md#3f8d5975fa8c#0",
+   "index": 294,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/census-update/SKILL.md#e1a401f102e4#0",
+   "index": 295,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-prd/SKILL.md#2b2b65ffb1f3#0",
+   "index": 296,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/spec-self-critique/SKILL.md#1c29b1b708b5#0",
+   "index": 297,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-me/SKILL.md#11f3171c31cb#0",
+   "index": 298,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#1ff282cbb8f3#0",
+   "index": 299,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/SKILL.md#a659be2cfffe#0",
+   "index": 300,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/codex-review/SKILL.md#afc84519e763#0",
+   "index": 301,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/SKILL.md#b2e1b5b1a23c#0",
+   "index": 302,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-workflow.md#1e50703c4a27#0",
+   "index": 303,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/write-a-skill/SKILL.md#feb3c776c3b2#0",
+   "index": 304,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-workflow.md#ae46a4a648ce#0",
+   "index": 305,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/improve-codebase-architecture/SKILL.md#aad9f83f726b#0",
+   "index": 306,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/codebase-design/DEEPENING.md#1361a21e5699#0",
+   "index": 307,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs-codex/CONTEXT-FORMAT.md#14fa38772533#0",
+   "index": 308,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-me/SKILL.md#f85f7f32e554#0",
+   "index": 309,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-waves/SKILL.md#493c54d1cbc8#0",
+   "index": 310,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#77ccfc7a9382#0",
+   "index": 311,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/worktree-lifecycle.md#0d86cef8a033#0",
+   "index": 312,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-workflow.md#dfb68dae379f#0",
+   "index": 313,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/wrapup/SKILL.md#6465db90aebb#0",
+   "index": 314,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-release/SKILL.md#2f511a156d04#0",
+   "index": 315,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/local-ci/SKILL.md#ffdb78677a0d#0",
+   "index": 316,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/security-audit/SKILL.md#e7fa0a6c7010#0",
+   "index": 317,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/workflow-advisories.md#3b0703f5a946#0",
+   "index": 318,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs/SKILL.md#364bdf112c9d#0",
+   "index": 319,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/retro/SKILL.md#55cf541ae97c#0",
+   "index": 320,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/improve-codebase-architecture/SKILL.md#dfb68dae379f#0",
+   "index": 321,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#001490075e82#0",
+   "index": 322,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#b53f736773ad#0",
+   "index": 323,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#c38b1f75ec26#0",
+   "index": 324,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#0f4dc965a6d3#0",
+   "index": 325,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#ee6e38d43c92#0",
+   "index": 326,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/grill-me/SKILL.md#d6350629e25d#0",
+   "index": 327,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/triage/AGENT-BRIEF.md#62258dd0a752#0",
+   "index": 328,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#a1b8ed7c5131#0",
+   "index": 329,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/implement/SKILL.md#085b41fe5653#0",
+   "index": 330,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#2df025a96fb8#0",
+   "index": 331,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs/SKILL.md#f85f7f32e554#0",
+   "index": 332,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#117048de2139#0",
+   "index": 333,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#2cbcb07d5f95#0",
+   "index": 334,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/local-ci/SKILL.md#7ad6d5cb36df#0",
+   "index": 335,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-prd/SKILL.md#b2ee2423fb61#0",
+   "index": 336,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/ask-matt/SKILL.md#d71ac7f4efdd#0",
+   "index": 337,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/worktree-lifecycle.md#ba22f9322e6e#0",
+   "index": 338,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/improve-codebase-architecture/DEEPENING.md#1361a21e5699#0",
+   "index": 339,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-release/SKILL.md#f85f7f32e554#0",
+   "index": 340,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/codex-adapter-sync/SKILL.md#dcecec8a9709#0",
+   "index": 341,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-waves/SKILL.md#9efa06c6dc66#0",
+   "index": 342,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/retro/SKILL.md#46bc25421f93#0",
+   "index": 343,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#b8c5dcc5c760#0",
+   "index": 344,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-prd/SKILL.md#0b31550f85fa#0",
+   "index": 345,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/security-audit/SKILL.md#103ae2b9be1c#0",
+   "index": 346,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-release/SKILL.md#af2c56f89dca#0",
+   "index": 347,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/SKILL.md#01f89721707f#0",
+   "index": 348,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#27950117d507#0",
+   "index": 349,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/references/dispatch-subagents.md#5ccdd3fb0869#0",
+   "index": 350,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#ff7b9b239efd#0",
+   "index": 351,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#2784fb572a3f#0",
+   "index": 352,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/project-release/SKILL.md#f6572ce8dbd7#0",
+   "index": 353,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/write-a-skill/SKILL.md#81031151247f#0",
+   "index": 354,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-subagents.md#20a75ce04c4e#0",
+   "index": 355,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/codex-build/SKILL.md#be9e13a9e732#0",
+   "index": 356,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/project-release/SKILL.md#004a882ec775#0",
+   "index": 357,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#8ac0e586d7c2#0",
+   "index": 358,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/SKILL.md#5dc13452fc55#0",
+   "index": 359,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/codex-review/SKILL.md#02bba7bc9e81#0",
+   "index": 360,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/triage/OUT-OF-SCOPE.md#2a79315c67ef#0",
+   "index": 361,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-prd/SKILL.md#7d7fbb10271a#0",
+   "index": 362,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/domain-modeling/ADR-FORMAT.md#37528f31c060#0",
+   "index": 363,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/grill-me/SKILL.md#d5a8762fb173#0",
+   "index": 364,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/project-release/SKILL.md#336a3bc03fdd#0",
+   "index": 365,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#26db4d45103e#0",
+   "index": 366,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/decision-gate/SKILL.md#9817bdbc40e9#0",
+   "index": 367,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/ask-matt/SKILL.md#7ecdff274b93#0",
+   "index": 368,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs-codex/SKILL.md#c00b27cdc363#0",
+   "index": 369,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/write-a-skill/GLOSSARY.md#c9d2b051fd6e#0",
+   "index": 370,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#33de7f0120e6#0",
+   "index": 371,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/retro/SKILL.md#d5428e362cdc#0",
+   "index": 372,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/tdd/interface-design.md#ceeab0c113e3#0",
+   "index": 373,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#7831f0c5938b#0",
+   "index": 374,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/SKILL.md#c27f847b6e50#0",
+   "index": 375,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/SKILL.md#2e804145925c#0",
+   "index": 376,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-prd/SKILL.md#19677ff30fd1#0",
+   "index": 377,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#f7265c2e80b5#0",
+   "index": 378,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/grill-me/SKILL.md#ba419be7b6dd#0",
+   "index": 379,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/census.md#8ce987601475#0",
+   "index": 380,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/kit-update/SKILL.md#921c17ee7a4d#0",
+   "index": 381,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/census-update/SKILL.md#c1389ce2842b#0",
+   "index": 382,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#f20b127ea1e7#0",
+   "index": 383,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/kit-update/SKILL.md#ca02f54be4f9#0",
+   "index": 384,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-prd/SKILL.md#0731cf399d15#0",
+   "index": 385,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#f7265c2e80b5#0",
+   "index": 386,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/kit-release/SKILL.md#2021f08095d1#0",
+   "index": 387,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs-codex/SKILL.md#53f6436b2f4f#0",
+   "index": 388,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#160186bdc97a#0",
+   "index": 389,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/diagnose/SKILL.md#f18fb06c1d81#0",
+   "index": 390,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/retro/SKILL.md#5de7b84ce029#0",
+   "index": 391,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#92f240d0191d#0",
+   "index": 392,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/SKILL.md#702fd40971ed#0",
+   "index": 393,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#1a46a4f6cdcb#0",
+   "index": 394,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/code-review/SKILL.md#a68c0baa4857#0",
+   "index": 395,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/audit-skills/SKILL.md#085b41fe5653#0",
+   "index": 396,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#2ea50956547d#0",
+   "index": 397,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#3a095d3f1820#0",
+   "index": 398,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/codex-adapter-sync/SKILL.md#0c118de8bef4#0",
+   "index": 399,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#007291fbc9c3#0",
+   "index": 400,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-waves/SKILL.md#b403fc294190#0",
+   "index": 401,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#d3bd01db899a#0",
+   "index": 402,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#2ea50956547d#0",
+   "index": 403,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#6037157e5d4a#0",
+   "index": 404,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#9ae5295fb9a4#0",
+   "index": 405,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-waves/SKILL.md#074c3e646905#0",
+   "index": 406,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/workflow-advisories.md#1f6ab6540e40#0",
+   "index": 407,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#d4cedc5489cc#0",
+   "index": 408,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/wrapup/SKILL.md#ca78c6d86816#0",
+   "index": 409,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#cb4108928416#0",
+   "index": 410,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/diagnose/SKILL.md#a980706fee5e#0",
+   "index": 411,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-prd/SKILL.md#398bd1f46d6d#0",
+   "index": 412,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-me-codex/SKILL.md#c0121c7e48e8#0",
+   "index": 413,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#9e832bfa8a7e#0",
+   "index": 414,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/domain-modeling/CONTEXT-FORMAT.md#14fa38772533#0",
+   "index": 415,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-me-codex/SKILL.md#dc7af06f0fbf#0",
+   "index": 416,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#f088f734d3e9#0",
+   "index": 417,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#1f789c9f09ae#0",
+   "index": 418,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-prd/SKILL.md#bc72f2122324#0",
+   "index": 419,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/kit-update/SKILL.md#f85f7f32e554#0",
+   "index": 420,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/scale-check/SKILL.md#dfd923977d92#0",
+   "index": 421,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/workflow-overview.md#54bb01e3d792#0",
+   "index": 422,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-prd/SKILL.md#023c0a95deec#0",
+   "index": 423,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/retro/SKILL.md#ac9da3ca8658#0",
+   "index": 424,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/SKILL.md#085b41fe5653#0",
+   "index": 425,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/memory-lifecycle/SKILL.md#76fa8b1b4836#0",
+   "index": 426,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/census.md#b91afab13a50#0",
+   "index": 427,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/codex-adapter-sync/SKILL.md#f85f7f32e554#0",
+   "index": 428,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/SKILL.md#dbd5e9cfccf1#0",
+   "index": 429,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/census-update/SKILL.md#ddb5f0b1c47b#0",
+   "index": 430,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-workflow.md#02f315957de4#0",
+   "index": 431,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#95913a4b2e8b#0",
+   "index": 432,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/grill-with-docs/SKILL.md#1e67239a9bbc#0",
+   "index": 433,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/SKILL.md#8137b09880ea#0",
+   "index": 434,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs-codex/SKILL.md#a659be2cfffe#0",
+   "index": 435,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#245a546ff53f#0",
+   "index": 436,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#5b7b1f213074#0",
+   "index": 437,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs/SKILL.md#d6350629e25d#0",
+   "index": 438,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#69bf805bccdb#0",
+   "index": 439,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-waves/SKILL.md#a7e6d1538f11#0",
+   "index": 440,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#0820783c94e1#0",
+   "index": 441,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#24448d11f13a#0",
+   "index": 442,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-subagents.md#90947189f3c6#0",
+   "index": 443,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/improve-codebase-architecture/CONTEXT-FORMAT.md#44bb3671d9b4#0",
+   "index": 444,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/write-a-skill/SKILL.md#7de263d4d5d3#0",
+   "index": 445,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/ask-matt/SKILL.md#c28230fd1034#0",
+   "index": 446,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/scale-check/SKILL.md#8c101a27f1b9#0",
+   "index": 447,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/spec-self-critique/SKILL.md#2266278cae95#0",
+   "index": 448,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/write-a-skill/GLOSSARY.md#938ed933d336#0",
+   "index": 449,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs/SKILL.md#e3f39403eab1#0",
+   "index": 450,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/census.md#82537b337e97#0",
+   "index": 451,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/builder-contract.md#1a25c3014924#0",
+   "index": 452,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/board-to-waves/SKILL.md#8db48bf47deb#0",
+   "index": 453,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wayfinder/SKILL.md#ec4231a352d5#0",
+   "index": 454,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/kit-update/SKILL.md#b5128faf59f0#0",
+   "index": 455,
+   "column": "truth",
+   "signal": "finding",
+   "signals": [
+    "T5",
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/scenarios.md#5f787ac22fd4#0",
+   "index": 456,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-workflow.md#1939ab7199a6#0",
+   "index": 457,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/improve-codebase-architecture/ADR-FORMAT.md#30ef465c96bc#0",
+   "index": 458,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#19b55283118d#0",
+   "index": 459,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-waves/SKILL.md#34a4055e6e55#0",
+   "index": 460,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-waves/SKILL.md#1aff30abe832#0",
+   "index": 461,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#4291aa943695#0",
+   "index": 462,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/memory-lifecycle/SKILL.md#085b41fe5653#0",
+   "index": 463,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#99ecebfab00b#0",
+   "index": 464,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#41b906d34ff0#0",
+   "index": 465,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/prototype/UI.md#dd9a1fcd3151#0",
+   "index": 466,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/improve-codebase-architecture/CONTEXT-FORMAT.md#14fa38772533#0",
+   "index": 467,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/git-worktree-recover/SKILL.md#085b41fe5653#0",
+   "index": 468,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#c50971c3f47a#0",
+   "index": 469,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/triage/AGENT-BRIEF.md#62258dd0a752#0",
+   "index": 470,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/references/dispatch-subagents.md#c47f1beb458e#0",
+   "index": 471,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/board-to-waves/SKILL.md#085b41fe5653#0",
+   "index": 472,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/retro/SKILL.md#fab8eaafd936#0",
+   "index": 473,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/retro/SKILL.md#8c20ee0ba655#0",
+   "index": 474,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/diagnose/SKILL.md#2cc261b40524#0",
+   "index": 475,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/tdd/SKILL.md#6532ed3e33c7#0",
+   "index": 476,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-waves/SLICE-METADATA-FORMAT.md#d0a11da545a1#0",
+   "index": 477,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/codebase-design/DESIGN-IT-TWICE.md#cd93dfa4aa45#0",
+   "index": 478,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/diagnose/SKILL.md#915c38b701cc#0",
+   "index": 479,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/worktree-lifecycle.md#2edf0c1f0fea#0",
+   "index": 480,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#49fcd29d7f26#0",
+   "index": 481,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/local-ci/SKILL.md#085b41fe5653#0",
+   "index": 482,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/project-release/SKILL.md#f85f7f32e554#0",
+   "index": 483,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#24387cd93c09#0",
+   "index": 484,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/codex-build/SKILL.md#4a1c53105ce9#0",
+   "index": 485,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/security-audit/SKILL.md#1ce90fa9d60a#0",
+   "index": 486,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/SKILL.md#169e5126413d#0",
+   "index": 487,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-prd/SKILL.md#414ec676058e#0",
+   "index": 488,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/write-a-skill/SKILL.md#e000d3eaeb15#0",
+   "index": 489,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wayfinder/SKILL.md#8e555c17f94c#0",
+   "index": 490,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-waves/SKILL.md#1d8b602474d6#0",
+   "index": 491,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/board-sync.md#201a067a811e#0",
+   "index": 492,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/resolving-merge-conflicts/SKILL.md#f85f7f32e554#0",
+   "index": 493,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-waves/SLICE-METADATA-FORMAT.md#474b893a93ec#0",
+   "index": 494,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/retro/SKILL.md#3fae61bd21db#0",
+   "index": 495,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#d477f04b8956#0",
+   "index": 496,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/tdd/SKILL.md#7b0559af1cc3#0",
+   "index": 497,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#84aa6290ac31#0",
+   "index": 498,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-me-codex/SKILL.md#83d1cc144937#0",
+   "index": 499,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/verify-spike/SKILL.md#57f12c5c65d3#0",
+   "index": 500,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/builder-contract.md#ea4028115e88#0",
+   "index": 501,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#5c207d19a72d#0",
+   "index": 502,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs/SKILL.md#f699371deacb#0",
+   "index": 503,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/triage/AGENT-BRIEF.md#c3d6f9574441#0",
+   "index": 504,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/codex-adapter-sync/SKILL.md#5b4901f95b42#0",
+   "index": 505,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/git-worktree-recover/SKILL.md#96827fc5951f#0",
+   "index": 506,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/verify-spike/SKILL.md#7ac9c075c7eb#0",
+   "index": 507,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#36be5974148f#0",
+   "index": 508,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/wrapup/SKILL.md#f85f7f32e554#0",
+   "index": 509,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/diagnose/SKILL.md#795e3c50eaa7#0",
+   "index": 510,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/codex-review/SKILL.md#dfb68dae379f#0",
+   "index": 511,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/scale-check/SKILL.md#f85f7f32e554#0",
+   "index": 512,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/SKILL.md#30aefcf67d1c#0",
+   "index": 513,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/local-ci/SKILL.md#028b406bb4c5#0",
+   "index": 514,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#195a192a4ca9#0",
+   "index": 515,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/git-guardrails-claude-code/SKILL.md#085b41fe5653#0",
+   "index": 516,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/memory-lifecycle/SKILL.md#8edf0c9e5b14#0",
+   "index": 517,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/codex-build/SKILL.md#29a85ab22fb3#0",
+   "index": 518,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/domain-modeling/SKILL.md#364bdf112c9d#0",
+   "index": 519,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-subagents.md#b9389f27355c#0",
+   "index": 520,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#5c1d27dcbbff#0",
+   "index": 521,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-prd/SKILL.md#196cf6a24ae3#0",
+   "index": 522,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/board-sync.md#83fd778f5946#0",
+   "index": 523,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/grill-with-docs/CONTEXT-FORMAT.md#44bb3671d9b4#0",
+   "index": 524,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#d3bd01db899a#0",
+   "index": 525,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/SKILL.md#ce127dc8ee76#0",
+   "index": 526,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/wrapup/SKILL.md#ed19cfb6fc33#0",
+   "index": 527,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/board-sync.md#45fd57fbf51a#0",
+   "index": 528,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#ce49c2bb6297#0",
+   "index": 529,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#117f565600f3#0",
+   "index": 530,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-prd/SKILL.md#0b31550f85fa#0",
+   "index": 531,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/memory-lifecycle/SKILL.md#be56142d1358#0",
+   "index": 532,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs-codex/SKILL.md#0a34cfc0cf5b#0",
+   "index": 533,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/ask-matt/SKILL.md#d486f21ccf4a#0",
+   "index": 534,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-subagents.md#e03f5ff23c3a#0",
+   "index": 535,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/references/dispatch-workflow.md#d40953e23fad#0",
+   "index": 536,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/references/dispatch-workflow.md#0b8fe3e154b2#0",
+   "index": 537,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/write-a-skill/GLOSSARY.md#5d4ad388b80a#0",
+   "index": 538,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F4",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-workflow.md#3d63abfcb80c#0",
+   "index": 539,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/SKILL.md#19b57fbef35a#0",
+   "index": 540,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/improve-codebase-architecture/HTML-REPORT.md#05b668a0d075#0",
+   "index": 541,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-prd/SKILL.md#3a308eac0ab2#0",
+   "index": 542,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/codex-adapter-sync/SKILL.md#d4702784e6f9#0",
+   "index": 543,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/report-contracts.md#35323e1ef32c#0",
+   "index": 544,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "F3",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/census-update/SKILL.md#1c9488e8c682#0",
+   "index": 545,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#cf7b4a91c0c9#0",
+   "index": 546,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-prd/SKILL.md#e22cf32e16bb#0",
+   "index": 547,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-me/SKILL.md#d5a8762fb173#0",
+   "index": 548,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#549bd38c2bfe#0",
+   "index": 549,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#5b7b1f213074#0",
+   "index": 550,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/improve-codebase-architecture/ADR-FORMAT.md#37528f31c060#0",
+   "index": 551,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/spec-self-critique/SKILL.md#6256b35124de#0",
+   "index": 552,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/codex-adapter-sync/SKILL.md#9f0ea134e218#0",
+   "index": 553,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-waves/SKILL.md#d42a324b20ef#0",
+   "index": 554,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/SKILL.md#e313531c6605#0",
+   "index": 555,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/local-ci/SKILL.md#9b60fbb02a6c#0",
+   "index": 556,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/board-to-waves/SKILL.md#70856aa71f7e#0",
+   "index": 557,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#973559844742#0",
+   "index": 558,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/safety-guardrails.md#a06c4f9fe1f4#0",
+   "index": 559,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/domain-modeling/ADR-FORMAT.md#c648d099e3e9#0",
+   "index": 560,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/ask-matt/SKILL.md#a8733e79ab33#0",
+   "index": 561,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/triage/SKILL.md#3c54f3bc0eda#0",
+   "index": 562,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#f91ba6331f64#0",
+   "index": 563,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-subagents.md#dfb68dae379f#0",
+   "index": 564,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/verify-spike/SKILL.md#8e13a214af36#0",
+   "index": 565,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-prd/SKILL.md#1f9ef7018a41#0",
+   "index": 566,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/scenarios.md#27864a7dd70b#0",
+   "index": 567,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#c6f8804340ea#0",
+   "index": 568,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/triage/SKILL.md#9d30f6edcc47#0",
+   "index": 569,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/SKILL.md#4006fc9491f8#0",
+   "index": 570,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/SKILL.md#67f009752777#0",
+   "index": 571,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#ce49c2bb6297#0",
+   "index": 572,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/scale-check/SKILL.md#e3700520dfa6#0",
+   "index": 573,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#0dd17a4a0d77#0",
+   "index": 574,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-waves/SKILL.md#69f0483e7f18#0",
+   "index": 575,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#cf7b4a91c0c9#0",
+   "index": 576,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-me-codex/SKILL.md#b2264228b559#0",
+   "index": 577,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-me-codex/SKILL.md#2c49bde10402#0",
+   "index": 578,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/implement/SKILL.md#f85f7f32e554#0",
+   "index": 579,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/spec-self-critique/SKILL.md#f85f7f32e554#0",
+   "index": 580,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-prd/PROGRAM-PRD-FORMAT.md#0a168cc887de#0",
+   "index": 581,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-waves/SKILL.md#1aff30abe832#0",
+   "index": 582,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/triage-labels.md#ffd58a257193#0",
+   "index": 583,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs-codex/SKILL.md#f85f7f32e554#0",
+   "index": 584,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/SKILL.md#19ca31df2c09#0",
+   "index": 585,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/builder-contract.md#352046ec9bb1#0",
+   "index": 586,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#b6eb62edfe95#0",
+   "index": 587,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#27950117d507#0",
+   "index": 588,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#02b7e0e5a2a1#0",
+   "index": 589,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/retro/SKILL.md#56d8008606d6#0",
+   "index": 590,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#8e072b701aba#0",
+   "index": 591,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/code-review/SKILL.md#2080c9b7f370#0",
+   "index": 592,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/codex-review/SKILL.md#0aa98132b01d#0",
+   "index": 593,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/worktree-lifecycle.md#184b60243323#0",
+   "index": 594,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#ea250f1d06ef#0",
+   "index": 595,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/safety-guardrails.md#754e3b483461#0",
+   "index": 596,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/code-review/SKILL.md#5c3d257313ff#0",
+   "index": 597,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#8cd3f5b0ef90#0",
+   "index": 598,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/kit-update/SKILL.md#26db4d45103e#0",
+   "index": 599,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/code-review/SKILL.md#a659be2cfffe#0",
+   "index": 600,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#921c17ee7a4d#0",
+   "index": 601,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/codex-adapter-sync/SKILL.md#25012430dc39#0",
+   "index": 602,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-subagents.md#24f74fc6742d#0",
+   "index": 603,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/spec-self-critique/SKILL.md#ba0644b2e278#0",
+   "index": 604,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/SKILL.md#44cb9f7bd9ef#0",
+   "index": 605,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#a130699d417a#0",
+   "index": 606,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-waves/SKILL.md#7e7e2a1704f6#0",
+   "index": 607,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#823de7b29523#0",
+   "index": 608,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/SKILL.md#e9e3ce9da631#0",
+   "index": 609,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/tdd/SKILL.md#7b0559af1cc3#0",
+   "index": 610,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/grill-with-docs/ADR-FORMAT.md#813c3e98f279#0",
+   "index": 611,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#ae41bdf287ab#0",
+   "index": 612,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/SKILL.md#a9baa493db83#0",
+   "index": 613,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/census-update/SKILL.md#0c2975e78b48#0",
+   "index": 614,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/codex-build/SKILL.md#ac39be1daace#0",
+   "index": 615,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/memory-lifecycle/SKILL.md#0e41795dbff7#0",
+   "index": 616,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/SKILL.md#c1befecddccd#0",
+   "index": 617,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/improve-codebase-architecture/SKILL.md#9fa070f935ec#0",
+   "index": 618,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-waves/SKILL.md#bcc677ddb647#0",
+   "index": 619,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/worktree-lifecycle.md#fe31464e5967#0",
+   "index": 620,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/improve-codebase-architecture/SKILL.md#a659be2cfffe#0",
+   "index": 621,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#f85f7f32e554#0",
+   "index": 622,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/tdd/SKILL.md#f85f7f32e554#0",
+   "index": 623,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/SKILL.md#29af3fb08a47#0",
+   "index": 624,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/domain-modeling/SKILL.md#a61ac57bc078#0",
+   "index": 625,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/kit-release/SKILL.md#41c9a622c710#0",
+   "index": 626,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/workflow-advisories.md#2330e0c0fbcb#0",
+   "index": 627,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/census-update/SKILL.md#4c01b063b95f#0",
+   "index": 628,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/spec-self-critique/SKILL.md#0334fbfdec2e#0",
+   "index": 629,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#be4b2e7ac598#0",
+   "index": 630,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-prd/SKILL.md#df06effc8213#0",
+   "index": 631,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#e44d9f140b0a#0",
+   "index": 632,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/safety-guardrails.md#a02173cc6c4c#0",
+   "index": 633,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/codex-adapter-sync/SKILL.md#797fad5cbbd0#0",
+   "index": 634,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/orchestrate-wave/references/dispatch-workflow.md#0324c878f187#0",
+   "index": 635,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/census-update/SKILL.md#383fb5675731#0",
+   "index": 636,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#c8a52b77d94c#0",
+   "index": 637,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs/SKILL.md#085b41fe5653#0",
+   "index": 638,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/prototype/SKILL.md#da4fa0255679#0",
+   "index": 639,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/kit-update/SKILL.md#9c64110cee40#0",
+   "index": 640,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/worktree-lifecycle.md#597643273377#0",
+   "index": 641,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/improve-codebase-architecture/LANGUAGE.md#f17d8e03a60d#0",
+   "index": 642,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/audit-skills/SKILL.md#a659be2cfffe#0",
+   "index": 643,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/security-audit/SKILL.md#5c3a87fe694d#0",
+   "index": 644,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#6465db90aebb#0",
+   "index": 645,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#621908f5245f#0",
+   "index": 646,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#d67f1b43c91e#0",
+   "index": 647,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#658890d070ca#0",
+   "index": 648,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/improve-codebase-architecture/LANGUAGE.md#f17d8e03a60d#0",
+   "index": 649,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/domain.md#4855d6e800ea#0",
+   "index": 650,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#296efb5067f4#0",
+   "index": 651,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/domain-modeling/SKILL.md#085b41fe5653#0",
+   "index": 652,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs/SKILL.md#ba419be7b6dd#0",
+   "index": 653,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#35739378d159#0",
+   "index": 654,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#ce2bafaa7329#0",
+   "index": 655,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/memory-lifecycle/SKILL.md#f85f7f32e554#0",
+   "index": 656,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-me/SKILL.md#0f63f9624c48#0",
+   "index": 657,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-issues/SKILL.md#4841a8024489#0",
+   "index": 658,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/to-waves/SKILL.md#9efa06c6dc66#0",
+   "index": 659,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/resolving-merge-conflicts/SKILL.md#09405c9a2769#0",
+   "index": 660,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/census.md#d06ed9c1420a#0",
+   "index": 661,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/improve-codebase-architecture/ADR-FORMAT.md#c648d099e3e9#0",
+   "index": 662,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs/SKILL.md#1e67239a9bbc#0",
+   "index": 663,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#2d2358b85155#0",
+   "index": 664,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/contribution-routing.md#6a55a5859edc#0",
+   "index": 665,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/census-update/SKILL.md#3fa8ae2713d6#0",
+   "index": 666,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/improve-codebase-architecture/SKILL.md#085b41fe5653#0",
+   "index": 667,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#03de0e83bd62#0",
+   "index": 668,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/safety-guardrails.md#b339622a6d2e#0",
+   "index": 669,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/grill-with-docs-codex/SKILL.md#be9e13a9e732#0",
+   "index": 670,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/ask-matt/SKILL.md#ab537e7e3593#0",
+   "index": 671,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/setup-pre-commit/SKILL.md#5e85ef01a4f8#0",
+   "index": 672,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/codex-build/SKILL.md#9d7a45e31a64#0",
+   "index": 673,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/contribution-routing.md#839814e1d5f3#0",
+   "index": 674,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/to-prd/SKILL.md#414ec676058e#0",
+   "index": 675,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".claude/skills/verify-spike/SKILL.md#22fa79058144#0",
+   "index": 676,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/improve-codebase-architecture/HTML-REPORT.md#05b668a0d075#0",
+   "index": 677,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/kit-update/SKILL.md#585dbb918919#0",
+   "index": 678,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/wrapup/SKILL.md#4f5dc8802ade#0",
+   "index": 679,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/setup-workflow/SKILL.md#6d2a7cc3df07#0",
+   "index": 680,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/write-a-skill/GLOSSARY.md#ce2592d20cbd#0",
+   "index": 681,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/write-a-skill/SKILL.md#085b41fe5653#0",
+   "index": 682,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/orchestrate-wave/references/dispatch-subagents.md#90947189f3c6#0",
+   "index": 683,
+   "column": "none",
+   "signal": "no-finding",
+   "signals": []
+  },
+  {
+   "rule_id": ".agents/skills/wayfinder/SKILL.md#45af7162919c#0",
+   "index": 684,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".claude/skills/scale-check/SKILL.md#620312f6bd75#0",
+   "index": 685,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/setup-workflow/workflow-advisories.md#ba22f9322e6e#0",
+   "index": 686,
+   "column": "form",
+   "signal": "finding",
+   "signals": [
+    "F1",
+    "O3"
+   ]
+  },
+  {
+   "rule_id": ".agents/skills/to-issues/SKILL.md#24387cd93c09#0",
+   "index": 687,
+   "column": "ownership",
+   "signal": "finding",
+   "signals": [
+    "O1"
+   ]
+  }
+ ]
+}

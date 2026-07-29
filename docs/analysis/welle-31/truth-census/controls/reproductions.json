@@ -1,0 +1,145 @@
+{
+ "schema": "welle-31/truth-census/reproductions/v1",
+ "censusCommit": "320dece903a09ee63588d9b050713f8f0a63b594",
+ "scriptsTree": "53a769d8c32f2694cb29068a1c92ba36b745e0eb",
+ "fixtureOnly": true,
+ "probes": [
+  {
+   "id": "R1-env-proxy",
+   "target": "scripts/worktree-lifecycle/classify.py::_env_problem",
+   "command": "python3 docs/analysis/welle-31/truth-census/fixtures/probe-env-proxy.py",
+   "repetitions": 3,
+   "reproducedPerRun": [
+    true,
+    true,
+    true
+   ],
+   "majority": true,
+   "spread": "none — byte-identical output on every repetition",
+   "output": {
+    "arms": [
+     {
+      "arm": "identical",
+      "blocked": false,
+      "blocks": [],
+      "scratchCount": 1,
+      "worktreeEnv": "PORT=3000\nTOKEN=shared\n"
+     },
+     {
+      "arm": "per-port",
+      "blocked": true,
+      "blocks": [
+       {
+        "items": [
+         ".env — differs from the main checkout copy"
+        ],
+        "rule": "env-file"
+       }
+      ],
+      "scratchCount": 0,
+      "worktreeEnv": "PORT=3101\nTOKEN=shared\n"
+     }
+    ],
+    "probe": "R1-env-proxy",
+    "reproduced": true,
+    "target": "scripts/worktree-lifecycle/classify.py::_env_problem"
+   }
+  },
+  {
+   "id": "R2-command-substring",
+   "target": "scripts/worktree-lifecycle/core.py::targets_linked_worktree",
+   "command": "python3 docs/analysis/welle-31/truth-census/fixtures/probe-command-substring.py",
+   "repetitions": 3,
+   "reproducedPerRun": [
+    true,
+    true,
+    true
+   ],
+   "majority": true,
+   "spread": "none — byte-identical output on every repetition",
+   "output": {
+    "arms": [
+     {
+      "action": "block",
+      "arm": "baseline",
+      "command": "git push --force origin main",
+      "targetsLinkedWorktree": false
+     },
+     {
+      "action": "allow",
+      "arm": "bypass-mention",
+      "command": "git push --force origin main # see .worktrees/380-truth-census",
+      "targetsLinkedWorktree": true
+     },
+     {
+      "action": "allow",
+      "arm": "bypass-echo",
+      "command": "echo \"/fixture/repo/.worktrees/380-truth-census\" && git push --force origin main",
+      "targetsLinkedWorktree": true
+     },
+     {
+      "action": "block",
+      "arm": "outside-repo-cd",
+      "command": "cd /srv/other-checkout && git push --force origin main",
+      "targetsLinkedWorktree": false
+     },
+     {
+      "action": "allow",
+      "arm": "risky-regex-evaded",
+      "command": "git -C /srv/other-checkout push --force origin main",
+      "targetsLinkedWorktree": false
+     }
+    ],
+    "failClosedArm": "block",
+    "probe": "R2-command-substring",
+    "reproduced": true,
+    "riskyRegexEvaded": true,
+    "target": "scripts/worktree-lifecycle/core.py::targets_linked_worktree"
+   }
+  },
+  {
+   "id": "R3-prod-heading",
+   "target": "scripts/readiness.mjs::section",
+   "command": "node docs/analysis/welle-31/truth-census/fixtures/probe-prod-heading.mjs",
+   "repetitions": 3,
+   "reproducedPerRun": [
+    true,
+    true,
+    true
+   ],
+   "majority": true,
+   "spread": "none — byte-identical output on every repetition",
+   "output": {
+    "probe": "R3-prod-heading",
+    "target": "scripts/readiness.mjs::section",
+    "arms": [
+     {
+      "arm": "canonical",
+      "heading": "## Prod",
+      "state": "valid",
+      "problem": null
+     },
+     {
+      "arm": "consumer-wording",
+      "heading": "## Prod und Deployment",
+      "state": "missing",
+      "problem": "missing-section"
+     },
+     {
+      "arm": "trailing-colon",
+      "heading": "## Prod:",
+      "state": "missing",
+      "problem": "missing-section"
+     },
+     {
+      "arm": "absent",
+      "heading": "## Deployment",
+      "state": "missing",
+      "problem": "missing-section"
+     }
+    ],
+    "reproduced": true
+   }
+  }
+ ]
+}

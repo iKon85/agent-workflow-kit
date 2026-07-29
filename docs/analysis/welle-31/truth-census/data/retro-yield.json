@@ -1,0 +1,26 @@
+{
+ "schema": "welle-31/truth-census/retro-yield/v1",
+ "source": "docs/evidence/welle-31/aggregate-queries.json#merged-pr-retro-marker",
+ "sourceSha256": "cf1db4555e04c1a78a589e95254588f149633b230af585aac65fb4cd9dff8426",
+ "fileSha256": "7a2e494c81a371b22816fac23368f83d4429a9a60ce8af8080c5f88318f1a6ab",
+ "fetchedAt": "2026-07-29T07:09:27.879Z",
+ "mergedPullRequests": 135,
+ "markerPresent": 74,
+ "markerByValue": {
+  "skipped": 52,
+  "absent": 61,
+  "ran": 12,
+  "other": 10
+ },
+ "offClosedSet": 10,
+ "anyFindingsHeading": 14,
+ "metaSection": 2,
+ "markerAndFindingsHeading": 10,
+ "markerAndNoFindingsHeading": 64,
+ "mandateClaim": {
+  "mergedPullRequests": 128,
+  "markerPresent": 69,
+  "findingsSection": 8
+ },
+ "note": "the `other` bucket is a `**Retro:**` line whose value is outside the enforced closed set — recorded, not promoted: the check may post-date those pull requests, and this census ran no ablation to tell the two apart"
+}
