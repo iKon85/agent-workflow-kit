@@ -857,7 +857,7 @@
       "ownerSkill": "to-issues",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "1566549e066cf9f398a03b638aa9c30e3762251863fe75b525e73e73ffe5995f",
+      "sha256": "d479cccd5916be1f8d3a3fe05b2c02111b494dc15005d59ba4b72faf5bfdfa1d",
       "mode": 420,
       "origin": "kit"
     },
@@ -2207,7 +2207,7 @@
       "ownerSkill": "to-issues",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "730ea3f8e5c31a0606e9befdf41b6d744f4ab621a5e893c819ffcc6d4111ef63",
+      "sha256": "c3aa4d0ed3f12249f7907272ede5df7f455d516321a4458f4c7cfe9617215e3f",
       "mode": 420,
       "origin": "kit"
     },
@@ -2419,7 +2419,7 @@
       "path": "docs/agents/wave-anchor-template.md",
       "kind": "template",
       "installRole": "consumer",
-      "sha256": "92e52c6d1db28f37c012646de6d0b073bcdffde30d84f84499b55a7fd1240ab1",
+      "sha256": "764bb07c46d615b820da9f9ce77b70e7ba87ac8b2c53c32edd21c09ba8d07ce8",
       "mode": 420,
       "origin": "kit"
     },
@@ -2459,7 +2459,7 @@
       "path": "scripts/board-sync.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "d0c4cd8f05c619e5d24f26796eb759467f3ae97b154f12e9526a3017fd5b1eb9",
+      "sha256": "838d79d3f0635e714dfcdbf4e3928930beb1180e352953633e979989765769dc",
       "mode": 493,
       "origin": "kit"
     },
@@ -2723,7 +2723,7 @@
       "path": "scripts/render-anchor.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "c16ca661662c35761ec1d39f6ae946319a198a0ea39892fcce484288d319fb16",
+      "sha256": "66151a0999b57f5eae99df68f30a2d2fd59f1486cd6ab04f2bf7c357c1be695b",
       "mode": 493,
       "origin": "kit"
     },
