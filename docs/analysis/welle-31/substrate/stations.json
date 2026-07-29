@@ -1,0 +1,3660 @@
+{
+  "schema": "welle-31/substrate/stations/v1",
+  "sourceCommit": "c9f6a4aa8bd80bbc4519fa9925315a6d4f0292f2",
+  "note": "One station table per journey, columns verbatim from #380 §5. The \"promise\" column quotes a shipped artifact and cites it; the \"what it actually verifies\" column says what the mechanism at that station can observe. Keeping the two apart is the point — this slice freezes them and adjudicates neither.",
+  "columns": [
+    "journey_id",
+    "station_id",
+    "promise (cited)",
+    "what it actually verifies",
+    "binding hardness",
+    "phase",
+    "user decision",
+    "agent action",
+    "authorization boundary",
+    "recovery relation"
+  ],
+  "fieldByColumn": {
+    "journey_id": "journeyId",
+    "station_id": "stationId",
+    "promise (cited)": "promise",
+    "what it actually verifies": "verifies",
+    "binding hardness": "bindingHardness",
+    "phase": "phase",
+    "user decision": "userDecision",
+    "agent action": "agentAction",
+    "authorization boundary": "authorizationBoundary",
+    "recovery relation": "recoveryRelation"
+  },
+  "stationTotal": 237,
+  "journeysWithStations": 70,
+  "stationsPerJourney": {
+    "idea-to-board-issue": 3,
+    "inbound-triage-to-agent-ready": 3,
+    "backlog-to-waves-clustering": 3,
+    "prd-maturation": 3,
+    "plan-to-executable-slices": 4,
+    "program-graph-decomposition": 4,
+    "cross-model-plan-hardening": 3,
+    "domain-grill-and-context-update": 3,
+    "spec-self-critique-before-review": 3,
+    "scale-check-route-a-new-build": 3,
+    "router-recommends-a-starting-point": 3,
+    "wayfinder-chart-a-foggy-effort": 3,
+    "verify-a-fact-before-plan-lock": 4,
+    "resolve-a-bounded-tradeoff": 3,
+    "research-a-question": 3,
+    "land-planning-output": 3,
+    "small-direct-path": 3,
+    "small-bug-fix-to-merged-and-released": 5,
+    "tdd-red-green-refactor": 3,
+    "bug-diagnosis-to-regression-test": 4,
+    "prototype-a-design": 3,
+    "delegate-build-to-codex": 4,
+    "two-axis-code-review": 4,
+    "design-a-deep-module": 3,
+    "improve-codebase-architecture": 3,
+    "security-audit-of-the-app": 3,
+    "run-the-local-gate": 5,
+    "slice-pr-landing": 5,
+    "anchor-reconcile-on-slice-event": 3,
+    "goal-level-delegation-afk-sweep": 5,
+    "session-ends": 4,
+    "retro-after-a-session": 3,
+    "resolve-a-merge-conflict": 3,
+    "author-or-improve-a-skill": 4,
+    "audit-the-skill-surface": 3,
+    "sync-the-codex-mirror": 3,
+    "kit-build-and-staleness-check": 3,
+    "release-the-kit": 6,
+    "ci-required-check-on-a-pull-request": 3,
+    "tag-triggered-publish": 4,
+    "pages-site-publish": 3,
+    "consumer-first-init": 4,
+    "consumer-setup-workflow-project-layer": 3,
+    "consumer-first-own-workflow": 4,
+    "consumer-update-over-local-edits": 5,
+    "consumer-diff-inspection": 3,
+    "consumer-uninstall": 3,
+    "consumer-routing-profile-decision": 3,
+    "consumer-ownership-override": 3,
+    "consumer-contribution-bridge": 3,
+    "consumer-automated-update-pr": 3,
+    "consumer-kit-update-skill": 3,
+    "consumer-project-release": 3,
+    "consumer-setup-pre-commit": 3,
+    "consumer-census-establish": 3,
+    "consumer-memory-lifecycle": 3,
+    "session-start-context-injection": 3,
+    "guarded-tool-call-block": 4,
+    "prompt-and-stop-time-advisory": 3,
+    "worktree-create-and-bind": 4,
+    "worktree-teardown": 3,
+    "recovery-red-release-run-but-published": 4,
+    "recovery-awaiting-tag-stacked-bump": 3,
+    "recovery-wrong-branch-commit": 3,
+    "recovery-interrupted-afk-run": 3,
+    "recovery-update-conflicts-with-local-edits": 3,
+    "recovery-guard-false-red-blocks-capability": 3,
+    "recovery-teardown-blocked-by-symlinks": 3,
+    "recovery-anchor-closed-early": 3,
+    "recovery-board-status-drift": 3
+  },
+  "stations": [
+    {
+      "journeyId": "idea-to-board-issue",
+      "stationId": "capture",
+      "promise": {
+        "text": "Every finding becomes a `gh` issue at session end",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that an issue was opened, not that the idea was worth tracking",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "whether the idea is tracked at all",
+      "agentAction": "drafts a title and body from the session",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "idea-to-board-issue",
+      "stationId": "board-write",
+      "promise": {
+        "text": "All board writes go through `scripts/board-sync.py`, never bare `gh issue create`",
+        "citation": "scripts/board-sync.py"
+      },
+      "verifies": "that field ids and status names came from the board profile, not from an inline literal",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "runs the board-sync create path",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-board-status-drift"
+    },
+    {
+      "journeyId": "idea-to-board-issue",
+      "stationId": "classify",
+      "promise": {
+        "text": "Board status is primary; only information-waiting and AFK-readiness use labels",
+        "citation": "docs/agents/triage-labels.md"
+      },
+      "verifies": "that a Status value and a type label are set, not that they are the right ones",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "confirms the type of work",
+      "agentAction": "sets Status and the type label",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "inbound-triage-to-agent-ready",
+      "stationId": "sweep",
+      "promise": {
+        "text": "Bugs or requests you did not create are moved into agent-ready issues",
+        "citation": ".claude/skills/triage/SKILL.md"
+      },
+      "verifies": "that the open inbound set was listed; not that every item was understood",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "which inbound items are in scope",
+      "agentAction": "reads the open unassigned issues",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "inbound-triage-to-agent-ready",
+      "stationId": "readiness-label",
+      "promise": {
+        "text": "Only information-waiting and AFK-readiness use labels",
+        "citation": "docs/agents/triage-labels.md"
+      },
+      "verifies": "that a label was applied, not that the issue is executable",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "accepts or overrides the readiness verdict",
+      "agentAction": "applies the readiness label through board-sync",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "inbound-triage-to-agent-ready",
+      "stationId": "execute-ready",
+      "promise": {
+        "text": "An agent-ready issue carries a complete What + AC",
+        "citation": "scripts/execute-ready-check.py"
+      },
+      "verifies": "that the required sections are present — presence, not sufficiency",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "runs the execute-ready check on the body",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "backlog-to-waves-clustering",
+      "stationId": "read-population",
+      "promise": {
+        "text": "Reads all open issues before grouping",
+        "citation": ".claude/skills/board-to-waves/SKILL.md"
+      },
+      "verifies": "that the grouping saw the open set at that moment",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "lists every open issue",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "backlog-to-waves-clustering",
+      "stationId": "cluster-proposal",
+      "promise": {
+        "text": "Groups by the Gate+Booster+Splitter heuristic with size, risk and grill-needed per candidate",
+        "citation": ".claude/skills/board-to-waves/SKILL.md"
+      },
+      "verifies": "that a grouping was proposed — never that it is the best partition",
+      "bindingHardness": "judgment",
+      "phase": "plan",
+      "userDecision": "confirms or rejects the candidate clusters",
+      "agentAction": "proposes candidates with estimates",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "backlog-to-waves-clustering",
+      "stationId": "stub-only",
+      "promise": {
+        "text": "STOPS at stubs: no PRD, no slicing, no sub-issue links, no promotion",
+        "citation": ".claude/skills/board-to-waves/SKILL.md"
+      },
+      "verifies": "that only stub issues were written; the stop itself is unchecked",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "approves creating the stubs",
+      "agentAction": "creates cluster stubs through board-sync",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "prd-maturation",
+      "stationId": "shape-agreement",
+      "promise": {
+        "text": "Publish the agreed shape as a PRD",
+        "citation": ".claude/skills/to-prd/SKILL.md"
+      },
+      "verifies": "that a PRD document exists, not that it matches what was agreed",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "confirms the agreed shape",
+      "agentAction": "drafts the PRD onto the anchor",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "prd-maturation",
+      "stationId": "self-critique",
+      "promise": {
+        "text": "A 12-point structural self-critique runs before a human reads the spec",
+        "citation": ".claude/skills/spec-self-critique/SKILL.md"
+      },
+      "verifies": "that the checklist ran and the summary is visible",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "runs the checklist and fixes findings inline",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "prd-maturation",
+      "stationId": "status-spec",
+      "promise": {
+        "text": "Status values come from the board profile, never an inline literal",
+        "citation": "docs/agents/board-sync.md"
+      },
+      "verifies": "that a Status field write succeeded",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "sets the spec Status through board-sync",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-board-status-drift"
+    },
+    {
+      "journeyId": "plan-to-executable-slices",
+      "stationId": "identity-declaration",
+      "promise": {
+        "text": "Explicit Feature identity selects tracer-bullet decomposition; explicit Program identity selects the internal graph path",
+        "citation": ".claude/skills/to-issues/SKILL.md"
+      },
+      "verifies": "that an identity was declared before decomposition — not that it was the right one",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "declares Feature or Program identity",
+      "agentAction": "routes to the matching decomposition",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "plan-to-executable-slices",
+      "stationId": "complete-preview",
+      "promise": {
+        "text": "A complete preview precedes any write",
+        "citation": ".claude/skills/to-issues/SKILL.md"
+      },
+      "verifies": "that a preview was rendered; not that the human read it",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "approves the previewed slice set",
+      "agentAction": "renders the full slice list",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "plan-to-executable-slices",
+      "stationId": "slice-bodies",
+      "promise": {
+        "text": "Each slice is independently grabbable with What + AC",
+        "citation": "docs/conventions/spec-completeness.md"
+      },
+      "verifies": "that the required sections exist in each body",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "writes the slice bodies",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "plan-to-executable-slices",
+      "stationId": "anchor-link",
+      "promise": {
+        "text": "Sub-issue links and promotion go through `scripts/board-sync.py`",
+        "citation": "scripts/board-sync.py"
+      },
+      "verifies": "that the sub-issue link and Status write landed on the board",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "links the slices to the anchor and promotes them",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-anchor-closed-early"
+    },
+    {
+      "journeyId": "program-graph-decomposition",
+      "stationId": "facade-entry",
+      "promise": {
+        "text": "`to-issues` is the single public Planning facade; the graph engine is internal",
+        "citation": "docs/adr/0005-to-issues-is-the-planning-facade.md"
+      },
+      "verifies": "that the entry was the facade — the engine has no invocable surface of its own (#322)",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "declares Program identity",
+      "agentAction": "delegates to the internal graph path",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "program-graph-decomposition",
+      "stationId": "graph-parse",
+      "promise": {
+        "text": "A Program plan is parsed into a dependency graph before any issue is written",
+        "citation": "scripts/program_graph_parse.py"
+      },
+      "verifies": "that the plan text parsed — not that the dependencies are real",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "parses the plan into nodes and edges",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "program-graph-decomposition",
+      "stationId": "graph-validate",
+      "promise": {
+        "text": "The graph is validated before publication",
+        "citation": "scripts/program_graph_validate.py"
+      },
+      "verifies": "that the graph is acyclic and complete against its own schema",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the graph validator",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "program-graph-decomposition",
+      "stationId": "graph-publish",
+      "promise": {
+        "text": "Phases are published onto the board with the profile’s field ids",
+        "citation": "scripts/program_sync.py"
+      },
+      "verifies": "that the phase writes landed",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "approves publication",
+      "agentAction": "syncs the graph to the board",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "escalates-to:recovery-board-status-drift"
+    },
+    {
+      "journeyId": "cross-model-plan-hardening",
+      "stationId": "plan-freeze",
+      "promise": {
+        "text": "Claude writes the locked plan to PLAN.md before the critic sees it",
+        "citation": ".claude/skills/codex-review/SKILL.md"
+      },
+      "verifies": "that a frozen plan file exists",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "locks the plan",
+      "agentAction": "writes PLAN.md",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "cross-model-plan-hardening",
+      "stationId": "read-only-review",
+      "promise": {
+        "text": "The second model reviews in a read-only sandbox",
+        "citation": "scripts/codex-exec.sh"
+      },
+      "verifies": "that the critic process ran read-only — the sandbox flag, not the critique quality",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "invokes the critic in a read-only sandbox",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-guard-false-red-blocks-capability"
+    },
+    {
+      "journeyId": "cross-model-plan-hardening",
+      "stationId": "verdict-loop",
+      "promise": {
+        "text": "Revise and re-submit to the SAME session until APPROVED or MAX_ROUNDS",
+        "citation": ".claude/skills/grill-with-docs-codex/SKILL.md"
+      },
+      "verifies": "that a verdict token came back; not that the objections were addressed",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "signs off after the verdict",
+      "agentAction": "revises and re-submits",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "domain-grill-and-context-update",
+      "stationId": "one-question",
+      "promise": {
+        "text": "Claude interviews one question at a time until every branch is resolved",
+        "citation": ".claude/skills/grill-with-docs/SKILL.md"
+      },
+      "verifies": "that questions were asked; not that the decision tree was exhausted",
+      "bindingHardness": "judgment",
+      "phase": "plan",
+      "userDecision": "answers each question",
+      "agentAction": "asks and recommends",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "domain-grill-and-context-update",
+      "stationId": "challenge-against-docs",
+      "promise": {
+        "text": "The plan is challenged against the project’s existing domain model and glossary",
+        "citation": "CONTEXT.md"
+      },
+      "verifies": "that the glossary was read; not that a conflict would be noticed",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "settles contested terms",
+      "agentAction": "cross-references CONTEXT.md and ADRs",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "domain-grill-and-context-update",
+      "stationId": "inline-doc-update",
+      "promise": {
+        "text": "CONTEXT.md and ADRs are updated inline as decisions crystallise",
+        "citation": "docs/agents/domain.md"
+      },
+      "verifies": "that the files were written in-session",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "accepts each documented decision",
+      "agentAction": "writes the glossary and ADR entries",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "spec-self-critique-before-review",
+      "stationId": "checklist-run",
+      "promise": {
+        "text": "A 12-point structural checklist runs on the spec text itself",
+        "citation": ".claude/skills/spec-self-critique/SKILL.md"
+      },
+      "verifies": "that twelve checks were executed against the text",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the checklist",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "spec-self-critique-before-review",
+      "stationId": "project-enrichment",
+      "promise": {
+        "text": "Each check is enriched from the project layer when one is present",
+        "citation": "docs/agents/skills/spec-self-critique.md"
+      },
+      "verifies": "that the project layer file was read if it exists",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "loads the project extension",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "spec-self-critique-before-review",
+      "stationId": "visible-summary",
+      "promise": {
+        "text": "Issues are fixed inline and a visible summary is emitted",
+        "citation": ".claude/skills/spec-self-critique/SKILL.md"
+      },
+      "verifies": "that a summary was printed — not that every finding was fixed",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "reads the summary before reviewing",
+      "agentAction": "edits the spec and prints the summary",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "scale-check-route-a-new-build",
+      "stationId": "size-dialog",
+      "promise": {
+        "text": "A short plain-language dialog routes a build of unclear size",
+        "citation": ".claude/skills/scale-check/SKILL.md"
+      },
+      "verifies": "that the dialog ran",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "answers the routing questions",
+      "agentAction": "asks the routing questions",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "scale-check-route-a-new-build",
+      "stationId": "route-verdict",
+      "promise": {
+        "text": "Routes to a program, a feature, a single slice, or a bug",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that one of the four routes was named; nothing checks the fit",
+      "bindingHardness": "judgment",
+      "phase": "intake",
+      "userDecision": "accepts or overrides the route",
+      "agentAction": "names the route with a reason",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "scale-check-route-a-new-build",
+      "stationId": "start-prompt",
+      "promise": {
+        "text": "Hands back a paste-ready start prompt",
+        "citation": ".claude/skills/scale-check/SKILL.md"
+      },
+      "verifies": "that a prompt string was produced",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "decides whether to start now",
+      "agentAction": "emits the start prompt",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "router-recommends-a-starting-point",
+      "stationId": "router-scan",
+      "promise": {
+        "text": "A router over every skill in the entry-point list",
+        "citation": ".claude/skills/ask-matt/SKILL.md"
+      },
+      "verifies": "that the routed set is the entry-point list — not the full installed surface",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "states the task in their own words",
+      "agentAction": "matches the task against the skill list",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "router-recommends-a-starting-point",
+      "stationId": "recommendation",
+      "promise": {
+        "text": "Returns a recommended starting point and why",
+        "citation": ".claude/skills/ask-matt/SKILL.md"
+      },
+      "verifies": "that a skill name and a reason came back",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "accepts or ignores the recommendation",
+      "agentAction": "names one starting skill",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "router-recommends-a-starting-point",
+      "stationId": "handoff",
+      "promise": {
+        "text": "Prefer the smallest workflow that produces a clear next action",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical — the depth ladder is prose",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "chooses the depth",
+      "agentAction": "hands over to the named skill",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "wayfinder-chart-a-foggy-effort",
+      "stationId": "chart",
+      "promise": {
+        "text": "A huge foggy effort is charted as a shared map of investigation tickets",
+        "citation": ".claude/skills/wayfinder/SKILL.md"
+      },
+      "verifies": "that a map artifact exists",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "confirms the map",
+      "agentAction": "drafts the investigation map",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "wayfinder-chart-a-foggy-effort",
+      "stationId": "ticket-write",
+      "promise": {
+        "text": "Each unknown becomes an investigation ticket on the tracker",
+        "citation": "scripts/board-sync.py"
+      },
+      "verifies": "that the tickets were created through the board profile",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "approves the ticket set",
+      "agentAction": "creates the tickets",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "wayfinder-chart-a-foggy-effort",
+      "stationId": "one-per-session",
+      "promise": {
+        "text": "One investigation resolves per session",
+        "citation": ".claude/skills/wayfinder/SKILL.md"
+      },
+      "verifies": "nothing — the pacing rule is prose",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "picks the next ticket",
+      "agentAction": "resolves the picked ticket",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "verify-a-fact-before-plan-lock",
+      "stationId": "question-binarisation",
+      "promise": {
+        "text": "A single yes/no factual question, not a design question",
+        "citation": ".claude/skills/verify-spike/SKILL.md"
+      },
+      "verifies": "that the question was stated in binary form",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "states the question",
+      "agentAction": "restates it as a yes/no claim",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "verify-a-fact-before-plan-lock",
+      "stationId": "harness-run",
+      "promise": {
+        "text": "A minimal throwaway, read-only harness with output-proof",
+        "citation": ".claude/skills/verify-spike/SKILL.md"
+      },
+      "verifies": "that a command ran and produced output — read-only is asserted, not sandboxed",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "writes and runs the harness",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "verify-a-fact-before-plan-lock",
+      "stationId": "positive-control",
+      "promise": {
+        "text": "A negative measurement is no proof until the harness has produced a positive",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that a control run exists next to the negative",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the positive control and records both",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "verify-a-fact-before-plan-lock",
+      "stationId": "verdict-record",
+      "promise": {
+        "text": "The proven verdict is recorded and the harness removed",
+        "citation": ".claude/skills/verify-spike/SKILL.md"
+      },
+      "verifies": "that a verdict line was written; removal is unchecked",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "accepts the verdict before plan-lock",
+      "agentAction": "records the verdict, deletes the harness",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "resolve-a-bounded-tradeoff",
+      "stationId": "scope-check",
+      "promise": {
+        "text": "Above a binary yes/no fact and below an ADR-worthy decision",
+        "citation": ".claude/skills/decision-gate/SKILL.md"
+      },
+      "verifies": "that the choice was placed on the ladder",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "confirms the altitude",
+      "agentAction": "places the question",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "resolve-a-bounded-tradeoff",
+      "stationId": "tradeoff-table",
+      "promise": {
+        "text": "Read-only investigation produces a documented weigh-up",
+        "citation": ".claude/skills/decision-gate/SKILL.md"
+      },
+      "verifies": "that a table with options and costs exists",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "investigates and tabulates",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "resolve-a-bounded-tradeoff",
+      "stationId": "sink-the-decision",
+      "promise": {
+        "text": "The pick is sunk into an ADR, issue or comment",
+        "citation": "docs/agents/domain.md"
+      },
+      "verifies": "that a durable record was written",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "makes the pick",
+      "agentAction": "writes the record",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "research-a-question",
+      "stationId": "source-tier",
+      "promise": {
+        "text": "Investigate against high-trust primary sources",
+        "citation": ".claude/skills/research/SKILL.md"
+      },
+      "verifies": "that sources were cited; tier is asserted by the agent",
+      "bindingHardness": "judgment",
+      "phase": "plan",
+      "userDecision": "names the question",
+      "agentAction": "gathers and cites sources",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "research-a-question",
+      "stationId": "capture",
+      "promise": {
+        "text": "Findings are captured as a Markdown file in the repo",
+        "citation": ".claude/skills/research/SKILL.md"
+      },
+      "verifies": "that a file exists under the research directory",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "writes the research note",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "research-a-question",
+      "stationId": "landing",
+      "promise": {
+        "text": "Durable planning output lands through wrapup’s Content route",
+        "citation": ".claude/skills/wrapup/SKILL.md"
+      },
+      "verifies": "that the note reached a branch and a PR",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "approves landing",
+      "agentAction": "runs the Content route",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "land-planning-output",
+      "stationId": "content-claim",
+      "promise": {
+        "text": "Durable output lands through the Content route as ordinary work",
+        "citation": ".claude/skills/wrapup/SKILL.md"
+      },
+      "verifies": "that the claimed paths are durable, not scratch",
+      "bindingHardness": "mechanical",
+      "phase": "land",
+      "userDecision": "confirms what is durable",
+      "agentAction": "claims the content paths",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "land-planning-output",
+      "stationId": "no-release-coupling",
+      "promise": {
+        "text": "Landing an ADR must not require a release",
+        "citation": "#343"
+      },
+      "verifies": "that no shipped path was touched — the coupling is what #343 recorded as cost",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "none",
+      "agentAction": "keeps the diff off shipped paths",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "land-planning-output",
+      "stationId": "pr-body",
+      "promise": {
+        "text": "Leaf-issue PR bodies carry `closes #<n>`; slice PRs carry `Part of #<anchor>`",
+        "citation": "scripts/pr-body-check.py"
+      },
+      "verifies": "that the marker matches the profile vocabulary",
+      "bindingHardness": "mechanical",
+      "phase": "land",
+      "userDecision": "none",
+      "agentAction": "writes the PR body and checks it",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-anchor-closed-early"
+    },
+    {
+      "journeyId": "small-direct-path",
+      "stationId": "direct-entry",
+      "promise": {
+        "text": "A tiny fix can go straight to `implement`",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing — the depth ladder is prose the actor applies",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "chooses the direct path",
+      "agentAction": "starts implementing",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "small-direct-path",
+      "stationId": "red-green",
+      "promise": {
+        "text": "Execute = red→green test-first, never test-after",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that a failing test preceded the fix, if the actor ran one",
+      "bindingHardness": "documented",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "writes the failing test, then the fix",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "small-direct-path",
+      "stationId": "land",
+      "promise": {
+        "text": "Finished slice: use `wrapup` to prepare branch, PR and cleanup",
+        "citation": ".claude/skills/wrapup/SKILL.md"
+      },
+      "verifies": "that a PR exists and the branch is clean",
+      "bindingHardness": "mechanical",
+      "phase": "land",
+      "userDecision": "approves the PR",
+      "agentAction": "runs wrapup",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "small-bug-fix-to-merged-and-released",
+      "stationId": "repro",
+      "promise": {
+        "text": "A bug is reproduced before it is fixed",
+        "citation": ".claude/skills/diagnose/SKILL.md"
+      },
+      "verifies": "that a reproduction was recorded; not that it is minimal",
+      "bindingHardness": "documented",
+      "phase": "build",
+      "userDecision": "reports the bug",
+      "agentAction": "reproduces and minimises",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "small-bug-fix-to-merged-and-released",
+      "stationId": "regression-test",
+      "promise": {
+        "text": "A regression test proves the fix",
+        "citation": ".claude/skills/tdd/SKILL.md"
+      },
+      "verifies": "that a test exists and was red before the fix",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "writes the regression test",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "small-bug-fix-to-merged-and-released",
+      "stationId": "local-gate",
+      "promise": {
+        "text": "`/local-ci` stays the explicit pre-PR gate",
+        "citation": ".claude/skills/local-ci/SKILL.md"
+      },
+      "verifies": "that the suite, staleness and guards ran green locally",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the local gate",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "variant-of:run-the-local-gate#gate-run"
+    },
+    {
+      "journeyId": "small-bug-fix-to-merged-and-released",
+      "stationId": "required-check",
+      "promise": {
+        "text": "The CI job `test` must be green with the branch up to date",
+        "citation": ".github/workflows/ci.yml"
+      },
+      "verifies": "that GitHub’s required context passed — the job name, not the workflow name",
+      "bindingHardness": "platform-enforced",
+      "phase": "land",
+      "userDecision": "merges the PR",
+      "agentAction": "waits for the check",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "small-bug-fix-to-merged-and-released",
+      "stationId": "publish",
+      "promise": {
+        "text": "A matching annotated tag on canonical main is the sole normal publication intent",
+        "citation": "#257"
+      },
+      "verifies": "that the tag exists, is annotated, matches the version and sits on main",
+      "bindingHardness": "platform-enforced",
+      "phase": "publish",
+      "userDecision": "confirms the Semver once",
+      "agentAction": "tags and monitors to released",
+      "authorizationBoundary": "standing-authorization",
+      "recoveryRelation": "escalates-to:recovery-red-release-run-but-published"
+    },
+    {
+      "journeyId": "tdd-red-green-refactor",
+      "stationId": "red",
+      "promise": {
+        "text": "A failing test comes first and is proven failing",
+        "citation": ".claude/skills/tdd/SKILL.md"
+      },
+      "verifies": "that the test ran and failed for the intended reason",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "writes and runs the failing test",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "tdd-red-green-refactor",
+      "stationId": "green",
+      "promise": {
+        "text": "The smallest change makes it pass",
+        "citation": ".claude/skills/tdd/SKILL.md"
+      },
+      "verifies": "that the suite is green — not that the change was minimal",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "implements until green",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "tdd-red-green-refactor",
+      "stationId": "refactor",
+      "promise": {
+        "text": "Refactor happens under a green suite",
+        "citation": ".claude/skills/tdd/SKILL.md"
+      },
+      "verifies": "that the suite stayed green across the refactor",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "refactors and re-runs",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "bug-diagnosis-to-regression-test",
+      "stationId": "reproduce",
+      "promise": {
+        "text": "Reproduce before hypothesising",
+        "citation": ".claude/skills/diagnose/SKILL.md"
+      },
+      "verifies": "that a reproduction command exists",
+      "bindingHardness": "documented",
+      "phase": "build",
+      "userDecision": "reports the symptom",
+      "agentAction": "reproduces the failure",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "bug-diagnosis-to-regression-test",
+      "stationId": "minimise-and-instrument",
+      "promise": {
+        "text": "Minimise, hypothesise, instrument",
+        "citation": ".claude/skills/diagnose/SKILL.md"
+      },
+      "verifies": "that instrumentation output was read; not that the hypothesis was falsifiable",
+      "bindingHardness": "judgment",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "minimises and instruments",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "bug-diagnosis-to-regression-test",
+      "stationId": "cause-not-symptom",
+      "promise": {
+        "text": "Fix the cause, not the symptom; a plaster is a named, tracked choice",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical — the distinction is the agent’s claim",
+      "bindingHardness": "documented",
+      "phase": "build",
+      "userDecision": "accepts a plaster only deliberately",
+      "agentAction": "names the root cause and fixes it",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "bug-diagnosis-to-regression-test",
+      "stationId": "regression-test",
+      "promise": {
+        "text": "The fix is locked by a regression test",
+        "citation": ".claude/skills/tdd/SKILL.md"
+      },
+      "verifies": "that the new test fails without the fix",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "adds the regression test",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "prototype-a-design",
+      "stationId": "branch-choice",
+      "promise": {
+        "text": "Routes between a runnable terminal app and several UI variations",
+        "citation": ".claude/skills/prototype/SKILL.md"
+      },
+      "verifies": "that one branch was chosen",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "picks the branch",
+      "agentAction": "routes the prototype",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "prototype-a-design",
+      "stationId": "build-throwaway",
+      "promise": {
+        "text": "The prototype is throwaway, not a first slice",
+        "citation": ".claude/skills/prototype/SKILL.md"
+      },
+      "verifies": "nothing — throwaway-ness is a convention",
+      "bindingHardness": "documented",
+      "phase": "build",
+      "userDecision": "plays with the result",
+      "agentAction": "builds the prototype",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "prototype-a-design",
+      "stationId": "fold-back",
+      "promise": {
+        "text": "What was learned is folded back in",
+        "citation": ".claude/skills/prototype/SKILL.md"
+      },
+      "verifies": "that a decision record or plan edit followed",
+      "bindingHardness": "judgment",
+      "phase": "close",
+      "userDecision": "decides what survives",
+      "agentAction": "writes the learning back",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "delegate-build-to-codex",
+      "stationId": "spec-freeze",
+      "promise": {
+        "text": "Claude stays the spec-writer; a frozen spec is handed over",
+        "citation": ".claude/skills/codex-build/SKILL.md"
+      },
+      "verifies": "that a spec file exists before the delegation",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "approves the frozen spec",
+      "agentAction": "writes the spec",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "delegate-build-to-codex",
+      "stationId": "bounded-sandbox",
+      "promise": {
+        "text": "The build runs inside a bounded workspace-write sandbox with a declared allowed-write set",
+        "citation": "scripts/codex-exec.sh"
+      },
+      "verifies": "that the sandbox flags were passed — not that the build honoured the write set",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "invokes the sandboxed build",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-guard-false-red-blocks-capability"
+    },
+    {
+      "journeyId": "delegate-build-to-codex",
+      "stationId": "diff-review",
+      "promise": {
+        "text": "Claude reads the full diff like a contributor PR and runs the proof test",
+        "citation": ".claude/skills/codex-build/SKILL.md"
+      },
+      "verifies": "that the diff was read and the proof test ran",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "reviews the diff, runs the test",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "delegate-build-to-codex",
+      "stationId": "human-approval",
+      "promise": {
+        "text": "The human approves the diff before any commit",
+        "citation": ".claude/skills/codex-build/SKILL.md"
+      },
+      "verifies": "nothing mechanical — the gate is a prompt",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "approves or rejects the diff",
+      "agentAction": "waits for approval",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "two-axis-code-review",
+      "stationId": "merge-base-preflight",
+      "promise": {
+        "text": "A three-dot merge-base preflight runs before either axis starts",
+        "citation": ".claude/skills/code-review/SKILL.md"
+      },
+      "verifies": "that the diff range is three-dot against the merge base",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "computes the review range",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "two-axis-code-review",
+      "stationId": "standards-axis",
+      "promise": {
+        "text": "Standards axis: this repo’s conventions plus a Fowler-smell baseline",
+        "citation": "docs/agents/code-review.md"
+      },
+      "verifies": "that the project layer was loaded; findings themselves are judgment",
+      "bindingHardness": "judgment",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "reviews against standards",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "two-axis-code-review",
+      "stationId": "spec-axis",
+      "promise": {
+        "text": "Spec axis: does the diff faithfully implement the originating issue",
+        "citation": ".claude/skills/code-review/SKILL.md"
+      },
+      "verifies": "that the originating issue was fetched and compared",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "reviews against the spec",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "two-axis-code-review",
+      "stationId": "side-by-side",
+      "promise": {
+        "text": "The two axes are reported side by side, never merged or re-ranked",
+        "citation": ".claude/skills/code-review/SKILL.md"
+      },
+      "verifies": "that two separate lists were emitted",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "reads both rankings",
+      "agentAction": "reports both",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "design-a-deep-module",
+      "stationId": "seam-question",
+      "promise": {
+        "text": "Shared vocabulary for designing deep modules",
+        "citation": ".claude/skills/codebase-design/SKILL.md"
+      },
+      "verifies": "that the vocabulary was applied to a named seam",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "names the module",
+      "agentAction": "frames the seam question",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "design-a-deep-module",
+      "stationId": "deepening-pass",
+      "promise": {
+        "text": "Find deepening opportunities: interface narrower than implementation",
+        "citation": ".claude/skills/codebase-design/SKILL.md"
+      },
+      "verifies": "nothing mechanical — depth is argued, not measured",
+      "bindingHardness": "judgment",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "proposes the deepening",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "design-a-deep-module",
+      "stationId": "seam-decision",
+      "promise": {
+        "text": "The seam decision is recorded where the next session will read it",
+        "citation": "docs/agents/domain.md"
+      },
+      "verifies": "that a durable record exists",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "accepts the seam",
+      "agentAction": "writes the decision",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "improve-codebase-architecture",
+      "stationId": "inventory",
+      "promise": {
+        "text": "The improvement starts from the existing structure, not a rewrite",
+        "citation": ".claude/skills/improve-codebase-architecture/SKILL.md"
+      },
+      "verifies": "that the current structure was read",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "names the pain",
+      "agentAction": "reads and maps the code",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "improve-codebase-architecture",
+      "stationId": "behaviour-preserving",
+      "promise": {
+        "text": "Refactor lands behind the existing tests",
+        "citation": ".claude/skills/improve-codebase-architecture/SKILL.md"
+      },
+      "verifies": "that the suite was green before and after",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "refactors under the suite",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "improve-codebase-architecture",
+      "stationId": "scope-fence",
+      "promise": {
+        "text": "A finding out of scope is censused and tracked, not silently widened",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical — the fence is a rule",
+      "bindingHardness": "documented",
+      "phase": "build",
+      "userDecision": "decides on scope extension",
+      "agentAction": "reports the census",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "security-audit-of-the-app",
+      "stationId": "two-model-pass",
+      "promise": {
+        "text": "Two AI models audit the same code separately",
+        "citation": ".claude/skills/security-audit/SKILL.md"
+      },
+      "verifies": "that two independent passes ran",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs both passes",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "security-audit-of-the-app",
+      "stationId": "gate-run",
+      "promise": {
+        "text": "The audit gate runs over the declared scope",
+        "citation": "scripts/security/audit-gate.mjs"
+      },
+      "verifies": "that the gate command exited zero",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the audit gate",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "security-audit-of-the-app",
+      "stationId": "harden-plan",
+      "promise": {
+        "text": "The remediation plan is hardened before any fix lands",
+        "citation": ".claude/skills/security-audit/SKILL.md"
+      },
+      "verifies": "that a plan exists; hardening is judgment",
+      "bindingHardness": "judgment",
+      "phase": "plan",
+      "userDecision": "approves the remediation plan",
+      "agentAction": "merges and hardens the findings",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "run-the-local-gate",
+      "stationId": "gate-run",
+      "promise": {
+        "text": "`/local-ci` is the explicit pre-PR gate",
+        "citation": ".claude/skills/local-ci/SKILL.md"
+      },
+      "verifies": "that the configured commands ran and their exit codes were read",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the gate commands",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "run-the-local-gate",
+      "stationId": "suite",
+      "promise": {
+        "text": "`npm test` runs the Node test suite and the Python script tests",
+        "citation": "package.json"
+      },
+      "verifies": "that both suites exited zero",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs npm test",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "run-the-local-gate",
+      "stationId": "staleness",
+      "promise": {
+        "text": "The install manifest must match a fresh build",
+        "citation": "scripts/check-kit-staleness.mjs"
+      },
+      "verifies": "that the built manifest equals the committed one",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the staleness check",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "run-the-local-gate",
+      "stationId": "gate-rerun",
+      "promise": {
+        "text": "A red gate is fixed and the gate re-runs; never bypassed with `--no-verify`",
+        "citation": "docs/agents/skills/local-ci.md"
+      },
+      "verifies": "that the re-run went green — the bypass ban is prose",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "fixes and re-runs",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "variant-of:run-the-local-gate#gate-run"
+    },
+    {
+      "journeyId": "run-the-local-gate",
+      "stationId": "hook-backstop",
+      "promise": {
+        "text": "pre-push runs the full suite as the backstop, not a replacement",
+        "citation": ".githooks/pre-push"
+      },
+      "verifies": "that the hook ran — only if `core.hooksPath` was wired in this clone",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "wires core.hooksPath once per clone",
+      "agentAction": "pushes and lets the hook run",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "slice-pr-landing",
+      "stationId": "branch-shape",
+      "promise": {
+        "text": "Branches are `feat|fix|chore|docs/<#>-<slug>`",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that the branch name matches the pattern",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "none",
+      "agentAction": "names the branch",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "slice-pr-landing",
+      "stationId": "checklist-reconcile",
+      "promise": {
+        "text": "Reconcile the full issue body against actual state before claiming done",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical — the reconcile is a discipline",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "none",
+      "agentAction": "walks the issue body item by item",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "slice-pr-landing",
+      "stationId": "pr-body",
+      "promise": {
+        "text": "Slice PRs carry `Part of #<anchor>`, never `closes`",
+        "citation": "scripts/pr-body-check.py"
+      },
+      "verifies": "that the body marker matches the profile vocabulary",
+      "bindingHardness": "mechanical",
+      "phase": "land",
+      "userDecision": "none",
+      "agentAction": "writes and checks the PR body",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-anchor-closed-early"
+    },
+    {
+      "journeyId": "slice-pr-landing",
+      "stationId": "land",
+      "promise": {
+        "text": "Wrapup prepares the branch, PR and cleanup steps the repo expects",
+        "citation": "scripts/wrapup-land.py"
+      },
+      "verifies": "that the land steps ran; the human still merges",
+      "bindingHardness": "mechanical",
+      "phase": "land",
+      "userDecision": "merges the PR",
+      "agentAction": "runs the land script",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "slice-pr-landing",
+      "stationId": "worktree-cleanup",
+      "promise": {
+        "text": "The worktree is torn down after its work landed",
+        "citation": "scripts/worktree-lifecycle/cleanup.py"
+      },
+      "verifies": "that no tracked work is lost before removal",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "runs teardown",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-teardown-blocked-by-symlinks"
+    },
+    {
+      "journeyId": "anchor-reconcile-on-slice-event",
+      "stationId": "dry-run",
+      "promise": {
+        "text": "`--dry-run` first, review the diff, then write",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that a preview was produced before the write",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "reviews the diff",
+      "agentAction": "runs anchor-sync --dry-run",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "anchor-reconcile-on-slice-event",
+      "stationId": "reconcile",
+      "promise": {
+        "text": "Anchor reconcile on every slice event — PR create and merge",
+        "citation": "scripts/anchor_table.py"
+      },
+      "verifies": "that the rendered table matches the board at that moment",
+      "bindingHardness": "mechanical",
+      "phase": "land",
+      "userDecision": "none",
+      "agentAction": "runs anchor-sync",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-board-status-drift"
+    },
+    {
+      "journeyId": "anchor-reconcile-on-slice-event",
+      "stationId": "monotonicity",
+      "promise": {
+        "text": "The anchor table never regresses a slice’s state",
+        "citation": "scripts/render-anchor.py"
+      },
+      "verifies": "that the rendered rows are consistent with the board response",
+      "bindingHardness": "mechanical",
+      "phase": "land",
+      "userDecision": "none",
+      "agentAction": "renders and writes the table",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "goal-level-delegation-afk-sweep",
+      "stationId": "wave-claim",
+      "promise": {
+        "text": "A wave is claimed before dispatch so two runs cannot orchestrate it at once",
+        "citation": "src/lib/waveClaim.mjs"
+      },
+      "verifies": "that the claim was acquired — the lease, not the intent behind it",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "states the outcome",
+      "agentAction": "acquires the wave claim",
+      "authorizationBoundary": "standing-authorization",
+      "recoveryRelation": "escalates-to:recovery-interrupted-afk-run"
+    },
+    {
+      "journeyId": "goal-level-delegation-afk-sweep",
+      "stationId": "dispatch",
+      "promise": {
+        "text": "Dispatches implementers per slice; parallel writing agents get one worktree each",
+        "citation": ".claude/skills/orchestrate-wave/SKILL.md"
+      },
+      "verifies": "that each dispatch got its own worktree",
+      "bindingHardness": "documented",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "dispatches the slice implementers",
+      "authorizationBoundary": "standing-authorization",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "goal-level-delegation-afk-sweep",
+      "stationId": "serial-integration",
+      "promise": {
+        "text": "Integration is serial; slices are file-disjoint",
+        "citation": "docs/agents/skills/orchestrate-wave.md"
+      },
+      "verifies": "that integration ran one branch at a time",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "none",
+      "agentAction": "integrates each slice in order",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "goal-level-delegation-afk-sweep",
+      "stationId": "central-verify",
+      "promise": {
+        "text": "Verification is central, after integration, not per dispatch",
+        "citation": ".claude/skills/orchestrate-wave/SKILL.md"
+      },
+      "verifies": "that the suite ran once over the integrated result",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the full gate centrally",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "goal-level-delegation-afk-sweep",
+      "stationId": "acceptance",
+      "promise": {
+        "text": "One human acceptance at the end of the AFK run",
+        "citation": "#343"
+      },
+      "verifies": "nothing mechanical — the acceptance is a prompt at the end",
+      "bindingHardness": "documented",
+      "phase": "close",
+      "userDecision": "accepts the landed wave",
+      "agentAction": "reports the wave result",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "session-ends",
+      "stationId": "durable-capture",
+      "promise": {
+        "text": "Every finding becomes a `gh` issue at session end",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that issues were created; not that every finding was captured",
+      "bindingHardness": "documented",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "files the findings as issues",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "session-ends",
+      "stationId": "handoff",
+      "promise": {
+        "text": "The next session’s start prompt anchors on an issue number, not free text",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that a start prompt with an issue number was produced",
+      "bindingHardness": "documented",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "writes the handoff",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "session-ends",
+      "stationId": "branch-and-pr",
+      "promise": {
+        "text": "Branch, PR and worktree end in the state the repo expects",
+        "citation": ".claude/skills/wrapup/SKILL.md"
+      },
+      "verifies": "that the branch is pushed and a PR exists",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "approves landing",
+      "agentAction": "runs wrapup",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "session-ends",
+      "stationId": "teardown",
+      "promise": {
+        "text": "Session teardown requires provenance-bound ownership",
+        "citation": "docs/adr/0007-session-teardown-requires-provenance-bound-ownership.md"
+      },
+      "verifies": "that every removed path was classified as owned by this session (#320)",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "classifies and tears down",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-teardown-blocked-by-symlinks"
+    },
+    {
+      "journeyId": "retro-after-a-session",
+      "stationId": "offer",
+      "promise": {
+        "text": "Offer `/retro` before creating the PR, not after merge",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical — the offer is a convention",
+      "bindingHardness": "documented",
+      "phase": "close",
+      "userDecision": "accepts or declines the retro",
+      "agentAction": "offers the retro",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "retro-after-a-session",
+      "stationId": "friction-analysis",
+      "promise": {
+        "text": "Analyses session friction and proposes concrete config mutations",
+        "citation": ".claude/skills/retro/SKILL.md"
+      },
+      "verifies": "that proposals were produced; their value is judgment",
+      "bindingHardness": "judgment",
+      "phase": "close",
+      "userDecision": "approves each patch",
+      "agentAction": "proposes per-patch mutations",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "retro-after-a-session",
+      "stationId": "meta-section",
+      "promise": {
+        "text": "Findings go into a Meta section of the PR body",
+        "citation": "docs/evidence/welle-31/aggregate-queries.json"
+      },
+      "verifies": "that the marker line exists — the frozen aggregate shows the marker and the section diverge",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "writes the Meta section",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "resolve-a-merge-conflict",
+      "stationId": "detect",
+      "promise": {
+        "text": "Used when a git merge or rebase conflict is in progress",
+        "citation": ".claude/skills/resolving-merge-conflicts/SKILL.md"
+      },
+      "verifies": "that a conflict state exists in the repository",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "reads the conflict state",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "resolve-a-merge-conflict",
+      "stationId": "both-intents",
+      "promise": {
+        "text": "Both sides’ intent is preserved, not one side taken wholesale",
+        "citation": ".claude/skills/resolving-merge-conflicts/SKILL.md"
+      },
+      "verifies": "nothing mechanical — intent preservation is judgment",
+      "bindingHardness": "judgment",
+      "phase": "recover",
+      "userDecision": "arbitrates contested hunks",
+      "agentAction": "resolves hunk by hunk",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "resolve-a-merge-conflict",
+      "stationId": "complete",
+      "promise": {
+        "text": "The merge is completed and the suite re-run",
+        "citation": "package.json"
+      },
+      "verifies": "that the suite is green after resolution",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "completes the merge and runs the suite",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "author-or-improve-a-skill",
+      "stationId": "english-first",
+      "promise": {
+        "text": "Every published skill’s prose is English",
+        "citation": "scripts/test_skill_language_census.py"
+      },
+      "verifies": "that no non-English line survives without an audited marker",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "writes the skill in English",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "author-or-improve-a-skill",
+      "stationId": "no-hardcoded-board-values",
+      "promise": {
+        "text": "Skills read labels, headings and field ids from the board profile",
+        "citation": "scripts/test_skill_portability_lint.py"
+      },
+      "verifies": "that no inline board literal is present",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "reads values from the profile",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "author-or-improve-a-skill",
+      "stationId": "frontmatter",
+      "promise": {
+        "text": "Frontmatter shape is uniform across the shipped surface",
+        "citation": "scripts/test_skill_frontmatter_lint.py"
+      },
+      "verifies": "that the frontmatter parses and carries the required keys",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "writes the frontmatter",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "author-or-improve-a-skill",
+      "stationId": "mirror-same-pr",
+      "promise": {
+        "text": "The `.agents/` mirror is updated in the SAME PR, never after merge",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that the mirror matches — the same-PR timing is prose",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "runs the mirror sync",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "audit-the-skill-surface",
+      "stationId": "denominator",
+      "promise": {
+        "text": "Skill-surface claims derive from the manifest and lints, not a recalled list",
+        "citation": ".claude/skills/skill-manifest.json"
+      },
+      "verifies": "that the denominator came from the manifest",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "derives the surface from the manifest",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "audit-the-skill-surface",
+      "stationId": "drift-per-skill",
+      "promise": {
+        "text": "Drift is named per skill against its recorded sources",
+        "citation": ".claude/skills/audit-skills/SKILL.md"
+      },
+      "verifies": "that each skill was compared against its SOURCES record",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "compares each skill",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "audit-the-skill-surface",
+      "stationId": "drift-hint",
+      "promise": {
+        "text": "A drift hint surfaces the divergence in-session",
+        "citation": ".claude/hooks/skill-drift-hint.py"
+      },
+      "verifies": "that the hook fired — it advises, it does not block",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "reads the advisory",
+      "agentAction": "emits the hint",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "sync-the-codex-mirror",
+      "stationId": "sync-run",
+      "promise": {
+        "text": "The Codex mirror is regenerated from the Claude surface",
+        "citation": ".agents/skills/codex-adapter-sync/SKILL.md"
+      },
+      "verifies": "that the adapter ran over the changed skills",
+      "bindingHardness": "documented",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "runs the adapter sync",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "sync-the-codex-mirror",
+      "stationId": "contract-test",
+      "promise": {
+        "text": "The mirror contract is enforced by a test, not by memory",
+        "citation": "scripts/test_codex_adapter_sync_contract.py"
+      },
+      "verifies": "that mirror and primary agree on the audited contract points",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the contract test",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "sync-the-codex-mirror",
+      "stationId": "no-claude-only-escalation",
+      "promise": {
+        "text": "A Codex-surface skill never references or escalates to a Claude-only target",
+        "citation": "scripts/test_skill_surface_refs.py"
+      },
+      "verifies": "that no cross-surface reference points at a Claude-only skill",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the surface-reference lint",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "kit-build-and-staleness-check",
+      "stationId": "build",
+      "promise": {
+        "text": "The install manifest is generated, never hand-edited",
+        "citation": "scripts/build-kit.mjs"
+      },
+      "verifies": "that the build wrote a manifest from the current sources",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "runs the kit build",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "kit-build-and-staleness-check",
+      "stationId": "staleness",
+      "promise": {
+        "text": "The committed manifest must match a fresh build",
+        "citation": "scripts/check-kit-staleness.mjs"
+      },
+      "verifies": "that committed and freshly built manifests are identical",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the staleness check",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "kit-build-and-staleness-check",
+      "stationId": "gate-membership",
+      "promise": {
+        "text": "The staleness check is part of the pre-PR gate",
+        "citation": "docs/agents/skills/local-ci.md"
+      },
+      "verifies": "that the gate profile lists the command",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs it inside the gate",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "variant-of:run-the-local-gate#gate-run"
+    },
+    {
+      "journeyId": "release-the-kit",
+      "stationId": "semver-gate",
+      "promise": {
+        "text": "One human gate: the confirmed Semver authorizes metadata, merge, tag and publish",
+        "citation": "#257"
+      },
+      "verifies": "that a version string was confirmed once — the authority scope is prose",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "confirms the exact Semver",
+      "agentAction": "prepares metadata with it",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "release-the-kit",
+      "stationId": "prepare",
+      "promise": {
+        "text": "Prepare with `release:prepare`; never hand-run `npm publish`",
+        "citation": "scripts/kit-release.mjs"
+      },
+      "verifies": "that bump, manifest and release-note delta were generated together",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "runs the prepare command",
+      "authorizationBoundary": "standing-authorization",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "release-the-kit",
+      "stationId": "delta-guard",
+      "promise": {
+        "text": "A bump stacked on a still-untagged release is blocked",
+        "citation": "scripts/release-delta-guard.mjs"
+      },
+      "verifies": "that the base version carries a matching annotated tag",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the release guard",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-awaiting-tag-stacked-bump"
+    },
+    {
+      "journeyId": "release-the-kit",
+      "stationId": "merge-integrates",
+      "promise": {
+        "text": "Merging integrates the prepared release but cannot publish",
+        "citation": "docs/adr/0004-release-intent-is-a-version-tag.md"
+      },
+      "verifies": "that publication needs a separate tag event",
+      "bindingHardness": "platform-enforced",
+      "phase": "land",
+      "userDecision": "merges the release PR",
+      "agentAction": "merges and verifies the version on main",
+      "authorizationBoundary": "standing-authorization",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "release-the-kit",
+      "stationId": "tag",
+      "promise": {
+        "text": "A matching annotated `v<version>` tag on canonical main is the sole publication intent",
+        "citation": ".github/workflows/release.yml"
+      },
+      "verifies": "that the tag is annotated, matches the version and is an ancestor of main",
+      "bindingHardness": "platform-enforced",
+      "phase": "publish",
+      "userDecision": "none — the confirmed Semver already authorized it",
+      "agentAction": "creates and pushes the annotated tag",
+      "authorizationBoundary": "standing-authorization",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "release-the-kit",
+      "stationId": "parity",
+      "promise": {
+        "text": "A red run does not prove nothing was published",
+        "citation": "#205"
+      },
+      "verifies": "that npm and the GitHub release agree — checked, not inferred from the run colour",
+      "bindingHardness": "mechanical",
+      "phase": "publish",
+      "userDecision": "none",
+      "agentAction": "reads npm and the release, reconciles",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-red-release-run-but-published"
+    },
+    {
+      "journeyId": "ci-required-check-on-a-pull-request",
+      "stationId": "pr-required",
+      "promise": {
+        "text": "A pull request is required; there is no direct push to main",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that the ruleset rejects a direct push",
+      "bindingHardness": "platform-enforced",
+      "phase": "land",
+      "userDecision": "opens the PR",
+      "agentAction": "pushes the branch and opens the PR",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "ci-required-check-on-a-pull-request",
+      "stationId": "job-test",
+      "promise": {
+        "text": "The required context is the job name `test`, not the workflow name",
+        "citation": ".github/workflows/ci.yml"
+      },
+      "verifies": "that the named job passed on the merge commit",
+      "bindingHardness": "platform-enforced",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "waits for the job",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "ci-required-check-on-a-pull-request",
+      "stationId": "strict-up-to-date",
+      "promise": {
+        "text": "The branch must be up to date with the base (strict policy)",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that the head is current with base at merge time",
+      "bindingHardness": "platform-enforced",
+      "phase": "land",
+      "userDecision": "merges once green",
+      "agentAction": "updates the branch",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "tag-triggered-publish",
+      "stationId": "tag-validation",
+      "promise": {
+        "text": "The workflow rejects a missing, lightweight, mismatching or non-main tag before any gate runs",
+        "citation": ".github/workflows/release.yml"
+      },
+      "verifies": "tag object type, tag/version equality and main ancestry",
+      "bindingHardness": "platform-enforced",
+      "phase": "publish",
+      "userDecision": "none",
+      "agentAction": "none — the platform validates",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "tag-triggered-publish",
+      "stationId": "artifact-gates",
+      "promise": {
+        "text": "Artifact integrity and tests run before publication",
+        "citation": ".github/workflows/release.yml"
+      },
+      "verifies": "that the packed artifact and the suite passed in CI",
+      "bindingHardness": "platform-enforced",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "none — the workflow runs them",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "tag-triggered-publish",
+      "stationId": "reconcile",
+      "promise": {
+        "text": "`reconcileRelease` is idempotent: a re-run repairs a partial release",
+        "citation": "scripts/release-state.mjs"
+      },
+      "verifies": "that npm version and GitHub release converge to the tagged version",
+      "bindingHardness": "mechanical",
+      "phase": "publish",
+      "userDecision": "none",
+      "agentAction": "none — the workflow reconciles",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "escalates-to:recovery-red-release-run-but-published"
+    },
+    {
+      "journeyId": "tag-triggered-publish",
+      "stationId": "manual-dispatch",
+      "promise": {
+        "text": "Manual dispatch is recovery only and requires one explicit existing tag",
+        "citation": ".github/workflows/release.yml"
+      },
+      "verifies": "that a tag input was supplied and exists",
+      "bindingHardness": "platform-enforced",
+      "phase": "recover",
+      "userDecision": "triggers the dispatch deliberately",
+      "agentAction": "supplies the existing tag",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "escalates-to:recovery-red-release-run-but-published"
+    },
+    {
+      "journeyId": "pages-site-publish",
+      "stationId": "build-pages",
+      "promise": {
+        "text": "The methodology site publishes from main",
+        "citation": ".github/workflows/pages.yml"
+      },
+      "verifies": "that the workflow ran on a main push",
+      "bindingHardness": "platform-enforced",
+      "phase": "publish",
+      "userDecision": "none",
+      "agentAction": "none — the platform builds",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "pages-site-publish",
+      "stationId": "deploy",
+      "promise": {
+        "text": "Deployment succeeds or retries within the workflow’s attempts",
+        "citation": ".github/workflows/pages.yml"
+      },
+      "verifies": "that the deploy step reported success",
+      "bindingHardness": "platform-enforced",
+      "phase": "publish",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "pages-site-publish",
+      "stationId": "content-source",
+      "promise": {
+        "text": "The published content is the docs site, not the project layer",
+        "citation": "docs/index.html"
+      },
+      "verifies": "that the deployed path set is the site directory",
+      "bindingHardness": "platform-enforced",
+      "phase": "publish",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "platform-gate",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-first-init",
+      "stationId": "install",
+      "promise": {
+        "text": "`init` installs the kit into the consumer repository",
+        "citation": "src/commands/init.mjs"
+      },
+      "verifies": "that the declared bundle was copied",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "runs the installer",
+      "agentAction": "none — the consumer runs it",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-first-init",
+      "stationId": "manifest",
+      "promise": {
+        "text": "`init` records a sha256 manifest of every installed file",
+        "citation": "src/lib/manifest.mjs"
+      },
+      "verifies": "that a digest was recorded per installed file",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-first-init",
+      "stationId": "project-layer-stubs",
+      "promise": {
+        "text": "The project layer is written once and never overwritten by ordinary reconciliation",
+        "citation": "src/lib/bundle.mjs"
+      },
+      "verifies": "that stub targets were written only when absent",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-first-init",
+      "stationId": "first-orientation",
+      "promise": {
+        "text": "README names the install command and the first steps",
+        "citation": "README.md"
+      },
+      "verifies": "nothing mechanical — orientation is documentation",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "reads and decides what to do next",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-setup-workflow-project-layer",
+      "stationId": "stub-fill",
+      "promise": {
+        "text": "Run `setup-workflow` and fill only the missing stub",
+        "citation": ".claude/skills/setup-workflow/SKILL.md"
+      },
+      "verifies": "that the named stub file now has content",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "supplies the project facts",
+      "agentAction": "writes the project layer file",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-setup-workflow-project-layer",
+      "stationId": "readiness",
+      "promise": {
+        "text": "A skill reports missing project context rather than guessing",
+        "citation": "scripts/readiness.mjs"
+      },
+      "verifies": "that every required capability resolves against the project layer",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the readiness check",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-setup-workflow-project-layer",
+      "stationId": "capability-declaration",
+      "promise": {
+        "text": "Required and optional capabilities are declared in the manifest",
+        "citation": ".claude/skills/skill-manifest.json"
+      },
+      "verifies": "that each skill’s declared capabilities exist",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "reads the declarations",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-first-own-workflow",
+      "stationId": "entry-choice",
+      "promise": {
+        "text": "Unsure which skill fits? the router names a starting point",
+        "citation": ".claude/skills/ask-matt/SKILL.md"
+      },
+      "verifies": "that a starting skill was named",
+      "bindingHardness": "documented",
+      "phase": "intake",
+      "userDecision": "describes their own task",
+      "agentAction": "routes to a skill",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-first-own-workflow",
+      "stationId": "first-slice",
+      "promise": {
+        "text": "Prefer the smallest workflow that produces a clear next action",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical — the depth ladder is prose in the consumer’s own copy",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "chooses the depth",
+      "agentAction": "plans the first slice",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-first-own-workflow",
+      "stationId": "first-land",
+      "promise": {
+        "text": "Finished slice: wrapup prepares the branch, PR and cleanup the repo expects",
+        "citation": ".claude/skills/wrapup/SKILL.md"
+      },
+      "verifies": "that the consumer’s own repo conventions were read from their project layer",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "merges their own PR",
+      "agentAction": "runs wrapup against the consumer profile",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-first-own-workflow",
+      "stationId": "gap-visible",
+      "promise": {
+        "text": "The consumer-as-actor journey is the one the seed list omits",
+        "citation": "#380"
+      },
+      "verifies": "that the journey exists in this derived set — the omission was the finding",
+      "bindingHardness": "documented",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-update-over-local-edits",
+      "stationId": "three-way",
+      "promise": {
+        "text": "`update` is a three-way reconcile against the recorded manifest",
+        "citation": "src/lib/updateReconcile.mjs"
+      },
+      "verifies": "that each file was compared against its recorded digest",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "runs the update",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-update-over-local-edits",
+      "stationId": "fast-forward",
+      "promise": {
+        "text": "Untouched files fast-forward",
+        "citation": "src/lib/updateDecisions.mjs"
+      },
+      "verifies": "that a file matching its recorded digest was replaced without asking",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-update-over-local-edits",
+      "stationId": "never-silently-overwrite",
+      "promise": {
+        "text": "Consumer-edited files are backed up and diffed, never silently overwritten",
+        "citation": "docs/adr/0001-consumer-divergence-policy.md"
+      },
+      "verifies": "that a divergent file produced a backup and a diff",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "decides per conflict",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "escalates-to:recovery-update-conflicts-with-local-edits"
+    },
+    {
+      "journeyId": "consumer-update-over-local-edits",
+      "stationId": "project-layer-untouched",
+      "promise": {
+        "text": "The project layer is never overwritten by ordinary reconciliation",
+        "citation": "src/lib/ownershipClassifier.mjs"
+      },
+      "verifies": "that project-layer paths were excluded from the ordinary write set",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-update-over-local-edits",
+      "stationId": "transactional-activation",
+      "promise": {
+        "text": "The update activates or rolls back as a whole",
+        "citation": "src/lib/verifyUpdateCandidateTransaction.mjs"
+      },
+      "verifies": "that the candidate was verified before activation",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-diff-inspection",
+      "stationId": "read-only",
+      "promise": {
+        "text": "`diff` reports what an update would change and writes nothing",
+        "citation": "src/commands/diff.mjs"
+      },
+      "verifies": "that no write occurred during the inspection",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "runs the diff",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-diff-inspection",
+      "stationId": "per-file-origin",
+      "promise": {
+        "text": "Divergence is reported per file against its recorded origin",
+        "citation": "src/lib/ownedDiff.mjs"
+      },
+      "verifies": "that each file was classified kit-origin or consumer-owned",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-diff-inspection",
+      "stationId": "decision-input",
+      "promise": {
+        "text": "The report is the input to the consumer’s update decision",
+        "citation": ".claude/skills/kit-update/SKILL.md"
+      },
+      "verifies": "nothing — reading it is the consumer’s choice",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "decides whether to update",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-uninstall",
+      "stationId": "kit-origin-removal",
+      "promise": {
+        "text": "`uninstall` removes kit-origin files",
+        "citation": "src/commands/uninstall.mjs"
+      },
+      "verifies": "that only files recorded in the manifest were removed",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "runs the uninstall",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-uninstall",
+      "stationId": "consumer-files-kept",
+      "promise": {
+        "text": "Consumer-owned files are kept",
+        "citation": "docs/adr/0003-kit-core-and-project-extension-lifecycle.md"
+      },
+      "verifies": "that project-layer paths survived the removal",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-uninstall",
+      "stationId": "manifest-teardown",
+      "promise": {
+        "text": "The manifest is removed with the installation it describes",
+        "citation": "src/lib/manifest.mjs"
+      },
+      "verifies": "that no orphaned manifest remains",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-routing-profile-decision",
+      "stationId": "questions",
+      "promise": {
+        "text": "The routing profile is answered, not inferred",
+        "citation": "src/lib/routingProfile.mjs"
+      },
+      "verifies": "that answers were supplied or the profile was declined",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "answers or declines",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-routing-profile-decision",
+      "stationId": "knowledge-vs-policy",
+      "promise": {
+        "text": "Routing knowledge access and policy are separate",
+        "citation": "docs/adr/0006-routing-knowledge-access-and-policy-are-separate.md"
+      },
+      "verifies": "that a policy decision never silently fetched knowledge",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-routing-profile-decision",
+      "stationId": "stored-profile",
+      "promise": {
+        "text": "A stored profile decides model and effort where it exists",
+        "citation": "src/lib/routingProfileStorage.mjs"
+      },
+      "verifies": "that a profile file was written or explicitly absent",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-ownership-override",
+      "stationId": "own",
+      "promise": {
+        "text": "A consumer can take ownership of an installed file",
+        "citation": "src/commands/own.mjs"
+      },
+      "verifies": "that the recorded origin flipped",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "takes or returns ownership",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-ownership-override",
+      "stationId": "origin-effect",
+      "promise": {
+        "text": "Ownership changes what update may do to the file",
+        "citation": "src/lib/ownershipClassifier.mjs"
+      },
+      "verifies": "that the classifier reads the override",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-ownership-override",
+      "stationId": "divergence-policy",
+      "promise": {
+        "text": "Divergence is a declared policy, not an accident",
+        "citation": "docs/adr/0001-consumer-divergence-policy.md"
+      },
+      "verifies": "nothing mechanical — the policy is the record",
+      "bindingHardness": "documented",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-contribution-bridge",
+      "stationId": "prepare",
+      "promise": {
+        "text": "A local change can be prepared as a contribution back to the kit",
+        "citation": "src/lib/contributionBridge.mjs"
+      },
+      "verifies": "that a contribution artifact was produced",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "decides to contribute",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-contribution-bridge",
+      "stationId": "routing",
+      "promise": {
+        "text": "The contribution is routed to the right kit surface",
+        "citation": "src/lib/contributionRouting.mjs"
+      },
+      "verifies": "that the target surface was resolved from the file origin",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-contribution-bridge",
+      "stationId": "handover",
+      "promise": {
+        "text": "The kit repository still reviews it as an ordinary pull request",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing here — the review happens in the kit repo",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "opens the PR upstream",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-automated-update-pr",
+      "stationId": "branch-upsert",
+      "promise": {
+        "text": "A stable Kit-verified branch is upserted rather than duplicated",
+        "citation": "scripts/kit-update-pr.mjs"
+      },
+      "verifies": "that the same branch name is reused across runs",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "runs the update-PR script",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-automated-update-pr",
+      "stationId": "pr-upsert",
+      "promise": {
+        "text": "The pull request is upserted, not stacked",
+        "citation": "scripts/kit-update-pr.mjs"
+      },
+      "verifies": "that at most one open update PR exists",
+      "bindingHardness": "mechanical",
+      "phase": "land",
+      "userDecision": "none",
+      "agentAction": "upserts the PR",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-automated-update-pr",
+      "stationId": "consumer-merges",
+      "promise": {
+        "text": "The consumer decides whether to merge",
+        "citation": "docs/adr/0003-kit-core-and-project-extension-lifecycle.md"
+      },
+      "verifies": "nothing mechanical — the merge is the consumer’s",
+      "bindingHardness": "documented",
+      "phase": "land",
+      "userDecision": "merges or closes",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-kit-update-skill",
+      "stationId": "preview",
+      "promise": {
+        "text": "Preview before applying; nothing is written during the preview",
+        "citation": ".claude/skills/kit-update/SKILL.md"
+      },
+      "verifies": "that the preview ran read-only",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "reads the preview",
+      "agentAction": "renders the preview",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-kit-update-skill",
+      "stationId": "parity",
+      "promise": {
+        "text": "The release is parity-verified before it is applied",
+        "citation": "scripts/release-parity.mjs"
+      },
+      "verifies": "that npm, tag and release agree on the version",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "runs the parity check",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-kit-update-skill",
+      "stationId": "transactional-apply",
+      "promise": {
+        "text": "Apply transactionally; never auto-resolve conflicts",
+        "citation": ".claude/skills/kit-update/SKILL.md"
+      },
+      "verifies": "that the apply either completed or rolled back",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "resolves conflicts themselves",
+      "agentAction": "applies the verified candidate",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "escalates-to:recovery-update-conflicts-with-local-edits"
+    },
+    {
+      "journeyId": "consumer-project-release",
+      "stationId": "profile-scan",
+      "promise": {
+        "text": "One coherent version change across the profiled packages",
+        "citation": "scripts/project-release.mjs"
+      },
+      "verifies": "that the profiled package set was read from the consumer’s config",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "names the version",
+      "agentAction": "computes the change set",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-project-release",
+      "stationId": "preview-only",
+      "promise": {
+        "text": "No commits, tags, pushes, publishes or merges",
+        "citation": "src/lib/release-preview.mjs"
+      },
+      "verifies": "that the run produced a preview and no git or registry write",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "renders the preview",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-project-release",
+      "stationId": "no-duplicate-logic",
+      "promise": {
+        "text": "The consumer’s release logic is not duplicated by the kit",
+        "citation": ".claude/skills/project-release/SKILL.md"
+      },
+      "verifies": "nothing mechanical — the boundary is a design rule",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "runs their own release",
+      "agentAction": "stops at the preview",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-setup-pre-commit",
+      "stationId": "hooks-path",
+      "promise": {
+        "text": "A native hook via `core.hooksPath`, no Husky and no Node dependency",
+        "citation": ".claude/skills/setup-pre-commit/SKILL.md"
+      },
+      "verifies": "that the git config points at the repository’s hook directory",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "approves the hook",
+      "agentAction": "writes the hook and sets the config",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-setup-pre-commit",
+      "stationId": "project-checks",
+      "promise": {
+        "text": "The hook runs the project’s own checks, not the kit’s",
+        "citation": "scripts/test_skill_precommit_template.py"
+      },
+      "verifies": "that the template contains only project-declared commands",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "names the checks",
+      "agentAction": "renders the template",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-setup-pre-commit",
+      "stationId": "never-bypass",
+      "promise": {
+        "text": "Never bypass with `--no-verify`",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical — bypass is always available to the committer",
+      "bindingHardness": "documented",
+      "phase": "verify",
+      "userDecision": "chooses not to bypass",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-census-establish",
+      "stationId": "scan",
+      "promise": {
+        "text": "Scan facts in the current repository rather than asking",
+        "citation": "scripts/census/scan.mjs"
+      },
+      "verifies": "that the scan produced counted facts",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "runs the scan",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-census-establish",
+      "stationId": "guide-ambiguous",
+      "promise": {
+        "text": "Guide only ambiguous decisions",
+        "citation": ".claude/skills/census-update/SKILL.md"
+      },
+      "verifies": "that the questions asked were the unresolved ones",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "resolves the ambiguous cases",
+      "agentAction": "asks only where the scan is silent",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-census-establish",
+      "stationId": "transactional-activate",
+      "promise": {
+        "text": "Activate a verified candidate transactionally",
+        "citation": "scripts/census/transaction.mjs"
+      },
+      "verifies": "that activation was atomic and reversible",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "activates the candidate",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-memory-lifecycle",
+      "stationId": "preview",
+      "promise": {
+        "text": "Preview and apply without crossing configured roots",
+        "citation": "scripts/memory-lifecycle/index.mjs"
+      },
+      "verifies": "that every target path stayed inside a configured root",
+      "bindingHardness": "mechanical",
+      "phase": "verify",
+      "userDecision": "none",
+      "agentAction": "previews the placement",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-memory-lifecycle",
+      "stationId": "evidence-preserved",
+      "promise": {
+        "text": "Never overwrite active, archived or recovery evidence",
+        "citation": ".claude/skills/memory-lifecycle/SKILL.md"
+      },
+      "verifies": "that existing evidence files were preserved",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "approves the recovery",
+      "agentAction": "applies the lifecycle step",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "consumer-memory-lifecycle",
+      "stationId": "placement",
+      "promise": {
+        "text": "Memory is for durable gotchas; process lessons belong elsewhere",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical — placement is a rule the actor applies",
+      "bindingHardness": "documented",
+      "phase": "close",
+      "userDecision": "decides what to keep",
+      "agentAction": "reports the placement",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "session-start-context-injection",
+      "stationId": "branch-context",
+      "promise": {
+        "text": "The session opens with the branch and its issue context",
+        "citation": ".claude/hooks/branch-context.py"
+      },
+      "verifies": "that the hook produced output; not that the agent used it",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "reads the injected context",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "session-start-context-injection",
+      "stationId": "board-status",
+      "promise": {
+        "text": "Board status is synced into the session’s opening context",
+        "citation": ".claude/hooks/sync-board-status.py"
+      },
+      "verifies": "that the board was queried at session start",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "reads the status",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-board-status-drift"
+    },
+    {
+      "journeyId": "session-start-context-injection",
+      "stationId": "drift-hints",
+      "promise": {
+        "text": "Skill, convention and LoC drift surface as hints, not blocks",
+        "citation": ".claude/hooks/convention-drift-hint.py"
+      },
+      "verifies": "that the advisory was printed — nothing enforces reading it",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "reads the hints",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "guarded-tool-call-block",
+      "stationId": "secret-block",
+      "promise": {
+        "text": "Secrets are never printed by a read tool",
+        "citation": ".claude/hooks/block-secrets.py"
+      },
+      "verifies": "that the matched command was blocked; coverage is the pattern set",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "retries without the secret path",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "guarded-tool-call-block",
+      "stationId": "worktree-enforcement",
+      "promise": {
+        "text": "Writing work happens inside its own worktree",
+        "citation": ".claude/hooks/enforce-worktree.py"
+      },
+      "verifies": "that the cwd is inside the expected worktree",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "moves into the worktree",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-wrong-branch-commit"
+    },
+    {
+      "journeyId": "guarded-tool-call-block",
+      "stationId": "guard-core",
+      "promise": {
+        "text": "Guard decisions come from one shared core, not per-hook logic",
+        "citation": "scripts/safety-guardrails/core.py"
+      },
+      "verifies": "that the hooks share the same predicate implementation",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "guarded-tool-call-block",
+      "stationId": "named-recovery",
+      "promise": {
+        "text": "A block names its recovery rather than only refusing",
+        "citation": ".claude/hooks/drift-guard.py"
+      },
+      "verifies": "that a message was emitted; whether it names a route is per-hook",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "follows the named recovery",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-guard-false-red-blocks-capability"
+    },
+    {
+      "journeyId": "prompt-and-stop-time-advisory",
+      "stationId": "prompt-time",
+      "promise": {
+        "text": "Prompt-time advisories inform without blocking",
+        "citation": ".claude/hooks/pre-refactor-sweep.py"
+      },
+      "verifies": "that the advisory was printed",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "reads the advisory",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "prompt-and-stop-time-advisory",
+      "stationId": "stop-time",
+      "promise": {
+        "text": "Stop-time checks run after the turn, never in the way of it",
+        "citation": ".claude/hooks/typecheck-on-stop.py"
+      },
+      "verifies": "that the check ran at stop; its result is advisory",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "reads the result",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "prompt-and-stop-time-advisory",
+      "stationId": "advisory-core",
+      "promise": {
+        "text": "Advisories are declared as capabilities, not hardcoded per project",
+        "citation": "scripts/workflow-advisories/capabilities.json"
+      },
+      "verifies": "that the advisory set came from the declaration",
+      "bindingHardness": "mechanical",
+      "phase": "intake",
+      "userDecision": "none",
+      "agentAction": "none",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "worktree-create-and-bind",
+      "stationId": "pre-check",
+      "promise": {
+        "text": "Check the branch carries no foreign open PR before creating the worktree",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical at creation time — the check is a rule",
+      "bindingHardness": "documented",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "queries the open PRs for the branch",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "worktree-create-and-bind",
+      "stationId": "create",
+      "promise": {
+        "text": "A worktree isolates a build and belongs to the session that builds",
+        "citation": "scripts/worktree-lifecycle/setup.py"
+      },
+      "verifies": "that the worktree and branch exist at the expected path",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "creates the worktree",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "worktree-create-and-bind",
+      "stationId": "bind-cwd",
+      "promise": {
+        "text": "Every file operation runs inside the worktree",
+        "citation": ".claude/hooks/enforce-worktree-cwd.py"
+      },
+      "verifies": "that the working directory is under the worktree root",
+      "bindingHardness": "mechanical",
+      "phase": "build",
+      "userDecision": "none",
+      "agentAction": "works from the worktree",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "escalates-to:recovery-wrong-branch-commit"
+    },
+    {
+      "journeyId": "worktree-create-and-bind",
+      "stationId": "ignore-seed",
+      "promise": {
+        "text": "Session-scratch artifacts stay gitignored inside the worktree",
+        "citation": "scripts/worktree-lifecycle/ignore_seed.py"
+      },
+      "verifies": "that the ignore seed was written",
+      "bindingHardness": "mechanical",
+      "phase": "plan",
+      "userDecision": "none",
+      "agentAction": "seeds the ignore file",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "worktree-teardown",
+      "stationId": "classify",
+      "promise": {
+        "text": "Teardown authority is stateless repository classification",
+        "citation": "docs/adr/0009-teardown-authority-is-stateless-repository-classification.md"
+      },
+      "verifies": "that every path was classified before removal",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "classifies the worktree contents",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "worktree-teardown",
+      "stationId": "no-loss",
+      "promise": {
+        "text": "No tracked work is lost by teardown",
+        "citation": "scripts/worktree-lifecycle/cleanup.py"
+      },
+      "verifies": "that unmerged or untracked work blocks removal",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "confirms removal",
+      "agentAction": "runs teardown",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "escalates-to:recovery-teardown-blocked-by-symlinks"
+    },
+    {
+      "journeyId": "worktree-teardown",
+      "stationId": "provenance-bound",
+      "promise": {
+        "text": "Ownership is provenance-bound, not path-guessed",
+        "citation": "#320"
+      },
+      "verifies": "that removal only touched what this session created",
+      "bindingHardness": "mechanical",
+      "phase": "close",
+      "userDecision": "none",
+      "agentAction": "removes the owned worktree",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "none"
+    },
+    {
+      "journeyId": "recovery-red-release-run-but-published",
+      "stationId": "detect",
+      "promise": {
+        "text": "A red release run does not prove nothing was published",
+        "citation": "#205"
+      },
+      "verifies": "that the run colour was not taken as the verdict",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "notices the red run",
+      "agentAction": "reads npm and the GitHub release",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:release-the-kit"
+    },
+    {
+      "journeyId": "recovery-red-release-run-but-published",
+      "stationId": "read-registry",
+      "promise": {
+        "text": "`release:status` reads the registry cache-bypassing",
+        "citation": "scripts/release-state.mjs"
+      },
+      "verifies": "that a stale packument cannot report a live release as unpublished",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "runs the status read",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:release-the-kit"
+    },
+    {
+      "journeyId": "recovery-red-release-run-but-published",
+      "stationId": "reconcile",
+      "promise": {
+        "text": "The reconciler is idempotent: a re-run repairs a partial release",
+        "citation": ".github/workflows/release.yml"
+      },
+      "verifies": "that npm and the release converge without a new version",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "triggers the recovery dispatch",
+      "agentAction": "runs the reconciler with the existing tag",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "recovers:release-the-kit"
+    },
+    {
+      "journeyId": "recovery-red-release-run-but-published",
+      "stationId": "never-bump",
+      "promise": {
+        "text": "Never recover by bumping the version",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "nothing mechanical — the ban is a rule the actor keeps",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "refuses the bump",
+      "agentAction": "reports the reconciled state",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "recovers:release-the-kit"
+    },
+    {
+      "journeyId": "recovery-awaiting-tag-stacked-bump",
+      "stationId": "guard-red",
+      "promise": {
+        "text": "The guard blocks a bump while the base version carries no matching annotated tag",
+        "citation": "scripts/release-delta-guard.mjs"
+      },
+      "verifies": "that the base version has a matching annotated tag",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "reads the guard failure",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:release-the-kit"
+    },
+    {
+      "journeyId": "recovery-awaiting-tag-stacked-bump",
+      "stationId": "tag-pending-first",
+      "promise": {
+        "text": "Tag and publish the pending version first",
+        "citation": "#243"
+      },
+      "verifies": "that the pending version reached published state before the new bump",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "confirms the pending Semver",
+      "agentAction": "tags the pending version",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "recovers:release-the-kit"
+    },
+    {
+      "journeyId": "recovery-awaiting-tag-stacked-bump",
+      "stationId": "first-release-exemption",
+      "promise": {
+        "text": "Only a repository with no matching tag at all is exempt",
+        "citation": "scripts/release-delta-guard.mjs"
+      },
+      "verifies": "that the exemption applies to a first release, not to a stack",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "re-runs the guard",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:release-the-kit"
+    },
+    {
+      "journeyId": "recovery-wrong-branch-commit",
+      "stationId": "reflog-find",
+      "promise": {
+        "text": "Uses `git reflog` to find the misplaced commit",
+        "citation": ".claude/skills/git-worktree-recover/SKILL.md"
+      },
+      "verifies": "that the commit object was located",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "reports the mix-up",
+      "agentAction": "reads the reflog",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:worktree-create-and-bind"
+    },
+    {
+      "journeyId": "recovery-wrong-branch-commit",
+      "stationId": "move",
+      "promise": {
+        "text": "Moves the commit to the right branch with `git branch -f`",
+        "citation": ".claude/skills/git-worktree-recover/SKILL.md"
+      },
+      "verifies": "that the intended branch now contains the commit",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "approves the branch move",
+      "agentAction": "moves the branch pointer",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "recovers:worktree-create-and-bind"
+    },
+    {
+      "journeyId": "recovery-wrong-branch-commit",
+      "stationId": "clean-worktree",
+      "promise": {
+        "text": "Sets up a clean worktree for the continuation",
+        "citation": "scripts/worktree-lifecycle/setup.py"
+      },
+      "verifies": "that the session continues inside the correct worktree",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "creates and enters the worktree",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:worktree-create-and-bind"
+    },
+    {
+      "journeyId": "recovery-interrupted-afk-run",
+      "stationId": "claim-state",
+      "promise": {
+        "text": "A wave claim records who is orchestrating the wave",
+        "citation": "src/lib/waveClaim.mjs"
+      },
+      "verifies": "that the claim record was read, including a stale one",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "reads the claim",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:goal-level-delegation-afk-sweep"
+    },
+    {
+      "journeyId": "recovery-interrupted-afk-run",
+      "stationId": "reconcile-slices",
+      "promise": {
+        "text": "The anchor slice table is reconciled on every slice event",
+        "citation": "scripts/board-sync.py"
+      },
+      "verifies": "that the anchor reflects what actually landed before the interruption",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "runs anchor-sync",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:goal-level-delegation-afk-sweep"
+    },
+    {
+      "journeyId": "recovery-interrupted-afk-run",
+      "stationId": "resume-or-release",
+      "promise": {
+        "text": "The run resumes or the claim is released deliberately",
+        "citation": ".claude/skills/orchestrate-wave/SKILL.md"
+      },
+      "verifies": "nothing mechanical — resumption is the orchestrator’s decision",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "decides resume or stop",
+      "agentAction": "resumes or releases the claim",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "recovers:goal-level-delegation-afk-sweep"
+    },
+    {
+      "journeyId": "recovery-update-conflicts-with-local-edits",
+      "stationId": "detect-divergence",
+      "promise": {
+        "text": "A file whose digest no longer matches its manifest entry is consumer-edited",
+        "citation": "src/lib/updateDecisions.mjs"
+      },
+      "verifies": "that divergence was detected by digest, not by guesswork",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "none — the consumer runs update",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "recovers:consumer-update-over-local-edits"
+    },
+    {
+      "journeyId": "recovery-update-conflicts-with-local-edits",
+      "stationId": "backup-and-diff",
+      "promise": {
+        "text": "Consumer-edited files are backed up and diffed, never silently overwritten",
+        "citation": "docs/adr/0001-consumer-divergence-policy.md"
+      },
+      "verifies": "that a backup exists and a diff was produced",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "reads the diff",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "recovers:consumer-update-over-local-edits"
+    },
+    {
+      "journeyId": "recovery-update-conflicts-with-local-edits",
+      "stationId": "consumer-decides",
+      "promise": {
+        "text": "Conflicts are never auto-resolved",
+        "citation": ".claude/skills/kit-update/SKILL.md"
+      },
+      "verifies": "nothing mechanical beyond the refusal to auto-merge",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "resolves each conflict",
+      "agentAction": "none",
+      "authorizationBoundary": "consumer-owned",
+      "recoveryRelation": "recovers:consumer-update-over-local-edits"
+    },
+    {
+      "journeyId": "recovery-guard-false-red-blocks-capability",
+      "stationId": "false-red",
+      "promise": {
+        "text": "External errors are anomalies: my code is at fault until empirically refuted",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that the red was investigated instead of routed around",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "reports the blocked capability",
+      "agentAction": "investigates the guard predicate",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:delegate-build-to-codex"
+    },
+    {
+      "journeyId": "recovery-guard-false-red-blocks-capability",
+      "stationId": "locate-cause",
+      "promise": {
+        "text": "The real cause is named before the guard is touched",
+        "citation": "docs/evidence/2026-07-28-codex-exec-version-pin.md"
+      },
+      "verifies": "that a concrete cause was recorded with evidence",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "reproduces and records the cause",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:delegate-build-to-codex"
+    },
+    {
+      "journeyId": "recovery-guard-false-red-blocks-capability",
+      "stationId": "correct-predicate",
+      "promise": {
+        "text": "Machinery that keeps a wrong input working conserves it — fix the predicate",
+        "citation": "scripts/codex-exec.sh"
+      },
+      "verifies": "that the corrected guard still fails on the real fault",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "approves the guard change",
+      "agentAction": "corrects the predicate and re-runs",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "recovers:delegate-build-to-codex"
+    },
+    {
+      "journeyId": "recovery-teardown-blocked-by-symlinks",
+      "stationId": "identity-freeze-fails",
+      "promise": {
+        "text": "Teardown freezes worktree identity before removing anything",
+        "citation": "scripts/worktree-lifecycle/cleanup.py"
+      },
+      "verifies": "that the freeze ran — a symlink-heavy tree can defeat it",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "reads the teardown failure",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:worktree-teardown"
+    },
+    {
+      "journeyId": "recovery-teardown-blocked-by-symlinks",
+      "stationId": "named-record",
+      "promise": {
+        "text": "The failure is recorded in the consumer repository, frozen here digest-only",
+        "citation": "#2305"
+      },
+      "verifies": "that the record exists and is citable without republishing a private body",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "cites the frozen digest",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:worktree-teardown"
+    },
+    {
+      "journeyId": "recovery-teardown-blocked-by-symlinks",
+      "stationId": "fallback-route",
+      "promise": {
+        "text": "A fallback route completes teardown with no protection of its own",
+        "citation": "docs/adr/0009-teardown-authority-is-stateless-repository-classification.md"
+      },
+      "verifies": "that teardown completed — the fallback verifies nothing about ownership",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "accepts the fallback",
+      "agentAction": "completes teardown manually",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "recovers:worktree-teardown"
+    },
+    {
+      "journeyId": "recovery-anchor-closed-early",
+      "stationId": "detect-early-close",
+      "promise": {
+        "text": "Slice PRs carry `Part of #<anchor>`, never `closes`",
+        "citation": "scripts/pr-body-check.py"
+      },
+      "verifies": "that the marker is the profile’s, catching the close-verb before merge",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "reads the check output",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:anchor-reconcile-on-slice-event"
+    },
+    {
+      "journeyId": "recovery-anchor-closed-early",
+      "stationId": "reopen",
+      "promise": {
+        "text": "The anchor is reopened rather than re-created",
+        "citation": "#341"
+      },
+      "verifies": "that the same issue number carries the remaining slices",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "approves reopening",
+      "agentAction": "reopens the anchor",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "recovers:anchor-reconcile-on-slice-event"
+    },
+    {
+      "journeyId": "recovery-anchor-closed-early",
+      "stationId": "reconcile-table",
+      "promise": {
+        "text": "The anchor slice table is reconciled after reopening",
+        "citation": "scripts/anchor_table.py"
+      },
+      "verifies": "that the table matches the board after recovery",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "runs anchor-sync",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:anchor-reconcile-on-slice-event"
+    },
+    {
+      "journeyId": "recovery-board-status-drift",
+      "stationId": "detect-drift",
+      "promise": {
+        "text": "Board status is primary, so drift is a defect and not a cosmetic",
+        "citation": "docs/agents/board-sync.md"
+      },
+      "verifies": "that the board response was compared against the repository state",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "reads board and repository state",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:slice-pr-landing"
+    },
+    {
+      "journeyId": "recovery-board-status-drift",
+      "stationId": "dry-run-diff",
+      "promise": {
+        "text": "`--dry-run` first, review the diff, then write",
+        "citation": "CLAUDE.md"
+      },
+      "verifies": "that the correction was previewed before it was applied",
+      "bindingHardness": "documented",
+      "phase": "recover",
+      "userDecision": "reviews the diff",
+      "agentAction": "runs anchor-sync --dry-run",
+      "authorizationBoundary": "human-gate",
+      "recoveryRelation": "recovers:slice-pr-landing"
+    },
+    {
+      "journeyId": "recovery-board-status-drift",
+      "stationId": "write-back",
+      "promise": {
+        "text": "All board writes go through `scripts/board-sync.py`",
+        "citation": "scripts/board-sync.py"
+      },
+      "verifies": "that the corrected Status came from the profile vocabulary",
+      "bindingHardness": "mechanical",
+      "phase": "recover",
+      "userDecision": "none",
+      "agentAction": "writes the corrected status",
+      "authorizationBoundary": "agent-autonomous",
+      "recoveryRelation": "recovers:slice-pr-landing"
+    }
+  ]
+}
