@@ -51,14 +51,19 @@ const waitFor = async (predicate, timeout = 2_000) => {
   return null;
 };
 
-test('preflight accepts only exact tested versions and capabilities before launch', () => {
+test('preflight gates on capability evidence, not on version identity', () => {
   const fx = fixture();
   const ok = invoke(fx, ['preflight', '--codex-bin', fake]);
   assert.equal(ok.output.status, 'OK');
   assert.match(ok.output.auth, /Logged in/);
+  assert.equal(ok.output.versionNote, 'known-tested');
 
-  const version = invoke(fx, ['preflight', '--codex-bin', fake], { FAKE_CODEX_VERSION: '9.9.9' });
-  assert.equal(version.output.error, 'UNTESTED_VERSION');
+  const newer = invoke(fx, ['preflight', '--codex-bin', fake], { FAKE_CODEX_VERSION: '0.146.0' });
+  assert.equal(newer.output.status, 'OK');
+  assert.equal(newer.output.error, undefined);
+  assert.equal(newer.output.version, '0.146.0');
+  assert.equal(newer.output.versionNote, 'untested-version');
+
   const capability = invoke(fx, ['preflight', '--codex-bin', fake], {
     FAKE_CODEX_MISSING_CAPABILITY: '1',
   });
@@ -68,6 +73,38 @@ test('preflight accepts only exact tested versions and capabilities before launc
   });
   assert.equal(resumeCapability.output.error, 'MISSING_CAPABILITY');
   assert.equal(exists(fx.launchLog), false);
+});
+
+test('an untested version weakens no preflight probe and stays fail-closed', () => {
+  const untested = { FAKE_CODEX_VERSION: '9.9.9' };
+  const fx = fixture();
+
+  const capability = invoke(fx, ['preflight', '--codex-bin', fake], {
+    ...untested, FAKE_CODEX_MISSING_CAPABILITY: '1',
+  });
+  assert.equal(capability.output.error, 'MISSING_CAPABILITY');
+  const resumeCapability = invoke(fx, ['preflight', '--codex-bin', fake], {
+    ...untested, FAKE_CODEX_RESUME_MISSING_CAPABILITY: '1',
+  });
+  assert.equal(resumeCapability.output.error, 'MISSING_CAPABILITY');
+  const auth = invoke(fx, ['preflight', '--codex-bin', fake], {
+    ...untested, FAKE_CODEX_SCENARIO: 'auth-fail',
+  });
+  assert.equal(auth.output.status, 'AUTH');
+  assert.equal(auth.output.error, 'AUTH_REQUIRED');
+
+  const unreadable = invoke(fx, ['preflight', '--codex-bin', fake], { FAKE_CODEX_VERSION_FAIL: '1' });
+  assert.equal(unreadable.output.error, 'VERSION_CHECK_FAILED');
+  assert.equal(exists(fx.launchLog), false);
+});
+
+test('a run launches on an untested but capable version and records the note', () => {
+  const fx = fixture();
+  const result = invoke(fx, launchArgs(), { FAKE_CODEX_VERSION: '0.146.0' });
+  assert.equal(result.output.status, 'OK');
+  assert.ok(result.output.runId);
+  assert.match(result.stderr, /untested-version/);
+  assert.ok(exists(fx.launchLog));
 });
 
 test('new and resume preserve immutable rounds and reject mode drift', () => {
@@ -266,8 +303,8 @@ test('handle-failure aborts the explicit fallback after a valid resume preflight
   const run = invoke(fx, launchArgs()).output;
   const failed = invoke(fx, [
     'resume', run.runId, '--codex-bin', fake, '--prompt', 'Again',
-  ], { FAKE_CODEX_VERSION: '9.9.9' });
-  assert.equal(failed.output.error, 'UNTESTED_VERSION');
+  ], { FAKE_CODEX_MISSING_CAPABILITY: '1' });
+  assert.equal(failed.output.error, 'MISSING_CAPABILITY');
   assert.equal(failed.output.runId, undefined);
 
   const handled = invoke(fx, [

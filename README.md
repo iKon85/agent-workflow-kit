@@ -579,6 +579,10 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.46.2
+
+- changed: `scripts/codex-exec.sh`
+
 ### 0.46.1
 
 - changed: `.agents/skills/orchestrate-wave/SKILL.md`

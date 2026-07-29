@@ -3,7 +3,10 @@ set -u
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROC_HELPER="$SCRIPT_DIR/codex_proc.py"
-TESTED_VERSIONS=("0.137.0" "0.144.6" "0.145.0")
+# Informational only: the versions this wrapper has been exercised against.
+# Tool fitness is decided by the capability probes in preflight, never by
+# version identity — an exact pin blocks every new upstream minor.
+KNOWN_TESTED_VERSIONS=("0.137.0" "0.144.6" "0.145.0")
 SUPPORTED_EFFORTS=("low" "medium" "high" "xhigh" "max" "ultra")
 STATE_ROOT=${CODEX_EXEC_STATE_ROOT:-${TMPDIR:-/tmp}/codex-exec-state}
 
@@ -77,7 +80,8 @@ find_state() {
 }
 
 preflight() {
-  local codex_bin=$1 quiet=${2:-false} version_text version auth auth_rc help resume_help platform allowed=false
+  local codex_bin=$1 quiet=${2:-false} version_text version auth auth_rc help resume_help platform
+  local version_note=untested-version
   if [[ ! -x $codex_bin ]] && ! command -v "$codex_bin" >/dev/null 2>&1; then
     fail CODEX_NOT_FOUND "Codex executable not found"
     return 1
@@ -87,12 +91,13 @@ preflight() {
     return 1
   }
   version=${version_text##* }
-  for tested in "${TESTED_VERSIONS[@]}"; do
-    [[ $version == "$tested" ]] && allowed=true
+  # Version is information, not a gate: it is reported, never used to refuse.
+  for tested in "${KNOWN_TESTED_VERSIONS[@]}"; do
+    [[ $version == "$tested" ]] && version_note=known-tested
   done
-  if [[ $allowed != true ]]; then
-    fail UNTESTED_VERSION "Codex version is not in the exact tested allowlist"
-    return 1
+  if [[ $version_note != known-tested && $quiet == true ]]; then
+    printf 'codex-exec: %s note=%s (capability probes decide fitness)\n' \
+      "${version:-unknown-version}" untested-version >&2
   fi
   platform=$(uname -s)
   if [[ $platform != Linux && $platform != Darwin ]] || ! python3 -c 'import os; assert hasattr(os, "setsid")' >/dev/null 2>&1; then
@@ -115,7 +120,8 @@ preflight() {
     fail_process AUTH_REQUIRED "$auth" AUTH "$auth_rc"
     return 1
   fi
-  [[ $quiet == true ]] || emit_json status=OK "version=$version" "auth=$auth" "platform=$platform"
+  [[ $quiet == true ]] || emit_json status=OK "version=$version" "versionNote=$version_note" \
+    "auth=$auth" "platform=$platform"
 }
 
 parse_options() {

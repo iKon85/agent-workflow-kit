@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.46.1",
+  "kitVersion": "0.46.2",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -2523,7 +2523,7 @@
       "path": "scripts/codex-exec.sh",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "2ff3ac7b2f5932f612f8c08419e52c40b13a077f3b3563316011c1f8d675da6a",
+      "sha256": "6f72036fe67f10ce1258ca6e318c54bb8e39245acf74760dd22ea0454a8860ae",
       "mode": 493,
       "origin": "kit"
     },
