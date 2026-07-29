@@ -18,8 +18,8 @@ they do not carry a second branch regex, worktree traversal, or failure policy.
   `{slug}` only — a durable-content session has no issue number — and refuses
   an `{issue}` placeholder instead of inventing one.
 - `mainBranches` and `protectedBranches`: branches guarded in the main checkout.
-- `setupEntry` and ordered `setupSteps`: the portable setup command and project
-  setup sequence.
+- `setupEntry`: the portable setup command a session is routed to.
+- `seed`: what a fresh worktree carries — see §Seed below.
 - `riskyCommandPatterns`: commands that must target the active linked worktree.
 
 The profile carries **structural facts only**. It declares no pattern list,
@@ -44,6 +44,44 @@ Unknown or malformed events fail open without changing repository state.
 Security-sensitive, profile-matched edits and commands fail closed only when
 the core proves the target is unsafe.
 
+## Seed
+
+`setup.py` is the optional creation helper: one call cuts the profile's branch,
+adds the worktree at the profile's path, and seeds it. It is an offer, not a
+mandate — a worktree created with plain `git worktree add`, under any name and
+path, stays first-class everywhere else in the lifecycle.
+
+The seed is a **flat declaration**, two keys and no third:
+
+```json
+"seed": {
+  "paths": [".env", "config/local.json"],
+  "variables": { "VITE_DEV_PORT": 5173, "BACKEND_PORT": 3001 }
+}
+```
+
+- `paths`: repository-relative files copied verbatim from the main checkout to
+  the same relative path in the new worktree. A path that escapes the
+  repository, is absolute, or is not a plain file is refused by name; a symlink
+  is never followed. A declared path the main checkout does not have is named
+  in the output and skipped — a fresh clone has no local config yet.
+- `variables`: named positive integer bases. The helper derives this worktree's
+  own slot from the issue number (or the branch checksum when there is none)
+  and writes `<name>=<base + slot × 10>` lines into the worktree's `.dev-ports`,
+  stepping past the ports browsers refuse to connect to. `.dev-ports` is the
+  same file `wrapup-land.py` quiesces at teardown.
+
+There are no step kinds, no ordering knobs, no per-entry flags, and no command
+execution: a declaration of *what* a worktree carries transfers between
+projects, a procedure that produces one does not. The kit owns the mechanism
+and never reads, parses, or patches a declared file's contents — a hand-written
+secret crosses into the worktree as bytes and nothing else.
+
+Seeding runs only for a worktree this call creates. An existing worktree is
+adopted and reported, never re-seeded over the consumer's own values, and a
+seeding failure removes the fresh worktree together with the branch it cut, so
+no half-built checkout survives the command.
+
 ## Adapters
 
 | Adapter | Event | Outcome |
@@ -57,21 +95,30 @@ the core proves the target is unsafe.
 
 ## Planning-artifact ignore rules
 
-`plan-artifacts.json` is the kit-owned declaration of the planning artefacts the
-shipped skills write (`PLAN.md`, `PLAN-REVIEW-LOG.md`, `ANNAHMEN.md`).
-`ignore_seed.py` turns that declaration into an offer, never an installation:
+Two rule classes, one declaration each — never a literal typed into the helper:
+
+- `plan-artifacts.json` is the kit-owned declaration of the planning artefacts
+  the shipped skills write (`PLAN.md`, `PLAN-REVIEW-LOG.md`, `ANNAHMEN.md`).
+- the worktree root the consumer profile declares (`worktreeRoot`, kit default
+  `.worktrees`). Without that rule a stray `git add -A` stages every linked
+  worktree as an embedded git repository, and the resulting commit carries
+  gitlinks no clone can resolve.
+
+`ignore_seed.py` turns those declarations into an offer, never an installation:
 `preview` reports what an approval would append and writes nothing, and `apply`
 appends exactly one marker block. `.gitignore` is a consumer file the kit does
 not own, so only an explicit approved `/setup-workflow` step may run `apply`;
 `init` and `update` reconciliation never reach it.
 
 The append never rewrites, reorders, or removes an existing line. A repository
-that already ignores every artefact reports `nothing-to-do`, a re-run after an
-approval is a byte-identical no-op, and a marker block the consumer has since
-edited reports `blocked` rather than being repaired. An artefact already tracked
-in git is named separately — an ignore rule cannot untrack it, and the helper
-never runs `git rm`. Approving that offer is also what makes the artefacts
-deletable at teardown: `.gitignore` is the one deletion-policy surface.
+that already ignores every offered rule — by any pattern, including a wildcard
+— reports `nothing-to-do`, a re-run after an approval is a byte-identical
+no-op, and a marker block that no longer covers every rule reports `blocked`
+with the uncovered rules named, rather than being repaired. An artefact already
+tracked in git is named separately — an ignore rule cannot untrack it, and the
+helper never runs `git rm`. Approving that offer is also what makes the
+artefacts deletable at teardown: `.gitignore` is the one deletion-policy
+surface.
 
 ## Cleanup
 

@@ -29,9 +29,10 @@ async function makeRepo() {
   return { root, repo };
 }
 
-test('generic consumer creates a configured worktree without a port allocator', async (t) => {
+test('generic consumer creates a seeded worktree in one call, without variables', async (t) => {
   const { root, repo } = await makeRepo();
   t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(repo, '.env'), 'API_TOKEN=hand-written\n');
 
   const profile = join(repo, 'workflow-capabilities.json');
   await writeFile(profile, JSON.stringify({
@@ -42,12 +43,7 @@ test('generic consumer creates a configured worktree without a port allocator', 
       branchTemplate: '{type}/{issue}-{slug}',
       pathTemplate: '{type}-{issue}-{slug}',
       mainBranches: ['main'],
-      setupSteps: [
-        {
-          kind: 'command',
-          command: ['node', '-e', "require('fs').writeFileSync('installed-by-yarn', 'yes\\n')"],
-        },
-      ],
+      seed: { paths: ['.env'] },
     },
   }));
 
@@ -60,14 +56,16 @@ test('generic consumer creates a configured worktree without a port allocator', 
 
   const worktree = join(repo, '.sandboxes', 'feat-123-portable');
   assert.match(result.stdout, /Worktree ready/);
-  assert.equal(await readFile(join(worktree, 'installed-by-yarn'), 'utf8'), 'yes\n');
+  assert.equal(await readFile(join(worktree, '.env'), 'utf8'), 'API_TOKEN=hand-written\n');
   await assert.rejects(readFile(join(worktree, '.dev-ports'), 'utf8'));
   assert.match((await git(worktree, 'branch', '--show-current')).stdout, /feat\/123-portable/);
 });
-test('frozen Testreporter profile preserves branch, setup order, and deterministic port output', async (t) => {
+
+test('frozen Testreporter profile copies declared paths verbatim and renders its variables', async (t) => {
   const { root, repo } = await makeRepo();
   t.after(() => rm(root, { recursive: true, force: true }));
-  await writeFile(join(repo, '.env.fixture'), 'FIXTURE=yes\n');
+  // A value the kit must not read, parse, or patch — it is copied as bytes.
+  await writeFile(join(repo, '.env'), 'VITE_API_URL=http://localhost:3001\nSECRET=keep\n');
 
   const result = await run('python3', [
     SETUP,
@@ -78,17 +76,24 @@ test('frozen Testreporter profile preserves branch, setup order, and determinist
 
   const worktree = join(repo, '.worktrees', 'feat-1166-ports');
   assert.match(result.stdout, /feat\/1166-ports/);
-  assert.equal(await readFile(join(worktree, '.env'), 'utf8'), 'FIXTURE=yes\n');
+  assert.equal(
+    await readFile(join(worktree, '.env'), 'utf8'),
+    'VITE_API_URL=http://localhost:3001\nSECRET=keep\n',
+  );
   assert.equal(
     await readFile(join(worktree, '.dev-ports'), 'utf8'),
     'VITE_DEV_PORT=7843\nBACKEND_PORT=5671\n',
   );
-  assert.equal(await readFile(join(worktree, 'setup-order-ok'), 'utf8'), 'yes\n');
+  // Declared, absent in the main checkout: named, never invented, never fatal.
+  assert.match(result.stdout, /\.env\.local/);
+  await assert.rejects(readFile(join(worktree, '.env.local'), 'utf8'));
 });
 
-test('partial setup failure rolls back the new worktree and branch', async (t) => {
+test('a declared path the helper cannot copy rolls back the new worktree and branch', async (t) => {
   const { root, repo } = await makeRepo();
   t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(repo, 'config'));
+  await writeFile(join(repo, 'config', 'nested.json'), '{}\n');
   const profile = join(repo, 'workflow-capabilities.json');
   await writeFile(profile, JSON.stringify({
     version: 1,
@@ -97,9 +102,7 @@ test('partial setup failure rolls back the new worktree and branch', async (t) =
       worktreeRoot: '.worktrees',
       branchTemplate: '{type}/{issue}-{slug}',
       pathTemplate: '{type}-{issue}-{slug}',
-      setupSteps: [
-        { kind: 'command', command: ['node', '-e', 'process.exit(23)'] },
-      ],
+      seed: { paths: ['config'] },
     },
   }));
 
@@ -114,10 +117,10 @@ test('partial setup failure rolls back the new worktree and branch', async (t) =
   await assert.rejects(git(repo, 'show-ref', '--verify', 'refs/heads/feat/321-rollback'));
 });
 
-test('profile port allocation skips browser-unsafe output ports deterministically', async (t) => {
+test('variable allocation skips browser-unsafe ports deterministically', async (t) => {
   const { root, repo } = await makeRepo();
   t.after(() => rm(root, { recursive: true, force: true }));
-  await writeFile(join(repo, '.env.fixture'), 'FIXTURE=yes\n');
+  await writeFile(join(repo, '.env'), 'FIXTURE=yes\n');
 
   await run('python3', [
     SETUP,
@@ -130,6 +133,32 @@ test('profile port allocation skips browser-unsafe output ports deterministicall
     await readFile(join(repo, '.worktrees', 'feat-2005-unsafe-port', '.dev-ports'), 'utf8'),
     'VITE_DEV_PORT=7243\nBACKEND_PORT=5071\n',
   );
+});
+
+// Adoption, not mandate: a worktree someone else created is first-class, and the
+// helper never re-seeds over the values that worktree already carries.
+test('an externally created worktree is adopted unchanged', async (t) => {
+  const { root, repo } = await makeRepo();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(repo, '.env'), 'VITE_API_URL=http://localhost:3001\n');
+
+  const worktree = join(repo, '.worktrees', 'feat-1166-ports');
+  await git(repo, 'worktree', 'add', '-b', 'feat/1166-ports', worktree, 'main');
+  await writeFile(join(worktree, '.env'), 'VITE_API_URL=http://localhost:5671\n');
+
+  const result = await run('python3', [
+    SETUP,
+    '--profile', TESTREPORTER_PROFILE,
+    '--base', 'main',
+    '1166', 'ports', 'feat',
+  ], { cwd: repo });
+
+  assert.match(result.stdout, /already exists/);
+  assert.equal(
+    await readFile(join(worktree, '.env'), 'utf8'),
+    'VITE_API_URL=http://localhost:5671\n',
+  );
+  await assert.rejects(readFile(join(worktree, '.dev-ports'), 'utf8'));
 });
 
 test('shipped Worktree Lifecycle census accounts for all eight historical rows', async () => {

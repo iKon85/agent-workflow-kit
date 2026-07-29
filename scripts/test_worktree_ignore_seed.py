@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Consumer ignore-gap contract (#255).
+"""Consumer ignore-gap contract (#255, #370).
 
 Shipped skills write `PLAN.md`, `PLAN-REVIEW-LOG.md`, and `ANNAHMEN.md` into a
-session worktree, but `.gitignore` is a consumer file the kit does not own, so
-`init`/`update` never seed the matching rules. ADR 0008 resolves the gap two
-ways, and both are pinned here:
+session worktree, and the creation helper puts that worktree under the profile's
+declared worktree root — but `.gitignore` is a consumer file the kit does not
+own, so `init`/`update` never seed the matching rules. ADR 0008 resolves the gap
+two ways, and both are pinned here:
 
 1. `/setup-workflow` may **offer** the rules through
    `scripts/worktree-lifecycle/ignore_seed.py`. The helper is append-only
@@ -13,6 +14,10 @@ ways, and both are pinned here:
    `init`/`update` reconciliation.
 2. Shipped skill prose states the assumption instead of asserting the ignore
    state as a fact the kit cannot guarantee.
+
+The offered set is the kit's artifact declaration plus the worktree root the
+consumer profile declares, so a stray `git add -A` cannot stage a linked
+worktree as an embedded git repository (#370).
 
 Run: python3 scripts/test_worktree_ignore_seed.py
 """
@@ -36,11 +41,25 @@ SKILL_TREES = (REPO / ".claude/skills", REPO / ".agents/skills")
 
 
 def load_helper():
-    spec = importlib.util.spec_from_file_location("wl_ignore_seed", HELPER)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    sys.path.insert(0, str(LIFECYCLE))
+    try:
+        spec = importlib.util.spec_from_file_location("wl_ignore_seed", HELPER)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        sys.path.remove(str(LIFECYCLE))
+
+
+def write_profile(repo: Path, worktree_root: str) -> None:
+    """Give the repo a consumer profile declaring its own worktree root."""
+    target = repo / "docs/agents/workflow-capabilities.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps({"worktreeLifecycle": {"enabled": True, "worktreeRoot": worktree_root}}),
+        encoding="utf-8",
+    )
 
 
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess:
@@ -80,11 +99,12 @@ class PlanTest(unittest.TestCase):
         self.stack = __import__("contextlib").ExitStack()
         self.addCleanup(self.stack.close)
 
-    def test_fresh_repo_lists_every_artifact_as_pending(self):
+    def test_fresh_repo_lists_every_rule_as_pending(self):
         repo = make_repo(self.stack, "node_modules/\n")
         plan = self.helper.plan(repo)
         self.assertEqual(
-            plan.pending, ("PLAN.md", "PLAN-REVIEW-LOG.md", "ANNAHMEN.md"),
+            plan.pending,
+            ("PLAN.md", "PLAN-REVIEW-LOG.md", "ANNAHMEN.md", ".worktrees/"),
         )
         self.assertEqual(plan.already_ignored, ())
         self.assertEqual(plan.status, "append")
@@ -101,7 +121,7 @@ class PlanTest(unittest.TestCase):
 
     def test_consumer_rules_already_covering_everything_are_nothing_to_do(self):
         repo = make_repo(
-            self.stack, "PLAN.md\nPLAN-REVIEW-LOG.md\nANNAHMEN.md\n",
+            self.stack, "PLAN.md\nPLAN-REVIEW-LOG.md\nANNAHMEN.md\n.worktrees/\n",
         )
         plan = self.helper.plan(repo)
         self.assertEqual(plan.pending, ())
@@ -109,14 +129,14 @@ class PlanTest(unittest.TestCase):
         self.assertIsNone(plan.block)
 
     def test_partial_coverage_pends_only_the_missing_rules(self):
-        repo = make_repo(self.stack, "PLAN.md\n")
+        repo = make_repo(self.stack, "PLAN.md\n.worktrees/\n")
         plan = self.helper.plan(repo)
         self.assertEqual(plan.pending, ("PLAN-REVIEW-LOG.md", "ANNAHMEN.md"))
-        self.assertEqual(plan.already_ignored, ("PLAN.md",))
+        self.assertEqual(plan.already_ignored, ("PLAN.md", ".worktrees/"))
         self.assertNotIn("\nPLAN.md\n", plan.block)
 
     def test_a_wildcard_consumer_rule_counts_as_covered(self):
-        repo = make_repo(self.stack, "*.md\n")
+        repo = make_repo(self.stack, "*.md\n.worktrees/\n")
         plan = self.helper.plan(repo)
         self.assertEqual(plan.pending, ())
 
@@ -146,7 +166,7 @@ class ApplyTest(unittest.TestCase):
         text = (repo / ".gitignore").read_text(encoding="utf-8")
         self.assertTrue(text.startswith(original))
         self.assertIn(self.helper.BLOCK_START, text)
-        for path in ("PLAN.md", "PLAN-REVIEW-LOG.md", "ANNAHMEN.md"):
+        for path in ("PLAN.md", "PLAN-REVIEW-LOG.md", "ANNAHMEN.md", ".worktrees/"):
             self.assertIn(f"\n{path}\n", text)
 
     def test_rerun_is_a_byte_identical_no_op(self):
@@ -165,7 +185,7 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual((repo / ".gitignore").read_bytes(), before)
 
     def test_already_covered_repo_is_left_untouched(self):
-        original = "PLAN.md\nPLAN-REVIEW-LOG.md\nANNAHMEN.md\n"
+        original = "PLAN.md\nPLAN-REVIEW-LOG.md\nANNAHMEN.md\n.worktrees/\n"
         repo = make_repo(self.stack, original)
         result = self.helper.apply(repo)
         self.assertEqual(result.status, "nothing-to-do")
@@ -214,6 +234,73 @@ class ApplyTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
         text = (repo / ".gitignore").read_text(encoding="utf-8")
         self.assertEqual(text.count(self.helper.BLOCK_START), 1)
+
+
+class WorktreeRootRuleTest(unittest.TestCase):
+    """#370: a stray `git add -A` must not stage a worktree as an embedded repo."""
+
+    def setUp(self):
+        self.helper = load_helper()
+        self.stack = __import__("contextlib").ExitStack()
+        self.addCleanup(self.stack.close)
+
+    def _repo_with_worktree(self, root: str = ".worktrees") -> Path:
+        repo = make_repo(self.stack, "node_modules/\n")
+        (repo / "README.md").write_text("# fixture\n", encoding="utf-8")
+        git(repo, "add", "README.md")
+        git(repo, "commit", "-qm", "initial")
+        git(
+            repo, "worktree", "add", "-q", "-b", "feat/370-repro",
+            str(repo / root / "370-repro"),
+        )
+        return repo
+
+    def _staged_by_add_all(self, repo: Path):
+        """What a stray `git add -A` would stage, and what git warns about."""
+        result = subprocess.run(
+            ["git", "add", "-A", "--dry-run"], cwd=repo,
+            capture_output=True, text=True, check=True,
+        )
+        return result.stdout, result.stderr
+
+    def test_positive_control_an_unseeded_repo_stages_the_worktree(self):
+        repo = self._repo_with_worktree()
+        stdout, stderr = self._staged_by_add_all(repo)
+        self.assertIn(".worktrees/370-repro", stdout)
+        self.assertIn("embedded git repository", stderr)
+
+    def test_after_the_seed_nothing_under_the_worktree_root_is_staged(self):
+        repo = self._repo_with_worktree()
+        self.assertEqual(self.helper.apply(repo).status, "appended")
+        stdout, stderr = self._staged_by_add_all(repo)
+        self.assertNotIn(".worktrees/", stdout)
+        self.assertNotIn("embedded git repository", stderr)
+
+    def test_the_rule_is_the_root_the_consumer_profile_declares(self):
+        repo = make_repo(self.stack, "node_modules/\n")
+        write_profile(repo, ".sandboxes")
+        plan = self.helper.plan(repo)
+        self.assertIn(".sandboxes/", plan.pending)
+        self.assertNotIn(".worktrees/", plan.pending)
+
+    def test_a_declared_root_is_ignored_for_a_foreign_named_worktree_too(self):
+        repo = self._repo_with_worktree(".sandboxes")
+        write_profile(repo, ".sandboxes")
+        self.assertEqual(self.helper.apply(repo).status, "appended")
+        stdout, stderr = self._staged_by_add_all(repo)
+        self.assertNotIn(".sandboxes/", stdout)
+        self.assertNotIn("embedded git repository", stderr)
+
+    def test_a_repo_without_a_profile_falls_back_to_the_kit_default(self):
+        repo = make_repo(self.stack, "node_modules/\n")
+        plan = self.helper.plan(repo)
+        self.assertIn(".worktrees/", plan.pending)
+
+    def test_a_root_already_ignored_by_the_consumer_is_never_offered_again(self):
+        repo = make_repo(self.stack, ".worktrees/\n")
+        plan = self.helper.plan(repo)
+        self.assertIn(".worktrees/", plan.already_ignored)
+        self.assertNotIn(".worktrees/", plan.pending)
 
 
 class ReconciliationBoundaryTest(unittest.TestCase):

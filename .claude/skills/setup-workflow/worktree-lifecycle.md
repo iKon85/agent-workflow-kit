@@ -82,11 +82,18 @@ Repeated reconciliation with the same choice is byte-identical.
 
 ## Planning-artifact ignore rules (offered, never installed)
 
-The planning artefacts the shipped skills write live in the worktree, but
-`.gitignore` is a consumer file the kit does not own: `init` and `update` never
-touch it. Setup may therefore only **offer** the rules, from Section A11, using
-`python3 scripts/worktree-lifecycle/ignore_seed.py`. The kit-owned declaration
-of which artefacts those are is `scripts/worktree-lifecycle/plan-artifacts.json`.
+The planning artefacts the shipped skills write live in the worktree, and the
+worktree itself lives under the profile's declared root — but `.gitignore` is a
+consumer file the kit does not own: `init` and `update` never touch it. Setup
+may therefore only **offer** the rules, from Section A11, using
+`python3 scripts/worktree-lifecycle/ignore_seed.py`.
+
+The offer reads two declarations and never a literal typed into the helper: the
+kit-owned artefact list in `scripts/worktree-lifecycle/plan-artifacts.json`, and
+the consumer profile's own `worktreeRoot` (kit default `.worktrees`). The second
+rule matters on its own — without it a stray `git add -A` stages every linked
+worktree as an embedded git repository, and the resulting commit carries
+gitlinks no clone can resolve.
 
 | State | Setup action |
 |---|---|
@@ -95,7 +102,7 @@ of which artefacts those are is `scripts/worktree-lifecycle/plan-artifacts.json`
 | decline | Write nothing; a later rerun offers it again. |
 | already ignored | Report `nothing to do`; ask nothing and write nothing. |
 | re-run after approval | Byte-identical no-op; never a second block. |
-| consumer-edited block | `blocked` — report the uncovered artefacts and leave the file untouched. |
+| block that misses a rule | `blocked` — report the uncovered rules and leave the file untouched, whether the consumer edited the block or an older kit wrote a smaller one. |
 
 The seeder never rewrites, reorders, or removes an existing line, and a tracked
 artefact is reported rather than untracked for the consumer. Only this explicit,
@@ -124,6 +131,43 @@ Reconcile `contentBranchTemplate` with the default `{type}/{slug}` when
 enabling a new profile, and offer the consumer their own naming instead.
 An existing value is consumer-owned and remains byte-identical on adoption or
 rerun.
+
+## Seed declaration
+
+`setupEntry` routes a session to the optional creation helper
+(`scripts/worktree-lifecycle/setup.py`), which cuts the branch, adds the
+worktree, and seeds it from `seed`. Offering it is never a mandate: a worktree
+someone created with plain `git worktree add`, under any name and path, stays
+first-class in every other lifecycle step, and the helper adopts an existing one
+rather than re-seeding over its values.
+
+`seed` is **flat — two keys and no third**, and Setup reconciles it as a
+declaration, never as a procedure:
+
+```json
+"seed": {
+  "paths": [".env", "config/local.json"],
+  "variables": { "VITE_DEV_PORT": 5173, "BACKEND_PORT": 3001 }
+}
+```
+
+- `paths`: repository-relative files copied verbatim to the same relative path
+  in a newly created worktree. Ask the consumer which local files a fresh
+  checkout needs; never derive them by scanning, and never propose a path that
+  escapes the repository.
+- `variables`: named positive integer bases. The helper offsets each by the
+  worktree's own slot and writes them to `.dev-ports`, which is also what
+  teardown quiesces.
+
+Activating a new profile writes the scaffold empty —
+`"seed": { "paths": [], "variables": {} }` — so the consumer can see where their
+own values go; never fill it in by inference or by scanning the repository.
+
+Reconcile **no** step kinds, ordering knobs, per-entry flags, or commands —
+`seed` has none, and a profile still carrying an older kit's `setupSteps` keeps
+it as inert consumer data. Never read, parse, patch, or echo a declared file's
+contents: the kit moves bytes, and a declared file may hold secrets. An existing
+`seed` is consumer-owned and stays byte-identical on adoption or rerun.
 
 ## Profile glob dialect
 

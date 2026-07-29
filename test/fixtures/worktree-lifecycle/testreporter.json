@@ -9,32 +9,12 @@
     "mainBranches": ["main"],
     "protectedBranches": ["main"],
     "setupEntry": "./scripts/setup-worktree.sh",
-    "setupSteps": [
-      {
-        "kind": "copy",
-        "source": ".env.fixture",
-        "target": ".env",
-        "optional": true
-      },
-      {
-        "kind": "ports",
-        "slotModulo": 900,
-        "slotOffset": 1,
-        "stride": 10,
-        "unsafePorts": [1719, 1720, 1723, 2049, 3659, 4045, 5060, 5061, 6000, 6566, 6665, 6666, 6667, 6668, 6669, 6697, 10080],
-        "outputs": {
-          "VITE_DEV_PORT": 5173,
-          "BACKEND_PORT": 3001
-        }
-      },
-      {
-        "kind": "command",
-        "command": [
-          "node",
-          "-e",
-          "const fs=require('fs');fs.accessSync('.env');fs.accessSync('.dev-ports');fs.writeFileSync('setup-order-ok','yes\\n')"
-        ]
+    "seed": {
+      "paths": [".env", ".env.local"],
+      "variables": {
+        "VITE_DEV_PORT": 5173,
+        "BACKEND_PORT": 3001
       }
-    ]
+    }
   }
 }

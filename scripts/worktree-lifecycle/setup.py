@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Create a configured, rollback-safe consumer worktree."""
+"""Create a configured, rollback-safe consumer worktree — optional, never a mandate.
+
+One call cuts the profile's branch, adds the worktree at the profile's path, and
+seeds it from the profile's flat declaration: `seed.paths` are copied verbatim
+out of the main checkout, `seed.variables` are rendered into `.dev-ports` with
+this worktree's own slot. The kit owns the mechanism only — it never reads,
+parses, or patches a declared file's contents, so a hand-written secret crosses
+into the worktree as bytes and nothing else.
+
+A worktree that already exists is **adopted**, not re-seeded: its values are the
+consumer's, including in a worktree some other tool created. Only a worktree
+this call creates is seeded, and a seeding failure removes it again together
+with the branch it cut, so a half-built checkout never survives the command.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +31,18 @@ from core import (
     run,
 )
 
+VARIABLES_FILE = ".dev-ports"
+SLOT_MODULO = 900
+SLOT_OFFSET = 1
+SLOT_STRIDE = 10
+# The ports browsers refuse to connect to above 1023 (Chrome's blocked list).
+# This is protocol knowledge, not consumer policy: a dev server that lands here
+# is unreachable in every project, so the allocator steps past it everywhere.
+UNSAFE_PORTS = frozenset({
+    1719, 1720, 1723, 2049, 3659, 4045, 5060, 5061, 6000,
+    6566, 6665, 6666, 6667, 6668, 6669, 6697, 10080,
+})
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -31,59 +56,59 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def port_slot(step: dict, issue: str, branch: str) -> int:
-    modulo = int(step.get("slotModulo", 900))
-    offset = int(step.get("slotOffset", 1))
-    seed = int(issue) if issue.isdigit() else zlib.crc32(branch.encode("utf-8"))
-    return seed % modulo + offset
+def variable_slot(bases: tuple[int, ...], issue: str, branch: str) -> int:
+    """This worktree's own slot: deterministic, and never on a blocked port.
+
+    The issue number (or the branch's checksum when there is none) picks the
+    slot, so the same slice always gets the same ports and two slices collide
+    only by sharing a number they cannot share.
+    """
+    start = int(issue) if issue.isdigit() else zlib.crc32(branch.encode("utf-8"))
+    slot = start % SLOT_MODULO + SLOT_OFFSET
+    for _ in range(SLOT_MODULO):
+        if not UNSAFE_PORTS.intersection(base + slot * SLOT_STRIDE for base in bases):
+            return slot
+        slot = slot % SLOT_MODULO + 1
+    raise LifecycleError("no browser-safe allocation exists for the declared variables")
 
 
-def write_ports(step: dict, *, worktree: Path, issue: str, branch: str) -> None:
-    slot = port_slot(step, issue, branch)
-    stride = int(step.get("stride", 10))
-    outputs = step.get("outputs") or {}
-    if not outputs:
-        raise LifecycleError("ports step requires outputs")
-    unsafe = {int(port) for port in step.get("unsafePorts", ())}
-    modulo = int(step.get("slotModulo", 900))
-    for _ in range(modulo):
-        ports = [int(base) + slot * stride for base in outputs.values()]
-        if not unsafe.intersection(ports):
-            break
-        slot = slot % modulo + 1
-    else:
-        raise LifecycleError("port profile has no safe allocation")
-    lines = [f"{name}={int(base) + slot * stride}" for name, base in outputs.items()]
-    (worktree / ".dev-ports").write_text("\n".join(lines) + "\n", encoding="utf-8")
+def copy_declared_paths(paths: tuple[str, ...], *, main: Path, worktree: Path) -> list[str]:
+    """Copy each declared path verbatim; report the ones the checkout lacks.
+
+    A declared path that the main checkout does not have is skipped and named:
+    a fresh clone has no local config yet, and refusing to create the worktree
+    over that would make the helper unusable exactly when it is needed most.
+    """
+    missing: list[str] = []
+    for declared in paths:
+        source = main / declared
+        if source.is_symlink() or (source.exists() and not source.is_file()):
+            raise LifecycleError(
+                f"declared seed path is not a plain file: {declared} — "
+                "the helper copies bytes and follows nothing",
+            )
+        if not source.exists():
+            missing.append(declared)
+            continue
+        target = worktree / declared
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+    return missing
 
 
-def execute_step(
-    step: dict,
+def render_declared_variables(
+    variables: tuple[tuple[str, int], ...],
     *,
-    main: Path,
     worktree: Path,
     issue: str,
     branch: str,
 ) -> None:
-    kind = step.get("kind")
-    if kind == "copy":
-        source = main / step["source"]
-        target = worktree / step.get("target", step["source"])
-        if not source.exists() and step.get("optional"):
-            return
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
+    """Write the declared bases, offset by this worktree's slot."""
+    if not variables:
         return
-    if kind == "command":
-        command = step.get("command")
-        if not isinstance(command, list) or not all(isinstance(part, str) for part in command):
-            raise LifecycleError("setup command must be a JSON string array")
-        run(command, cwd=worktree)
-        return
-    if kind == "ports":
-        write_ports(step, worktree=worktree, issue=issue, branch=branch)
-        return
-    raise LifecycleError(f"unsupported setup step kind: {kind!r}")
+    slot = variable_slot(tuple(base for _, base in variables), issue, branch)
+    lines = [f"{name}={base + slot * SLOT_STRIDE}" for name, base in variables]
+    (worktree / VARIABLES_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def commit_oid(repo: Path, rev: str) -> str | None:
@@ -152,17 +177,15 @@ def create(args: argparse.Namespace) -> Path:
     command += [branch] if branch_existed else ["-b", branch, base]
     run(command, cwd=main)
     try:
-        for step in profile.setup_steps:
-            execute_step(
-                step,
-                main=main,
-                worktree=target,
-                issue=args.issue,
-                branch=branch,
-            )
+        missing = copy_declared_paths(profile.seed.paths, main=main, worktree=target)
+        render_declared_variables(
+            profile.seed.variables, worktree=target, issue=args.issue, branch=branch,
+        )
     except Exception:
         remove_failed_worktree(main, target, branch, not branch_existed)
         raise
+    if missing:
+        print(f"Declared, absent in the main checkout, not seeded: {', '.join(missing)}")
     print(f"Worktree ready: {target} ({branch})")
     return target
 
