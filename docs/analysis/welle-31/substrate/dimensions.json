@@ -1,0 +1,149 @@
+{
+  "schema": "welle-31/substrate/dimensions/v1",
+  "sourceCommit": "c9f6a4aa8bd80bbc4519fa9925315a6d4f0292f2",
+  "note": "Four dimensions, keyed and kept apart. An entry point is HOW a journey starts; an evidence source is WHERE the journey was derived from; a recovery path is WHICH named record proves a recovery journey exists. Conflating any two of them lets a derivation launder its own provenance, so the census validator rejects a journey that reuses an id across dimensions.",
+  "entryPoint": [
+    {
+      "id": "canonical-pipeline",
+      "name": "Canonical pipeline",
+      "description": "The documented ladder in CLAUDE.md §Workflow / §Entry Points: the user names the next skill in the intended order (grill → to-prd → to-issues → implement → wrapup).",
+      "evidence": "CLAUDE.md §Entry Points; §Depth Ladder"
+    },
+    {
+      "id": "goal-level-delegation",
+      "name": "Goal-level delegation",
+      "description": "The user states an OUTCOME, not a skill, and the agent must self-route. #343 seed 7.",
+      "evidence": "#343 seed 7; .claude/skills/orchestrate-wave/SKILL.md"
+    },
+    {
+      "id": "question-turned-work",
+      "name": "Question turned work",
+      "description": "A session opens as a question ('why is this red?', 'does X hold?') and becomes work mid-conversation, with no skill invoked at the boundary.",
+      "evidence": "#343 §Entry-point census first"
+    },
+    {
+      "id": "ask-matt-routing",
+      "name": "ask-matt routing",
+      "description": "The user does not know which skill fits and asks the router; the router names a starting point.",
+      "evidence": ".claude/skills/ask-matt/SKILL.md; CLAUDE.md §Entry Points"
+    },
+    {
+      "id": "direct-skill-invocation",
+      "name": "Direct skill invocation",
+      "description": "The user types the slash command for one skill, out of any pipeline order.",
+      "evidence": ".claude/skills/skill-manifest.json — 44 publishable skills, each description naming its own trigger"
+    },
+    {
+      "id": "external-worktree-session",
+      "name": "Externally created worktree or session",
+      "description": "The session starts in a worktree or on a branch the session itself did not create — an orchestrator's subagent, a resumed handoff, a manually created worktree.",
+      "evidence": "scripts/worktree-lifecycle/core.py; .claude/hooks/branch-context.py (SessionStart)"
+    },
+    {
+      "id": "codex-surface-entry",
+      "name": "Codex-surface entry",
+      "description": "The same system entered through the second surface: .agents/skills/ read by a Codex session. A mirror is the same journey through a different door, not a second journey.",
+      "evidence": "37 of 44 logical skills carry a codex surface (skill-manifest.json); .agents/skills/"
+    }
+  ],
+  "evidenceSource": [
+    {
+      "id": "cli-command",
+      "name": "Installer CLI commands",
+      "description": "The command verbs src/cli.mjs dispatches on.",
+      "query": "grep -n \"cmd === '\" src/cli.mjs",
+      "observed": ["init", "diff", "update", "uninstall", "contribute", "routing", "own", "disown"]
+    },
+    {
+      "id": "consumer-reconcile-command",
+      "name": "update / uninstall / diff",
+      "description": "The three consumer-reconciliation verbs #380 §5 names separately from the rest of the CLI, because the consumer contract lives on them.",
+      "query": "grep -n \"cmd === 'update'\\|cmd === 'diff'\\|cmd === 'uninstall'\" src/cli.mjs",
+      "observed": ["update", "diff", "uninstall"]
+    },
+    {
+      "id": "package-lifecycle-script",
+      "name": "Package lifecycle scripts",
+      "description": "npm scripts a maintainer or CI runs.",
+      "query": "node -e \"console.log(Object.keys(require('./package.json').scripts).join(' '))\"",
+      "observed": ["test", "test:node", "test:python", "kit:build", "kit:staleness", "release:prepare", "release:guard", "release:status"]
+    },
+    {
+      "id": "github-workflow",
+      "name": "GitHub workflows",
+      "description": "Automation that runs without a session attached.",
+      "query": "grep -n '^on:' -A4 .github/workflows/*.yml",
+      "observed": ["ci.yml (pull_request, push:main)", "release.yml (push:tags, workflow_dispatch)", "pages.yml (push:main, workflow_dispatch)"]
+    },
+    {
+      "id": "hook-event",
+      "name": "Agent hook events",
+      "description": "The 24 shipped hooks and the agent events they bind to. Activation is consumer-owned — this repository ships the hook files and wires only .githooks/, so a hook is a promise a consumer may or may not have switched on.",
+      "query": "for f in .claude/hooks/*.py; do grep -m1 -o 'SessionStart\\|PreToolUse\\|PostToolUse\\|UserPromptSubmit\\|Stop' $f; done | sort | uniq -c",
+      "observed": ["PreToolUse x11", "SessionStart x5", "PostToolUse x2", "UserPromptSubmit x2", "Stop x1 (+1 shell entry)", "shared libraries x2 (_hook_utils.py, _safety_guard.py)"]
+    },
+    {
+      "id": "board-status-label-event",
+      "name": "Board status and label vocabulary",
+      "description": "The lifecycle path encoded in the board profile; no single skill covers it end to end.",
+      "query": "sed -n '/board-sync:profile/,/```$/p' docs/agents/board-sync.md",
+      "observed": ["Idea", "Triaged", "Spec", "In Progress", "Review", "Done", "ready-for-agent", "needs-info", "type:cluster", "type:program", "wave-stub"]
+    },
+    {
+      "id": "issue-pr-event",
+      "name": "Issue and pull-request history",
+      "description": "The empirical record of journeys actually taken.",
+      "query": "docs/evidence/welle-31/aggregate-queries.json — process-issue-population (266 rows), merged-pr-retro-marker (135 rows)",
+      "observed": ["266 issues (230 closed, 36 open)", "135 merged pull requests"]
+    },
+    {
+      "id": "shipped-skill-description",
+      "name": "Shipped skill descriptions",
+      "description": "Each publishable skill's description names its own trigger, and a trigger is an entry.",
+      "query": "node docs/analysis/welle-31/derive-inventory.mjs — skills.logicalTotal",
+      "observed": ["44 logical skills", "36 mirrored", "7 Claude-only", "1 Codex-only"]
+    },
+    {
+      "id": "agents-surface",
+      "name": "The .agents/ surface",
+      "description": "The second door into the same system. Divergence from the primary is a finding on the primary, not a second artifact.",
+      "query": "ls .agents/skills",
+      "observed": ["37 mirrored skill directories"]
+    },
+    {
+      "id": "recovery-record",
+      "name": "Named recovery records",
+      "description": "Recovery-labelled or recovery-titled issues, pull requests recording a STOP and re-run, retro findings, and documented recovery paths. Bounded by construction (#380 §5).",
+      "query": "docs/evidence/welle-31/aggregate-queries.json — recovery-record-sources (64 rows)",
+      "observed": ["64 issues matched the recovery search", "12 merged PRs carry `**Retro:** ran`", "2 carry a Meta section"]
+    }
+  ],
+  "recoveryPath": [
+    {
+      "id": "recovery-labelled-issue",
+      "name": "Recovery-labelled or recovery-titled closed issue",
+      "recordSource": "aggregate-queries.json — recovery-record-sources"
+    },
+    {
+      "id": "pr-recorded-stop-and-rerun",
+      "name": "Pull request recording a STOP and a re-run",
+      "recordSource": "aggregate-queries.json — merged-pr-retro-marker rows with a findings heading"
+    },
+    {
+      "id": "retro-finding",
+      "name": "Retro finding in a merged pull-request body",
+      "recordSource": "aggregate-queries.json — merged-pr-retro-marker, metaSection = true (2 of 135)"
+    },
+    {
+      "id": "documented-recovery-path",
+      "name": "Recovery path documented in a shipped skill or in CLAUDE.md",
+      "recordSource": "git-worktree-recover, resolving-merge-conflicts, kit-release §red run, kit-update; CLAUDE.md §Prod"
+    },
+    {
+      "id": "unknown-recovery",
+      "name": "unknown-recovery",
+      "recordSource": "None. Exhaustiveness of the recovery set cannot be proven, so a recovery journey with no record in the sources above is classified here rather than omitted or invented. The sources searched are exactly the four above; nothing else was consulted.",
+      "isResidualCategory": true
+    }
+  ]
+}

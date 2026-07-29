@@ -1,0 +1,72 @@
+{
+  "schema": "welle-31/substrate/census/v1",
+  "sourceCommit": "c9f6a4aa8bd80bbc4519fa9925315a6d4f0292f2",
+  "journeyTotal": 70,
+  "seedJourneyTotal": 10,
+  "seedTotal": 8,
+  "seedsCovered": 8,
+  "uncoveredSeeds": [],
+  "consumerAsActorTotal": 17,
+  "recoveryJourneyTotal": 9,
+  "unknownRecoveryTotal": 34,
+  "actorAxis": {
+    "maintainer": 29,
+    "agent": 18,
+    "platform": 6,
+    "consumer": 17
+  },
+  "entryPointAxis": {
+    "canonical-pipeline": 40,
+    "goal-level-delegation": 24,
+    "question-turned-work": 26,
+    "ask-matt-routing": 8,
+    "direct-skill-invocation": 54,
+    "external-worktree-session": 13,
+    "codex-surface-entry": 39
+  },
+  "evidenceSourceAxis": {
+    "cli-command": 13,
+    "consumer-reconcile-command": 6,
+    "package-lifecycle-script": 12,
+    "github-workflow": 9,
+    "hook-event": 8,
+    "board-status-label-event": 14,
+    "issue-pr-event": 18,
+    "shipped-skill-description": 48,
+    "agents-surface": 1,
+    "recovery-record": 9
+  },
+  "recoveryAxis": {
+    "recovery-labelled-issue": 11,
+    "pr-recorded-stop-and-rerun": 0,
+    "retro-finding": 8,
+    "documented-recovery-path": 28,
+    "unknown-recovery": 34
+  },
+  "stationTotal": 237,
+  "stationsPerJourney": {
+    "min": 3,
+    "max": 6
+  },
+  "citedPromises": 237,
+  "uncitedStations": 0,
+  "bindingHardnessAxis": {
+    "documented": 95,
+    "mechanical": 118,
+    "judgment": 11,
+    "platform-enforced": 13
+  },
+  "phaseAxis": {
+    "intake": 28,
+    "plan": 42,
+    "verify": 48,
+    "land": 22,
+    "build": 38,
+    "publish": 8,
+    "close": 19,
+    "recover": 32
+  },
+  "citationsChecked": 417,
+  "citationsResolved": 413,
+  "problems": []
+}
