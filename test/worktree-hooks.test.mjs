@@ -21,7 +21,6 @@ const GENERIC_PROFILE = {
     mainBranches: ['main'],
     protectedBranches: ['main'],
     setupEntry: 'python3 scripts/worktree-lifecycle/setup.py',
-    setupSteps: [],
   },
 };
 

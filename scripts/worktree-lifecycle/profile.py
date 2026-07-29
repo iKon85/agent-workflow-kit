@@ -1,11 +1,19 @@
 """Worktree Lifecycle profile loading and low-level git operations.
 
 The profile carries **structural facts only** — worktree root, naming
-templates, the protected branches, the setup sequence. Deletion policy has
-exactly one configuration surface, the ignore mechanism, so no pattern list is
-read here. Keys this loader does not know are ignored in silence: a profile
-written for an older kit keeps working, and an obsolete key produces no warning
-noise.
+templates, the protected branches, the seed a fresh worktree carries. Deletion
+policy has exactly one configuration surface, the ignore mechanism, so no
+pattern list is read here. Keys this loader does not know are ignored in
+silence: a profile written for an older kit keeps working, and an obsolete key
+produces no warning noise.
+
+The seed is **flat by contract**: `paths` names repository-relative
+files the creation helper copies verbatim out of the main checkout, `variables`
+names integer bases the helper renders with the worktree's own slot. There are
+no step kinds, no ordering knobs, and no per-entry flags, because a declaration
+of what a worktree carries transfers between projects while a procedure that
+produces one does not. The kit ships the copying mechanism and never reads,
+patches, or transforms a declared file's contents.
 
 Two branch templates exist because two kinds of work land. `branchTemplate`
 names the branch of an issue-anchored slice; `contentBranchTemplate` names the
@@ -23,15 +31,30 @@ import json
 import re
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 DEFAULT_MAIN_BRANCHES = ("main", "master")
 DEFAULT_CONTENT_BRANCH_TEMPLATE = "{type}/{slug}"
+DEFAULT_WORKTREE_ROOT = ".worktrees"
 
 
 class LifecycleError(RuntimeError):
     """A safe, user-visible lifecycle refusal."""
+
+
+@dataclass(frozen=True)
+class SeedDeclaration:
+    """What a fresh worktree carries — declared, never derived.
+
+    `paths` are repository-relative files copied verbatim from the main
+    checkout; `variables` are ordered `(name, base)` pairs the creation helper
+    renders per worktree. Both are consumer values; the kit owns only the
+    mechanism that moves them.
+    """
+
+    paths: tuple[str, ...] = ()
+    variables: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -42,7 +65,7 @@ class WorktreeProfile:
     path_template: str
     main_branches: tuple[str, ...]
     protected_branches: tuple[str, ...]
-    setup_steps: tuple[dict[str, Any], ...]
+    seed: SeedDeclaration
     branch_regex: str
     setup_entry: str
     risky_command_patterns: tuple[str, ...]
@@ -82,6 +105,65 @@ def render_content_branch(template: str, slug: str, branch_type: str) -> str:
     return _render(template, slug=slug, type=branch_type)
 
 
+def worktree_root_of(document: Any) -> str:
+    """The declared worktree root of a raw profile document.
+
+    Read separately from `load_profile` because the root is a location fact,
+    not a capability: the ignore offer needs it even for a profile that never
+    enabled the lifecycle, and this keeps the default in exactly one place.
+    """
+    try:
+        root = document["worktreeLifecycle"]["worktreeRoot"]
+    except (KeyError, TypeError):
+        return DEFAULT_WORKTREE_ROOT
+    if not isinstance(root, str) or not root.strip():
+        return DEFAULT_WORKTREE_ROOT
+    return root.strip()
+
+
+def _seed_path(declared: Any) -> str:
+    """One declared seed path: repository-relative, or refused by name."""
+    if not isinstance(declared, str) or not declared.strip():
+        raise LifecycleError(f"seed path must be a non-empty string: {declared!r}")
+    path = PurePosixPath(declared.strip())
+    if path.is_absolute() or ".." in path.parts:
+        raise LifecycleError(
+            f"seed path must stay inside the repository: {declared}",
+        )
+    return declared.strip()
+
+
+def _seed_variable(name: Any, value: Any) -> tuple[str, int]:
+    """One declared variable: a named positive integer base, or refused."""
+    if not isinstance(name, str) or not name.strip():
+        raise LifecycleError(f"seed variable needs a name: {name!r}")
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise LifecycleError(
+            f"seed variable {name} must be a positive integer base, not {value!r} — "
+            "the helper renders it with this worktree's own slot",
+        )
+    return name.strip(), value
+
+
+def seed_of(raw: Any) -> SeedDeclaration:
+    """The flat seed declaration of a raw `worktreeLifecycle` section."""
+    declared = raw.get("seed") if isinstance(raw, dict) else None
+    if declared is None:
+        return SeedDeclaration()
+    if not isinstance(declared, dict):
+        raise LifecycleError("seed must be an object with paths and variables")
+    paths = declared.get("paths") or ()
+    variables = declared.get("variables") or {}
+    if isinstance(paths, (str, bytes)) or not isinstance(paths, (list, tuple)):
+        raise LifecycleError("seed paths must be a list of repository-relative paths")
+    if not isinstance(variables, dict):
+        raise LifecycleError("seed variables must be an object of name/base pairs")
+    return SeedDeclaration(
+        paths=tuple(_seed_path(entry) for entry in paths),
+        variables=tuple(_seed_variable(name, value) for name, value in variables.items()),
+    )
+
+
 def _load_profile_document(document: Any) -> WorktreeProfile:
     try:
         raw = document["worktreeLifecycle"]
@@ -91,7 +173,7 @@ def _load_profile_document(document: Any) -> WorktreeProfile:
         raise LifecycleError("worktree lifecycle is not enabled")
     main = tuple(raw.get("mainBranches") or DEFAULT_MAIN_BRANCHES)
     return WorktreeProfile(
-        root=raw.get("worktreeRoot", ".worktrees"),
+        root=worktree_root_of({"worktreeLifecycle": raw}),
         branch_template=raw.get("branchTemplate", "{type}/{issue}-{slug}"),
         content_branch_template=raw.get(
             "contentBranchTemplate", DEFAULT_CONTENT_BRANCH_TEMPLATE,
@@ -99,7 +181,7 @@ def _load_profile_document(document: Any) -> WorktreeProfile:
         path_template=raw.get("pathTemplate", "{type}-{issue}-{slug}"),
         main_branches=main,
         protected_branches=tuple(raw.get("protectedBranches") or main),
-        setup_steps=tuple(raw.get("setupSteps") or ()),
+        seed=seed_of(raw),
         branch_regex=raw.get(
             "branchRegex",
             r"^(?:feat|fix|chore|docs)/(?P<issue>\d+)-",

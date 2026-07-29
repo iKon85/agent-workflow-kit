@@ -66,7 +66,6 @@ def make_repo(root: Path) -> tuple[Path, Path]:
             "worktreeRoot": ".worktrees",
             "mainBranches": [INTEGRATION_BRANCH],
             "protectedBranches": [INTEGRATION_BRANCH],
-            "setupSteps": [],
         },
     }), encoding="utf-8")
     command(["git", "add", "."], main)

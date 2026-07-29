@@ -33,7 +33,6 @@ async function fixture() {
       branchRegex: '^(?:feat|fix)/(?P<issue>\\d+)-',
       mainBranches: ['main'],
       protectedBranches: ['main'],
-      setupSteps: [],
     },
   }));
   await git(root, 'add', '.');

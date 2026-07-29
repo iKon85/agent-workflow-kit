@@ -9,7 +9,7 @@
     "mainBranches": ["main"],
     "protectedBranches": ["main"],
     "setupEntry": "python3 scripts/worktree-lifecycle/setup.py",
-    "setupSteps": [],
+    "seed": { "paths": [], "variables": {} },
     "riskyCommandPatterns": [
       "\\b(?:npm|pnpm|yarn)\\s+(?:run\\s+)?(?:test|typecheck|build)\\b",
       "\\bgit\\s+(?:commit|push)\\b"
