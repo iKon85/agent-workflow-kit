@@ -156,6 +156,8 @@ export async function runCli({
       'init'
     );
     printRoutingProfile(r.routingProfile, consumerRoot);
+    const initReadiness = renderReadinessSummary(r.readiness);
+    if (initReadiness.length) p.note(initReadiness.join('\n'), 'readiness');
     p.outro('Next: run /setup-workflow to fill the project layer + board profile. ' +
       'To enable the drift-guard hook, add .claude/hooks/drift-guard.py to your settings.json hooks.');
   } else if (cmd === 'diff') {
@@ -184,6 +186,8 @@ export async function runCli({
     }
     printPlan(r);
     printRoutingProfile(r.routingProfile, consumerRoot);
+    const updateReadiness = renderReadinessSummary(r.readiness);
+    if (updateReadiness.length) p.note(updateReadiness.join('\n'), 'readiness');
     for (const c of r.conflicts) p.note(c.diff || '(binary/!text)', `conflict (not applied): ${c.path}`);
     if (r.state === 'failed') throw new Error(renderUpdateFailure(r));
     if (r.state === 'conflicted') {
@@ -324,6 +328,7 @@ function updateDocument(r) {
     state: r.state,
     status: r.status ?? null,
     report: r.report,
+    ...(r.readiness ? { readiness: r.readiness } : {}),
     ...(r.error ? { error: renderUpdateFailure(r) } : {}),
   };
 }
@@ -392,6 +397,18 @@ export function renderReadinessAvailability(availability) {
     if (remedy) lines.push(`    next step: ${remedy}`);
   }
   return lines;
+}
+
+/**
+ * The shared readiness evaluator summary — one `skill: verdict` line per
+ * declared skill — as `init` and `update` both print it read-only at the end
+ * of a run. Never a gate: it does not change either command's exit code.
+ */
+export function renderReadinessSummary(readiness) {
+  const entries = Object.entries(readiness ?? {});
+  if (!entries.length) return [];
+  return ['skill readiness:', ...entries.sort(([a], [b]) => a.localeCompare(b))
+    .map(([skill, verdict]) => `  ${skill}: ${verdict}`)];
 }
 
 /** A model-and-effort pair as a route reads out loud. */

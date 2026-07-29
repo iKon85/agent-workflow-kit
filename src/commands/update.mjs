@@ -1,6 +1,7 @@
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { assertConsumerReleaseParity } from '../../scripts/release-parity.mjs';
+import { summarizeReadiness } from '../../scripts/readiness.mjs';
 import {
   activateCandidate, adoptReadinessCandidate, materializeUpdateCandidate, readReadinessManifest,
 } from '../lib/updateCandidate.mjs';
@@ -9,7 +10,8 @@ import {
 } from '../lib/verifyUpdateCandidate.mjs';
 import { reconcile } from '../lib/updateReconcile.mjs';
 import {
-  CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, PROJECT_SKILL_REGISTRY_PATH, readManifest,
+  CONSUMER_MANIFEST_NAME, PACKAGE_MANIFEST_NAME, PROJECT_SKILL_REGISTRY_PATH,
+  READINESS_MANIFEST_PATH, readManifest,
 } from '../lib/manifest.mjs';
 import {
   inspectRoutingProfile, reconcileRoutingProfile,
@@ -35,18 +37,32 @@ export async function update(options) {
     ? await inspectRoutingProfile({ consumerRoot: options.consumerRoot, ...options.routingProfile })
     : null;
   const result = await updatePackage(options);
-  if (!preflight || options.dryRun || result.state !== 'applied') return result;
+  const withReadiness = await reportReadiness(options.consumerRoot, result);
+  if (!preflight || options.dryRun || withReadiness.state !== 'applied') return withReadiness;
   const inspection = await inspectRoutingProfile({
     consumerRoot: options.consumerRoot,
     ...options.routingProfile,
   });
   return {
-    ...result,
+    ...withReadiness,
     routingProfile: await reconcileRoutingProfile(
       { consumerRoot: options.consumerRoot, ...options.routingProfile },
       inspection,
     ),
   };
+}
+
+/**
+ * The same evaluator `init`/`wrapup` use, rendered read-only at the end of an
+ * `update` run — a report, never a gate. Left off `result` (rather than
+ * blocking the run) whenever the consumer is not yet initialised or the
+ * candidate never activated, so a `failed`/`conflicted` terminal state stays
+ * exactly as informative as before this addition.
+ */
+async function reportReadiness(consumerRoot, result) {
+  if (result.state !== 'applied') return result;
+  if (!await readManifest(join(consumerRoot, READINESS_MANIFEST_PATH))) return result;
+  return { ...result, readiness: await summarizeReadiness({ root: consumerRoot }) };
 }
 
 async function updatePackage(options) {

@@ -43,6 +43,8 @@ const SCRUB_EXEMPT = new Map([
     + '`gh` calls; its `../scripts/` imports are code, not doc cross-references'],
   ['src/commands/update.mjs', 'relative `../../scripts/` ESM import: scrub rule (c) '
     + 'rewrites doc cross-references and would leave an unresolvable bare specifier'],
+  ['src/commands/init.mjs', 'relative `../../scripts/` ESM import: same as '
+    + '`src/commands/update.mjs`'],
   ['src/lib/updateCandidate.mjs', 'relative `../../scripts/` ESM import: same as '
     + '`src/commands/update.mjs`'],
 ]);
