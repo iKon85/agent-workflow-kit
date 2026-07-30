@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/board-sync.py frontier *)",
+      "Bash(python3 scripts/board-sync.py item-of *)",
+      "Bash(python3 scripts/board-sync.py parent-of *)",
+      "Bash(npm test)",
+      "Bash(npm run kit:staleness)",
+      "Bash(node scripts/project-skill-extension.mjs *)",
+      "Bash(node scripts/readiness.mjs *)",
+      "Bash(node scripts/kit-release.mjs --base *)",
+      "Bash(npm run release:status)",
+      "Bash(gh pr merge:*)",
+      "Bash(git push:*)",
+      "Bash(git tag:*)"
+    ]
+  }
+}
