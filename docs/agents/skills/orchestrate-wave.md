@@ -149,8 +149,11 @@ never a bare `gh issue create`.
 ### Release lockstep
 
 There is no deploy and no migration, but there **is** a publication gate, and a
-wave that touches the shipped consumer set (anything in the kit manifest —
-including `docs/adr/*` and `docs/research/*`) drags it along.
+wave that touches the shipped consumer set — meaning a path the kit manifest
+lists — drags it along. The manifest is the whole test: `docs/adr/*`,
+`docs/research/*` and `docs/analysis/*` are **not** in it (0 of the manifest's
+entries; re-derive from `agent-workflow-kit.package.json`), so a wave that only
+lands those takes the content route and needs no bump, no tag and no publish.
 
 1. `npm run release:prepare -- --base origin/main` reports the delta and a
    `recommendedBump` without writing anything.

@@ -101,31 +101,58 @@ async function projectExtensionVerdict(root, evidence) {
   }
 }
 
-function section(text, heading) {
-  if (text === null) return null;
+const H2_LINE = /^##\s+/;
+// Whole-word match on the normalized H2 token: "Prod" as its own word, with
+// any trailing qualifier (`## Prod und Deployment`, `## Prod:`) accepted as a
+// separate word via the trailing `\b`. `## Production` fails this — "Prod" is
+// not a whole word there — and is instead reported as a distinguishable
+// heading-mismatch rather than collapsed into a genuinely absent section.
+const PROD_HEADING = /^##\s+Prod\b/;
+const PROD_SUBSTRING = /Prod/;
+
+/**
+ * Locate the `## Prod` H2 in `text`. Returns the 0-based line index of a
+ * whole-word match, the 0-based line index of the closest near-miss heading
+ * (an H2 that mentions "Prod" but not as a whole word) when no whole-word
+ * match exists, or `null` when the file has neither.
+ */
+function findProdHeadingLine(lines) {
+  let mismatch = null;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!H2_LINE.test(line)) continue;
+    if (PROD_HEADING.test(line)) return { index, matched: true };
+    if (mismatch === null && PROD_SUBSTRING.test(line)) mismatch = index;
+  }
+  return mismatch === null ? null : { index: mismatch, matched: false };
+}
+
+function section(text) {
+  if (text === null) return { body: null, problem: 'missing-file' };
   const lines = text.split('\n');
-  const start = lines.findIndex((line) => line.trim() === heading);
-  if (start < 0) return null;
+  const found = findProdHeadingLine(lines);
+  if (found === null) return { body: null, problem: 'missing-section' };
+  if (!found.matched) return { body: null, problem: 'heading-mismatch', line: found.index + 1 };
   const body = [];
-  for (const line of lines.slice(start + 1)) {
-    if (/^##\s+/.test(line)) break;
+  for (const line of lines.slice(found.index + 1)) {
+    if (H2_LINE.test(line)) break;
     body.push(line);
   }
-  return body.join('\n').trim();
+  return { body: body.join('\n').trim(), problem: null };
 }
 
 export async function inspectProdSections(root, paths) {
   const sections = [];
   for (const path of paths) {
     const text = await readText(root, path);
-    const body = section(text, '## Prod');
-    const problem = text === null ? 'missing-file'
-      : (body === null ? 'missing-section' : (body ? null : 'empty-section'));
+    const found = section(text);
+    const problem = found.problem ?? (found.body ? null : 'empty-section');
     sections.push({
       path,
-      state: body === null ? 'missing' : (body ? 'valid' : 'invalid'),
-      body,
+      state: problem && problem !== 'empty-section' ? 'missing' : (found.body ? 'valid' : 'invalid'),
+      body: found.body,
       problem,
+      ...(found.line ? { line: found.line } : {}),
     });
   }
   return sections;
@@ -139,14 +166,14 @@ async function prodEvidence(root, paths) {
   if (!valid.length && !empty.length) {
     return {
       verdict: 'absent',
-      diagnostics: sections.map(({ path, problem }) => ({ path, problem })),
+      diagnostics: sections.map(({ path, problem, line }) => ({ path, problem, ...(line ? { line } : {}) })),
     };
   }
   const malformed = present.filter(({ state }) => state !== 'valid');
   if (malformed.length) {
     return {
       verdict: 'invalid',
-      diagnostics: malformed.map(({ path, problem }) => ({ path, problem })),
+      diagnostics: malformed.map(({ path, problem, line }) => ({ path, problem, ...(line ? { line } : {}) })),
     };
   }
   const bodies = [...new Set(present.map(({ body }) => body))];
@@ -236,6 +263,22 @@ export async function checkSkill({ root, skill, manifest }) {
     ? 'blocked'
     : (inactiveBlocks.length || invalid ? 'degraded' : 'ready');
   return { contractVersion: manifest.readiness.contractVersion, verdict, capabilities, activeBlocks, inactiveBlocks };
+}
+
+/**
+ * The same evaluator `checkSkill` runs, over every skill declaring readiness —
+ * a read-only `{ skill: verdict }` map. `init` (post-install) and `update`
+ * (post-apply) render this to report current readiness; it never gates either
+ * command's exit code.
+ */
+export async function summarizeReadiness({ root, manifest }) {
+  manifest ??= await loadManifest(root);
+  const summary = {};
+  for (const [skill, declaration] of Object.entries(manifest.skills ?? {})) {
+    if (!declaration.readiness) continue;
+    summary[skill] = (await checkSkill({ root, skill, manifest })).verdict;
+  }
+  return summary;
 }
 
 async function changeDecision(root, capability, value) {

@@ -4,7 +4,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import { evaluateCapability, checkSkill } from '../scripts/readiness.mjs';
+import { evaluateCapability, checkSkill, inspectProdSections } from '../scripts/readiness.mjs';
 import { renderReadinessAvailability } from '../src/cli.mjs';
 import { makeEmptyDir, cleanup } from './helpers.mjs';
 
@@ -410,6 +410,37 @@ test('CLI owns narrow decisions and the late-Prod degraded to ready tracer', asy
     const consumer = JSON.parse(await readFile(join(root, 'agent-workflow-kit.json'), 'utf8'));
     assert.deepEqual(consumer.readinessDecisions, {});
     await assert.rejects(run('decision', 'set', 'prodTarget', 'not-applicable'), /does not allow/);
+  } finally {
+    await cleanup(root);
+  }
+});
+
+test('the ## Prod heading match is whole-word, not exact-string', async () => {
+  const root = await makeEmptyDir();
+  try {
+    // Consumer wording with a trailing qualifier as a separate word — recognized.
+    await write(root, 'wording.md', '# Consumer\n\n## Prod und Deployment\n\nFly.io.\n');
+    let [wording] = await inspectProdSections(root, ['wording.md']);
+    assert.equal(wording.state, 'valid');
+    assert.equal(wording.problem, null);
+
+    // A different word that merely starts with "Prod" — never matched, and
+    // distinguishable from a genuinely absent section: it carries a line
+    // number and echoes no consumer content.
+    await write(root, 'production.md', '# Consumer\n\n## Production\n\nFly.io.\n');
+    let [production] = await inspectProdSections(root, ['production.md']);
+    assert.equal(production.state, 'missing');
+    assert.equal(production.problem, 'heading-mismatch');
+    assert.equal(production.line, 3);
+    assert.equal(production.body, null);
+    assert.doesNotMatch(JSON.stringify(production), /Fly\.io/);
+
+    // Genuinely absent — still reports missing-section, no line number.
+    await write(root, 'absent.md', '# Consumer\n\n## Deployment\n\nFly.io.\n');
+    let [absent] = await inspectProdSections(root, ['absent.md']);
+    assert.equal(absent.state, 'missing');
+    assert.equal(absent.problem, 'missing-section');
+    assert.equal(absent.line, undefined);
   } finally {
     await cleanup(root);
   }
