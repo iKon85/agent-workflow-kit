@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { nextVersion, prepareRelease } from './kit-release.mjs';
+import { nextVersion, prepareRelease, runReleaseCommand } from './kit-release.mjs';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 const exec = promisify(execFile);
@@ -307,6 +307,24 @@ test('a failed gate leaves an explainable target that retries without another bu
     assert.equal(retried.status, 'resumed');
     assert.equal(JSON.parse(await readFile(join(root, 'package.json'))).version, '1.2.4');
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('release gate failure preserves stderr and stdout diagnostics', async () => {
+  const executor = async () => {
+    const error = new Error('Command failed: npm test');
+    error.stderr = 'npm ERR! lifecycle command failed\n';
+    error.stdout = 'not ok 42 - concrete regression test\n';
+    throw error;
+  };
+
+  await assert.rejects(
+    runReleaseCommand('npm', ['test'], REPO, executor),
+    (error) => {
+      assert.match(error.message, /npm ERR! lifecycle command failed/);
+      assert.match(error.message, /not ok 42 - concrete regression test/);
+      return true;
+    },
+  );
 });
 
 test('release preparation consumes the pinned inventory and makes no network call', async () => {

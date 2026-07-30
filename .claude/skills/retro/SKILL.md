@@ -73,9 +73,12 @@ The executing agent scans the session itself for friction. Mandatory checklist:
 
 Mark own findings explicitly as **"<Agent>-Finding: …"** in the output, on equal footing with user findings. Examples: **"Codex-Finding: …"** on Codex, **"Claude-Finding: …"** on Claude.
 
-### 2c. Memory sweep probe (mandatory if threshold breached — only if a memory directory exists)
+### 2c. Memory sweep probe (mandatory when this surface has a memory store)
 
-First check existence — consumers without Claude auto-memory (e.g. a pure Codex install) have no memory directory. Derive the path portably (project slug = absolute main-tree path with `/`→`-`; worktree-safe via the git common dir, fallback `pwd`):
+<!-- mirror-xform:start memory-store-probe -->
+Claude auto-memory is project-scoped. Derive its path portably (project slug =
+absolute main-tree path with `/`→`-`; worktree-safe via the git common dir,
+fallback `pwd`):
 
 ```bash
 PROJ_ROOT=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null | xargs -r dirname)
@@ -83,14 +86,20 @@ MEMDIR="$HOME/.claude/projects/$(printf '%s' "${PROJ_ROOT:-$(pwd)}" | tr '/' '-'
 test -d "$MEMDIR" && echo present || echo absent
 ```
 
-Directory missing → one sentence in the output: "Memory sweep probe: no memory directory (no Claude auto-memory) — skipped." No patch proposal, step counts as satisfied. Otherwise continue:
+Directory missing → one sentence in the output: "Memory sweep probe: no Claude
+auto-memory directory — skipped." No patch proposal, step counts as satisfied.
+Otherwise continue.
 
 Count empirically — active memory set + index size:
 
 ```bash
-ls -1 "$MEMDIR/"*.md | grep -v '/MEMORY\.md$' | wc -l
-wc -l "$MEMDIR/MEMORY.md"
+find "$MEMDIR" -maxdepth 1 -type f -name '*.md' ! -name 'MEMORY.md' | wc -l
+test -f "$MEMDIR/MEMORY.md" && wc -l < "$MEMDIR/MEMORY.md" || echo missing
 ```
+
+If the directory exists but `MEMORY.md` is missing, report "Memory sweep probe:
+Claude memory directory present, index missing — threshold check skipped." Do
+not emit a shell error and do not infer corruption or a pruning need.
 
 Threshold trigger (either is enough):
 - Active memory set ≥ 65 files (sweep trigger above the CLAUDE.md target "active set <35" — fires only on real bloat, not a healthy-but-full set; tuned across retros)
@@ -111,6 +120,7 @@ If 0 triggers:
 **Why here (mandatory step, not just memory):** memory is passive (only fires if the agent thinks of it); `/retro` runs routinely after PR activity and is the natural enforcement vehicle. The entry must happen BEFORE the symmetric analysis so it can flow into the process as a patch proposal if needed.
 
 **Threshold tuning:** sweep trigger = ≥65 files / >120 lines MEMORY.md (target stays "active set <35", trigger sits with headroom above it so healthy-full sets don't fire on every retro); threshold tuned upward across retros — raise further on the next empty-handed hit.
+<!-- mirror-xform:end -->
 
 ### 3. Symmetric analysis (agent, on its own)
 
@@ -199,7 +209,9 @@ Possible mutation targets (internal for Claude, do NOT list in user-facing outpu
 
 | Mutation type | Where |
 |---|---|
+<!-- mirror-xform:start memory-mutation-target -->
 | New/changed memory note | `~/.claude/projects/<project>/memory/<slug>.md` (plus update the `MEMORY.md` index) |
+<!-- mirror-xform:end -->
 | CLAUDE.md rule adjustment | `CLAUDE.md` (Hard Rules section) |
 | Skill improvement (generic/portable) | `.claude/skills/<skill>/SKILL.md` |
 | Project-specific skill lore (`generic`/`vendored` skill) | `docs/agents/skills/<skill>.md` (project layer) |

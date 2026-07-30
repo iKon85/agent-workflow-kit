@@ -139,7 +139,7 @@ def run(cmd: list[str], cwd: str | None = None, check: bool = False,
     p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env)
     if check and p.returncode != 0:
         raise Stop(cmd[0], f"command failed: {' '.join(cmd)}",
-                   (p.stderr or p.stdout).strip()[-2000:])
+                   failed_process_detail(p))
     return p
 
 
@@ -183,9 +183,25 @@ def red_checks(checks: list[dict]) -> list[dict]:
     ]
 
 
-def sanitize_external_detail(text: str) -> str:
+def _compact_external_detail(text: str) -> str:
     compact = re.sub(r"[\x00-\x1f\x7f]+", " ", text)
-    return re.sub(r"\s+", " ", compact).strip()[:MAX_EXTERNAL_DETAIL]
+    return re.sub(r"\s+", " ", compact).strip()
+
+
+def sanitize_external_detail(text: str) -> str:
+    return _compact_external_detail(text)[:MAX_EXTERNAL_DETAIL]
+
+
+def failed_process_detail(
+    completed: subprocess.CompletedProcess,
+    limit: int = 2000,
+) -> str:
+    """Keep Git's error and its hook's diagnostic even when they use different streams."""
+    combined = "\n".join(
+        stream for stream in (completed.stderr, completed.stdout)
+        if isinstance(stream, str) and stream.strip()
+    )
+    return _compact_external_detail(combined)[-limit:]
 
 
 def _check_text(check: dict) -> str:
@@ -1010,7 +1026,7 @@ def cmd_commit(args) -> dict:
         # (many unrelated TS2307 in a node repo usually = stale worktree node_modules
         # → pnpm install --frozen-lockfile, then re-run; never --no-verify).
         raise Stop("commit", "git commit failed (pre-commit hook?)",
-                   (p.stderr + "\n" + p.stdout).strip()[-3000:])
+                   failed_process_detail(p, limit=3000))
     sha = git(["rev-parse", "HEAD"], check=True).stdout.strip()
     return {
         "committed": True,
@@ -1716,7 +1732,7 @@ def retire_local_branch(
     if p.returncode != 0:
         raise Stop("5 integration-ff",
                    f"no fast-forward possible — a diverged {integration} is an anomaly",
-                   (p.stderr or p.stdout).strip()[-1000:])
+                   failed_process_detail(p, limit=1000))
     if not branch_tip(main_tree, branch):
         report["branch_retired"] = "already absent"
         report["skipped"].append("branch retire: local branch already absent")
@@ -1968,7 +1984,7 @@ def cmd_land(args) -> dict:
             p = git(["push", "-u", "origin", branch], cwd=wt)
             if p.returncode != 0:
                 raise Stop("0b push", "push rejected",
-                           (p.stderr or p.stdout).strip()[-2000:])
+                           failed_process_detail(p))
 
     # Step 0c — ensure PR + final body
     pr_body = ""
@@ -2030,7 +2046,7 @@ def cmd_land(args) -> dict:
     else:
         p = run(["gh", "pr", "merge", pr, "--merge", "--delete-branch"], cwd=main_tree)
         if p.returncode != 0:
-            merge_err = (p.stderr or p.stdout).strip()[-2000:]
+            merge_err = failed_process_detail(p)
     state = json.loads(run(["gh", "pr", "view", pr, "--json", "state"],
                            check=True).stdout)["state"]
     if state != "MERGED":
@@ -2063,7 +2079,7 @@ def cmd_land(args) -> dict:
         if p.returncode != 0:
             raise Stop("4 worktree-remove", "git worktree remove refused — no --force; "
                        "check for surviving processes (lsof/pgrep)",
-                       (p.stderr or p.stdout).strip()[-1000:])
+                       failed_process_detail(p, limit=1000))
         git(["worktree", "prune"], cwd=main_tree)
         report["worktree_removed"] = wt
 

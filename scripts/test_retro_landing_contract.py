@@ -28,6 +28,31 @@ def contract_text(surface: str, name: str) -> str:
 
 
 class RetroEnforcementContract(unittest.TestCase):
+    def test_memory_probe_is_surface_specific_and_codex_state_stays_generated(self):
+        claude = skill(".claude", "retro")
+        codex = skill(".agents", "retro")
+        codex_contract = contract_text(".agents", "retro")
+
+        for text in (claude, codex):
+            self.assertIn("<!-- mirror-xform:start memory-store-probe -->", text)
+            self.assertIn("<!-- mirror-xform:end -->", text)
+            self.assertIn("test -f \"$MEMDIR/MEMORY.md\"", text)
+
+        self.assertIn('$HOME/.claude/projects/', claude)
+        self.assertIn("move deleted memory files to `archive/`", claude)
+
+        self.assertIn('${CODEX_HOME:-$HOME/.codex}/memories', codex)
+        self.assertIn("generated state", codex)
+        self.assertIn("Do not propose manual deletion or archival", codex_contract)
+        self.assertIn("Generated Codex memory state", codex)
+        self.assertIn("no direct file mutation", codex)
+        self.assertNotIn("pure Codex install) have no memory directory", codex)
+        self.assertNotIn("move deleted memory files to `archive/`", codex)
+        self.assertNotIn(
+            "New/changed memory note | `~/.claude/projects/<project>/memory/",
+            codex,
+        )
+
     def test_mechanical_check_precedes_target_and_weight_ladder(self):
         for surface in SURFACES:
             with self.subTest(surface=surface):
