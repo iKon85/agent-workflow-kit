@@ -20,14 +20,21 @@ they do not carry a second branch regex, worktree traversal, or failure policy.
 - `mainBranches` and `protectedBranches`: branches guarded in the main checkout.
 - `setupEntry`: the portable setup command a session is routed to.
 - `seed`: what a fresh worktree carries — see §Seed below.
-- `riskyCommandPatterns`: commands that must target the active linked worktree.
 
-The profile carries **structural facts only**. It declares no pattern list,
-because deletion policy is configured by declaration: the ignore mechanism
-decides what is scratch, and `seed.paths` decides only whether a `.env*` the
-consumer itself named still needs teardown's comparison against the main
-checkout. Making a file deletable at teardown means ignoring it (and, for a
-`.env*`, declaring it in the seed).
+The profile carries **structural facts only**. It declares no pattern list.
+Deletion policy is configured by declaration: the ignore mechanism decides what
+is scratch, and `seed.paths` decides only whether a `.env*` the consumer itself
+named still needs teardown's comparison against the main checkout. Making a file
+deletable at teardown means ignoring it (and, for a `.env*`, declaring it in the
+seed).
+
+Authorization declares no pattern either. A decision is made from an
+**observable target**: a structured Edit/Write payload names the file it writes,
+so that write can be judged against the protected main checkout. A shell command
+string only describes intent, so no command is authorized or refused from it —
+the floor for a shell mistake is git state, the protected branch, and the PR
+flow. A profile still carrying the retired `riskyCommandPatterns` key loads
+unchanged; the key is inert.
 Keys this loader does not know are ignored in silence, so a profile written for
 an older kit keeps working without warning noise.
 
@@ -97,7 +104,7 @@ no half-built checkout survives the command.
 | `branch-context.py` | SessionStart | emits branch, issue, status, and active-worktree facts |
 | `branch-watch.py` | PostToolUse | emits the same facts after a branch-changing command |
 | `enforce-worktree.py` | PreToolUse | blocks tracked main-checkout edits and cross-worktree leaks |
-| `enforce-worktree-cwd.py` | PreToolUse | blocks verification or Git mutation in the wrong checkout |
+| `enforce-worktree-cwd.py` | PreToolUse | blocks a write whose target lands in the protected main checkout while linked worktrees are active |
 | `enforce-worktree-discipline.py` | PreToolUse | routes issue-branch creation through the configured setup entry |
 | `slice-handoff-hint.py` | UserPromptSubmit | names the configured setup entry for a defined slice |
 

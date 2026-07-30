@@ -757,7 +757,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "278751a35802302cb036e21897b63d8bdaec1ed635f2e9dc2c441428499746b3",
+      "sha256": "d8a6f32243930464b882446e429ce61101edba5ed893ffea04c8f3c5d2f3d854",
       "mode": 420,
       "origin": "kit"
     },
@@ -1095,7 +1095,7 @@
       "path": ".claude/hooks/enforce-worktree-cwd.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "14086536ceb3368a03b84ff550ba5e3db83d6c5198c41c80312507bf6640bb9f",
+      "sha256": "33e64870ca8588beadfb93791dabf784eff8040fa6c7f3a962884d9765b7c819",
       "mode": 493,
       "origin": "kit"
     },
@@ -2099,7 +2099,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "278751a35802302cb036e21897b63d8bdaec1ed635f2e9dc2c441428499746b3",
+      "sha256": "d8a6f32243930464b882446e429ce61101edba5ed893ffea04c8f3c5d2f3d854",
       "mode": 420,
       "origin": "kit"
     },
@@ -2819,7 +2819,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "3c8afb9159c1b44198fd73b83534ca8ecee66fe7d882db84958e3eceff404b1d",
+      "sha256": "7e32facc1c36be31b82ac0e13caf75340722dba23a0d8dcc35914b31503e1937",
       "mode": 420,
       "origin": "kit"
     },
@@ -2843,7 +2843,7 @@
       "path": "scripts/worktree-lifecycle/profile.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "532c40a09fb1afb8fb0bb1a591d8d845e5a73dbb94d0c988003a71bbca039980",
+      "sha256": "c8d1957d73082de2d96aa7ee3c1cf12c67c8d81f2053e501deb70d045aa79f5b",
       "mode": 420,
       "origin": "kit"
     },
@@ -2851,7 +2851,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "601fa7eda19c731d25031294db15b79806f948ce8d14583c34ee37a6587b83fc",
+      "sha256": "faa5826a7801ab3b772118aae33463a2e949857b5531cd020712cfa6925baaab",
       "mode": 420,
       "origin": "kit"
     },
