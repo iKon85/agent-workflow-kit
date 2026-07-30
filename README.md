@@ -585,6 +585,26 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.46.4
+
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/hooks/enforce-worktree-cwd.py`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/classify.py`
+- changed: `scripts/worktree-lifecycle/cleanup.py`
+- changed: `scripts/worktree-lifecycle/core.py`
+- changed: `scripts/worktree-lifecycle/ignore_seed.py`
+- changed: `scripts/worktree-lifecycle/profile.py`
+- changed: `scripts/worktree-lifecycle/setup.py`
+- changed: `scripts/wrapup-land.py`
+
 ### 0.46.3
 
 - changed: `.agents/skills/kit-update/SKILL.md`
