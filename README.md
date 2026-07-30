@@ -61,7 +61,7 @@ The skills aren't a grab-bag — they're four phases of one loop, entered throug
 single funnel no matter where your work starts. Each phase below names the failure
 mode it removes and the skills that remove it.
 
-![The workflow as a subway map — one row per route, all converging on the same implement → wrapup → retro spine: a scale-check router sizes unclear work; the main line runs idea through an optional grill, to-prd, to-issues and a gate into implement (which drives tdd inside), wrapup, retro; a grill line scales from none over grill-me and grill-with-docs up to the +codex variants; a codex line adds cross-model review and build; program and board lines fund numbered waves built by orchestrate-wave; repair (diagnose) and structure (improve-codebase-architecture) lines enter from broken or tangled work; a learn line routes retro's findings into config by weight. Interchanges: verify-spike / decision-gate before an unknown, prototype for an unclear path, local-ci plus pre-commit/pre-push hooks before landing, ask-matt when lost, and a one-time setup lane.](docs/workflow.png)
+![The workflow as a subway map — one row per route, all converging on the same implement → make-landable → land spine: a scale-check router sizes unclear work; the main line runs idea through an optional grill, to-prd, to-issues and a gate into implement (which drives tdd inside), make-landable, land; a grill line scales from none over grill-me and grill-with-docs up to the +codex variants; a codex line adds cross-model review and build; program and board lines fund numbered waves built and landed by orchestrate-wave; repair (diagnose) and structure (improve-codebase-architecture) lines enter from broken or tangled work; a learn line routes the voluntary retro's findings into config by weight. Interchanges: verify-spike / decision-gate before an unknown, prototype for an unclear path, local-ci plus pre-commit/pre-push hooks before landing, ask-matt when lost, and a one-time setup lane.](docs/workflow.png)
 
 <!--
   The image above is a pre-rendered PNG, not live HTML, on purpose: GitHub
@@ -607,6 +607,14 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 1.0.1
+
+- changed: `README.md`
+- changed: `docs/methodology.html`
+- changed: `docs/methodology.svg`
+- changed: `docs/workflow.html`
+- changed: `docs/workflow.png`
 
 ### 1.0.0
 

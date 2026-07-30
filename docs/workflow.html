@@ -118,7 +118,7 @@
 <div class="wrap">
   <div class="eyebrow">agent-workflow-kit · workflow</div>
   <h1>One loop, many doors</h1>
-  <p class="lede">Every piece of work — idea, plan, backlog, bug — boards its own line, and every line converges on the same spine: <em>implement → wrapup → retro</em>. implement drives tdd internally — red → green → refactor at pre-agreed seams, code-review before landing.</p>
+  <p class="lede">Every piece of work — idea, plan, backlog, bug — boards its own line, and every line converges on the same spine: <em>implement → make-landable → land</em>. implement drives tdd internally — red → green → refactor at pre-agreed seams, code-review before landing. retro is voluntary — whenever a session earned one.</p>
 
   <div class="legend">
     <span class="key"><span class="dot" style="--c: var(--door)"></span> Door / input</span>
@@ -151,8 +151,8 @@
         <span class="station st-gate">gate</span><span class="arrow">→</span>
         <span class="station st-exec">implement</span>
         <span class="decision">drives tdd inside</span><span class="arrow">→</span>
-        <span class="station st-land">wrapup</span><span class="arrow">→</span>
-        <span class="station st-learn">retro</span>
+        <span class="station st-land">make-landable</span><span class="arrow">→</span>
+        <span class="station st-land">land</span>
       </div>
     </div>
     <div class="sw-row">
@@ -184,9 +184,8 @@
         <span class="station st-plan">to-issues</span>
         <span class="decision">Program identity · preview gate · zero writes until yes</span><span class="arrow">→</span>
         <span class="station st-exec">orchestrate-wave</span>
-        <span class="decision">per wave, often AFK</span><span class="arrow">→</span>
-        <span class="station st-land">wrapup</span><span class="arrow">→</span>
-        <span class="station st-learn">retro</span>
+        <span class="decision">per wave, often AFK — builds, verifies, lands</span><span class="arrow">→</span>
+        <span class="station st-land">land</span>
       </div>
     </div>
     <div class="sw-row">
@@ -209,7 +208,8 @@
         <span class="station st-door">diagnose</span>
         <span class="decision">reproduce → isolate → fix → prove</span><span class="arrow">→</span>
         <span class="station st-exec">implement</span><span class="arrow">→</span>
-        <span class="station st-land">wrapup</span>
+        <span class="station st-land">make-landable</span><span class="arrow">→</span>
+        <span class="station st-land">land</span>
       </div>
     </div>
     <div class="sw-row">

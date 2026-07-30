@@ -71,14 +71,14 @@
 
     <text x="650" y="465" fill="#8A95A6" text-anchor="middle" font-size="16">→</text>
 
-    <rect x="662" y="432" width="90" height="56" rx="7" fill="#3A3220" stroke="#DBAC4F"/>
-    <text x="707" y="465" fill="#DBAC4F" text-anchor="middle">tdd</text>
+    <rect x="655" y="432" width="104" height="56" rx="7" fill="#3A3220" stroke="#DBAC4F"/>
+    <text x="707" y="465" fill="#DBAC4F" text-anchor="middle" font-size="12.5">implement</text>
 
-    <text x="764" y="465" fill="#8A95A6" text-anchor="middle" font-size="16">→</text>
+    <text x="766" y="465" fill="#8A95A6" text-anchor="middle" font-size="16">→</text>
 
     <rect x="776" y="432" width="150" height="56" rx="7" fill="#2E3548" stroke="#3C4356"/>
-    <text x="851" y="460" fill="#A6B0BF" text-anchor="middle">wrapup</text>
-    <text x="851" y="477" fill="#A6B0BF" text-anchor="middle">→ retro</text>
+    <text x="851" y="460" fill="#A6B0BF" text-anchor="middle" font-size="12.5">make-landable</text>
+    <text x="851" y="477" fill="#A6B0BF" text-anchor="middle" font-size="12.5">→ land</text>
   </g>
 
   <!-- bottom branch: grown bottom-up -->
@@ -89,5 +89,5 @@
   <!-- footer captions -->
   <text x="40" y="628" font-size="12" fill="#8A95A6">Top: a Program plans several waves at once, gated by a chat preview before anything is written.</text>
   <text x="40" y="648" font-size="12" fill="#8A95A6">Bottom: loose board issues cluster into a wave candidate and get a number only when promoted.</text>
-  <text x="40" y="668" font-size="12" fill="#8A95A6">Either way, the same Wave + Slices lands through the identical tdd → wrapup → retro spine.</text>
+  <text x="40" y="668" font-size="12" fill="#8A95A6">Either way, the same Wave + Slices lands through the identical implement → make-landable → land spine.</text>
 </svg>
