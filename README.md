@@ -608,6 +608,10 @@ the old way. Decision record:
 
 ## Release notes
 
+### 1.0.2
+
+- changed: `src/lib/updateReconcile.mjs`
+
 ### 1.0.1
 
 - changed: `README.md`
