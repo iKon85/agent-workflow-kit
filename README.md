@@ -608,6 +608,14 @@ the old way. Decision record:
 
 ## Release notes
 
+### 1.0.1
+
+- changed: `README.md`
+- changed: `docs/methodology.html`
+- changed: `docs/methodology.svg`
+- changed: `docs/workflow.html`
+- changed: `docs/workflow.png`
+
 ### 1.0.0
 
 - removed: `.agents/skills/setup-workflow/workflow-advisories.md`
