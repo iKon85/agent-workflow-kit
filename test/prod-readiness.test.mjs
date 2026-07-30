@@ -81,6 +81,48 @@ test('setup and wrapup publish the bounded Prod readiness contract on both surfa
   }
 });
 
+test('the ## Prod heading tolerates consumer wording but never a different word (testreporter#2283)', async () => {
+  const root = await makeEmptyDir();
+  const before = '# Consumer\n\n## Workflow\n\nKeep workflow exact.\n\n## Agent skills\n\nKeep agent skills exact.\n';
+  try {
+    await write(root, '.claude/skills/skill-manifest.json', await readFile(join(repo, '.claude/skills/skill-manifest.json')));
+    await write(root, 'agent-workflow-kit.json', JSON.stringify({
+      kitVersion: '1.0.0', readinessContractVersion: 1, readinessDecisions: {}, installed: [],
+    }));
+
+    // `## Prod und Deployment` is a consumer wording, not a different section:
+    // recognized as ready, both surfaces.
+    const wording = '## Prod und Deployment\n\nFly.io, deployed via the release workflow.\n';
+    await write(root, 'CLAUDE.md', `${before}\n${wording}`);
+    await write(root, 'AGENTS.md', `${before}\n${wording}`);
+    let result = JSON.parse((await readiness(root, 'check', '--skill', 'wrapup', '--json')).stdout);
+    assert.equal(result.capabilities.prodTarget.state, 'ready');
+    assert.deepEqual(result.activeBlocks, ['deployReport']);
+
+    // `## Production` is never matched — a different word, not a qualifier —
+    // and reports `heading-mismatch` with a line number, not `missing-section`.
+    const production = '## Production\n\nFly.io, deployed via the release workflow.\n';
+    await write(root, 'AGENTS.md', `${before}\n${production}`);
+    result = JSON.parse((await readiness(root, 'check', '--skill', 'wrapup', '--json')).stdout);
+    assert.equal(result.capabilities.prodTarget.state, 'invalid');
+    assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
+      { path: 'AGENTS.md', problem: 'heading-mismatch', line: 11 },
+    ]);
+    assert.doesNotMatch(JSON.stringify(result.capabilities.prodTarget.diagnostics),
+      /Fly\.io|release workflow/);
+
+    // A genuinely absent section still reports `missing-section`, no line.
+    await write(root, 'AGENTS.md', before);
+    result = JSON.parse((await readiness(root, 'check', '--skill', 'wrapup', '--json')).stdout);
+    assert.equal(result.capabilities.prodTarget.state, 'invalid');
+    assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
+      { path: 'AGENTS.md', problem: 'missing-section' },
+    ]);
+  } finally {
+    await cleanup(root);
+  }
+});
+
 test('repository instruction surfaces keep wrapup Prod readiness coherent', async () => {
   const result = JSON.parse((await readiness(repo, 'check', '--skill', 'wrapup', '--json')).stdout);
 

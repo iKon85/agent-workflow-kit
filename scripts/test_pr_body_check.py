@@ -28,8 +28,7 @@ import pr_body_e2e as e2e  # noqa: E402
 
 SCRIPT_PATH = Path(__file__).parent / "pr-body-check.py"
 
-RETRO = "**Retro:** skipped — focused guard change"
-VALID_LEAF_BODY = f"closes #149\n{RETRO}"
+VALID_LEAF_BODY = "closes #149"
 
 
 class E2eNaBodyEvidence(unittest.TestCase):
@@ -65,19 +64,20 @@ class E2eNaBodyEvidence(unittest.TestCase):
 
 class ExistingBodyRules(unittest.TestCase):
     def test_anchor_slice_still_accepts_part_of_and_leaf_close(self):
-        body = f"Part of #130\ncloses #149\n{RETRO}"
+        body = "Part of #130\ncloses #149"
         self.assertEqual(pbc.check_pr_body(body, 149, 130), [])
 
     def test_anchor_slice_still_rejects_close_on_anchor(self):
-        body = f"Part of #130\ncloses #130\n{RETRO}"
+        body = "Part of #130\ncloses #130"
         self.assertTrue(any("130" in item for item in pbc.check_pr_body(body, 149, 130)))
 
     def test_leaf_still_requires_active_close(self):
-        body = f"`closes #149`\n{RETRO}"
+        body = "`closes #149`"
         self.assertTrue(any("closes #149" in item for item in pbc.check_pr_body(body, 149, None)))
 
-    def test_retro_line_still_required(self):
-        self.assertTrue(any("Retro" in item for item in pbc.check_pr_body("closes #149", 149, None)))
+    def test_body_without_retro_line_is_green(self):
+        """#424: the retro marker is no longer a PR-body duty."""
+        self.assertEqual(pbc.check_pr_body("closes #149", 149, None), [])
 
     def test_active_close_targets_extracts_all_forms(self):
         body = ("closes #12\nFixes: #13\n"
@@ -86,7 +86,7 @@ class ExistingBodyRules(unittest.TestCase):
         self.assertEqual(pbc.active_close_targets(body), ["12", "13", "14"])
 
     def test_active_close_targets_empty_for_part_of_only(self):
-        self.assertEqual(pbc.active_close_targets("Part of #320\n**Retro:** skipped — x"), [])
+        self.assertEqual(pbc.active_close_targets("Part of #320\nsome trailing prose"), [])
 
     def test_program_prd_label_counts_as_anchor(self):
         with mock.patch.object(pbc, "_run",
@@ -99,7 +99,7 @@ class ExistingBodyRules(unittest.TestCase):
             self.assertTrue(pbc.fetch_is_anchor(41))
 
     def test_wave_pr_still_requires_part_of_without_closing_anchor(self):
-        body = f"Part of #130\ncloses #149\n{RETRO}"
+        body = "Part of #130\ncloses #149"
         self.assertEqual(pbc.check_pr_body(body, 130, None, is_anchor=True), [])
 
 
@@ -199,7 +199,7 @@ class ImmutableRangeTrailer(unittest.TestCase):
                 ["git", "rev-parse", "HEAD"], cwd=repo, text=True
             ).strip()
             body_path = repo / "body.md"
-            base_body = f"Part of #130\ncloses #149\n{RETRO}"
+            base_body = "Part of #130\ncloses #149"
             command = [
                 sys.executable,
                 str(SCRIPT_PATH),

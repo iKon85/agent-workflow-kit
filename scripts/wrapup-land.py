@@ -2005,7 +2005,7 @@ def cmd_land(args) -> dict:
                 tmp.write_text(final)
                 run(["gh", "pr", "edit", pr, "--body-file", str(tmp)], check=True)
 
-        # body-convention check: closes-vs-Part-of + **Retro:** line
+        # body-convention check: closes-vs-Part-of + E2E-exemption evidence
         p = run([sys.executable, str(Path(__file__).parent / "pr-body-check.py"),
                  "--branch", branch])
         report["body_check_exit"] = p.returncode

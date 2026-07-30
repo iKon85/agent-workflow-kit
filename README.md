@@ -585,6 +585,22 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.46.3
+
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/setup-workflow/workflow-overview.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/setup-workflow/workflow-overview.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `scripts/pr-body-check.py`
+- changed: `scripts/readiness.mjs`
+- changed: `scripts/wrapup-land.py`
+- changed: `src/cli.mjs`
+- changed: `src/commands/init.mjs`
+- changed: `src/commands/update.mjs`
+
 ### 0.46.2
 
 - changed: `scripts/codex-exec.sh`

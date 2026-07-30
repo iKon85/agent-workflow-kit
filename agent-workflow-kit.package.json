@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.46.2",
+  "kitVersion": "0.46.3",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -377,7 +377,7 @@
       "ownerSkill": "kit-update",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "4ab23b5ec7df6b89dd0e63ae74956aee282231c0c5b497eef52f142a3ae52a4e",
+      "sha256": "e4fc78d5e60f467328324d29f460a8ee74221b0c3dcfb5c6fd1ee465cac69ab6",
       "mode": 420,
       "origin": "kit"
     },
@@ -747,7 +747,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "80f686464ed1faf663acb5bb0b40a8847f4e22d806be04368354e60701cc356d",
+      "sha256": "41c70415b61f3963067c6132d02669fd2bf1377ef135dfab2596458597188a4e",
       "mode": 420,
       "origin": "kit"
     },
@@ -997,7 +997,7 @@
       "ownerSkill": "wrapup",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "231f392172ef6a4ef1742d6cc54d31376e8e1929ea90210890921139dbf210ce",
+      "sha256": "16531465e91a04c2a4a07145df28a52d1c48849d94ac1a7a55c14a4bdf063b19",
       "mode": 420,
       "origin": "kit"
     },
@@ -1699,7 +1699,7 @@
       "ownerSkill": "kit-update",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "4ab23b5ec7df6b89dd0e63ae74956aee282231c0c5b497eef52f142a3ae52a4e",
+      "sha256": "e4fc78d5e60f467328324d29f460a8ee74221b0c3dcfb5c6fd1ee465cac69ab6",
       "mode": 420,
       "origin": "kit"
     },
@@ -2089,7 +2089,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "80f686464ed1faf663acb5bb0b40a8847f4e22d806be04368354e60701cc356d",
+      "sha256": "41c70415b61f3963067c6132d02669fd2bf1377ef135dfab2596458597188a4e",
       "mode": 420,
       "origin": "kit"
     },
@@ -2347,7 +2347,7 @@
       "ownerSkill": "wrapup",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "231f392172ef6a4ef1742d6cc54d31376e8e1929ea90210890921139dbf210ce",
+      "sha256": "16531465e91a04c2a4a07145df28a52d1c48849d94ac1a7a55c14a4bdf063b19",
       "mode": 420,
       "origin": "kit"
     },
@@ -2627,7 +2627,7 @@
       "path": "scripts/pr-body-check.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "d18a9f1bf9285506bd7d40a1800dd9b66f631bd4666f0ae801e8db1882d3ad2d",
+      "sha256": "b8c0d15cc20c00307e89e7ae50ee7884ef148dc6ab6409d1c8fa09a0247f20ac",
       "mode": 493,
       "origin": "kit"
     },
@@ -2691,7 +2691,7 @@
       "path": "scripts/readiness.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "385854b0a1d8f7915c59cc4f35a3ee6774c4d4ac631a96357abe11cb81be3021",
+      "sha256": "b5bf5bd6f9597aead71bafcd56b8dc0c8aa66f75995f7e32e92279bf8fb3ae4a",
       "mode": 493,
       "origin": "kit"
     },
@@ -2867,7 +2867,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "9d7186b3ab7343803ae50787415d7b1d810d32c2bc2b009f4dd56bf5df69a3ae",
+      "sha256": "0a8b4e05a6e2e0b3459a15a5c11f6905aa44fbedd2277061a37c1ae435fae60a",
       "mode": 493,
       "origin": "kit"
     },

@@ -42,7 +42,7 @@ chaining, and autonomous invocation do not authorize it. There is no second merg
 
 All enumerable git/gh plumbing lives in **`scripts/wrapup-land.py`** (`preflight` / `commit` / `land`, JSON report on stdout, exit 1 = STOP with reason in the JSON). It replaces the former Sonnet phase-2 subagent — measured over 120 runs the subagent burned a median 23 model turns on steps with zero judgment content (→ mechanized 2026-07).
 
-The agent keeps: retro gate, secret review, commit message, PR body text, drift-fallback candidates, sibling propagation, anchor close, final report — plus **diagnosis whenever the script STOPs**. On any STOP: fix the named cause, re-run (the script is idempotent). **Force NOTHING** — no `--force`, no `-D`, no `--no-verify`.
+The agent keeps: secret review, commit message, PR body text, drift-fallback candidates, sibling propagation, anchor close, final report — plus **diagnosis whenever the script STOPs**. On any STOP: fix the named cause, re-run (the script is idempotent). **Force NOTHING** — no `--force`, no `-D`, no `--no-verify`.
 
 ## Flow
 
@@ -51,7 +51,7 @@ Run **in the worktree**:
 ```bash
 python3 scripts/wrapup-land.py preflight
 ```
-Hard stop (the only pure preconditions): the main checkout, a protected branch, a detached HEAD, or an unborn branch — the script exits 1 and names which. Any other born, attached worktree qualifies, whatever its name or location. The report carries everything the later steps need: dirty files, `.env` hits, secret-grep hits, issue + parent (leaf vs. anchor slice), existing PR + whether its body has a `**Retro:**` line, parsed `ANNAHMEN.md` drift lines, profile values (`retro_values`, `vor_bau`, remote-sweep switch).
+Hard stop (the only pure preconditions): the main checkout, a protected branch, a detached HEAD, or an unborn branch — the script exits 1 and names which. Any other born, attached worktree qualifies, whatever its name or location. The report carries everything the later steps need: dirty files, `.env` hits, secret-grep hits, issue + parent (leaf vs. anchor slice), existing PR, parsed `ANNAHMEN.md` drift lines, profile values (`vor_bau`, remote-sweep switch).
 
 Then run:
 
@@ -64,23 +64,21 @@ omits that block, emits exactly one concise note — `Prod readiness is pending 
 `invalid` means malformed or divergent Prod evidence: STOP and report the
 conflicting instruction surfaces; never choose a target on the user's behalf.
 
-### 2 · Retro gate (blocking, optional retro-exit — before anything is committed)
-One reminder, not a merge confirmation:
-> "Already ran a retro? **(a)** yes / continue → landing now. **(b)** you want one first → the retro starts now; afterwards, invoke `$wrapup` or `/wrapup` again — repo-file patches then travel in this PR."
-
-(b) → **invoke the `retro` skill immediately in this run.** Retro is
-model-invocable and non-deploying, and every mutation still has its own approval
-gate. After retro finishes, **land nothing in this run**. Require a **fresh
-explicit `$wrapup` or `/wrapup` invocation** because retro may have changed the exact diff
-that the next merge authorization covers.
+### 2 · Retro (voluntary — never a gate)
+Landing asks **no** retro question and waits on **no** retro answer. `/retro`
+stays a standing offer the user takes when they want it: if they ask for one
+before landing, invoke the `retro` skill (model-invocable, non-deploying, every
+mutation keeps its own approval gate) — otherwise continue straight to the
+commit. No PR-body marker records it, and no second `$wrapup` invocation is
+required — measured over 135 landings, the former binding duty produced its
+promised artifact exactly once. Retro after a landing is a normal `/retro` run
+of its own.
 
 General chaining rule: automatically chain only into a **model-invocable**,
 **non-deploying** workflow. If the named target is user-only, deploys, or
 depends on an external action, **return control to the user** and **state the
 reason**. A forward chain never carries wrapup's merge/deploy authorization
 into another run.
-
-The answer materializes as the mandatory `**Retro:**` PR-body line in step 4 — that's recording, not a second question. Why the gate lives here: in a foreign project this is the only portable retro touchpoint; a project-local "offer retro before PR" convention usually answers it already.
 
 ### 3 · Commit (only if the tree is dirty)
 Judgment first, then the guarded commit:
@@ -94,7 +92,6 @@ STOP on hook failure: many `Cannot find module`/TS2307 across **unrelated** file
 ### 4 · Author the PR body (agent-written, script-checked)
 Write title + body to a temp file (inline bodies with backticks crash bash):
 - Leaf issue → `closes #<n>`, **never inside backticks** (GitHub ignores the keyword there). Wave/cluster slice → `Part of #<anchor>`, **never `closes`** (would close the anchor early).
-- **Mandatory `**Retro:**` line** — exactly one of the two `retro_values` from the preflight report (closed set, copy verbatim; `pr-body-check.py` rejects anything else): retro ran → `**Retro:** <value0> — findings under ## Retro / Meta-Findings`; skipped → `**Retro:** <value1> — <reason>`. "Nothing to retro" is the second value + reason, not a third form. Applies to every PR body, including ad-hoc `gh pr create` mid-session.
 - **Assumption drift:** the build-time log `ANNAHMEN.md` is explicitly captured content — its well-formed lines become `annahme-drift` markers **mechanically, no confirmation gate** (`land` merges them into the body; decision 2026-07-06, replaced the old propose+confirm for log entries). Two cases stay with the agent:
   - **Malformed line** (no `#<n>` target) → clarify with the user (fix the target or discard deliberately), never drop silently; `--skip-malformed-drift` only for a deliberately discarded rest.
   - **No log / empty log** → fallback, retro-style: walk the slice's deliberately made or reversed assumptions yourself and present **named candidates** (`- #<n>?: <assumption> → might carry <issue>`); user confirms → write the markers into the body by hand. Zero candidates → say so explicitly ("no drift found — checked: <what>"). The log is the floor, not the ceiling — drift noticed while landing goes in the same way.

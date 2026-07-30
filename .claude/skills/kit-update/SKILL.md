@@ -68,9 +68,13 @@ release contain the same artifact.
    `## Prod` body. Empty, malformed, or divergent sections are named as
    conflicts and leave every consumer file untouched. This migration belongs
    to `kit update`; do not rerun `setup-workflow` after an ordinary update.
-   Readiness JSON diagnoses only the affected path and problem category
-   (`missing-file`, `missing-section`, `empty-section`, or
-   `divergent-section`); it never echoes consumer content.
+   The `## Prod` match is whole-word on the normalized H2 token: a trailing
+   qualifier (`## Prod und Deployment`) is still recognized, but a different <!-- language-census: ok -->
+   word (`## Production`) never is. Readiness JSON diagnoses only the affected
+   path and problem category (`missing-file`, `missing-section`,
+   `empty-section`, `divergent-section`, or `heading-mismatch` — an H2 that
+   mentions "Prod" without matching whole-word, carrying its line number); it
+   never echoes consumer content.
 
    Independently, run the routing-profile read-only preflight before applying
    the package candidate. A valid unchanged user-local profile reports

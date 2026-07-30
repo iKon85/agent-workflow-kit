@@ -50,14 +50,12 @@ server-side backstop, not a replacement.
 
 ## Skill authoring
 
-- **English-first.** Every published skill's prose is English; the only
-  exceptions are quoted user-input trigger phrases and audited cross-skill
-  contract literals (mechanically enforced by the language census in the
-  maintainer suite). Write new skills in English from the start.
-- **Claude-first + same-PR mirror.** New or changed dual-surface skills are
-  built in `.claude/skills/` first; the `.agents/skills/` mirror is updated in
-  the **same PR** via `codex-adapter-sync` — never after merge. Never author a
-  skill only on the Codex side.
+- **English-first.** Published skill prose is English; only quoted user-input
+  trigger phrases and audited cross-skill contract literals may differ — the
+  language census enforces it.
+- **Claude-first + same-PR mirror.** Build dual-surface skills in
+  `.claude/skills/` first; `codex-adapter-sync` updates the `.agents/skills/`
+  mirror in the **same PR** — never Codex-side only, never after merge.
 - **Claude-only skills** (deliberately no `.agents` mirror): `write-a-skill`,
   `git-guardrails-claude-code`, `setup-pre-commit`, and the four `-codex`
   cross-model skills. A Codex-surface skill must never reference or escalate to
@@ -65,7 +63,7 @@ server-side backstop, not a replacement.
 - **No hardcoded board values.** Skills and scripts read labels, headings,
   field IDs, status names, and PR markers from the board profile
   (`docs/agents/board-sync.md`), never inline literals — the portability lint
-  in the maintainer suite blocks violations.
+  blocks violations.
 - **Provenance.** Vendored skills (Matt Pocock, Chase AI) are fork-and-own:
   keep `PROVENANCE.md` and each skill's `THIRD-PARTY-NOTICES.md` accurate when
   re-syncing or adapting; new own-work skills get listed under Own work.
@@ -206,10 +204,6 @@ Before adding a rule, guard or gate:
 
 ## Workflow
 
-Use this section as the entry-point map for agent-assisted work. The individual
-skills carry the detailed mechanics; this overview helps choose the right
-starting point.
-
 **If the task names a playbook skill** (`/orchestrate-wave`, `/tdd`,
 `/diagnose`, `/grill-with-docs`, …), **load it via the Skill tool first — never
 rebuild it from memory.** This holds even when the task partially overrides the
@@ -231,36 +225,14 @@ with a terse report back; no spawn for single-value lookups or pre-edit recon.
 **After any delegation: `Read` every edit target in the main thread yourself**
 — subagent reads and Bash inspection do not satisfy the edit-read gate.
 
-## Entry Points
+## Route map
 
-- **Unsure which skill fits?** Ask `ask-matt` — a router over every skill in this list, with a recommended starting point and why.
-- **A new build whose size is unclear** (a new app, a big cross-cutting feature, an unclear where-to-start): run `scale-check` — a short plain-language dialog that routes it to a program, a feature, a single slice, or a bug, and hands back a paste-ready start prompt.
-- **New capability or unclear change:** start with `grill-with-docs` when the domain language or decisions need sharpening, then publish the agreed shape with `to-prd`.
-- **A slice hinges on an unresolved fact or trade-off before it can be built:** clear it first — a binary yes/no question against real code/runtime/platform with `verify-spike`, a bounded "which option" choice with `decision-gate`.
-- **Existing plan, PRD, or ready issue:** use `to-issues`, the single Planning facade. Explicit Feature identity selects tracer-bullet decomposition; explicit Program identity selects the internal graph path and its complete preview before any write.
-- **A backlog of open issues needs clustering into themed waves:** use `board-to-waves`.
-- **A whole wave anchor (file-disjoint slices, specs already locked) to build, verify and land end-to-end — often AFK:** use `orchestrate-wave` — it dispatches implementers per slice, integrates serially, verifies centrally, and lands. (A single slice just goes to `implement`.)
-- **Bugs or requests piling up that you didn't create:** use `triage` to move them into agent-ready issues.
-- **Bug or regression:** use `diagnose` to reproduce, minimize, hypothesize, instrument, fix, and regression-test.
-- **A design question needs a runnable answer (state, business logic, a UI you have to see):** spike it with `prototype`, then fold what you learned back in.
-- **Multi-session build from a PRD or issue:** use `implement` to drive the build end-to-end, one red-green slice at a time.
-- **Implementation slice:** use `implement` for one behavior at a time: RED, GREEN, then refactor.
-- **Finished slice:** use `wrapup` to prepare the branch, PR, and cleanup steps your repo expects.
-- **A huge, foggy effort, too big for one session:** use `wayfinder` — it charts it as a shared map of investigation tickets, resolving one per session.
-
-## Routing Rule
-
-Prefer the smallest workflow that produces a clear next action. A tiny fix can
-go straight to `implement`; a cross-cutting feature should become a PRD and then
-slices before implementation. When a skill reports missing project context, run
-`setup-workflow` again and fill only the missing stub.
-
-## Depth Ladder
-
-- **Light:** direct `implement` for a small, well-understood change.
-- **Medium:** `to-issues` for a ready artefact that needs slicing.
-- **Deep:** `grill-with-docs` followed by `to-prd` and `to-issues` when terminology, contracts, rollout order, or ownership are still uncertain.
-- **Gate:** insert `verify-spike` or `decision-gate` before any depth level when a slice hinges on an unresolved fact or trade-off.
+Smallest route with a clear next action. Unclear terms → `grill-with-docs` →
+`to-prd`; ready artefact → `to-issues`; backlog → `board-to-waves`; foreign
+reports → `triage`; huge and foggy → `wayfinder`; bug → `diagnose`; open
+fact/option/design → `verify-spike`/`decision-gate`/`prototype`; file-disjoint
+wave → `orchestrate-wave`; any build, tiny fixes self-routed → `implement`
+(RED→GREEN); done → `wrapup`; missing project context → `setup-workflow`.
 
 ## Backlog workflow (GitHub Projects v2)
 
@@ -295,8 +267,9 @@ bare `gh issue create` + `gh project item-*`.
   the worktree's gitignored `ANNAHMEN.md` (wrapup propagates it). (c) "Phase
   comes in a later slice" → a tracking issue in the **same** PR — a code
   comment is not a board item.
-- **Retro:** optional, but offer `/retro` before creating the PR (not after
-  merge); if run, findings go into a Meta section of the PR body.
+- **Retro:** voluntary — `/retro` is available whenever a session earned one,
+  and nothing on the landing path asks for it, waits on it, or records it. If
+  run before the PR, findings go into a Meta section of the PR body.
 
 ## Agent skills
 
