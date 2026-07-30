@@ -157,6 +157,11 @@ test('npm pack keeps product files but excludes runtime residue', async () => {
   await writeFile(sentinelLog, sentinelBytes);
   await writeFile(runtimeLog, `${new Date().toISOString()} runtime-only\n`);
   try {
+    assert.equal(
+      await exists(join(REPO, '.claude/settings.json')),
+      true,
+      'local Claude settings fixture must exist for the exclusion assertion',
+    );
     const output = execFileSync('npm', ['pack', '--dry-run', '--json'], {
       cwd: REPO, encoding: 'utf8',
     });
@@ -180,6 +185,11 @@ test('npm pack keeps product files but excludes runtime residue', async () => {
     assert.deepEqual(
       WAVE_152_HELPERS.map(({ path, mode }) => ({ path, mode: packedByPath.get(path)?.mode })),
       WAVE_152_HELPERS.map(({ path, mode }) => ({ path, mode })),
+    );
+    assert.deepEqual(
+      files.filter((path) => path.startsWith('.claude/settings') && path.endsWith('.json')),
+      [],
+      'npm pack must exclude local Claude settings',
     );
     assert.ok(files.every((path) => !path.startsWith('.claude/logs/')));
     assert.ok(files.every((path) => !path.includes('__pycache__') && !path.endsWith('.pyc')));

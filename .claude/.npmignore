@@ -1,4 +1,5 @@
 **/__pycache__/
 **/*.pyc
+settings.json
 settings.local.json
 settings.local.json.*

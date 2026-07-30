@@ -48,3 +48,5 @@ variant-*.png
 .codex-log/
 
 .claude/logs/
+# Issue #445: handoff files are local session artifacts, not repository content.
+.handoff/
