@@ -113,6 +113,15 @@ no bypass actors — `gh pr merge --admin` does not help.
   never `closes`.
 - Body via temp file + `--body-file`, and **run `gh` from the repo** (it resolves
   the target repo from the cwd).
+- **Security-flavored removal slices** (deleting guards/hooks/auth checks) are
+  not delegable: the safety classifier blocks a sub-agent instructed to remove
+  protection code even with a fixed list (3 blocks, 2026-07-30). Make the
+  per-item verdicts in the main session with named evidence, have the
+  maintainer approve the exact list, then execute in the main thread.
+- **CI-watch hygiene:** `gh pr checks --watch` right after PR create exits 0
+  with "no checks reported" — wait until a run is registered (until-loop),
+  then watch. Start background watches from the main checkout: a watch whose
+  cwd is a worktree that gets torn down dies with a phantom failure.
 
 **Anchor reconcile, on PR create and on merge:**
 
