@@ -266,46 +266,31 @@ activation, roots, retention, restore, or pruning grants. Template files have
 no kit-managed or `append-managed` region; a future bounded-region contract
 requires a separate decision.
 
-### 2e. Section A6 — Optional Workflow Advisories
+### 2e. Section A6 — Retired Workflow Advisories (adopt-only)
 
-> Workflow Advisories provides non-blocking, low-noise hints and
-> affected-surface checks around large reads, first-impacting edits, refactors,
-> and Stop. Paths, commands, thresholds, timeouts, and output budgets remain
-> consumer-owned.
-
-Read [workflow-advisories.md](./workflow-advisories.md) in full. Reconcile its
-complete `yes / later / no / existing / disable` matrix. If no choice exists,
-ask: *"Should setup activate the portable Workflow Advisories for this
-repository?"* Offer exactly **Yes**, **Later**, and **No**.
-
-- **Yes** — reconcile only `workflowAdvisories` in the shared capability
-  profile and only the exact kit-owned hook commands named by the seed.
-- **Later / No** — record the choice without hook wiring.
-- **Existing** — adopt profile and wiring byte-safely.
-- **Disable** — remove exact kit-owned commands first, then set `enabled:
-  false`; preserve every profile value and unknown key.
-
-`baseline.sourceGlobs` and the `preRefactor`/`stopChecks` surface globs use the
-same shared dialect as the Worktree Lifecycle patterns above. An adopted
-profile written for the older whole-string matcher can change meaning, so run
-`python3 scripts/profile_globs.py docs/agents/workflow-capabilities.json` and
-report every pattern it names before treating the section as reconciled.
+> The Workflow Advisories hook set was retired by the 2026-07 hook review (no
+> hook carried a named incident). An existing consumer profile may still hold a
+> `workflowAdvisories` block and hook wiring: both are consumer data. Setup
+> never installs, rewires, or removes them; it reports an encountered block as
+> retired-but-inert and leaves every value and unknown key verbatim.
 
 ### 2f. Section A7 — Optional Safety Guardrails
 
-> Safety Guardrails is a counted group of seven independently selectable
-> protections: four agent-tool guards and three repository-security
+> Safety Guardrails is a counted group of four independently selectable
+> protections: the search-shim agent guard (the one agent adapter the 2026-07
+> hook review kept — named incident) and three repository-security
 > capabilities. Setup stages and validates the chosen profile plus wiring
-> before activation; disabled rows remain exact no-ops.
+> before activation; disabled rows remain exact no-ops. Retired guard keys in
+> an existing profile are consumer data and stay verbatim.
 
 Read [safety-guardrails.md](./safety-guardrails.md) in full. Reconcile its
 complete `yes / later / no / existing / disable` matrix. If no choice exists,
 ask: *"Should setup configure the portable Safety Guardrails for this
 repository?"* Offer exactly **Yes**, **Later**, and **No**.
 
-- **Yes** — ask which of the seven counted rows to enable, then reconcile only
-  `safetyGuardrails`, exact selected Agent-hook commands, and the selected
-  native Git-hook path. Report `N of 7 enabled`.
+- **Yes** — ask which of the four counted rows to enable, then reconcile only
+  `safetyGuardrails`, the exact selected Agent-hook command, and the selected
+  native Git-hook path. Report `N of 4 enabled`.
 - **Later / No** — record the choice without Agent- or Git-hook wiring.
 - **Existing** — adopt profile and wiring byte-safely; preserve unknown keys
   and consumer-specific policies.
@@ -316,42 +301,14 @@ The seed's reference consumer uses the parity-on profile. Other consumers are
 opt-in/manual: never copy its package-manager, path, shim, surface, or outage
 decisions without repository evidence and user confirmation.
 
-### 2g. Section A8 — Advisory kit-origin edit hint (non-interactive)
+### 2g. Section A8 — Retired kit-origin edit hint (adopt-only)
 
-> The shipped kit-origin hook asks the upstream-or-own question before an agent
-> Edit/Write changes a file recorded with `origin: "kit"` in the consumer
-> manifest. It is advisory only: it never blocks, reads the manifest once, uses
-> no network, and silently fails open when the manifest cannot be read. Shell
-> redirection, formatters, and IDE edits are knowingly outside its coverage; the
-> skills remain the rule's primary carrier. Its Contribution Bridge follow-up
-> calls the same read-only route resolver with `--surface=guard`.
-
-Activate the shipped hook by reconciling this exact entry into
-`.claude/settings.json`:
-
-```json kit-origin-edit-hook-settings
-{
-  "matcher": "Edit|Write",
-  "hooks": [
-    {
-      "type": "command",
-      "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/kit-origin-edit-hint.py\""
-    }
-  ]
-}
-```
-
-This is an additive, idempotent settings edit, not a settings rewrite:
-
-1. Missing settings → create `{ "hooks": { "PreToolUse": [<entry>] } }`.
-2. Existing valid settings → preserve every consumer key, matcher, command,
-   hook event, ordering, and formatting byte-for-byte; append only `<entry>` to
-   `hooks.PreToolUse`.
-3. If any existing hook already contains the exact command above, do nothing,
-   regardless of its surrounding matcher. A rerun must be byte-identical.
-4. Unreadable/invalid settings, or a non-object `hooks` / non-array
-   `PreToolUse`, are consumer-owned conflicts: leave the file untouched and
-   report the skipped activation. Never replace or normalize them.
+> The kit-origin edit hint hook was retired by the 2026-07 hook review (no
+> named incident). The upstream-or-own question stays carried by the skills and
+> the Contribution Bridge's read-only route resolver. An existing consumer
+> settings entry wiring the retired hook is consumer data: setup never
+> installs, rewires, or removes it; it reports an encountered entry as
+> retired-but-inert.
 
 ### 2h. Section A9 — Agent surfaces and switching autonomy
 
@@ -603,10 +560,10 @@ request changes a recorded choice.
 
 For `docs/agents/workflow-capabilities.json`, reconcile only each selected
 capability section. Never replace the whole file: Project Release, Memory
-Lifecycle, Worktree Lifecycle, Workflow Advisories, Safety Guardrails, future sections, and
-unknown consumer keys share this profile. Apply the transition and hook
-ownership rules from [worktree-lifecycle.md](./worktree-lifecycle.md),
-[workflow-advisories.md](./workflow-advisories.md), and
+Lifecycle, Worktree Lifecycle, Safety Guardrails, retired-but-inert consumer
+blocks (e.g. `workflowAdvisories`), future sections, and unknown consumer keys
+share this profile. Apply the transition and hook ownership rules from
+[worktree-lifecycle.md](./worktree-lifecycle.md) and
 [safety-guardrails.md](./safety-guardrails.md) transactionally.
 The profile carries structural facts only; it holds no deletion policy, because
 the ignore mechanism is the single surface that decides what teardown may

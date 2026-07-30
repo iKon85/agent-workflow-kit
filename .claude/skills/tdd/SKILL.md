@@ -52,15 +52,7 @@ RIGHT (vertical):
 
 ### 1. Planning
 
-**First, mark the ticket active on the board.** When a ticket was provided (you're on a `feat/<#>-`/`fix/<#>-` branch), run once at TDD pickup:
-
-<!-- mirror-xform:start codex-board-sync-command -->
-```
-python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/sync-board-status.py"
-```
-<!-- mirror-xform:end -->
-
-It parses the issue # from the current branch and moves the board item to the profile's in-progress status (`fields.status.roles.inProgress`; only from the idea/triaged/spec roles, idempotent). No ticket / no parseable branch → it's a silent no-op, so this is safe to run unconditionally. This closes the gap where the SessionStart sync already ran on `main` before the worktree existed, leaving the board stale.
+**First, mark the ticket active on the board.** When a ticket was provided (you're on a `feat/<#>-`/`fix/<#>-` branch), move the board item to the profile's in-progress status once at TDD pickup, through the project's board tool (`fields.status.roles.inProgress`; only from the idea/triaged/spec roles, idempotent — e.g. `python3 scripts/board-sync.py add --issue <#> --status-role inProgress`). No ticket / no parseable branch → skip. (The former SessionStart board-sync hook was retired by the 2026-07 hook review; the board move is the session ritual's job.)
 
 When exploring the codebase, use the project's domain glossary so that test names and interface vocabulary match the project's language, and respect ADRs in the area you're touching.
 

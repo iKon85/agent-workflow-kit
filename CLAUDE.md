@@ -130,28 +130,72 @@ a stale packument cannot report a live release as unpublished (#243). Manual
 dispatch is recovery only: it requires one explicit existing tag and runs the
 same reconciler. Never recover by bumping the version.
 
-## Design maxim
+## Behavioral core
 
-This is a meta-system, not an app: no test says the workflow behaved correctly,
-so the standing temptation is to legislate what cannot be measured (#343).
-Before adding a rule, guard or gate:
+Adapted from forrestchang's Karpathy-derived behavioral guidelines (MIT — see
+`PROVENANCE.md`), merged with this repo's own doctrine. It biases toward caution
+over speed: **for trivial tasks, use judgment.**
 
-- **One observation is not a mechanism.** Once, known trigger → a note or one
-  recovery line. Repeatedly, this repo → project layer. Repeatedly or
-  structurally, across projects → shipped, and mechanical (lint, guard,
-  command) with something that can fail it.
-- **Principle over case.** A rule that enumerates the case teaches the case;
-  the principle it instances transfers. If the principle won't name itself, the
-  finding isn't understood yet.
-- **Judgment is what a rule has to beat.** An over-specified rule narrows the
-  space the agent would otherwise reason through. It earns its override with a
-  repeated real failure, never a conceivable one.
-- **Place by when it is read.** Always-on `CLAUDE.md` carries only what must
-  hold before anything loads; detail belongs in the skill that loads when it
-  matters; repo-specific detail in `docs/agents/*`.
-- **Price the journey, not the rule.** Count the gates already standing on it.
-- **Cause before survival.** Machinery that keeps a wrong input working
-  conserves it.
+**Think before coding.** Don't assume, don't hide confusion, surface trade-offs.
+State the assumptions; name competing readings of the request instead of
+silently picking one; say so when a simpler route exists. Unclear → stop and
+name what is unclear.
+
+**Simplicity first.** The minimum that solves the problem, nothing speculative —
+no unasked feature, no abstraction for a single use, no configurability nobody
+requested, no error handling for impossible states. *Would a senior engineer
+call this overcomplicated?* If yes, cut it.
+
+**Surgical changes.** Touch only what you must; clean up only your own mess.
+Don't improve adjacent code, comments or formatting, don't refactor what isn't
+broken, match the existing style. Unrelated dead code is mentioned, not deleted;
+orphans your change created are removed. Every changed line traces to the
+request.
+
+**Goal-driven execution.** Turn the task into a verifiable goal ("add
+validation" → "write the tests for invalid input, then make them pass") and loop
+until it is met; strong success criteria are what let a session run without
+asking after every step.
+
+### Verify-first — two classes
+
+**Class 1 — an assertion about state is read before it is claimed.** Routes from
+config, API shapes from code or spec, paths from the filesystem, versions and
+platform capabilities from official docs before a plan locks on them, project
+state from git/GitHub; a subagent's report is evidence, not the read. The claim
+carries its evidence inline (`file:line`, command + output, SHA) — without it,
+it is a hypothesis. An empty grep or git result proves nothing: anchor from the
+repo root, vary the pattern before claiming absence, and let a negative
+measurement wait until the same harness returns a positive on a known-positive
+case (#296). Completeness is class 1 too — re-derive the denominator fresh
+(grep / manifest) and report `X of Y`, never from memory. External errors
+(400/500/timeout from `gh`, GraphQL, npm) are anomalies: my code is at fault
+until empirically refuted.
+
+**Class 2 — re-verifying my own completed action is off by default.** A named
+exception carries an incident number and is purpose-built: the release readback
+(#205), where npm propagation can leave the registry ahead of the GitHub
+release. Reading back what I just wrote, or re-checking a command that reported
+success, is ceremony until an incident says otherwise.
+
+### Adding machinery
+
+No test says this workflow behaved correctly, so the standing temptation is to
+legislate what cannot be measured (#343).
+
+- **Add only on observed failure.** A mechanism names the incident that demands
+  it, or it is not built. Once → a note; repeatedly, this repo → project layer;
+  repeatedly or structurally, across projects → shipped and mechanical, with
+  something that can fail it.
+- **One floor per failure class.** Where git, GitHub, or an idempotent re-run
+  already catches the failure, a second floor is ceremony — count the gates
+  already standing. Machinery that keeps a wrong input working conserves the
+  cause.
+- **Principle over case.** A rule that enumerates the case teaches the case; the
+  principle it instances transfers, and judgment is what a rule has to beat.
+  Always-on `CLAUDE.md` carries only what must hold before anything loads;
+  detail belongs in the skill that loads when it matters, repo-specific detail
+  in `docs/agents/*`.
 
 ## Hard rules
 
@@ -162,11 +206,6 @@ Before adding a rule, guard or gate:
   already approved: execute directly, but **execute = red→green test-first**,
   never test-after. The exception skips only the plan gate, not the
   test-first loop.
-- **Completeness is counted, not remembered.** Never claim a cross-cutting
-  rollout (pattern or concept touching ≥3 places) is "complete" from memory —
-  re-derive the denominator fresh (grep / manifest) and report `X of Y`. For
-  skill-surface claims, derive from the skill manifest and lints, not a
-  recalled list.
 - **Kit-wide consistency.** A convention change (frontmatter shape, profile
   key, template heading) applies to **all** shipped skills/scripts in the same
   PR — no touched-only partial rollouts. Census the whole class.
@@ -185,28 +224,6 @@ Before adding a rule, guard or gate:
   and their durable output (`CONTEXT.md`, ADRs, research notes) lands through
   `/make-landable`'s confirmed file claim as ordinary work. The implementing
   session creates the worktree when the build starts.
-
-### Diagnosis & verification
-
-- **External errors are anomalies.** 400/500/timeout from `gh`/GraphQL/npm —
-  investigate; my code is at fault until empirically refuted.
-- **Tag diagnosis artefacts: 🔬 hypothesis / ✓ verified.** Untagged = 🔬 →
-  re-verify before acting on it. ✓ only with inline evidence (`file:line`,
-  command + output, SHA) and a verify date; a bare "verified" is a hypothesis.
-- **An empty grep/git result is no proof.** Anchor paths from the repo root,
-  grep the import line not just the bare symbol, try ≥1 pattern variant before
-  claiming absence.
-- **A negative measurement is no proof until the harness has produced a
-  positive.** Before recording "the capability is absent", show the same
-  apparatus returning a positive on a case known to have it — otherwise the
-  measurement may have varied the thing under test while holding a control that
-  never had the capability at all. Record the positive control next to the
-  negative. (#296: every early probe ran against a model with no effort axis,
-  so "effort is not readable" was about to be written into an ADR; a control run
-  on an effort-capable model returned the value immediately.)
-- **Verify external platform capabilities before plan-lock.** A plan resting on
-  a GitHub plan-tier / Projects / API / npm capability is checked empirically
-  (`gh api`, official docs) before the decision is locked — never assumed.
 
 ## Workflow
 
@@ -256,9 +273,9 @@ bare `gh issue create` + `gh project item-*`.
 - **Branch/PR.** `feat|fix|chore|docs/<#>-<slug>`. Leaf-issue PR body:
   `closes #<#>`. Slice PR against a wave/cluster anchor: `Part of #<anchor>`,
   **never** `closes` (merge would close the anchor early). Multi-paragraph
-  bodies via temp file + `--body-file`, then read back once. Write the temp file
-  wherever, but **run `gh` from the repo** — `gh` resolves the target repository
-  from the working directory and dies with `not a git repository` in `/tmp`.
+  bodies via temp file + `--body-file`. Write the temp file wherever, but **run
+  `gh` from the repo** — `gh` resolves the target repository from the working
+  directory and dies with `not a git repository` in `/tmp`.
   Working out of the temp directory is the natural way to do this and fails
   every call; pass `-R <owner>/<repo>` if the cwd cannot be the repo.
 - **Anchor reconcile on every slice event** (PR create **and** merge):

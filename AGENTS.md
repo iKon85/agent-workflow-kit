@@ -1,7 +1,9 @@
 # AGENTS.md
 
-`CLAUDE.md` is the shared repository workflow source — read it in full; its
-rules apply equally to Codex unless a rule names a surface-specific hook,
+`CLAUDE.md` is the shared repository workflow source — read it in full,
+§Behavioral core included: the four adopted principles, the two-class
+verify-first rule and add-only-on-observed-failure bind Codex identically. Its
+rules apply equally unless a rule names a surface-specific hook,
 command, or Claude-only skill (the `-codex` cross-model skills,
 `write-a-skill`, `git-guardrails-claude-code`, `setup-pre-commit` have no
 `.agents/skills` mirror and are invoked from Claude Code only).
@@ -26,7 +28,7 @@ Codex-surface specifics:
   `node scripts/doctrine-migration/index.mjs`. Where no Routing profile can
   decide, stay conservative: serialize, terse reports.
 - Keep user gates, security judgment, and approval decisions in the main
-  thread. Treat subagent output as evidence to verify, not as authority.
+  thread. A subagent's report is class-1 evidence, never the read itself.
 - Never expose `.env*`, credentials, tokens, or local override contents in
   command output. Do not commit local Codex state or personal configuration.
 - Project-scoped Codex defaults live in `.codex/config.toml`; project agents

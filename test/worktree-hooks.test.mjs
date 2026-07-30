@@ -57,79 +57,6 @@ async function runHook(root, name, payload) {
   });
 }
 
-test('branch context adapter emits profile-derived branch and issue facts', async (t) => {
-  const root = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  await git(root, 'switch', '-c', 'feat/87-rules');
-
-  const { stdout } = await runHook(root, 'branch-context.py', {});
-  const payload = JSON.parse(stdout);
-  const context = payload.hookSpecificOutput.additionalContext;
-
-  assert.equal(payload.hookSpecificOutput.hookEventName, 'SessionStart');
-  assert.match(context, /feat\/87-rules/);
-  assert.match(context, /Issue: #87/);
-});
-
-test('branch watch emits the new profile-derived branch after a switch command', async (t) => {
-  const root = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  await git(root, 'switch', '-c', 'fix/87-watch');
-
-  const result = await runHook(root, 'branch-watch.py', {
-    tool_name: 'Bash',
-    tool_input: { command: 'git switch fix/87-watch' },
-  });
-  const payload = JSON.parse(result.stdout);
-
-  assert.equal(result.code, 0);
-  assert.match(payload.systemMessage, /fix\/87-watch/);
-  assert.match(payload.systemMessage, /Issue: #87/);
-});
-
-test('edit guard blocks a tracked file on the protected main worktree', async (t) => {
-  const root = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-
-  const result = await runHook(root, 'enforce-worktree.py', {
-    tool_name: 'Edit',
-    tool_input: { file_path: join(root, 'tracked.txt') },
-  });
-
-  assert.equal(result.code, 2);
-  assert.match(result.stderr, /tracked\.txt/);
-  assert.match(result.stderr, /worktree/i);
-});
-
-test('edit guard allows ignored scratch on the protected main worktree', async (t) => {
-  const root = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  await mkdir(join(root, 'scratch'));
-
-  const result = await runHook(root, 'enforce-worktree.py', {
-    tool_name: 'Write',
-    tool_input: { file_path: join(root, 'scratch', 'note.txt') },
-  });
-
-  assert.equal(result.code, 0);
-  assert.equal(result.stderr, '');
-});
-
-test('linked worktree cannot edit an absolute tracked target in the protected main checkout', async (t) => {
-  const root = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const linked = join(root, '.sandboxes', 'feat-87-linked');
-  await git(root, 'worktree', 'add', '-b', 'feat/87-linked', linked, 'main');
-
-  const result = await runHook(linked, 'enforce-worktree.py', {
-    tool_name: 'Edit',
-    tool_input: { file_path: join(root, 'tracked.txt') },
-  });
-
-  assert.equal(result.code, 2);
-  assert.match(result.stderr, /tracked\.txt/);
-});
-
 test('write-target guard blocks a new main-checkout file while a linked worktree is active', async (t) => {
   const root = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -183,8 +110,9 @@ test('no Bash command is judged by its command string any more', async (t) => {
   const linked = join(root, '.sandboxes', 'feat-87-no-string');
   await git(root, 'worktree', 'add', '-b', 'feat/87-no-string', linked, 'main');
 
-  // The #373 repro, the two substring-authorization arms (#411) and the
-  // `git -C` form the risky-command regex never matched (#412) — all of them
+  // The #373 repro, the two substring-authorization arms (#411), the
+  // `git -C` form the risky-command regex never matched (#412), and the
+  // branch-creation form the retired discipline hook parsed — all of them
   // now leave the guard without an opinion instead of a wrong one.
   const commands = [
     "cat > /tmp/wrapup-pr-body.md <<'EOF'",
@@ -192,6 +120,7 @@ test('no Bash command is judged by its command string any more', async (t) => {
     `git push --force origin main # see ${linked}`,
     `echo "${linked}" && git push --force origin main`,
     'git -C /srv/other-checkout push --force origin main',
+    'git switch -c feat/99-new-slice',
   ];
 
   for (const command of commands) {
@@ -204,66 +133,49 @@ test('no Bash command is judged by its command string any more', async (t) => {
   }
 
   const source = await readFile(resolve('scripts/worktree-lifecycle/core.py'), 'utf8');
-  assert.doesNotMatch(source, /targets_linked_worktree|risky_command_patterns/);
-});
-
-test('discipline guard blocks issue branch creation in main while worktrees are active', async (t) => {
-  const root = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const linked = join(root, '.sandboxes', 'feat-87-existing');
-  await git(root, 'worktree', 'add', '-b', 'feat/87-existing', linked, 'main');
-
-  const result = await runHook(root, 'enforce-worktree-discipline.py', {
-    tool_name: 'Bash',
-    tool_input: { command: 'git switch -c feat/99-new-slice' },
-  });
-
-  assert.equal(result.code, 2);
-  assert.match(result.stderr, /feat\/99-new-slice/);
-  assert.match(result.stderr, /scripts\/worktree-lifecycle\/setup\.py/);
+  assert.doesNotMatch(
+    source,
+    /targets_linked_worktree|risky_command_patterns|_BRANCH_CREATE_RE|_BRANCH_CHANGE_RE/,
+  );
 });
 
 test('unsupported and malformed hook events are fail-open and repository-neutral', async (t) => {
   const root = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
-  const hooks = [
-    'branch-context.py',
-    'branch-watch.py',
-    'enforce-worktree.py',
-    'enforce-worktree-cwd.py',
-    'enforce-worktree-discipline.py',
-    'slice-handoff-hint.py',
-  ];
   const before = (await git(root, 'status', '--porcelain')).stdout;
 
-  for (const hook of hooks) {
-    const malformed = await runHook(root, hook, '{not-json');
-    const unsupported = await runHook(root, hook, { tool_name: 'Unknown', tool_input: {} });
-    assert.equal(malformed.code, 0, hook);
-    assert.equal(unsupported.code, 0, hook);
-  }
+  const malformed = await runHook(root, 'enforce-worktree-cwd.py', '{not-json');
+  const unsupported = await runHook(root, 'enforce-worktree-cwd.py', {
+    tool_name: 'Unknown',
+    tool_input: {},
+  });
+  assert.equal(malformed.code, 0);
+  assert.equal(unsupported.code, 0);
 
   assert.equal((await git(root, 'status', '--porcelain')).stdout, before);
   await assert.rejects(access(join(root, '.claude/logs')));
 });
 
-test('all five adapters are thin, core-driven, and shipped from the same bundle', async () => {
-  const hooks = [
-    'branch-context.py',
-    'branch-watch.py',
-    'enforce-worktree.py',
-    'enforce-worktree-cwd.py',
-    'enforce-worktree-discipline.py',
-  ];
+test('the write-target adapter is thin, core-driven, and shipped from the bundle', async () => {
   const shipped = new Set(HELPER_FILES.map(({ path }) => path));
   assert.equal(shipped.has('scripts/worktree-lifecycle/profile.py'), true);
   assert.equal(shipped.has('scripts/worktree-lifecycle/README.md'), true);
 
-  for (const hook of hooks) {
-    const source = await readFile(join(HOOKS, hook), 'utf8');
-    assert.match(source, /load_worktree_lifecycle_core/);
-    assert.doesNotMatch(source, /import re|git worktree|branchRegex/);
-    assert.equal(shipped.has(`.claude/hooks/${hook}`), true, hook);
+  const source = await readFile(join(HOOKS, 'enforce-worktree-cwd.py'), 'utf8');
+  assert.match(source, /load_worktree_lifecycle_core/);
+  assert.doesNotMatch(source, /import re|git worktree|branchRegex/);
+  assert.equal(shipped.has('.claude/hooks/enforce-worktree-cwd.py'), true);
+
+  // The 2026-07 hook review removed every lifecycle adapter without a named
+  // incident; only the write-target guard remains in the shipped hook set.
+  for (const retired of [
+    '.claude/hooks/branch-context.py',
+    '.claude/hooks/branch-watch.py',
+    '.claude/hooks/enforce-worktree.py',
+    '.claude/hooks/enforce-worktree-discipline.py',
+    '.claude/hooks/slice-handoff-hint.py',
+  ]) {
+    assert.equal(shipped.has(retired), false, retired);
   }
 });
 
@@ -283,43 +195,17 @@ test('frozen Testreporter profile preserves the historical guard outcomes', asyn
     tool_name: 'Write',
     tool_input: { file_path: join(root, 'notes.md') },
   });
-  const tracked = await runHook(root, 'enforce-worktree.py', {
-    tool_name: 'Edit',
-    tool_input: { file_path: join(root, 'tracked.txt') },
-  });
   const linkedCwd = await runHook(linked, 'enforce-worktree-cwd.py', {
     tool_name: 'Bash',
     tool_input: { command: 'npm test' },
   });
-  const ignored = await runHook(root, 'enforce-worktree.py', {
+  const ignored = await runHook(root, 'enforce-worktree-cwd.py', {
     tool_name: 'Write',
     tool_input: { file_path: join(root, 'scratch', 'note.txt') },
-  });
-  const switched = await runHook(linked, 'branch-watch.py', {
-    tool_name: 'Bash',
-    tool_input: { command: 'git switch feat/87-parity' },
   });
 
   assert.equal(maintenance.code, 0);
   assert.equal(mainTarget.code, 2);
-  assert.equal(tracked.code, 2);
   assert.equal(linkedCwd.code, 0);
   assert.equal(ignored.code, 0);
-  assert.match(JSON.parse(switched.stdout).systemMessage, /feat\/87-parity/);
-});
-
-test('handoff advisory names the configured setup entry instead of a hardcoded script', async (t) => {
-  const profile = structuredClone(GENERIC_PROFILE);
-  profile.worktreeLifecycle.setupEntry = './tools/make-tree';
-  const root = await fixture(profile);
-  t.after(() => rm(root, { recursive: true, force: true }));
-
-  const result = await runHook(root, 'slice-handoff-hint.py', {
-    prompt: 'Worktree: ./tools/make-tree 516 async-local-storage',
-  });
-  const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
-
-  assert.equal(result.code, 0);
-  assert.match(context, /\.\/tools\/make-tree 516 async-local-storage/);
-  assert.doesNotMatch(context, /setup-worktree\.sh/);
 });

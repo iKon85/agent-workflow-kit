@@ -408,6 +408,9 @@ only apply a previewed, schema-driven, idempotent compatibility migration that
 fills missing evidence without rewriting an existing value; it verifies and
 rolls that migration back with the rest of the candidate.
 
+The kit collects nothing — no telemetry, no usage reporting, no phone-home — so
+how it behaves in your repo is visible to us only through the feedback you send.
+
 ## Updating & removing
 
 ```sh
@@ -604,6 +607,53 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 1.0.0
+
+- removed: `.agents/skills/setup-workflow/workflow-advisories.md`
+- removed: `.claude/hooks/baseline-capture-hint.py`
+- removed: `.claude/hooks/block-bg-double-background.py`
+- removed: `.claude/hooks/block-npm-install-in-pnpm.py`
+- removed: `.claude/hooks/block-secrets.py`
+- removed: `.claude/hooks/branch-context.py`
+- removed: `.claude/hooks/branch-watch.py`
+- removed: `.claude/hooks/convention-drift-hint.py`
+- removed: `.claude/hooks/enforce-worktree-discipline.py`
+- removed: `.claude/hooks/enforce-worktree.py`
+- removed: `.claude/hooks/kit-origin-edit-hint.py`
+- removed: `.claude/hooks/loc-offender-forewarn.py`
+- removed: `.claude/hooks/migration-snapshot-reminder.py`
+- removed: `.claude/hooks/pre-refactor-sweep.py`
+- removed: `.claude/hooks/recon-size-hint.py`
+- removed: `.claude/hooks/skill-drift-hint.py`
+- removed: `.claude/hooks/slice-handoff-hint.py`
+- removed: `.claude/hooks/sync-board-status.py`
+- removed: `.claude/hooks/typecheck-on-stop.py`
+- removed: `.claude/hooks/typecheck-on-stop.sh`
+- removed: `.claude/skills/setup-workflow/workflow-advisories.md`
+- removed: `scripts/workflow-advisories/capabilities.json`
+- removed: `scripts/workflow-advisories/core.py`
+- changed: `.agents/skills/audit-skills/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/safety-guardrails.md`
+- changed: `.agents/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.agents/skills/tdd/SKILL.md`
+- changed: `.claude/hooks/_hook_utils.py`
+- changed: `.claude/hooks/drift-guard.py`
+- changed: `.claude/hooks/enforce-worktree-cwd.py`
+- changed: `.claude/hooks/grep-shim-guard.py`
+- changed: `.claude/skills/audit-skills/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/safety-guardrails.md`
+- changed: `.claude/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.claude/skills/tdd/SKILL.md`
+- changed: `PROVENANCE.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/capabilities.json`
+- changed: `scripts/worktree-lifecycle/core.py`
+- changed: `src/lib/bundle.mjs`
 
 ### 0.47.0
 

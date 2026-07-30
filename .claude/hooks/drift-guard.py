@@ -3,6 +3,10 @@
 Drift-Guard — PreToolUse block on Write|Edit|MultiEdit of a handoff doc when the
 linked GitHub issue's rooted graph is not execute-ready.
 
+Kept by the 2026-07 hook review — incidents: repository issues 276, 278, 280
+(anchor scoping and unexplained drift verdicts, all fixed) and 321 (stale
+census verdict class).
+
 Why a hook (not skill prose): the `handoff` skill AND the global
 `grill-with-docs-codex` live OUTSIDE the repo. Only a repo-side hook fires
 regardless of which global skill triggered the Write — the single repo-side net
@@ -17,7 +21,7 @@ Mechanism: self-filters to `.handoff/*.md`; extracts the issue (an own-repositor
 content anchor first, then the filename); delegates graph coherence to
 scripts/execute-ready-check.py (`--mode handoff`) and census state/fingerprint
 evaluation to `scripts/census/index.mjs`. Deny = exit 2 + stderr (house pattern:
-enforce-worktree.py, block-secrets.py). A deliberate
+enforce-worktree-cwd.py). A deliberate
 `<!-- guard-ack: #<n> r<N> reason:… by-user -->` overrides only the graph gate,
 never activated census drift. fail-closed once a target is parsed (the checker
 enforces that); fail-OPEN when no handoff target is identifiable (not the stale
