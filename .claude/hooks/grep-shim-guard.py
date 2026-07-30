@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Thin PreToolUse adapter for configured search-shim breakers."""
+"""Thin PreToolUse adapter for configured search-shim breakers.
+
+Kept by the 2026-07 hook review — incident: an observed true positive in a
+real consumer session (documented in repository issue 373's context section).
+"""
 
 import json
 import sys

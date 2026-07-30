@@ -14,13 +14,10 @@ async function loadEffects() {
   return Object.fromEntries(JSON.parse(match[1]).map((row) => [row.state, row]));
 }
 
+// The one lifecycle adapter the 2026-07 hook review kept; wiring for the
+// retired adapters is consumer data and never reconciled by setup.
 const hookCommands = [
-  'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/branch-context.py"',
-  'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/branch-watch.py"',
-  'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-worktree.py"',
   'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-worktree-cwd.py"',
-  'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-worktree-discipline.py"',
-  'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/slice-handoff-hint.py"',
 ];
 
 async function reconcile(root, effect) {

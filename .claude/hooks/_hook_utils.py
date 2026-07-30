@@ -30,8 +30,6 @@ from pathlib import Path
 # (or from a linked worktree root), so this resolves to <root>/.claude/logs.
 LOG_DIR = Path(".claude/logs")
 _WORKTREE_CORE_MODULE = "_agent_workflow_kit_worktree_lifecycle"
-_ADVISORY_CORE_MODULE = "_agent_workflow_kit_workflow_advisories"
-_LOC_OFFENDER_GATE_MODULE = "_agent_workflow_kit_loc_offender_gate"
 
 
 def rotate_log_if_needed(log_path: Path, max_bytes: int = 100_000, generations: int = 3) -> None:
@@ -203,39 +201,6 @@ def load_worktree_lifecycle_core():
         raise ImportError(f"cannot load Worktree Lifecycle core from {path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[_WORKTREE_CORE_MODULE] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def load_workflow_advisories_core():
-    """Load the shipped Workflow Advisories core without requiring a Python package."""
-    existing = sys.modules.get(_ADVISORY_CORE_MODULE)
-    if existing is not None:
-        return existing
-    path = Path(__file__).resolve().parents[2] / "scripts" / "workflow-advisories" / "core.py"
-    spec = importlib.util.spec_from_file_location(_ADVISORY_CORE_MODULE, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load Workflow Advisories core from {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[_ADVISORY_CORE_MODULE] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def load_loc_offender_gate():
-    """Load the shipped LoC gate so advisories consume its contracts directly."""
-    existing = sys.modules.get(_LOC_OFFENDER_GATE_MODULE)
-    if existing is not None:
-        return existing
-    path = Path(__file__).resolve().parents[2] / "scripts" / "loc_offender_gate.py"
-    module_dir = str(path.parent)
-    if module_dir not in sys.path:
-        sys.path.insert(0, module_dir)
-    spec = importlib.util.spec_from_file_location(_LOC_OFFENDER_GATE_MODULE, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load LoC offender gate from {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[_LOC_OFFENDER_GATE_MODULE] = module
     spec.loader.exec_module(module)
     return module
 

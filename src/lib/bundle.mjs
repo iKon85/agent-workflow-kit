@@ -179,54 +179,25 @@ export const HELPER_FILES = [
   { path: 'scripts/worktree-lifecycle/plan-artifacts.json', kind: 'doc', mode: 0o644 },
   { path: 'scripts/worktree-lifecycle/ignore_seed.py', kind: 'script', mode: 0o755 },
   // Shared hook utility imported by the shipped hooks (drift-guard,
-  // sync-board-status). Library (imported, not run) → 0o644. MUST ship or those
-  // hooks ImportError on arrival.
+  // enforce-worktree-cwd, grep-shim-guard). Library (imported, not run) →
+  // 0o644. MUST ship or those hooks ImportError on arrival.
   { path: '.claude/hooks/_hook_utils.py', kind: 'hook', mode: 0o644 },
-  // Thin Worktree Lifecycle adapters; all branch parsing, traversal and
-  // fail-open/fail-closed policy stays in scripts/worktree-lifecycle/core.py.
-  { path: '.claude/hooks/branch-context.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/branch-watch.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/enforce-worktree.py', kind: 'hook', mode: 0o755 },
+  // The one Worktree Lifecycle adapter the 2026-07 hook review kept (named
+  // incident: repository issue 373). All policy stays in
+  // scripts/worktree-lifecycle/core.py.
   { path: '.claude/hooks/enforce-worktree-cwd.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/enforce-worktree-discipline.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/slice-handoff-hint.py', kind: 'hook', mode: 0o755 },
-  // Advisory provenance hint for agent Edit/Write events. It reads the local
-  // consumer manifest once and fails open; setup-workflow owns activation.
-  { path: '.claude/hooks/kit-origin-edit-hint.py', kind: 'hook', mode: 0o755 },
-  // Profile-driven non-blocking change-lifecycle advisories. The shell Stop
-  // entry delegates to its sibling Python adapter; decisions stay in core.py.
-  { path: 'scripts/workflow-advisories/core.py', kind: 'script', mode: 0o644 },
-  { path: 'scripts/workflow-advisories/capabilities.json', kind: 'doc', mode: 0o644 },
-  { path: '.claude/hooks/recon-size-hint.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/baseline-capture-hint.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/pre-refactor-sweep.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/typecheck-on-stop.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/typecheck-on-stop.sh', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/convention-drift-hint.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/migration-snapshot-reminder.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/loc-offender-forewarn.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/drift-guard.py', kind: 'hook', mode: 0o755 },
-  // Counted Safety Guardrails unit: shared policy/search core, one loader,
-  // four thin Agent adapters, and three portable repository-security
-  // primitives. Activation stays consumer-owned through setup-workflow.
+  // Safety Guardrails: shared policy/search core, one loader, and the one
+  // incident-backed adapter (search-shim breakage, repository issue 373
+  // Context). Activation stays consumer-owned through setup-workflow.
   { path: 'scripts/safety-guardrails/core.py', kind: 'script', mode: 0o644 },
   { path: 'scripts/safety-guardrails/search.py', kind: 'script', mode: 0o644 },
   { path: '.claude/hooks/_safety_guard.py', kind: 'hook', mode: 0o644 },
-  { path: '.claude/hooks/block-secrets.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/block-npm-install-in-pnpm.py', kind: 'hook', mode: 0o755 },
-  { path: '.claude/hooks/block-bg-double-background.py', kind: 'hook', mode: 0o755 },
   { path: '.claude/hooks/grep-shim-guard.py', kind: 'hook', mode: 0o755 },
   { path: 'scripts/security/install-git-hooks.mjs', kind: 'script', mode: 0o755 },
   { path: 'scripts/security/ensure-gitleaks.mjs', kind: 'script', mode: 0o755 },
   { path: 'scripts/security/gitleaks-profile.json', kind: 'doc', mode: 0o644 },
   { path: 'scripts/security/audit-gate.mjs', kind: 'script', mode: 0o755 },
-  // SessionStart skill-freshness drift-hint (audit-skills names it). For each
-  // <skill>/SOURCES.txt it flags sources newer in git than the SKILL.md. Imports
-  // _hook_utils (shipped above); stdlib-only otherwise. Executable hook → 0o755.
-  { path: '.claude/hooks/skill-drift-hint.py', kind: 'hook', mode: 0o755 },
-  // Board-status pickup hook — profile-driven (reads project/field/status ids
-  // from the consumer-seeded board profile), so it ships portably. /tdd names it.
-  { path: '.claude/hooks/sync-board-status.py', kind: 'hook', mode: 0o755 },
   { path: 'docs/agents/wave-anchor-template.md', kind: 'template', mode: 0o644 },
   // Part-0–5 security-audit runbook skeleton (the security-audit skill names it).
   // The stack-coupled checklist is deliberately NOT shipped — this template is the

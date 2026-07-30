@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""PreToolUse adapter for writes that must land in their linked worktree."""
+"""PreToolUse adapter for writes that must land in their linked worktree.
+
+Kept by the 2026-07 hook review — incident: repository issue 373 (observed
+wrong-tree write class; the guard was recut to judge the observable write
+target).
+"""
 
 import json
 import sys

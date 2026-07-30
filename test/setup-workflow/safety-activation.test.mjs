@@ -50,9 +50,6 @@ async function reconcile(root, effect, defaults) {
       };
     } else if (operation === 'stage-agent-hook-wiring') {
       settings.hooks.safetyGuardrails = [
-        'block-secrets.py',
-        'block-npm-install-in-pnpm.py',
-        'block-bg-double-background.py',
         'grep-shim-guard.py',
       ];
     } else if (operation === 'stage-git-hook-wiring') {
@@ -76,12 +73,11 @@ async function reconcile(root, effect, defaults) {
   return { profile, settings, gitConfig };
 }
 
-test('setup exposes exactly seven independently counted Safety capabilities', async () => {
+test('setup exposes exactly four independently counted Safety capabilities', async () => {
+  // The secrets / packageManager / doubleBackground agent adapters were
+  // retired by the 2026-07 hook review (no named incident).
   const { capabilities } = await contract();
   assert.deepEqual(capabilities.map(({ id }) => id), [
-    'secrets',
-    'packageManager',
-    'doubleBackground',
     'searchShim',
     'gitHooks',
     'gitleaks',
@@ -151,9 +147,6 @@ test('Claude-first setup contract mirrors and ships all Safety primitives', asyn
     'scripts/safety-guardrails/core.py',
     'scripts/safety-guardrails/search.py',
     '.claude/hooks/_safety_guard.py',
-    '.claude/hooks/block-secrets.py',
-    '.claude/hooks/block-npm-install-in-pnpm.py',
-    '.claude/hooks/block-bg-double-background.py',
     '.claude/hooks/grep-shim-guard.py',
     'scripts/security/install-git-hooks.mjs',
     'scripts/security/ensure-gitleaks.mjs',
