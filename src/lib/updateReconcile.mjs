@@ -75,8 +75,12 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
       if (destinationPresent && [
         OwnershipState.EXPLICIT_FORK, OwnershipState.PROJECT_EXTENSION,
       ].includes(classification.state)) {
-        await validateConsumerFile(consumerRoot, file.path);
-        retained = { ...retained, installedSha256: await sha256File(dest) };
+        try {
+          await validateConsumerFile(consumerRoot, file.path);
+          retained = { ...retained, installedSha256: await sha256File(dest) };
+        } catch (error) {
+          if (!error.message.startsWith('unsafe consumer path')) throw error;
+        }
       }
       nextInstalled.push(retained);
       result.consumerOwned.push(file.path);
