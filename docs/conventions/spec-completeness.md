@@ -21,3 +21,27 @@ Every user-facing slice is an outcome tracer, carries at least one acceptance cr
 
 **Korrektur:** Reword or split layer-only rows and make every deferred half explicit.
 
+## Excess — the excess criterion
+
+The counterpart of completeness: completeness asks what is missing, this asks
+what is too much. **Would a senior engineer read this and call it
+overcomplicated?** Every mechanism kept or added — a rule, a gate, a guard, an
+abstraction, a config knob, a checklist item — needs an **observed incident**
+behind it, never a conceivable one.
+**Over-engineering is a defect of the same severity as a hole** — an unearned
+mechanism is reported like a missing requirement, and neither is waived because
+the other side reads clean.
+
+This is the single definition. Every reviewing surface points here instead of
+restating it.
+
+## Self-Critique-Check
+
+**Trigger:** Always.
+
+**Check:** Does every mechanism this spec keeps or adds name the observed
+incident that demands it?
+
+**Korrektur:** Cut the mechanism, or name its incident in the spec. Report an
+unearned mechanism at the severity a missing requirement would get.
+

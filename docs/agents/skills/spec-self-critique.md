@@ -12,6 +12,11 @@ The generic checklist owns the checks; `/retro` appends project-specific inciden
 ## Point 6
 ## Point 7
 ## Point 8
+The **excess criterion** is one of the convention checks this point iterates:
+`docs/conventions/spec-completeness.md` §Excess, with its own
+`## Self-Critique-Check` block. Read the criterion there — it is defined once
+and never restated here.
+
 ## Point 9
 ## Point 10
 ## Point 11
