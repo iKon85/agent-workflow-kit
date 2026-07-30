@@ -1,6 +1,6 @@
 ---
 name: kit-update
-description: "Preview and transactionally apply a parity-verified agent-workflow-kit release without overwriting local modifications or auto-resolving conflicts."
+description: "Preview and transactionally apply a parity-verified agent-workflow-kit release, activating the full new version while backing up every undeclared local edit and never touching declared consumer ownership."
 ---
 
 <!-- project-extension:protocol-v1:start -->
@@ -28,8 +28,11 @@ release contain the same artifact.
    npx @ikon85/agent-workflow-kit@latest diff
    ```
 
-   Review the named added, updated, locally modified, removed, and conflicting
-   paths. Do not reinterpret a local modification as permission to overwrite it.
+   Review the named added, updated, overwritten, removed, and conflicting
+   paths. An overwritten path is an `origin=kit` file the Consumer edited
+   without declaring ownership: the update activates the new version there and
+   preserves the local bytes as a backup. Report it; never present it as a
+   decision the Consumer already made.
 
 2. Apply the update:
 
@@ -92,8 +95,21 @@ release contain the same artifact.
 3. Read the terminal report. `aktuell` proves a second run found no upstream
    delta or pending readiness migration. A conflict report names and counts
    every category and leaves every consumer file untouched. Follow its
-   recommendation and resolve each named conflict manually; never auto-merge,
-   delete a local edit, or silently choose the incoming copy.
+   recommendation and resolve each named conflict manually; never auto-merge or
+   delete a local edit.
+
+   An update always activates the **full** new version: it is never left half
+   applied, and an undeclared local edit never blocks it. Ownership is what
+   scopes that. A `origin=kit` path the ledger declares no ownership for is
+   overwritten, and the run keeps the replaced bytes in a non-clobbering
+   `<path>.<timestamp>.bak` and names every one of them in the end-of-update
+   backup summary. A ledger-declared Consumer state — Project extension,
+   Contribution Bridge, or Explicit fork via `own` — is never overwritten and
+   needs no backup. Read the summary out to the user: it *offers* the Project
+   extension, `own`, and `contribute` routes for each backed-up path and
+   assigns none. Never choose one on the user's behalf, and never describe an
+   overwrite as if nothing happened — nothing lost, nothing silent is the floor
+   this report discharges.
 
    Read all four availability categories alongside the file delta: newly
    available skill core, newly degraded optional blocks, newly blocked skill
@@ -122,7 +138,7 @@ release contain the same artifact.
    it pending on every rerun. A registry with no entries is the normal state —
    report no outstanding action rather than inventing one.
 
-   For each conflicted kit-shipped file, always ask the user whether the local
+   For each backed-up kit-shipped file, always ask the user whether the local
    edit is a generic improvement or project-specific; never decide or act
    automatically. For a generic improvement retained as a bridge, run
    `contribute status <path> --surface=pre-update` and follow only its

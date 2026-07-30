@@ -44,7 +44,7 @@ export function verifyTransactionPreview(preview, installable, installed) {
   const installablePaths = new Set(installable.map(({ path }) => path));
   const owners = new Map();
   const actionSets = new Map();
-  for (const key of ['added', 'updated', 'deleted', 'generated', 'keptDeleted', 'userModified']) {
+  for (const key of ['added', 'updated', 'deleted', 'generated', 'keptDeleted']) {
     if (!Array.isArray(preview[key] ?? [])) {
       throw new Error(`candidate invariant transaction: ${key} must be an array`);
     }
@@ -54,34 +54,13 @@ export function verifyTransactionPreview(preview, installable, installed) {
       if (['added', 'updated'].includes(key) && !installablePaths.has(path)) {
         throw new Error(`candidate invariant transaction: unmanaged ${key} path ${path}`);
       }
-      if (key === 'userModified' && !installablePaths.has(path)) {
-        throw new Error(`candidate invariant transaction: unmanaged userModified path ${path}`);
-      }
       if (key === 'deleted' && installablePaths.has(path)) {
         throw new Error(`candidate invariant transaction: deletes current package path ${path}`);
       }
     }
     actionSets.set(key, local);
   }
-  if (!Array.isArray(preview.userModifiedSnapshots ?? [])) {
-    throw new Error('candidate invariant transaction: userModifiedSnapshots must be an array');
-  }
-  const modified = actionSets.get('userModified');
-  const snapshots = new Set();
-  for (const snapshot of preview.userModifiedSnapshots ?? []) {
-    const path = snapshot?.path;
-    claimTransactionPath(path, 'userModifiedSnapshots', snapshots);
-    if (!modified.has(path)
-        || !HASH.test(snapshot.sha256 ?? '')
-        || !Number.isInteger(snapshot.mode)
-        || snapshot.mode < 0
-        || snapshot.mode > 0o777) {
-      throw new Error(`candidate invariant transaction: invalid local snapshot ${path}`);
-    }
-  }
-  if (snapshots.size !== modified.size) {
-    throw new Error('candidate invariant transaction: missing local snapshot');
-  }
+  verifyOverwriteRecords(preview, actionSets.get('updated'));
   if (!Array.isArray(preview.bridgeRetired ?? [])) {
     throw new Error('candidate invariant transaction: bridgeRetired must be an array');
   }
@@ -121,6 +100,30 @@ export async function verifyDerivedArtifacts(candidateRoot, installed, preview) 
         || !HASH.test(migration.afterSha256 ?? '')
         || await transactionHash(candidateRoot, path) !== migration.afterSha256) {
       throw new Error(`candidate invariant transaction: migration hash mismatch ${path}`);
+    }
+  }
+}
+
+/**
+ * "Nothing silent" as an invariant: every overwritten Consumer edit names the
+ * bytes it replaced (`localSha256` + `mode`, the destination-race check
+ * activation re-reads) and is also a declared `updated` write, so an overwrite
+ * can never reach the Consumer outside the transaction that reports it.
+ */
+function verifyOverwriteRecords(preview, updated) {
+  if (!Array.isArray(preview.overwritten ?? [])) {
+    throw new Error('candidate invariant transaction: overwritten must be an array');
+  }
+  const overwritten = new Set();
+  for (const record of preview.overwritten ?? []) {
+    const path = record?.path;
+    claimTransactionPath(path, 'overwritten', overwritten);
+    if (!updated.has(path)
+        || !HASH.test(record.localSha256 ?? '')
+        || !Number.isInteger(record.mode)
+        || record.mode < 0
+        || record.mode > 0o777) {
+      throw new Error(`candidate invariant transaction: invalid overwrite record ${path}`);
     }
   }
 }

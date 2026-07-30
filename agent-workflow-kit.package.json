@@ -377,7 +377,7 @@
       "ownerSkill": "kit-update",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "e4fc78d5e60f467328324d29f460a8ee74221b0c3dcfb5c6fd1ee465cac69ab6",
+      "sha256": "7190619c7e8a5e38c90d8bf3c9666718d49ff11b08ef5d1ee9e7f980ea8cdd17",
       "mode": 420,
       "origin": "kit"
     },
@@ -1127,7 +1127,7 @@
       "path": ".claude/hooks/kit-origin-edit-hint.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "d6662eb75ccdd0bad7bea8e41024b8fd865c00c61ddeb81b8cc9d93f813c75e3",
+      "sha256": "041c60b7bab6e40527b592429e4c2fd5476c1e72afb7b5ba6fc92707d02deb86",
       "mode": 493,
       "origin": "kit"
     },
@@ -1699,7 +1699,7 @@
       "ownerSkill": "kit-update",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "e4fc78d5e60f467328324d29f460a8ee74221b0c3dcfb5c6fd1ee465cac69ab6",
+      "sha256": "7190619c7e8a5e38c90d8bf3c9666718d49ff11b08ef5d1ee9e7f980ea8cdd17",
       "mode": 420,
       "origin": "kit"
     },
@@ -2907,7 +2907,7 @@
       "path": "src/lib/atomicWrite.mjs",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "dbb971617ae641127857341a02cc029f30633ab5ef0c6efff2bab27b95794a9f",
+      "sha256": "26ad5c92c6dce5670c5721b5c6dc4a22d78dd7db1bf7ac9af9ec011cd331eef9",
       "mode": 420,
       "origin": "kit"
     },

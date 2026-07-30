@@ -386,9 +386,11 @@ merge, age, and removal facts, nothing removed — run
 ### What's yours vs. the kit's
 
 `init` records a sha256 of every file it installs. That's the line between the
-two: **edit any skill or script freely** — `update` detects your edits and backs
-them up rather than clobbering them. Your **project layer** (`docs/agents/*`, the
-board profile, `CLAUDE.md`, `AGENTS.md`) remains consumer-owned. `update` may
+two: **edit any skill or script freely** — `update` detects your edits, keeps
+your bytes in a backup it names, and activates the new version on top. Say a
+path is yours (`own <path> --as=explicit-fork`) and `update` leaves it alone
+entirely. Your **project layer** (`docs/agents/*`, the board profile,
+`CLAUDE.md`, `AGENTS.md`) remains consumer-owned. `update` may
 only apply a previewed, schema-driven, idempotent compatibility migration that
 fills missing evidence without rewriting an existing value; it verifies and
 rolls that migration back with the rest of the candidate.
@@ -404,14 +406,24 @@ npx github:iKon85/agent-workflow-kit uninstall   # remove kit-installed files
 
 `update` is a three-way reconcile against the hashes `init` recorded:
 
+`update` always activates the **full** new version — there is no half-updated
+installation and no edit that blocks the release:
+
 - a file you **didn't** touch fast-forwards to the new version;
-- a file you **did** edit is kept — the incoming version is backed up with a
-  timestamp and a diff is printed, never silently overwritten;
+- a file you **did** edit, without saying it is yours, is replaced by the new
+  version — but never silently: your bytes are copied to
+  `<path>.<timestamp>.bak` first (an existing backup is never clobbered), the
+  diff is printed, and the end-of-update summary lists every backed-up path and
+  **offers** you the three supported routes — move Project-specific
+  instructions to `docs/agents/skills/<skill>.md`, `own` the path as an
+  explicit fork, or send the improvement upstream with `contribute start`. It
+  offers; it never picks one for you;
 - a file you intentionally fork can be detached with
   `npx github:iKon85/agent-workflow-kit own <path> --as=explicit-fork` and
   returned to kit ownership with
   `npx github:iKon85/agent-workflow-kit disown <path>`; owned files are
-  skipped by updates even after the package stops shipping them;
+  skipped by updates even after the package stops shipping them, and are never
+  overwritten or backed up — a declared fork is a decision, not a drift;
 - a modified declared Core path enters the temporary Contribution Bridge with
   `contribute start <path>`. `contribute prepare <path>
   --output=.agent-workflow-kit/contributions/<name>.json` writes one local,
@@ -454,8 +466,9 @@ locally), `--restore-deleted` (retain files that were deleted upstream), and
 A headless `update` requires `--yes`; otherwise it exits before reading release
 state or touching consumer files. The mutually exclusive deletion flags only
 override the blanket answer for files removed upstream. They never resolve an
-ownership collision or content conflict, so a conflicted headless update still
-prints its report, exits non-zero, and leaves the consumer byte-identical.
+ownership collision, so a headless update that hits one still prints its report,
+exits non-zero, and leaves the consumer byte-identical. An undeclared local edit
+is not such a case: it is backed up, replaced, and reported, headless or not.
 
 The optional Contribution Routing capability is consumer-owned:
 

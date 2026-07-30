@@ -41,9 +41,11 @@ def kit_origin_path(payload: object, root: Path) -> str | None:
 
 def hint(path: str) -> str:
     return (
-        "This file has kit origin. Before editing, ask whether the change should "
-        "stay Consumer-owned or return upstream. If it becomes a Contribution "
-        "Bridge, read the repository-scoped route with "
+        "This file has kit origin. An edit left undeclared here is replaced by the "
+        "next update, which keeps your bytes in a backup and names them. Before "
+        "editing, ask whether the change should stay Consumer-owned or return "
+        "upstream. If it becomes a Contribution Bridge, read the "
+        "repository-scoped route with "
         f"`agent-workflow-kit contribute status {path} --surface=guard`; "
         "missing or invalid capability configuration offers preserve/fork only."
     )
