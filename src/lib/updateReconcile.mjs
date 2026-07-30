@@ -37,13 +37,14 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     const dest = join(consumerRoot, file.path);
     const prior = installedIdx.get(file.path);
     if (prior?.origin === CONSUMER_ORIGIN) {
+      const destinationPresent = await exists(dest);
       const bridge = prior.ownershipState === OwnershipState.CONTRIBUTION_BRIDGE
         ? contributionBridgeEvidence(prior) : null;
       const classification = classifyOwnershipEvidence({
         path: file.path,
         packageEntry: file,
         installedEntry: prior,
-        destinationPresent: await exists(dest),
+        destinationPresent,
         projectExtension: prior.ownershipState === OwnershipState.PROJECT_EXTENSION
           ? await projectExtensionEvidence(consumerRoot, file.path) : null,
         contributionBridge: bridge,
@@ -57,8 +58,7 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
         });
       }
       if (classification.state === OwnershipState.CONTRIBUTION_BRIDGE) {
-        const present = await exists(dest);
-        if (present) {
+        if (destinationPresent) {
           await validateConsumerFile(consumerRoot, file.path);
           const current = await sha256File(dest);
           if (current === file.sha256 && current === bridge.localSha256) {
@@ -71,7 +71,18 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
           }
         }
       }
-      nextInstalled.push(withInstallRole(prior));
+      let retained = withInstallRole(prior);
+      if (destinationPresent && [
+        OwnershipState.EXPLICIT_FORK, OwnershipState.PROJECT_EXTENSION,
+      ].includes(classification.state)) {
+        try {
+          await validateConsumerFile(consumerRoot, file.path);
+          retained = { ...retained, installedSha256: await sha256File(dest) };
+        } catch (error) {
+          if (!error.message.startsWith('unsafe consumer path')) throw error;
+        }
+      }
+      nextInstalled.push(retained);
       result.consumerOwned.push(file.path);
       continue;
     }
