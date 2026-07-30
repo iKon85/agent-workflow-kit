@@ -100,10 +100,10 @@ def _render(template: str, **values: str) -> str:
 def render_content_branch(template: str, slug: str, branch_type: str) -> str:
     """Render one issue-less content branch name — the placeholder policy's home.
 
-    A caller that reads the template out of a raw profile document (wrapup's
-    Content route does, because it must work whether or not the worktree
-    lifecycle itself is enabled) renders it here, so `{issue}` is refused in
-    exactly one place instead of two.
+    A caller that reads the template out of a raw profile document (the
+    durable-content commit in `make-landable` does, because it must work
+    whether or not the worktree lifecycle itself is enabled) renders it here,
+    so `{issue}` is refused in exactly one place instead of two.
     """
     return _render(template, slug=slug, type=branch_type)
 

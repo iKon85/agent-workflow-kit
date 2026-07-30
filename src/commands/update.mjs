@@ -79,7 +79,7 @@ export async function update(options) {
 }
 
 /**
- * The same evaluator `init`/`wrapup` use, rendered read-only at the end of an
+ * The same evaluator `init`/`land` use, rendered read-only at the end of an
  * `update` run — a report, never a gate. Left off `result` (rather than
  * blocking the run) whenever the consumer is not yet initialised or the
  * candidate never activated, so a `failed`/`conflicted` terminal state stays

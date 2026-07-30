@@ -24,7 +24,8 @@ changes.
 Maintainers prepare releases with `/kit-release`. It derives the shipped delta
 from a fresh manifest, recommends Semver, applies only the confirmed target,
 regenerates the checked-in manifest, and runs the full test and pack gates.
-Landing remains owned by `/wrapup` and only integrates the prepared version.
+Landing remains owned by `/make-landable` + `/land` and only integrates the
+prepared version.
 After a separate publication confirmation, a matching annotated `v<version>`
 tag on canonical `main` starts the trusted publish flow. Manual dispatch
 requires an explicit existing tag and only reconciles an incomplete release.
@@ -51,7 +52,7 @@ npx github:iKon85/agent-workflow-kit init
    config, and — for a GitHub Projects board — discovers the field IDs into a
    board profile. See [Configuration](#configuration).
 3. **Start working.** Trigger skills by name (`/grill-with-docs`, `/tdd`,
-   `/wrapup`, …) — the workflow below explains when each one earns its keep.
+   `/land`, …) — the workflow below explains when each one earns its keep.
    Unsure which one fits? Run **`/ask-matt`** — it routes you to the right skill.
 
 ## The workflow it installs
@@ -168,8 +169,14 @@ enter outside the plan funnel and feed straight into Execute:
 > *The risky part is the merge: half-checked PRs, broken hooks, context lost at
 > handoff.* The land phase puts mechanical gates in front of the commit.
 
-- **`wrapup`** — the land-and-clean closeout: make the branch landable, enforce
-  the PR body contract, merge the PR, reconcile the board, tear the finished
+- **`make-landable`** — the post-implement half: run the local CI gate, judge
+  the secret scan, commit the finished slice, and author the PR body with its
+  close/part-of marker and the build's assumption-drift markers. It stops at a
+  landable branch — nothing is pushed, opened, or merged. A planning session
+  with no worktree lands its durable content the same way, through one confirmed
+  file claim that leaves every bystanding change untouched.
+- **`land`** — the post-acceptance half: push, open or reuse the PR, enforce the
+  PR body contract, merge the PR, reconcile the board, tear the finished
   worktree down, retire the branch, sweep merged branches, and surface anything
   still open. It does not replace live verification; verify the user outcome
   before landing. Interrupted halfway? Re-run it — every step re-reads present
@@ -233,8 +240,8 @@ that explicit identity. It unfolds the plan into named waves after you approve
 a full preview in chat — zero board writes until you say yes. **Bottom-up:**
 `board-to-waves` clusters loose issues into a wave candidate, which earns a
 real number only when you promote it. Either road lands in the *identical*
-wave anchor plus slice sub-issues, built through the same `implement` → `wrapup` →
-`retro` spine as every other wave.
+wave anchor plus slice sub-issues, built through the same `implement` →
+`make-landable` → `land` → `retro` spine as every other wave.
 
 When the slices are file-disjoint and their specs are locked, **`orchestrate-wave`**
 lands the whole anchor end-to-end — often AFK: it dispatches an implementer per
@@ -325,7 +332,7 @@ own `docs/agents/workflow-capabilities.json`. Enabled, it gives each build its
 own linked worktree: `python3 scripts/worktree-lifecycle/setup.py` cuts the
 branch, creates the worktree from your naming templates, and runs your project's
 setup steps; on Claude Code a set of hook adapters keeps edits, verification
-commands, and Git mutations in the checkout they belong to; and `wrapup` tears
+commands, and Git mutations in the checkout they belong to; and `land` tears
 the worktree down after the merge. A worktree belongs to a **build** — a session
 that only plans or grills stays in the main checkout, keeps its scratch on disk,
 and lands its durable output as ordinary content.

@@ -361,7 +361,7 @@ test('CLI owns narrow decisions and the late-Prod degraded to ready tracer', asy
     readiness: { contractVersion: 1, capabilities: {
       prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
     } },
-    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+    skills: { land: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
   };
   try {
     await write(root, '.claude/skills/skill-manifest.json', `${JSON.stringify(manifest)}\n`);
@@ -374,30 +374,30 @@ test('CLI owns narrow decisions and the late-Prod degraded to ready tracer', asy
       join(import.meta.dirname, '../scripts/readiness.mjs'), ...args, '--root', root,
     ]);
 
-    let result = JSON.parse((await run('check', '--skill', 'wrapup', '--json')).stdout);
+    let result = JSON.parse((await run('check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.verdict, 'degraded');
     assert.deepEqual(result.inactiveBlocks, ['deployReport']);
 
     await write(root, 'CLAUDE.md', '# Project\n\n## Prod\nDeploy with release workflow.\n');
-    result = JSON.parse((await run('check', '--skill', 'wrapup', '--json')).stdout);
+    result = JSON.parse((await run('check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.verdict, 'ready');
     assert.deepEqual(result.activeBlocks, ['deployReport']);
 
     await write(root, 'AGENTS.md', '# Agents\n');
-    result = JSON.parse((await run('check', '--skill', 'wrapup', '--json')).stdout);
+    result = JSON.parse((await run('check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.capabilities.prodTarget.state, 'invalid');
     assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
       { path: 'AGENTS.md', problem: 'missing-section' },
     ]);
 
     await write(root, 'AGENTS.md', '# Agents\n\n## Prod\n');
-    result = JSON.parse((await run('check', '--skill', 'wrapup', '--json')).stdout);
+    result = JSON.parse((await run('check', '--skill', 'land', '--json')).stdout);
     assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
       { path: 'AGENTS.md', problem: 'empty-section' },
     ]);
 
     await write(root, 'AGENTS.md', '# Agents\n\n## Prod\nDifferent target.\n');
-    result = JSON.parse((await run('check', '--skill', 'wrapup', '--json')).stdout);
+    result = JSON.parse((await run('check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.capabilities.prodTarget.state, 'invalid');
     assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
       { path: 'CLAUDE.md', problem: 'divergent-section' },

@@ -3,7 +3,7 @@
 pr-body-check.py — mechanical guard for the PR-body conventions that were until
 now prose-only.
 
-Called by `wrapup` Step 0c AFTER the PR has been created/reused, BEFORE the
+Called by `land` AFTER the PR has been created/reused, BEFORE the
 merge gate. Turns three instruction-only rules into a check that actually fires:
 
   1. Anker-Slice (Issue HAS a parent) → body MUST contain `Part of #<parent>`
@@ -13,7 +13,7 @@ merge gate. Turns three instruction-only rules into a check that actually fires:
      A `closes #<foreign-leaf>` (any number ≠ parent) stays ALLOWED.
   2. Atomar Leaf (Issue has NO parent / FREI) → body MUST contain an ACTIVE
      `closes #<issue>` — not inside a code span / backticks (else GitHub's
-     auto-close never fires, wrapup Step 5b lesson).
+     auto-close never fires, the close-verification lesson).
   3. Exactly one valid `E2E-NA: <reason>` trailer in the immutable pull-request
      range requires active `E2E: n/a — <reason>` PR-body evidence.
 
@@ -23,18 +23,18 @@ promised existed in exactly one.
 
 Scope: this script checks ONLY the closes/Part-of anchor rule and E2E exemption
 evidence. It does NOT parse or validate `annahme-drift` markers
-(those are prose-/judgment-driven in wrapup Step 0c + 5e, deliberately not
-mechanised — R2-F6). The annahme-drift block therefore runs BEFORE this
-check in wrapup Step 0c so the body the script sees is final.
+(those are prose-/judgment-driven — authored in `make-landable`, propagated in
+`land` — deliberately not mechanised — R2-F6). The annahme-drift block therefore
+runs BEFORE this check, so the body the script sees is final.
 
 Exit codes:
   0 — green (no violations)
-  1 — violation(s) found → wrapup STOPs, fix body via `gh pr edit --body-file`
+  1 — violation(s) found → land STOPs, fix body via `gh pr edit --body-file`
   2 — not checkable (no issue-number derivable from the branch, or PR body
       unavailable) → warn, do NOT block (fail-open, like drift-guard).
 
 The pure functions below carry the logic + the unit tests; gh/git access is a
-thin shell. NOT a hook — `wrapup` invokes it (Design).
+thin shell. NOT a hook — `land` invokes it (Design).
 
 Usage:
   pr-body-check.py [--branch <name>] [--issue <n>] [--parent <n>|FREI]
@@ -126,7 +126,7 @@ def active_close_targets(body: str) -> list:
     """All issue numbers an ACTIVE close-keyword targets (outside code spans),
     as sorted, deduplicated strings. Same grammar `_close_on` enforces —
     plain `closes #n`, the colon form, and the full-URL form. This is the one
-    close grammar; close-verification (wrapup-land Step 5b) must derive its
+    close grammar; close-verification (wrapup-land.py Step 5b) must derive its
     targets from here, never from a branch number."""
     text = strip_code(body)
     pat = re.compile(

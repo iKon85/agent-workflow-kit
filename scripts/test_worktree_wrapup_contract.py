@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wrapup lands and tears down any born, attached worktree (ADR-0009).
+"""land lands and tears down any born, attached worktree (ADR-0009).
 
 The landing contract — preflight → commit → land — survives here. What is gone
 is its provenance half: there is no attempt journal, no artifact baseline, no

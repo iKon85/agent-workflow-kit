@@ -324,7 +324,7 @@ Between wave events the PRD's Wellenplan **Status** + **Issue** columns are
 regenerated from the board (monotone, idempotent — Status never regresses, Issue
 fills but never overwrites; hand-owned Name/Plan cells survive verbatim), and
 mechanically completed **Phasen-Gates** are checked off (all waves of a phase ✅ →
-`[x]` with an `— alle Wellen ✅ (<date>)` stamp). `wrapup` triggers the same
+`[x]` with an `— alle Wellen ✅ (<date>)` stamp). `land` triggers the same
 sync automatically on every slice merge whose wave anchor has a program parent
 (upward propagation — the program table shows the event, not only the wave):
 

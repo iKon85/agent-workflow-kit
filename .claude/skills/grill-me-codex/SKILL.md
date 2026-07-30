@@ -51,7 +51,7 @@ When the decision tree is resolved and we're aligned, **write the agreed plan to
 
 > **Where to write it:** `PLAN.md` + `PLAN-REVIEW-LOG.md` are per-session scratch — write them where this session already runs, and invoke the wrapper from that directory. Planning creates no worktree: a worktree isolates a build, so it belongs to the implementing session, which creates it when the build starts. A project may gitignore these files, so don't rely on git to carry them across checkouts/worktrees; being ignored is also what makes them scratch, deletable at teardown and needing no cleanup step of their own.
 >
-> **Durable output is the opposite case:** decision records, glossary edits and research notes this grill produced are ordinary work and have to reach a commit. Land them with `$wrapup` — a planning session with no worktree takes its Content route, which claims an explicitly confirmed file list and opens the ordinary PR, with no teardown half. Never leave them behind as an uncommitted session leftover.
+> **Durable output is the opposite case:** decision records, glossary edits and research notes this grill produced are ordinary work and have to reach a commit. Land them with `$make-landable` — a planning session with no worktree claims an explicitly confirmed file list and commits it to an issue-less branch, which `$land` then merges with no teardown half. Never leave them behind as an uncommitted session leftover.
 
 ```markdown
 # Plan: <task>
