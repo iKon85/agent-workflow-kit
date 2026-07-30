@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse adapter for commands that must run in their linked worktree."""
+"""PreToolUse adapter for writes that must land in their linked worktree."""
 
 import json
 import sys
@@ -13,7 +13,7 @@ def main() -> int:
         payload = json.load(sys.stdin)
         core = load_worktree_lifecycle_core()
         profile = core.load_profile(Path("docs/agents/workflow-capabilities.json"))
-        decision = core.evaluate(profile, core.collect_facts(Path.cwd()), "command-cwd", payload)
+        decision = core.evaluate(profile, core.collect_facts(Path.cwd()), "write-target", payload)
     except Exception:
         return 0
     if decision.action == "block":

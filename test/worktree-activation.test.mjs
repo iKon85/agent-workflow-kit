@@ -57,7 +57,10 @@ async function reconcile(root, effect) {
         mainBranches: ['main', 'master'],
         protectedBranches: ['main', 'master'],
         setupEntry: 'python3 scripts/worktree-lifecycle/setup.py',
-        setupSteps: [],
+        // The flat seed scaffold (#429): activation writes the declaration
+        // surface empty, so the consumer can see where their own paths and
+        // variables go. It is never filled in by inference.
+        seed: { paths: [], variables: {} },
         ...profile.worktreeLifecycle,
         choice: 'yes',
         enabled: true,

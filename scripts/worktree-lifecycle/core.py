@@ -6,6 +6,13 @@ exactly that assessment: it adds only the facts git status cannot answer — is
 the path a registered worktree, is its branch protected, is there an open PR,
 is the branch merged — and renders the one classification report instead of
 formatting a second one.
+
+Authorization follows the same rule: a decision is made from an **observable
+target**, never from an inferred intent. A structured Edit/Write payload names
+the file it writes, so that write can be judged; a shell command string only
+describes what someone means to do, so no command is authorized or refused from
+it. The floor for a shell mistake is git state, the protected branch, and the
+PR flow — not a pattern that guesses at a command.
 """
 
 from __future__ import annotations
@@ -78,6 +85,13 @@ class CleanupAssessment:
         if self.classification is None:
             return ()
         return tuple(entry.path for entry in self.classification.scratch)
+
+    @property
+    def declared_deletions(self) -> tuple[str, ...]:
+        """The deletions the consumer's seed declaration authorized by consent."""
+        if self.classification is None:
+            return ()
+        return tuple(self.classification.declared_deletions)
 
 
 def collect_facts(cwd: Path) -> RepoFacts:
@@ -152,11 +166,17 @@ def collect_cleanup_facts(
     *,
     merge_target: str | None = None,
     pr_state: str = "none",
+    declared_paths: tuple[str, ...] = (),
 ) -> CleanupFacts:
     """Read every fact a removal verdict needs, deciding nothing.
 
     The file taxonomy comes from `classify.assess`, which is also the object the
     removal step consumes — preview and action can never disagree.
+
+    `declared_paths` is the consumer's seed declaration, resolved here because
+    the classifier reads no profile: the paths a consumer declares as what a
+    fresh worktree carries are the paths its own declaration clears for
+    deletion.
     """
     worktree = target.resolve()
     branch = run(
@@ -165,7 +185,7 @@ def collect_cleanup_facts(
         check=False,
     ).stdout.strip()
     try:
-        classification = assess(worktree, main)
+        classification = assess(worktree, main, declared_paths)
     except ClassificationError as error:
         raise LifecycleError(str(error)) from error
     merged = False
@@ -295,11 +315,16 @@ def _cleanup_facts_or_error(
     *,
     merge_target: str,
     pr_state: str,
+    declared_paths: tuple[str, ...] = (),
 ) -> tuple[CleanupFacts | None, str]:
     """A single unreadable worktree must not abort the read-only inventory."""
     try:
         facts = collect_cleanup_facts(
-            main, path, merge_target=merge_target, pr_state=pr_state
+            main,
+            path,
+            merge_target=merge_target,
+            pr_state=pr_state,
+            declared_paths=declared_paths,
         )
     except LifecycleError as error:
         return None, str(error)
@@ -340,7 +365,11 @@ def collect_sweep_facts(
         ).returncode == 0
         cleanup, cleanup_error = (
             _cleanup_facts_or_error(
-                main, path, merge_target=main_branch, pr_state=pr_state
+                main,
+                path,
+                merge_target=main_branch,
+                pr_state=pr_state,
+                declared_paths=profile.seed.paths,
             )
             if path is not None
             else (None, "")
@@ -485,44 +514,48 @@ def edit_decision(
     return Decision("allow")
 
 
-def targets_linked_worktree(command: str, facts: RepoFacts) -> bool:
-    for worktree in facts.worktrees:
-        if worktree == facts.main_root:
-            continue
-        if str(worktree) in command or str(worktree.relative_to(facts.main_root)) in command:
-            return True
-    return False
-
-
-def command_decision(
+def write_target_decision(
     profile: WorktreeProfile,
     facts: RepoFacts,
     payload: dict[str, Any],
 ) -> Decision:
-    if payload.get("tool_name") != "Bash":
+    """Judge where a write lands, never what a shell command says it will do.
+
+    A `Bash` payload carries no observable target — its command string is prose
+    about intent, and reading it authorized anything that merely *mentioned* a
+    worktree path, never classified the `git -C <path>` form at all, and refused
+    writes that never touched the repository. Only a structured Edit/Write
+    payload states its target, so only that is judged: resolved to an absolute
+    path and refused when it lands in the protected main checkout while linked
+    worktrees are active. The floor for a shell mistake is git state, the
+    protected branch, and the PR flow.
+    """
+    if payload.get("tool_name") not in {"Edit", "Write", "MultiEdit"}:
         return Decision("skip")
-    command = str((payload.get("tool_input") or {}).get("command") or "")
-    if not command:
+    target = str((payload.get("tool_input") or {}).get("file_path") or "")
+    if not target:
         return Decision("skip")
-    risky = any(re.search(pattern, command) for pattern in profile.risky_command_patterns)
-    if not risky:
+    if len(facts.worktrees) < 2 or facts.main_branch not in profile.protected_branches:
         return Decision("allow")
-    if re.search(r"\bgit\s+push\s+\S+\s+--delete\s+\S+", command):
+    absolute = str(Path(target) if Path(target).is_absolute() else facts.root / target)
+    relative = repo_relative(absolute, facts.main_root)
+    if relative is None:
         return Decision("allow")
-    if targets_linked_worktree(command, facts):
+    # A linked worktree under the repository root is lexically inside the main
+    # checkout without belonging to it: its own files are exactly where the
+    # guard wants writes to land.
+    linked = [path for path in facts.worktrees if path != facts.main_root]
+    if any(repo_relative(absolute, worktree) is not None for worktree in linked):
         return Decision("allow")
-    if (
-        facts.is_main_worktree
-        and facts.branch in profile.protected_branches
-        and len(facts.worktrees) > 1
-    ):
-        active = ", ".join(path.name for path in facts.worktrees if path != facts.main_root)
-        return Decision(
-            "block",
-            f"Worktree Lifecycle blocked `{command}` in the protected main checkout "
-            f"while linked worktrees are active: {active}. Run it in the target worktree.",
-        )
-    return Decision("allow")
+    if is_ignored(facts.main_root, relative):
+        return Decision("allow")
+    active = ", ".join(path.name for path in linked)
+    return Decision(
+        "block",
+        f"Worktree Lifecycle blocked a write to {relative} in the protected main "
+        f"checkout while linked worktrees are active: {active}. "
+        f"Write it in the target worktree.",
+    )
 
 
 def branch_create_decision(
@@ -583,8 +616,8 @@ def evaluate(
         return Decision("emit", context.message, "PostToolUse")
     if event == "edit":
         return edit_decision(profile, facts, payload)
-    if event == "command-cwd":
-        return command_decision(profile, facts, payload)
+    if event == "write-target":
+        return write_target_decision(profile, facts, payload)
     if event == "branch-create":
         return branch_create_decision(profile, facts, payload)
     if event == "handoff":

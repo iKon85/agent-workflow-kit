@@ -14,7 +14,7 @@ async function git(cwd, ...args) {
   return run('git', args, { cwd });
 }
 
-async function fixture() {
+async function fixture(seed) {
   const root = await mkdtemp(join(tmpdir(), 'awkit-cleanup-'));
   await git(root, 'init', '--initial-branch=main');
   await git(root, 'config', 'user.email', 'test@example.invalid');
@@ -33,7 +33,7 @@ async function fixture() {
       branchRegex: '^(?:feat|fix)/(?P<issue>\\d+)-',
       mainBranches: ['main'],
       protectedBranches: ['main'],
-      setupSteps: [],
+      ...(seed ? { seed } : {}),
     },
   }));
   await git(root, 'add', '.');
@@ -215,6 +215,50 @@ test('cleanup refuses an ignored .env the main checkout does not carry', async (
     await readFile(join(worktree, 'PLAN.md'), 'utf8'),
     '# preserve everything until .env is resolved\n',
   );
+});
+
+test('cleanup deletes a seed-declared .env and names the deletion the declaration authorized', async (t) => {
+  // The consumer declared this file as what a fresh worktree carries, so the
+  // declaration is the consent — the same authority .gitignore already carries.
+  const { root, profile, worktree } = await fixture({ paths: ['.env'] });
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, '.env'), 'PORT=3000\n');
+  await writeFile(join(worktree, '.env'), 'PORT=3101\n');
+
+  const preview = JSON.parse((await run('python3', [
+    CLEANUP, '--profile', profile, worktree,
+  ], { cwd: root })).stdout);
+
+  assert.equal(preview.removable, true);
+  assert.deepEqual(preview.declaredDeletions, ['.env']);
+  assert.deepEqual(preview.scratchFiles, ['.env']);
+  assert.match(preview.classification, /declaration/);
+
+  const removed = JSON.parse((await run('python3', [
+    CLEANUP, '--profile', profile, '--remove', worktree,
+  ], { cwd: root })).stdout);
+
+  assert.equal(removed.removed, true);
+  assert.deepEqual(removed.declaredDeletions, ['.env']);
+  assert.equal(await readFile(join(root, '.env'), 'utf8'), 'PORT=3000\n');
+  assert.doesNotMatch((await git(root, 'worktree', 'list')).stdout, /feat-88-cleanup/);
+});
+
+test('a declaration for another path leaves the divergent .env blocking', async (t) => {
+  const { root, profile, worktree } = await fixture({ paths: ['config/local.json'] });
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, '.env'), 'PORT=3000\n');
+  await writeFile(join(worktree, '.env'), 'PORT=3101\n');
+
+  const preview = JSON.parse((await run('python3', [
+    CLEANUP, '--profile', profile, worktree,
+  ], { cwd: root })).stdout);
+
+  assert.equal(preview.removable, false);
+  assert.deepEqual(preview.declaredDeletions, []);
+  assert.match(preview.reasons.join('\n'), /\[env-file\]/);
+  assert.match(preview.reasons.join('\n'), /\.env/);
+  assert.equal(await readFile(join(worktree, '.env'), 'utf8'), 'PORT=3101\n');
 });
 
 test('cleanup rejects a worktree root replaced by a symlink after revalidation', async (t) => {

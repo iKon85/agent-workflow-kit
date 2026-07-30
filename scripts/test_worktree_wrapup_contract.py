@@ -47,8 +47,12 @@ def command(args, cwd):
     return result
 
 
-def make_repo(root: Path) -> tuple[Path, Path]:
-    """A repository whose integration branch is not called the platform default."""
+def make_repo(root: Path, *, seed: dict | None = None) -> tuple[Path, Path]:
+    """A repository whose integration branch is not called the platform default.
+
+    `seed` writes the consumer's own seed declaration into the profile — the
+    only thing that tells teardown which `.env*` file this consumer declared.
+    """
     remote = root / "remote.git"
     main = root / "main"
     command(["git", "init", "--bare", "--initial-branch", INTEGRATION_BRANCH, str(remote)], root)
@@ -58,17 +62,17 @@ def make_repo(root: Path) -> tuple[Path, Path]:
     (main / ".gitignore").write_text(
         ".worktrees/\nbuild/\nPLAN.md\nANNAHMEN.md\n.env*\n", encoding="utf-8"
     )
+    lifecycle = {
+        "enabled": True,
+        "worktreeRoot": ".worktrees",
+        "mainBranches": [INTEGRATION_BRANCH],
+        "protectedBranches": [INTEGRATION_BRANCH],
+    }
+    if seed is not None:
+        lifecycle["seed"] = seed
     profile = main / "docs/agents/workflow-capabilities.json"
     profile.parent.mkdir(parents=True)
-    profile.write_text(json.dumps({
-        "worktreeLifecycle": {
-            "enabled": True,
-            "worktreeRoot": ".worktrees",
-            "mainBranches": [INTEGRATION_BRANCH],
-            "protectedBranches": [INTEGRATION_BRANCH],
-            "setupSteps": [],
-        },
-    }), encoding="utf-8")
+    profile.write_text(json.dumps({"worktreeLifecycle": lifecycle}), encoding="utf-8")
     command(["git", "add", "."], main)
     command(["git", "commit", "-m", "seed"], main)
     command(["git", "remote", "add", "origin", str(remote)], main)
@@ -371,6 +375,51 @@ class ExternalWorktreeContract(unittest.TestCase):
                 (external / ".env").read_text(encoding="utf-8"), "LOCAL=only-here\n"
             )
             self.assertTrue(external.is_dir())
+
+    def test_a_declared_env_file_is_torn_down_by_the_consumers_own_declaration(self):
+        """The seed declaration is the consent, and the landing names the deletion.
+
+        This is the incident: a worktree that correctly carries its own port is
+        byte-different from the main checkout, so the comparison alone blocked
+        every correctly configured landing.
+        """
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            main, _ = make_repo(root, seed={"paths": [".env"]})
+            (main / ".env").write_text("PORT=3000\n", encoding="utf-8")
+            branch = "spike/declared-env"
+            external = add_worktree(main, root / "declared-tree", branch)
+            integrate(main, external, branch)
+            (external / ".env").write_text("PORT=3101\n", encoding="utf-8")
+
+            hub = FakeHub(wrapup.run)
+            result = run_land(wrapup, main, land_args(branch), hub=hub)
+
+            self.assertTrue(result["merged"])
+            self.assertIn(".env", result["scratch_removed"])
+            self.assertIn("declaration", result["teardown"]["report"])
+            self.assertIn(".env", result["teardown"]["report"])
+            self.assertFalse(external.exists())
+            self.assertEqual((main / ".env").read_text(encoding="utf-8"), "PORT=3000\n")
+
+    def test_a_malformed_seed_declaration_stops_instead_of_being_ignored(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            main, _ = make_repo(root, seed={"paths": ["../outside/.env"]})
+            branch = "spike/bad-seed"
+            external = add_worktree(main, root / "bad-seed-tree", branch)
+            integrate(main, external, branch)
+            (external / ".env").write_text("PORT=3101\n", encoding="utf-8")
+
+            hub = FakeHub(wrapup.run)
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args(branch), hub=hub)
+
+            self.assertEqual(stopped.exception.step, "4 teardown")
+            self.assertIn("seed declaration", stopped.exception.reason)
+            self.assertTrue((external / ".env").is_file())
 
     def test_untracked_work_appearing_before_teardown_blocks_with_a_bounded_report(self):
         wrapup = load_wrapup()

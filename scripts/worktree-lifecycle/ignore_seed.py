@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
-"""Offer the planning-artifact ignore rules for a consumer `.gitignore`.
+"""Offer the workflow ignore rules for a consumer `.gitignore`.
 
 The shipped skills write `PLAN.md`, `PLAN-REVIEW-LOG.md`, and `ANNAHMEN.md`
-into a session worktree, but `.gitignore` is a consumer file the kit does not
-own: `init` and `update` never touch it. This helper is the one place that
+into a session worktree, and the creation helper puts that worktree under the
+profile's declared worktree root. `.gitignore` is a consumer file the kit does
+not own: `init` and `update` never touch it. This helper is the one place that
 closes that gap, and it closes it only when a user explicitly approves the
 offer inside `/setup-workflow`.
+
+Two rule classes, one declaration each — never a literal typed in here:
+
+- the planning artefacts declared in `plan-artifacts.json`;
+- the worktree root declared by the consumer profile (`worktreeRoot`, kit
+  default `.worktrees`). Without that rule a stray `git add -A` stages every
+  linked worktree as an embedded git repository, and the resulting commit
+  carries gitlinks no clone can resolve.
 
 Contract:
 
@@ -15,8 +24,8 @@ Contract:
   no-op once the rules are in place.
 - Rules a consumer already has — by any pattern, including a wildcard — are
   reported as covered and never duplicated.
-- A marker block that the consumer has since edited is theirs: the helper
-  blocks instead of repairing it.
+- A marker block that no longer covers every rule is left alone: the helper
+  reports `blocked` and names the uncovered rules instead of repairing it.
 - Nothing here runs during `init`/`update` reconciliation.
 
 Usage:
@@ -35,14 +44,19 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from profile import worktree_root_of
+
 MANIFEST = Path(__file__).resolve().parent / "plan-artifacts.json"
+DEFAULT_PROFILE = "docs/agents/workflow-capabilities.json"
 
 BLOCK_START = "# >>> agent-workflow-kit: planning-artifacts/v1 >>>"
 BLOCK_END = "# <<< agent-workflow-kit: planning-artifacts/v1 <<<"
 BLOCK_NOTE = (
     "# Planning artifacts the agent workflow skills write into a session\n"
-    "# worktree. They are session scratch, never part of the change. Added by\n"
-    "# setup-workflow on request; this block is yours to edit or delete.\n"
+    "# worktree, and the worktree root itself. They are session scratch, never\n"
+    "# part of the change, and an unignored worktree root is staged as an\n"
+    "# embedded git repository by a stray `git add -A`. Added by setup-workflow\n"
+    "# on request; this block is yours to edit or delete.\n"
 )
 
 
@@ -82,6 +96,29 @@ def load_artifacts(manifest: Path = MANIFEST) -> tuple[str, ...]:
         return tuple(entry["path"] for entry in document["artifacts"])
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
         raise IgnoreSeedError(f"cannot read planning-artifact manifest: {error}") from error
+
+
+def worktree_root_rule(repo: Path, profile: str = DEFAULT_PROFILE) -> str:
+    """The directory rule for the worktree root this repository declares.
+
+    A repository without a readable profile gets the kit's own default, because
+    that is the location the shipped prose and the creation helper use. The
+    trailing slash keeps it a directory rule and makes `check-ignore` answer
+    the pattern question even before any worktree exists.
+    """
+    path = Path(profile)
+    if not path.is_absolute():
+        path = Path(repo) / path
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError):
+        document = {}
+    return worktree_root_of(document).rstrip("/") + "/"
+
+
+def declared_rules(repo: Path, manifest: Path = MANIFEST) -> tuple[str, ...]:
+    """Every rule the offer covers: kit artifacts, then the declared root."""
+    return load_artifacts(manifest) + (worktree_root_rule(repo),)
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess:
@@ -129,27 +166,28 @@ def plan(repo: Path, manifest: Path = MANIFEST) -> IgnorePlan:
     repo = Path(repo)
     if not (repo / ".git").exists():
         raise IgnoreSeedError(f"not a git repository: {repo}")
-    artifacts = load_artifacts(manifest)
+    rules = declared_rules(repo, manifest)
     exists, text = _read_gitignore(repo)
-    covered = tuple(path for path in artifacts if is_ignored(repo, path))
-    pending = tuple(path for path in artifacts if path not in covered)
-    tracked = tuple(path for path in artifacts if is_tracked(repo, path))
+    covered = tuple(path for path in rules if is_ignored(repo, path))
+    pending = tuple(path for path in rules if path not in covered)
+    tracked = tuple(path for path in rules if is_tracked(repo, path))
     has_block = BLOCK_START in text
 
     if not pending:
         return IgnorePlan(
             repo=repo, gitignore_exists=exists, already_ignored=covered,
             pending=(), tracked=tracked, block=None, status="nothing-to-do",
-            detail="every planning artifact is already ignored",
+            detail="every offered rule is already ignored",
         )
     if has_block:
         return IgnorePlan(
             repo=repo, gitignore_exists=exists, already_ignored=covered,
             pending=pending, tracked=tracked, block=None, status="blocked",
             detail=(
-                "the marker block exists but no longer covers "
-                f"{', '.join(pending)} — that block is consumer-owned; "
-                "edit .gitignore yourself"
+                "the marker block exists but does not cover "
+                f"{', '.join(pending)} — it is either consumer-edited or was "
+                "written by an older kit whose declaration was smaller. That "
+                "block is yours: add the listed rule(s) to .gitignore yourself"
             ),
         )
     return IgnorePlan(
