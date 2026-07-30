@@ -2011,6 +2011,7 @@ test('an explicit-fork file is never overwritten and never backed up by an updat
     await setOwnership({
       consumerRoot: consumer, path: P, origin: 'consumer', ownershipState: 'explicit-fork',
     });
+    await writeFile(join(consumer, P), 'my evolved fork\n');
     await bumpKit(kit, P, 'v2\n');
     await bumpKit(kit, Q, 'q2\n');
 
@@ -2019,12 +2020,20 @@ test('an explicit-fork file is never overwritten and never backed up by an updat
     });
 
     assert.equal(r.state, 'applied', r.error);
-    assert.equal(await readFile(join(consumer, P), 'utf8'), 'my fork\n', 'declared fork untouched');
+    assert.equal(
+      await readFile(join(consumer, P), 'utf8'), 'my evolved fork\n', 'declared fork untouched',
+    );
     assert.equal(await exists(join(consumer, `${P}.T.bak`)), false, 'no backup was needed');
     assert.deepEqual(r.consumerOwned, [P]);
     assert.deepEqual(r.report.paths.overwritten, []);
     assert.deepEqual(r.report.backups, []);
     assert.equal(await readFile(join(consumer, Q), 'utf8'), 'q2\n', 'the rest still updates');
+    const ledger = await readManifest(join(consumer, 'agent-workflow-kit.json'));
+    assert.equal(
+      ledger.installed.find(({ path }) => path === P).installedSha256,
+      sha256('my evolved fork\n'),
+      'the fork identity follows its preserved bytes',
+    );
   } finally {
     await cleanup(kit, consumer);
   }
