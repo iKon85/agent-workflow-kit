@@ -72,10 +72,16 @@ The exact kit-owned commands are:
 - UserPromptSubmit: `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/slice-handoff-hint.py"`
 - PostToolUse on Bash: `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/branch-watch.py"`
 - PreToolUse on Edit/Write/MultiEdit:
-  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-worktree.py"`
+  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-worktree.py"` and
+  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-worktree-cwd.py"`
 - PreToolUse on Bash:
-  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-worktree-cwd.py"` and
   `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-worktree-discipline.py"`
+
+`enforce-worktree-cwd.py` moved onto the Edit/Write/MultiEdit matcher with the
+authorization re-cut: it judges the **write target** a structured payload names,
+not the shell's working directory. A profile that still wires it under a `Bash`
+matcher is not broken — the adapter simply has no opinion on a `Bash` payload —
+but reconciliation moves it, so the guard reaches the writes it protects.
 
 Preserve unrelated settings, hook groups, profile sections, and unknown keys.
 Repeated reconciliation with the same choice is byte-identical.

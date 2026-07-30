@@ -4,7 +4,10 @@
 Three contracts are pinned here. A consumer profile that still carries the
 removed pattern keys loads clean and silent — the green slate removes them
 without migration, so an old key is ignored, never rewritten and never warned
-about. The issue-less Content branch template renders from the profile like
+about. `riskyCommandPatterns` joined that set with the authorization re-cut
+(#373): no shell command is judged by its command string any more, so the
+profile declares no command pattern to judge it with. The issue-less Content
+branch template renders from the profile like
 every other branch template, because a planning session landing durable content
 has no issue number to interpolate. And the seed declaration the creation
 helper reads is **flat** (#429): a list of paths and a map of variables, with
@@ -26,7 +29,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 MODULE = REPO / "scripts/worktree-lifecycle/profile.py"
 
-REMOVED_KEYS = ("scratchPatterns", "landingGeneratedArtifactPatterns")
+REMOVED_KEYS = (
+    "scratchPatterns",
+    "landingGeneratedArtifactPatterns",
+    "riskyCommandPatterns",
+)
 
 LEGACY_PROFILE = """{
   "worktreeLifecycle": {
@@ -35,6 +42,7 @@ LEGACY_PROFILE = """{
     "branchTemplate": "{type}/{issue}-{slug}",
     "pathTemplate": "{issue}-{slug}",
     "scratchPatterns": ["PLAN.md", ".claude/logs/**"],
+    "riskyCommandPatterns": ["\\\\bgit\\\\s+push\\\\b"],
     "unknownFutureKey": "keep"
   },
   "wrapup": {"landingGeneratedArtifactPatterns": ["dist-kit/**"]}
@@ -88,7 +96,11 @@ class RemovedPatternKeysAreIgnoredSilently(unittest.TestCase):
 
     def test_the_loaded_profile_exposes_no_pattern_field(self):
         loaded = profile.load_profile_text(LEGACY_PROFILE)
-        for field in ("scratch_patterns", "landing_generated_artifact_patterns"):
+        for field in (
+            "scratch_patterns",
+            "landing_generated_artifact_patterns",
+            "risky_command_patterns",
+        ):
             self.assertFalse(hasattr(loaded, field), field)
 
     def test_the_loader_never_names_a_removed_key(self):

@@ -130,39 +130,81 @@ test('linked worktree cannot edit an absolute tracked target in the protected ma
   assert.match(result.stderr, /tracked\.txt/);
 });
 
-test('cwd guard blocks verification from protected main when a linked worktree is active', async (t) => {
+test('write-target guard blocks a new main-checkout file while a linked worktree is active', async (t) => {
   const root = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
   const linked = join(root, '.sandboxes', 'feat-87-cwd');
   await git(root, 'worktree', 'add', '-b', 'feat/87-cwd', linked, 'main');
 
-  const result = await runHook(root, 'enforce-worktree-cwd.py', {
-    tool_name: 'Bash',
-    tool_input: { command: 'npm test' },
+  const fromMain = await runHook(root, 'enforce-worktree-cwd.py', {
+    tool_name: 'Write',
+    tool_input: { file_path: join(root, 'notes.md') },
+  });
+  const fromLinked = await runHook(linked, 'enforce-worktree-cwd.py', {
+    tool_name: 'Write',
+    tool_input: { file_path: join(root, 'notes.md') },
   });
 
-  assert.equal(result.code, 2);
-  assert.match(result.stderr, /npm test/);
-  assert.match(result.stderr, /feat-87-cwd/);
+  for (const result of [fromMain, fromLinked]) {
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /notes\.md/);
+    assert.match(result.stderr, /feat-87-cwd/);
+  }
 });
 
-test('cwd guard allows verification inside the linked worktree and explicit targeting from main', async (t) => {
+test('write-target guard judges the target, so out-of-repo and scratch writes pass', async (t) => {
   const root = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));
   const linked = join(root, '.sandboxes', 'feat-87-cwd-ok');
   await git(root, 'worktree', 'add', '-b', 'feat/87-cwd-ok', linked, 'main');
+  await mkdir(join(root, 'scratch'));
 
-  const inside = await runHook(linked, 'enforce-worktree-cwd.py', {
-    tool_name: 'Bash',
-    tool_input: { command: 'npm test' },
+  const outsideRepo = await runHook(root, 'enforce-worktree-cwd.py', {
+    tool_name: 'Write',
+    tool_input: { file_path: join(tmpdir(), 'wrapup-pr-body.md') },
   });
-  const targeted = await runHook(root, 'enforce-worktree-cwd.py', {
-    tool_name: 'Bash',
-    tool_input: { command: `git -C ${linked} commit -m test` },
+  const ignoredScratch = await runHook(root, 'enforce-worktree-cwd.py', {
+    tool_name: 'Write',
+    tool_input: { file_path: join(root, 'scratch', 'note.txt') },
+  });
+  const insideLinked = await runHook(linked, 'enforce-worktree-cwd.py', {
+    tool_name: 'Edit',
+    tool_input: { file_path: join(linked, 'tracked.txt') },
   });
 
-  assert.equal(inside.code, 0);
-  assert.equal(targeted.code, 0);
+  assert.equal(outsideRepo.code, 0);
+  assert.equal(ignoredScratch.code, 0);
+  assert.equal(insideLinked.code, 0);
+});
+
+test('no Bash command is judged by its command string any more', async (t) => {
+  const root = await fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const linked = join(root, '.sandboxes', 'feat-87-no-string');
+  await git(root, 'worktree', 'add', '-b', 'feat/87-no-string', linked, 'main');
+
+  // The #373 repro, the two substring-authorization arms (#411) and the
+  // `git -C` form the risky-command regex never matched (#412) — all of them
+  // now leave the guard without an opinion instead of a wrong one.
+  const commands = [
+    "cat > /tmp/wrapup-pr-body.md <<'EOF'",
+    'npm test',
+    `git push --force origin main # see ${linked}`,
+    `echo "${linked}" && git push --force origin main`,
+    'git -C /srv/other-checkout push --force origin main',
+  ];
+
+  for (const command of commands) {
+    const result = await runHook(root, 'enforce-worktree-cwd.py', {
+      tool_name: 'Bash',
+      tool_input: { command },
+    });
+    assert.equal(result.code, 0, command);
+    assert.equal(result.stderr, '', command);
+  }
+
+  const source = await readFile(resolve('scripts/worktree-lifecycle/core.py'), 'utf8');
+  assert.doesNotMatch(source, /targets_linked_worktree|risky_command_patterns/);
 });
 
 test('discipline guard blocks issue branch creation in main while worktrees are active', async (t) => {
@@ -225,7 +267,7 @@ test('all five adapters are thin, core-driven, and shipped from the same bundle'
   }
 });
 
-test('frozen Testreporter profile preserves the five historical guard outcomes', async (t) => {
+test('frozen Testreporter profile preserves the historical guard outcomes', async (t) => {
   const profile = JSON.parse(await readFile(TESTREPORTER_PROFILE, 'utf8'));
   const root = await fixture(profile);
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -236,6 +278,10 @@ test('frozen Testreporter profile preserves the five historical guard outcomes',
   const maintenance = await runHook(root, 'enforce-worktree-cwd.py', {
     tool_name: 'Bash',
     tool_input: { command: 'git push origin --delete merged-branch' },
+  });
+  const mainTarget = await runHook(root, 'enforce-worktree-cwd.py', {
+    tool_name: 'Write',
+    tool_input: { file_path: join(root, 'notes.md') },
   });
   const tracked = await runHook(root, 'enforce-worktree.py', {
     tool_name: 'Edit',
@@ -255,6 +301,7 @@ test('frozen Testreporter profile preserves the five historical guard outcomes',
   });
 
   assert.equal(maintenance.code, 0);
+  assert.equal(mainTarget.code, 2);
   assert.equal(tracked.code, 2);
   assert.equal(linkedCwd.code, 0);
   assert.equal(ignored.code, 0);

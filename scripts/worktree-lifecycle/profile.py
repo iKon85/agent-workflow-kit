@@ -2,12 +2,14 @@
 
 The profile carries **structural facts only** — worktree root, naming
 templates, the protected branches, the seed a fresh worktree carries. No pattern
-list is read here, because deletion policy is configured by declaration: the
-ignore mechanism decides what is scratch, and the seed declaration decides only
-whether a `.env*` the consumer itself named still needs teardown's comparison
-against the main checkout. Keys this loader does not know are ignored in
-silence: a profile written for an older kit keeps working, and an obsolete key
-produces no warning noise.
+list is read here. Deletion policy is configured by declaration: the ignore
+mechanism decides what is scratch, and the seed declaration decides only whether
+a `.env*` the consumer itself named still needs teardown's comparison against
+the main checkout. Authorization is decided from observable write targets, so
+there is no command pattern to declare either — nothing judges a shell command
+by its command string. Keys this loader does not know are ignored in silence: a
+profile written for an older kit keeps working, and an obsolete key produces no
+warning noise.
 
 The seed is **flat by contract**: `paths` names repository-relative
 files the creation helper copies verbatim out of the main checkout, `variables`
@@ -70,7 +72,6 @@ class WorktreeProfile:
     seed: SeedDeclaration
     branch_regex: str
     setup_entry: str
-    risky_command_patterns: tuple[str, ...]
 
     def branch_name(self, issue: str, slug: str, branch_type: str) -> str:
         return _render(self.branch_template, issue=issue, slug=slug, type=branch_type)
@@ -192,10 +193,6 @@ def _load_profile_document(document: Any) -> WorktreeProfile:
             "setupEntry",
             "python3 scripts/worktree-lifecycle/setup.py",
         ),
-        risky_command_patterns=tuple(raw.get("riskyCommandPatterns") or (
-            r"\b(?:npm|pnpm|yarn)\s+(?:run\s+)?(?:test|typecheck|build)\b",
-            r"\bgit\s+(?:commit|push)\b",
-        )),
     )
 
 
