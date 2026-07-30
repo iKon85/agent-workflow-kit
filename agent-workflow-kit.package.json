@@ -1,5 +1,5 @@
 {
-  "kitVersion": "1.0.2",
+  "kitVersion": "1.0.3",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -587,7 +587,7 @@
       "ownerSkill": "retro",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "adaafe450e014a08318f6676a27cd950bb1d48d3dc85515f0cd79d51d50b195e",
+      "sha256": "bab8cfb40e68206b0a8270c412994862317be4b31de425ff00f1f8e4ca22b647",
       "mode": 420,
       "origin": "kit"
     },
@@ -1767,7 +1767,7 @@
       "ownerSkill": "retro",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "59b31704c9ec7cb25f65efb1c090551a70ebe14b8841be98f87e9e8dfb2dddf2",
+      "sha256": "420594de136901d667792b0f057d0ba9c79f765dad65afed829f67b346e271fb",
       "mode": 420,
       "origin": "kit"
     },
@@ -2423,7 +2423,7 @@
       "path": "scripts/kit-release.mjs",
       "kind": "script",
       "installRole": "maintainer",
-      "sha256": "e4aa43c297c2be9dc6899915d8a049110e09fba23aa7ef7a80f95ad15049c557",
+      "sha256": "845074e8091a1ac5c56eb1a0ff2502f6289cab246abd08f93e70d5cdf1f6bd49",
       "mode": 420,
       "origin": "kit"
     },
@@ -2719,7 +2719,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "e6cb9454ff6ee6a88c7e2f6af287bfa8c5e3cd940da59fcc0b6e45314716eb70",
+      "sha256": "cf7301fde22b5c49f3b5baf3fd08acc1d054b8a2acfdad10ce5559086862f45d",
       "mode": 493,
       "origin": "kit"
     },

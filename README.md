@@ -608,6 +608,16 @@ the old way. Decision record:
 
 ## Release notes
 
+### 1.0.3
+
+- changed: `.agents/skills/retro/SKILL.md`
+- changed: `.claude/skills/retro/SKILL.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `package.json`
+- changed: `scripts/kit-release.mjs`
+- changed: `scripts/wrapup-land.py`
+
 ### 1.0.2
 
 - changed: `src/lib/updateReconcile.mjs`
