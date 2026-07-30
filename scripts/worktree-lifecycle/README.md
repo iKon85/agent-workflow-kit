@@ -23,8 +23,11 @@ they do not carry a second branch regex, worktree traversal, or failure policy.
 - `riskyCommandPatterns`: commands that must target the active linked worktree.
 
 The profile carries **structural facts only**. It declares no pattern list,
-because deletion policy has exactly one configuration surface: the ignore
-mechanism. Making a file deletable at teardown means ignoring it.
+because deletion policy is configured by declaration: the ignore mechanism
+decides what is scratch, and `seed.paths` decides only whether a `.env*` the
+consumer itself named still needs teardown's comparison against the main
+checkout. Making a file deletable at teardown means ignoring it (and, for a
+`.env*`, declaring it in the seed).
 Keys this loader does not know are ignored in silence, so a profile written for
 an older kit keeps working without warning noise.
 
@@ -65,6 +68,11 @@ The seed is a **flat declaration**, two keys and no third:
   repository, is absolute, or is not a plain file is refused by name; a symlink
   is never followed. A declared path the main checkout does not have is named
   in the output and skipped — a fresh clone has no local config yet.
+  Declaring a path is also **consent to delete it at teardown**: for a `.env*`
+  file the declaration replaces the comparison against the main checkout (see
+  §Cleanup), because a file you declared as what a fresh worktree carries is
+  by your own statement not work. Do not declare a file whose only copy lives
+  in the worktree.
 - `variables`: named positive integer bases. The helper derives this worktree's
   own slot from the issue number (or the branch checksum when there is none)
   and writes `<name>=<base + slot × 10>` lines into the worktree's `.dev-ports`,
@@ -126,11 +134,27 @@ surface.
 at the moment of action and nothing else: a tracked change or an unmerged path
 blocks, an untracked non-ignored file blocks with a bounded report (count plus
 top directories, never a path dump), and an ignored entry is Scratch and
-deletable. The single hardcoded exception is `.env*` by basename glob, which is
-deletable only when it is byte-identical to its counterpart at the same
-relative path in the main checkout, both opened no-follow. An ignored symlink
-is deletable only when its target resolves inside the assessed worktree; the
-link itself is unlinked and never followed.
+deletable. The single exception is `.env*` by basename glob, and it has two
+arms:
+
+- **Declared** — the path is listed in the profile's `seed.paths` (§Seed). The
+  consumer said this file is what a fresh worktree carries, so the declaration
+  itself grants deletion authority, exactly as an ignore rule does. No
+  comparison runs, and the teardown report names every deletion the declaration
+  authorized. Consent is exact: never a glob, never a prefix, and never a
+  directory or symlink standing at the declared path.
+- **Undeclared** — deletable only when it is byte-identical to its counterpart
+  at the same relative path in the main checkout, both opened no-follow. A
+  hand-written secret nobody declared keeps this conservative block.
+
+A worktree that correctly carries its own port is byte-different from the main
+checkout by construction, so before the declared arm existed every correctly
+configured worktree was blocked at teardown. The classifier reads no
+profile itself: whoever assesses a worktree passes the declared paths in, so
+resolving consumer configuration stays with the caller.
+
+An ignored symlink is deletable only when its target resolves inside the
+assessed worktree; the link itself is unlinked and never followed.
 
 `cleanup.py` previews by default. Removal additionally refuses an unregistered
 path, a detached branch, a protected branch or the main checkout, an open PR,
@@ -152,9 +176,11 @@ foreign name and path. There is no persisted attempt state and no recovery
 flag: an interrupted landing is resumed by re-running it, because every step
 verifies present state and skips what is already done.
 
-Two residual risks are accepted deliberately — between assessment and deletion
-a file could in principle be replaced, and a valuable file a consumer keeps
-gitignored outside `.env*` is deletable at teardown.
+Three residual risks are accepted deliberately — between assessment and deletion
+a file could in principle be replaced, a valuable file a consumer keeps
+gitignored outside `.env*` is deletable at teardown, and a declared `.env*` file
+is deleted without any comparison. The third is the consent the declaration
+grants, which is why every such deletion is named in the report.
 
 `cleanup.py sweep` is the read-only inventory entrypoint. It accounts once for
 every linked worktree and local branch, reports issue/PR/merge/age/removal

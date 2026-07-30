@@ -1,9 +1,11 @@
 """Worktree Lifecycle profile loading and low-level git operations.
 
 The profile carries **structural facts only** — worktree root, naming
-templates, the protected branches, the seed a fresh worktree carries. Deletion
-policy has exactly one configuration surface, the ignore mechanism, so no
-pattern list is read here. Keys this loader does not know are ignored in
+templates, the protected branches, the seed a fresh worktree carries. No pattern
+list is read here, because deletion policy is configured by declaration: the
+ignore mechanism decides what is scratch, and the seed declaration decides only
+whether a `.env*` the consumer itself named still needs teardown's comparison
+against the main checkout. Keys this loader does not know are ignored in
 silence: a profile written for an older kit keeps working, and an obsolete key
 produces no warning noise.
 

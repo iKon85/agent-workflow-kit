@@ -350,10 +350,16 @@ files, `.git/info/exclude`, and your global excludes file:
 | an ignored entry | scratch: deleted together with the worktree |
 
 Two rules sit on top of that taxonomy. An `.env*` file (basename glob) is the
-single hardcoded exception — ignored, yet potentially irreplaceable — so it is
-removed only when it is byte-identical to the file at the same relative path in
-your main checkout; divergent, missing there, or not a plain file stops teardown
-and names the exact file. An ignored symlink is unlinked, never followed, and
+single exception — ignored, yet potentially irreplaceable — and it has two arms.
+A path your own `seed.paths` declares is removed **because you declared it**:
+you said this file is what a fresh worktree carries, which is the same kind of
+statement your `.gitignore` makes, and every such deletion is named in the
+teardown report. An `.env*` file you did **not** declare is removed only when it
+is byte-identical to the file at the same relative path in your main checkout;
+divergent, missing there, or not a plain file stops teardown and names the exact
+file. That is why a worktree carrying its own port needs one line of profile:
+undeclared, it is byte-different from your main checkout by construction and
+blocks. An ignored symlink is unlinked, never followed, and
 only while its target stays inside the worktree: an absolute, escaping, dangling,
 or since-changed target keeps the worktree and names the link.
 

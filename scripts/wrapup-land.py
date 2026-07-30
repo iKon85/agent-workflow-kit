@@ -643,11 +643,29 @@ def resolve_teardown_target(main_tree: str, worktree: str | None) -> TeardownTar
     return TeardownTarget(worktree, "")
 
 
+def declared_seed_paths(main_tree: str) -> tuple[str, ...]:
+    """The seed paths the consumer's own profile declares, or none at all.
+
+    The classifier takes the declaration as an argument and reads no profile
+    itself, so resolving consumer configuration stays here — with the caller
+    that already reads this profile. A malformed seed is named rather than
+    silently degraded to "nothing declared": a declaration the consumer wrote
+    and this run ignored would block the very file it was meant to clear.
+    """
+    module = load_lifecycle_profile_module()
+    try:
+        return module.seed_of(lifecycle_settings(main_tree)).paths
+    except module.LifecycleError as error:
+        raise Stop(
+            "4 teardown", "the profile's seed declaration cannot be read", str(error)
+        ) from error
+
+
 def assess_teardown(wt: str, main_tree: str):
     """Classify the worktree's current state — the only teardown authority."""
     classify = load_teardown_classifier()
     try:
-        return classify.assess(Path(wt), Path(main_tree))
+        return classify.assess(Path(wt), Path(main_tree), declared_seed_paths(main_tree))
     except classify.ClassificationError as error:
         raise Stop("4 teardown", "teardown cannot be classified", str(error)) from error
 
