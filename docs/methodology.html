@@ -288,9 +288,10 @@
           <span class="decision">(1 slice → atomic issue · several → wave anchor)</span><span class="arrow">→</span>
           <span class="station st-gate">gate — verify-spike / decision-gate</span>
           <span class="decision">(only if a slice hinges on an unknown)</span><span class="arrow">→</span>
-          <span class="station st-slice">tdd</span><span class="arrow">→</span>
-          <span class="station st-slice">wrapup</span><span class="arrow">→</span>
-          <span class="station st-program">retro</span>
+          <span class="station st-slice">implement</span>
+          <span class="decision">(drives tdd inside)</span><span class="arrow">→</span>
+          <span class="station st-slice">make-landable</span><span class="arrow">→</span>
+          <span class="station st-program">land</span>
         </div>
       </div>
       <p class="converge" style="margin-top:12px;border-top:none;padding-top:0;">Sharpen only as deep as the work deserves: skip the grill for a mechanical change, run it lightly for a normal feature, escalate to a cross-model review for something hard to reverse. You approve the slice breakdown before anything is published — this funnel never writes to the board behind your back.</p>
@@ -308,7 +309,7 @@
         <span class="station plain">something's broken</span><span class="arrow">→</span>
         <span class="station st-slice">diagnose</span>
         <span class="decision">(reproduce → isolate → fix → prove)</span><span class="arrow">→</span>
-        <span class="station st-slice">tdd</span>
+        <span class="station st-slice">implement</span>
       </div>
     </div>
 
@@ -333,7 +334,7 @@
 
     <div class="lane" style="--c: var(--wave)">
       <div class="lane-title"><span class="lane-tag wave">execution rhythm</span><h4>Then the rhythm takes over</h4></div>
-      <p class="desc">Waves are built in plan order, one at a time — through the identical <span class="term">tdd</span> → <span class="term">wrapup</span> → <span class="term">retro</span> spine as 1a. Every wave ends at its own outcome gate; when the last wave of a phase lands, the matching phase gate is ticked on the Program document. The program issue closes last, by hand, once everything under it is done.</p>
+      <p class="desc">Waves are built in plan order, one at a time — through the identical <span class="term">implement</span> → <span class="term">make-landable</span> → <span class="term">land</span> spine as 1a. Every wave ends at its own outcome gate; when the last wave of a phase lands, the matching phase gate is ticked on the Program document. The program issue closes last, by hand, once everything under it is done.</p>
       <div class="diagram-scroll">
         <div class="chain">
           <span class="station st-wave">build Wave n</span><span class="arrow">→</span>
@@ -381,7 +382,7 @@
         <div class="chain mini">
           <span class="station st-slice">a single slice hinges on an unknown</span><span class="arrow">→</span>
           <span class="station st-gate">verify-spike / decision-gate</span><span class="arrow">→</span>
-          <span class="station st-slice">tdd</span>
+          <span class="station st-slice">implement</span>
         </div>
         <div class="plain"><b>IN PLAIN TERMS</b><br>Big decisions get made where they can still reshape everything; small decisions ride along with only the one slice they affect.</div>
         <p>A gate slice does read-only research — it never writes code — and is sequenced before the build slice it blocks, so the build never waits on a moving target. A call that's genuinely hard to reverse escalates one step further, to a cross-model review, before it locks in.</p>
