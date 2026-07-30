@@ -1,8 +1,8 @@
 # Provenance
 
-Origin and license of every skill shipped in this kit. Model: fork-and-own —
-vendored skills are locally adapted; the pinned upstream SHA is for attribution,
-not byte-identity.
+Origin and license of every skill shipped in this kit, and of adopted doctrine
+text. Model: fork-and-own — vendored material is locally adapted; the pinned
+upstream SHA is for attribution, not byte-identity.
 
 ## Matt Pocock (MIT) — https://github.com/mattpocock/skills @ d574778
 
@@ -29,6 +29,19 @@ three add an Act-2 cross-model Codex review and themselves adapt Matt Pocock's
 grill-me / grill-with-docs (MIT); codex-build is the Act-3 role-flip (locally
 adapted: bounded workspace-write sandbox instead of upstream's `--yolo`). Each
 carries Chase's `THIRD-PARTY-NOTICES.md`.
+
+## forrestchang (MIT) — https://github.com/multica-ai/andrej-karpathy-skills @ 2c60614
+
+Doctrine text, not a skill. The four behavioral principles in that repo's root
+`CLAUDE.md` — Think Before Coding · Simplicity First · Surgical Changes ·
+Goal-Driven Execution, derived from Andrej Karpathy's observations on LLM coding
+pitfalls — are adapted into this repo's `CLAUDE.md` §Behavioral core: rewritten
+in the kit's voice, condensed, and merged with our own doctrine (verify-first in
+two classes, one floor per failure class, add only on observed failure). The
+upstream self-conditioning ("for trivial tasks, use judgment") and its
+senior-engineer test are kept. MIT is declared in the upstream README §License
+and in `.claude-plugin/plugin.json` (`"license": "MIT"`, author `forrestchang`);
+that repository carries no LICENSE file of its own. Adopted 2026-07-30.
 
 ## Own work (MIT, Copyright (c) 2026 Niko (iKon85))
 
