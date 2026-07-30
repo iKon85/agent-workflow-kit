@@ -183,8 +183,8 @@ Before adding a rule, guard or gate:
   (`gh pr list --head <branch>`). Plan/grill sessions create **none**: they run
   in the main checkout, their `PLAN.md` and review log stay gitignored on disk,
   and their durable output (`CONTEXT.md`, ADRs, research notes) lands through
-  `/wrapup`'s Content route as ordinary work. The implementing session creates
-  the worktree when the build starts.
+  `/make-landable`'s confirmed file claim as ordinary work. The implementing
+  session creates the worktree when the build starts.
 
 ### Diagnosis & verification
 
@@ -238,7 +238,8 @@ Smallest route with a clear next action. Unclear terms → `grill-with-docs` →
 reports → `triage`; huge and foggy → `wayfinder`; bug → `diagnose`; open
 fact/option/design → `verify-spike`/`decision-gate`/`prototype`; file-disjoint
 wave → `orchestrate-wave`; any build, tiny fixes self-routed → `implement`
-(RED→GREEN); done → `wrapup`; missing project context → `setup-workflow`.
+(RED→GREEN); built → `make-landable`; accepted → `land`; missing project
+context → `setup-workflow`.
 
 ## Backlog workflow (GitHub Projects v2)
 
@@ -270,7 +271,7 @@ bare `gh issue create` + `gh project item-*`.
 - **Cross-slice writeback.** (a) A plan decision that touches a sibling
   slice's contract is written into **that** sibling's body immediately.
   (b) A build-time toppled assumption carried by an unbuilt sibling goes into
-  the worktree's gitignored `ANNAHMEN.md` (wrapup propagates it). (c) "Phase
+  the worktree's gitignored `ANNAHMEN.md` (`land` propagates it). (c) "Phase
   comes in a later slice" → a tracking issue in the **same** PR — a code
   comment is not a board item.
 - **Retro:** voluntary — `/retro` is available whenever a session earned one,

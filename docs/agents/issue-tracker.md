@@ -19,5 +19,5 @@ worktree a colliding session would have to find.
 
 - **Check**: `gh issue view <n> --json assignees,comments --jq '{assignees: [.assignees[].login], claims: [.comments[].body | select(contains("<!-- agent-claim:"))]}'` — a foreign assignee or a marker this session did not plant is a foreign claim: stop, report the claimed branch/worktree, and leave it alone.
 - **Claim**: `gh issue edit <n> --add-assignee @me`, then `gh issue comment <n> --body '<!-- agent-claim: branch=<branch>; worktree=<absolute-path>; date=<YYYY-MM-DD> -->'`. Board status stays a `scripts/board-sync.py` write, never a bare `gh project` call.
-- **Release**: the slice PR (`closes #<n>` / `Part of #<anchor>`) supersedes the claim, so `/wrapup` needs no extra step. On abandon: `gh issue edit <n> --remove-assignee @me` plus a `claim released` comment.
+- **Release**: the slice PR (`closes #<n>` / `Part of #<anchor>`) supersedes the claim, so `/make-landable` and `/land` need no extra step. On abandon: `gh issue edit <n> --remove-assignee @me` plus a `claim released` comment.
 

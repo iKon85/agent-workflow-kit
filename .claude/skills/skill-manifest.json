@@ -81,7 +81,17 @@
       ],
       "provenance": "own"
     },
-    "wrapup": {
+    "make-landable": {
+      "class": "generic",
+      "publish": true,
+      "entryPoint": true,
+      "surfaces": [
+        "claude",
+        "codex"
+      ],
+      "provenance": "own"
+    },
+    "land": {
       "readiness": { "optionalBlocks": { "deployReport": "prodTarget" } },
       "class": "generic",
       "publish": true,

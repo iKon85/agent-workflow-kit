@@ -69,7 +69,7 @@ Columns:
   stub / promoted Wave-Anchor); author it as `—`. Machine-written:
   `program-sync` fills it from the board child whose title carries the
   matching `Welle <N> —` prefix (`to-waves` runs a sync right after publish,
-  `wrapup`'s upward propagation keeps it fresh); once set it is identity —
+  `land`'s upward propagation keeps it fresh); once set it is identity —
   never overwritten. Tolerant-optional on parse like Status; not a
   `validate-graph` input.
 - **Name** — the wave's short title (becomes `Welle <N> — <Name>` on promotion,

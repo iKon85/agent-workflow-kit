@@ -487,7 +487,7 @@ Do NOT close or modify any parent issue beyond the promote stamp.
 
 Publication is not the end of the session. `to-issues` **never deletes** what it
 leaves behind — the locked plan is the implementing session's input and the
-assumption log is `$wrapup`'s. Classify, report, hand over.
+assumption log is `$make-landable`'s. Classify, report, hand over.
 
 Read the classes from the repository itself, never from a pattern list — git's
 own taxonomy is the classification:
@@ -505,7 +505,7 @@ git status --short --ignored   # the same, plus the ignored paths, marked `!!`
   its review log, the assumption log. The repository has already declared them
   not-work, so they are deletable at teardown and die with the checkout they
   were written in. Leave them here — the implementing session reads the plan and
-  `$wrapup` reads the assumption log.
+  `$make-landable` reads the assumption log.
 - **Nothing** — neither class present. Report it. An empty end state is a
   result, not silence.
 
@@ -513,15 +513,15 @@ Then emit the state report — exactly two lines, on every run:
 
 ```
 end state: durable=<n file(s) | none> · scratch=<n file(s) | none>
-next: <$wrapup — lands the durable content | nothing to land — this session is done>
+next: <$make-landable — commits the durable content, then $land merges it | nothing to land — this session is done>
 ```
 
-`$wrapup` is **user-invoked only**: name it as the next step, never call it from
-here.
+`$make-landable` is **user-invoked only**: name it as the next step, never call it
+from here.
 
 **A project with no worktree helper changes nothing about this.** The
-classification is git's, not the worktree layout's, and `$wrapup` lands durable
-content from whichever checkout it runs in — its Content route exists precisely
-for a session that has no worktree and no slice. Report the situation as
+classification is git's, not the worktree layout's, and `$make-landable` commits
+durable content from whichever checkout it runs in — its confirmed file claim
+exists precisely for a session that has no worktree and no slice. Report the situation as
 observed instead of assuming a worktree convention the project may not have, and
 never propose creating one just to have something to land through.

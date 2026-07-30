@@ -26,7 +26,7 @@ REQUIRED_V1 = {
     "security-audit": ["securityAuditRunbook"],
 }
 OPTIONAL_V1 = {
-    "wrapup": {"deployReport": "prodTarget"},
+    "land": {"deployReport": "prodTarget"},
     "orchestrate-wave": {"projectRecipe": "orchestrateWaveRecipe"},
     "spec-self-critique": {"projectEnrichment": "specCritiqueLayer"},
     "code-review": {"projectEnrichment": "codeReviewLayer"},

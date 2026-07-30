@@ -177,7 +177,7 @@ force removal.
 
 `wrapup-land.py` runs the same assessment after a merge: quiesce the worktree's
 own declared `.dev-ports` listeners, classify, delete the Scratch, remove the
-worktree. Teardown always runs — a direct `/wrapup` invocation is its
+worktree. Teardown always runs — a direct `/land` invocation is its
 authorization, including for a worktree an external tool created under a
 foreign name and path. There is no persisted attempt state and no recovery
 flag: an interrupted landing is resumed by re-running it, because every step

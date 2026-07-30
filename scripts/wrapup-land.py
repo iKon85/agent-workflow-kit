@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wrapup-land.py — mechanical executor for the /wrapup skill.
+"""wrapup-land.py — mechanical executor for the /make-landable + /land skills.
 
 Replaces the former Sonnet phase-2 subagent: every enumerable
 git/gh step of landing a slice runs here deterministically; judgment
@@ -17,7 +17,7 @@ Subcommands
                   issue-less branch — explicit pathspecs only, bystanders
                   untouched, no teardown half (run in the main checkout)
 
-Any born, attached worktree is first-class: a direct /wrapup invocation is the
+Any born, attached worktree is first-class: a direct /land invocation is the
 teardown authorization, including for worktrees an external tool created under
 a foreign name and path. There is no naming or location gate, no persisted
 attempt state, and no recovery flag — an interrupted landing is resumed by
@@ -57,7 +57,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from marker_lib import marker_value  # noqa: E402
 
-# Secret pattern mirrors the historical /wrapup Step-0a grep (era).
+# Secret pattern mirrors the historical landing Step-0a grep (era).
 SECRET_RE = re.compile(
     r"BEGIN [A-Z ]*PRIVATE KEY|(api[_-]?key|secret|password|access[_-]?token|bearer)\s*[:=]",
     re.IGNORECASE,
@@ -456,7 +456,7 @@ def wait_for_merge_gate(
                 f"elapsed={elapsed:.1f}s; still pending: {names}",
             )
         print(
-            f"wrapup: waiting for PR #{pr} checks "
+            f"land: waiting for PR #{pr} checks "
             f"({elapsed:.1f}s elapsed): {names}",
             file=progress_stream,
             flush=True,
@@ -588,18 +588,18 @@ def require_landable_head(step: str, cwd: str) -> str:
     if symbolic.returncode != 0:
         raise Stop(
             step,
-            "detached HEAD — /wrapup lands a branch and this worktree is on none",
+            "detached HEAD — /land lands a branch and this worktree is on none",
             f"{cwd}: attach one here (`git switch -c <branch>` keeps the work on a "
             "new branch, `git switch <branch>` moves to an existing one), then "
-            "re-run /wrapup",
+            "re-run the landing pair",
         )
     branch = symbolic.stdout.strip().removeprefix("refs/heads/")
     if git(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], cwd=cwd).returncode != 0:
         raise Stop(
             step,
             f"unborn branch {branch} — it has no commits yet, so there is nothing to land",
-            f"{cwd}: make the first commit (wrapup's `commit` step does it), then "
-            "re-run /wrapup",
+            f"{cwd}: make the first commit (make-landable's `commit` step does it), then "
+            "re-run the landing pair",
         )
     return branch
 
@@ -634,7 +634,7 @@ def resolve_teardown_target(main_tree: str, worktree: str | None) -> TeardownTar
     if os.path.realpath(worktree) == os.path.realpath(main_tree):
         return TeardownTarget(
             None,
-            f"teardown: {worktree} is the main working tree — /wrapup never tears "
+            f"teardown: {worktree} is the main working tree — /land never tears "
             "that down, so there is nothing to tear down",
             is_main_working_tree=True,
         )
@@ -829,7 +829,7 @@ def kill_worktree_processes(wt: str) -> list[str]:
     Never signal on doubt. A listener whose working directory is not inside
     this worktree — or whose identity cannot be read at all — is a named STOP,
     not a kill: matching foreign processes by command name across the whole
-    machine is how a wrapup run takes down someone else's server. Own shell
+    machine is how a landing run takes down someone else's server. Own shell
     ancestry stays excluded (the self-kill trap).
     """
     dev_ports = Path(wt) / ".dev-ports"
@@ -904,11 +904,11 @@ def cmd_preflight(args) -> dict:
     # including one an external tool created under a foreign name and path.
     # Only the main checkout and a protected branch are refused.
     if os.path.realpath(wt) == os.path.realpath(main_tree):
-        raise Stop("preflight", "run /wrapup in the worktree it should land and tear down",
-                   f"wt={wt} is the main checkout — /wrapup never tears that down")
+        raise Stop("preflight", "run /make-landable in the worktree it should prepare",
+                   f"wt={wt} is the main checkout — /land never tears that down")
     if branch in protected:
         raise Stop("preflight", f"{branch} is a protected branch",
-                   f"wt={wt} — /wrapup lands a slice branch, never the integration branch")
+                   f"wt={wt} — /land lands a slice branch, never the integration branch")
 
     porcelain = git(["status", "--porcelain"], check=True).stdout
     profile = load_profile()
@@ -1343,7 +1343,7 @@ def cut_content_branch(main_checkout: str, branch: str, tree: str, message: str,
     commit = git(["commit-tree", tree, "-p", parent, "-m", message],
                  cwd=main_checkout, check=True).stdout.strip()
     git(["switch", "-c", branch], cwd=main_checkout, check=True)
-    git(["update-ref", "-m", f"wrapup content route: {branch}", "HEAD", commit, parent],
+    git(["update-ref", "-m", f"make-landable content claim: {branch}", "HEAD", commit, parent],
         cwd=main_checkout, check=True)
     git(["reset", "-q", "HEAD", "--", *paths], cwd=main_checkout, check=True)
     if git(["rev-parse", "HEAD"], cwd=main_checkout, check=True).stdout.strip() != commit:
@@ -1927,7 +1927,7 @@ def cmd_land(args) -> dict:
     integration, protected = branch_policy(main_tree)
     if branch in protected:
         raise Stop("land", f"{branch} is a protected branch",
-                   "/wrapup lands a slice branch, never the integration branch")
+                   "/land lands a slice branch, never the integration branch")
     wt = branches.get(branch)
     wt_exists = wt is not None and Path(wt).is_dir()
     # Step 4's target is resolved here, before the merge and long before the
@@ -2001,7 +2001,7 @@ def cmd_land(args) -> dict:
         elif markers:
             final = merge_markers_into_body(pr_body, markers)
             if final != pr_body:
-                tmp = Path(f"/tmp/wrapup-body-{pr}.md")
+                tmp = Path(f"/tmp/land-body-{pr}.md")
                 tmp.write_text(final)
                 run(["gh", "pr", "edit", pr, "--body-file", str(tmp)], check=True)
 
@@ -2020,7 +2020,7 @@ def cmd_land(args) -> dict:
         # directly at teardown. Progress stays on stderr so stdout remains one JSON.
         already_merged = wait_for_merge_gate(pr)
 
-    # Step 1 — merge (= prod deploy; authorization = the user's /wrapup invocation).
+    # Step 1 — merge (= prod deploy; authorization = the user's /land invocation).
     # PR state is the authority, not gh's exit code: `--delete-branch` also tries
     # to delete the LOCAL branch, which fails while a worktree holds it — the
     # remote merge is through anyway (dogfood run PR).
@@ -2042,7 +2042,7 @@ def cmd_land(args) -> dict:
 
     # Step 2 — quiesce this worktree's own dev servers, then Step 4 — teardown.
     # Teardown runs on the target resolved above and on nothing else: a direct
-    # /wrapup invocation is its authorization, and the classifier's four rules
+    # /land invocation is its authorization, and the classifier's four rules
     # are the only protection once it does run.
     if teardown.worktree is None:
         report["skipped"].append(teardown.reason)

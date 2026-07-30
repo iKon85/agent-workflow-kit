@@ -37,7 +37,7 @@ Allowlist (each entry is why it's exempt, not prose to translate):
    skill or the board-sync tooling consumes the exact string:
    - `## Vor Bau zu klären` — the `headings.vorBau` profile VALUE
      (`docs/agents/board-sync.md`); `to-issues`/`grill-with-docs(-codex)`/
-     `wrapup` all reference this literal heading text.
+     `land` all reference this literal heading text.
    - (removed #1947: `In Arbeit`/`Triaged` were exempt as board Status option
      values — shipped skills now speak role language + `--status-role`, the
      vocabulary lives only in the profile's `fields.status.roles`, so the

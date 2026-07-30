@@ -63,7 +63,7 @@ test('to-issues reports an end state covering every artifact class, on every sur
       '**Scratch**',           // ignored by the repository, deletable, never deleted here
       '**Nothing**',           // the empty case is still reported
       'no worktree helper',    // a consumer whose project has none
-      '`$wrapup`',             // the named next step, never invoked from here
+      '`$make-landable`',      // the named next step, never invoked from here
       'never deletes',         // to-issues classifies, it does not clean up
     ]) {
       assert.ok(endState.includes(phrase), `${label}: end state must name ${phrase}`);
@@ -91,7 +91,7 @@ test('no grill binds worktree creation to planning, on any surface', async () =>
       `${label}: must hand worktree creation to the implementing session`,
     );
     assert.ok(
-      body.includes('`$wrapup`'),
+      body.includes('`$make-landable`'),
       `${label}: must route durable planning output to the landing skill`,
     );
     assert.doesNotMatch(

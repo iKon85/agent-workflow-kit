@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wrapup gives the census freshness verdict a session-end home (#321).
+"""land gives the census freshness verdict a session-end home (#321).
 
 Three contracts, one step:
 

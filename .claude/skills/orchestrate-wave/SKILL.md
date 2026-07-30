@@ -335,7 +335,7 @@ written · merge order documented.
 - **Before removing any slice worktree, read its `ANNAHMEN.md`** (an assumptions log at
   the worktree root, **expected** to be ignored by git — `/setup-workflow` offers that rule) and propagate each build-time assumption marker
   to the sibling issue it carries. A hand-driven multi-PR / migration landing does
-  NOT run `wrapup`'s assumption-propagation step — this is the only place it
+  NOT run `land`'s assumption-propagation step — this is the only place it
   happens; `worktree remove` deletes the log.
 - **Post-merge completion sync:** use `§Landing` to reconcile the anchor again and
   verify every leaf actually closed. Then read the anchor's `Closing Conditions`,

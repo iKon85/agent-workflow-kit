@@ -43,7 +43,7 @@ The route most work travels. You have an idea and want it built.
    - **No** → **`/implement`** right here, same context window.
 
    Either way, **`/implement`** builds each issue by driving **`/tdd`** internally — one red-green slice at a time — then closes out with **`/code-review`** (the two-axis Standards×Spec review; project layer at `docs/agents/code-review.md`, seeded by `/setup-workflow`) before committing. Reach for **`/tdd`** on its own to build a concrete behaviour test-first without a full spec, and **`/code-review`** on its own to review any branch/PR against a fixed point.
-5. **Land** → **`/wrapup`** (see Land). **Learn** → **`/retro`** (see Learn).
+5. **Land** → **`/make-landable`** then **`/land`** (see Land). **Learn** → **`/retro`** (see Learn).
 
 ### Context hygiene
 
@@ -112,7 +112,8 @@ Model-invoked references that run *beneath* the other skills — each the single
 
 ## Land
 
-- **`/wrapup`** — the land-and-clean closeout: make the branch landable, enforce the PR-body contract, merge, reconcile the board, sweep merged branches, surface what's still open. Does not replace live verification — verify the user outcome first.
+- **`/make-landable`** — the post-implement half of the closeout: run the local CI gate, commit the finished slice, and author the PR body with its close/part-of marker. Stops at a landable branch; it never pushes or merges.
+- **`/land`** — the post-acceptance half: push, open or reuse the PR, enforce the PR-body contract, merge, reconcile the board, tear the worktree down, sweep merged branches, surface what's still open. Does not replace live verification — verify the user outcome first.
 - **`/local-ci`** — the pre-PR gate: run the repo's local CI (fast static guards + the full gate) before opening a PR. When your host can't enforce a required status check at merge (a Free-plan private repo has no branch protection), the gate has to be local — this is it.
 - The **pre-commit / pre-push gate** fires automatically (installed once via `/git-guardrails-claude-code` / `/setup-pre-commit`, both Claude Code only), blocking a broken commit/push.
 

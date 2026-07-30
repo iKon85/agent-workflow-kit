@@ -539,7 +539,7 @@ test('update transactionally adopts new safe stubs and reports behavior availabi
     readiness: { contractVersion: 1, capabilities: {
       prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md'] } },
     } },
-    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+    skills: { land: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
   };
   const nextReadiness = structuredClone(oldReadiness);
   nextReadiness.readiness.capabilities.orchestrateWaveRecipe = {
@@ -748,7 +748,7 @@ test('update mirrors one existing Prod section across Claude and Codex surfaces 
     readiness: { contractVersion: 1, capabilities: {
       prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
     } },
-    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+    skills: { land: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
   };
   for (const [source, destination, destinationExists] of [
     ['CLAUDE.md', 'AGENTS.md', false],
@@ -795,7 +795,7 @@ test('update refuses divergent Prod sections without touching consumer files', a
     readiness: { contractVersion: 1, capabilities: {
       prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
     } },
-    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+    skills: { land: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
   };
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();
@@ -828,7 +828,7 @@ test('a Prod migration destination race fails without overwriting the late consu
     readiness: { contractVersion: 1, capabilities: {
       prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
     } },
-    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+    skills: { land: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
   };
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();

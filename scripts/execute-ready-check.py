@@ -8,7 +8,7 @@ tested ONCE:
   - .claude/hooks/drift-guard.py   --mode handoff   (blocks handoff on deny_recommended)
   - to-issues §7 exit              --mode audit     (non-blocking warn — as in 1d)
   - grill-with-docs Re-Grill       --mode audit
-  - wrapup Land-Reconcile          --mode audit
+  - land Land-Reconcile            --mode audit
 
 Two separate axes (Codex R1/R2):
   - graph_coherent   : every node in the rooted local graph is well-formed
@@ -39,7 +39,7 @@ grep-bar HTML comments living in issue/PR/handoff bodies):
   <!-- guard-legacy -->                                  grandfathered alt-anchor → warn, not block
   <!-- handoff-intent: build|grill -->                   handoff intent (else inferred from a /grill cmd)
   <!-- final-cut-depends-on: #<n> -->                    leaf's final cut hangs on #n; #n CLOSED → block
-  <!-- annahme-drift: {"target":"#<n>",...} -->          drift propagation — consumed by wrapup Step 5e
+  <!-- annahme-drift: {"target":"#<n>",...} -->          drift propagation — consumed by land's post-merge propagation
                                                          (NOT parsed here)
   <!-- prd: program -->                                  Programm-PRD marker (node_kind.py) — this
                                                          target roots at itself, never lifts
