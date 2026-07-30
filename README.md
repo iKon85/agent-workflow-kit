@@ -408,6 +408,9 @@ only apply a previewed, schema-driven, idempotent compatibility migration that
 fills missing evidence without rewriting an existing value; it verifies and
 rolls that migration back with the rest of the candidate.
 
+The kit collects nothing — no telemetry, no usage reporting, no phone-home — so
+how it behaves in your repo is visible to us only through the feedback you send.
+
 ## Updating & removing
 
 ```sh
