@@ -40,6 +40,16 @@ update process leaves it untouched in every direction: no overwrite, no
 conflict report, no deletion prompt. Owning a path means forgoing all future
 kit improvements to it.
 
+## Undeclared kit-file edit
+
+An in-place change to an `origin=kit` installed file that the ledger records no
+ownership for. It is not a fork: an update activates the full new version over
+it, copies the replaced bytes to a non-clobbering backup, and names that backup
+in the end-of-update summary alongside the Project extension, Explicit fork, and
+Upstream routes it offers. Nothing is lost, nothing is silent, and no route is
+assigned — declaring one is the consumer's decision.
+_Avoid_: Silent in-place fork, content conflict, local modification
+
 ## Clean shipped file
 
 A kit-shipped file in a consumer that carries no project-specific content —

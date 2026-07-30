@@ -71,7 +71,7 @@ test('a valid Kit candidate updates a broken Consumer without running its packag
   }
 });
 
-test('a valid Kit candidate preserves a locally modified Kit path while updating another path', async () => {
+test('a valid Kit candidate backs up an undeclared local edit while updating another path', async () => {
   const kit = await makeKit({
     [TOOL]: 'export const version = 1;\n',
     [DOC]: 'version 1\n',
@@ -85,12 +85,17 @@ test('a valid Kit candidate preserves a locally modified Kit path while updating
     const result = await update({
       kitRoot: kit,
       consumerRoot: consumer,
+      now: 'T',
       releaseIdentities: releaseIdentities(),
     });
 
     assert.equal(result.state, 'applied', result.error);
-    assert.deepEqual(result.userModified, [TOOL]);
-    assert.equal(await readFile(join(consumer, TOOL), 'utf8'), 'export const local = true;\n');
+    assert.deepEqual(result.report.paths.overwritten, [TOOL]);
+    assert.deepEqual(result.report.backups, [{ path: TOOL, backupPath: `${TOOL}.T.bak` }]);
+    assert.equal(await readFile(join(consumer, TOOL), 'utf8'), 'export const version = 1;\n');
+    assert.equal(
+      await readFile(join(consumer, `${TOOL}.T.bak`), 'utf8'), 'export const local = true;\n',
+    );
     assert.equal(await readFile(join(consumer, DOC), 'utf8'), 'version 2\n');
   } finally {
     await cleanup(kit, consumer);
@@ -557,7 +562,7 @@ test('an incoherent generated agent mirror blocks the protocol group before muta
   }
 });
 
-test('unresolved legacy skill conflicts are reported before candidate protocol validation', async () => {
+test('a legacy locally adapted mirror pair is backed up and replaced by the current Kit bytes', async () => {
   const skillManifest = `${JSON.stringify({
     schema_version: 1,
     readiness: { contractVersion: 1, capabilities: {} },
@@ -606,23 +611,25 @@ test('unresolved legacy skill conflicts are reported before candidate protocol v
     const result = await update({
       kitRoot: kit,
       consumerRoot: consumer,
+      now: 'T',
       releaseIdentities: releaseIdentities(),
     });
 
-    assert.equal(result.state, 'conflicted');
+    assert.equal(result.state, 'applied', result.error);
+    assert.deepEqual(result.conflicts, []);
     assert.deepEqual(
-      result.conflicts.map(({ path }) => path).sort(),
+      result.report.paths.overwritten.slice().sort(),
       ['.agents/skills/demo/SKILL.md', '.claude/skills/demo/SKILL.md'],
     );
     assert.equal(result.error, undefined);
-    assert.equal(
-      await readFile(join(consumer, '.claude/skills/demo/SKILL.md'), 'utf8'),
-      legacyConflict,
-    );
-    assert.equal(
-      await readFile(join(consumer, '.agents/skills/demo/SKILL.md'), 'utf8'),
-      legacyConflict,
-    );
+    for (const surface of ['.claude/skills/demo/SKILL.md', '.agents/skills/demo/SKILL.md']) {
+      assert.equal(await readFile(join(consumer, surface), 'utf8'), incoming);
+      assert.equal(
+        await readFile(join(consumer, `${surface}.T.bak`), 'utf8'),
+        legacyConflict,
+        'the legacy local adaptation is preserved as a backup, never lost',
+      );
+    }
   } finally {
     await cleanup(kit, consumer);
   }
@@ -819,6 +826,39 @@ test('overlapping transaction actions block before activation', async () => {
     assert.equal(result.state, 'failed');
     assert.match(result.error, /candidate invariant transaction: overlapping action.*scripts\/kit-tool\.mjs/);
     assert.equal(await readFile(join(consumer, TOOL), 'utf8'), 'export const version = 1;\n');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('an overwrite that is not a declared update blocks before activation', async () => {
+  const kit = await makeKit({ [TOOL]: 'export const version = 1;\n', [DOC]: 'version 1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await bumpKit(kit, DOC, 'version 2\n');
+
+    const result = await update({
+      kitRoot: kit,
+      consumerRoot: consumer,
+      releaseIdentities: releaseIdentities(),
+      verify: async (candidateRoot, context) => {
+        // An overwrite the transaction never declared as an `updated` write is
+        // exactly the silent replacement the invariant exists to refuse.
+        context.preview.overwritten.push({
+          path: TOOL, localSha256: sha256('export const local = true;\n'), mode: 0o644,
+        });
+        await verifyUpdateCandidate(candidateRoot, context);
+      },
+    });
+
+    assert.equal(result.state, 'failed');
+    assert.match(
+      result.error,
+      /candidate invariant transaction: invalid overwrite record.*scripts\/kit-tool\.mjs/,
+    );
+    assert.equal(await readFile(join(consumer, TOOL), 'utf8'), 'export const version = 1;\n');
+    assert.equal(await readFile(join(consumer, DOC), 'utf8'), 'version 1\n');
   } finally {
     await cleanup(kit, consumer);
   }

@@ -1,5 +1,8 @@
+import { constants } from 'node:fs';
 import { writeFile, rename, mkdir, copyFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+
+const MAX_BACKUP_NAMES = 1000;
 
 /**
  * Write `content` to `path` atomically: write a sibling temp file, then rename
@@ -14,13 +17,31 @@ export async function writeAtomic(path, content, mode) {
 }
 
 /**
- * Copy an existing file to `path.<stamp>.bak` (caller supplies the stamp so the
- * name never collides and tests stay deterministic). Returns the backup path.
+ * Copy an existing file to `path.<stamp>.bak` and return the backup path.
+ *
+ * A backup is the only copy of bytes the caller is about to replace, so this is
+ * non-clobbering by construction: the copy is exclusive (`COPYFILE_EXCL`), and
+ * an occupied name falls through to `path.<stamp>-1.bak`, `-2`, … . The stamp
+ * stays caller-supplied so tests stay deterministic — but a same-stamp retry,
+ * two writes inside one second, or a leftover backup can no longer overwrite
+ * the copy that already holds the original.
  */
 export async function backupFile(path, stamp) {
-  const bak = `${path}.${stamp}.bak`;
-  await copyFile(path, bak);
-  return bak;
+  for (let attempt = 0; attempt < MAX_BACKUP_NAMES; attempt += 1) {
+    const bak = attempt === 0 ? `${path}.${stamp}.bak` : `${path}.${stamp}-${attempt}.bak`;
+    try {
+      await copyFile(path, bak, constants.COPYFILE_EXCL);
+      return bak;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+    }
+  }
+  throw new Error(`no free backup name for ${path} at stamp ${stamp}`);
+}
+
+/** The backup suffix: `YYYYMMDDTHHMMSS`, no separator a shell would eat. */
+export function backupStamp(now = new Date()) {
+  return now.toISOString().replace(/[-:]/g, '').replace(/\..+/, '');
 }
 
 /**

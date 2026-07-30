@@ -71,15 +71,21 @@ server-side backstop, not a replacement.
 ## Consumer contract — never break
 
 `init` records a sha256 manifest of every installed file; `update` is a
-three-way reconcile against it: untouched files fast-forward, consumer-edited
-files are backed up and diffed, **never silently overwritten**; the consumer's
-project layer (`docs/agents/*`, board profile, `CLAUDE.md`, `AGENTS.md`) is
-written once and never overwritten by ordinary reconciliation. The only
-allowed update-time project-layer writes are explicit, schema-driven,
-idempotent migrations that preserve existing evidence, are previewed and
-destination-race checked, and activate or roll back with the verified update
-candidate. Every change to shipped files must preserve this contract and the
-manifest mechanism.
+three-way reconcile against it that **always activates the full new version**.
+An untouched file fast-forwards. A consumer-edited `origin=kit` file that the
+ledger declares no ownership for is overwritten — with a non-clobbering backup
+and a diff, and named in the end-of-update summary, so **nothing is lost and
+nothing is silent**. The silent in-place fork and its conflict-blocking state
+are gone: **ownership is what scopes the overwrite.** A ledger-declared consumer
+state (`project-extension`, `contribution-bridge`, `explicit-fork` via `own`) is
+never overwritten, and the summary *offers* those routes for every backed-up
+path without ever assigning one. The consumer's project layer (`docs/agents/*`,
+board profile, `CLAUDE.md`, `AGENTS.md`) is written once and never overwritten
+by ordinary reconciliation. The only allowed update-time project-layer writes
+are explicit, schema-driven, idempotent migrations that preserve existing
+evidence, are previewed and destination-race checked, and activate or roll back
+with the verified update candidate. Every change to shipped files must preserve
+this contract and the manifest mechanism.
 
 **Release — merge integrates; an annotated version tag publishes.** Version
 bump in the kit metadata + release-notes section in `README.md` land in the
