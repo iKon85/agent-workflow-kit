@@ -1,5 +1,6 @@
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { backupStamp } from '../lib/atomicWrite.mjs';
 import { assertConsumerReleaseParity } from '../../scripts/release-parity.mjs';
 import { summarizeReadiness } from '../../scripts/readiness.mjs';
 import {
@@ -21,6 +22,31 @@ import {
 } from '../lib/consumerMigrations.mjs';
 
 const RELEASE_NAME = '@ikon85/agent-workflow-kit';
+
+/**
+ * The end-of-update backup summary: every Consumer edit this run replaced, the
+ * backup that holds its bytes, and the supported routes — offered as choices.
+ *
+ * The Kit never picks one here. An undeclared in-place edit of a Kit path is
+ * exactly the state where the Consumer's intent is unknown, so the run activates
+ * the full new version, keeps the old bytes, and names the three ways to make
+ * that intent explicit. Empty list, no note.
+ */
+export function renderBackupSummary(report) {
+  const backups = report?.backups ?? [];
+  if (!backups.length) return [];
+  return [
+    'The new version is active on these paths; your previous bytes are kept here:',
+    ...backups.map(({ path, backupPath }) => `  ${path} → ${backupPath}`),
+    'If an edit was intentional, choose a route for it — the Kit chooses none for you:',
+    '  project extension · move Project-specific instructions to ' +
+      'docs/agents/skills/<skill>.md, which updates never overwrite',
+    '  own · `own <path> --as=explicit-fork` holds an independent fork; ' +
+      'a declared fork is never overwritten',
+    '  upstream · `contribute start <path>` carries a generic improvement back, ' +
+      'and the bridge retires itself once the Kit ships it',
+  ];
+}
 
 export function renderUpdateFailure(result) {
   const failure = result.failure ?? { phase: 'unknown', consumerState: 'unknown' };
@@ -53,7 +79,7 @@ export async function update(options) {
 }
 
 /**
- * The same evaluator `init`/`wrapup` use, rendered read-only at the end of an
+ * The same evaluator `init`/`land` use, rendered read-only at the end of an
  * `update` run — a report, never a gate. Left off `result` (rather than
  * blocking the run) whenever the consumer is not yet initialised or the
  * candidate never activated, so a `failed`/`conflicted` terminal state stays
@@ -69,7 +95,7 @@ async function updatePackage(options) {
   const {
     kitRoot, consumerRoot, decide = () => false, dryRun = false,
     releaseIdentities, verify = verifyUpdateCandidate, activate = activateCandidate,
-    signal, onState = () => {}, resumeFrom,
+    signal, onState = () => {}, resumeFrom, now,
   } = options;
   const history = [];
   const transition = async (state) => { history.push(state); await onState(state); };
@@ -143,7 +169,7 @@ async function updatePackage(options) {
   }
   return applyTransaction({
     kitRoot, consumerRoot, pkg, preview: resolvedPreview, decisions, verify, activate, signal, resumeFrom,
-    consumerManifestBefore, priorConsumerManifest,
+    consumerManifestBefore, priorConsumerManifest, stamp: now ?? backupStamp(),
     priorReadinessManifest, nextReadinessManifest, history, transition,
   });
 }
@@ -201,7 +227,7 @@ async function resolvePreview({ kitRoot, consumerRoot, preview, decisions, decid
 async function applyTransaction(context) {
   const {
     kitRoot, consumerRoot, pkg, preview, decisions, verify, activate, signal, resumeFrom,
-    consumerManifestBefore, priorConsumerManifest,
+    consumerManifestBefore, priorConsumerManifest, stamp,
     priorReadinessManifest, nextReadinessManifest, history, transition,
   } = context;
   let candidateRoot = resumeFrom;
@@ -260,12 +286,13 @@ async function applyTransaction(context) {
     }
     if (signal?.aborted) return abort();
     phase = 'activation';
-    await activate({
-      candidateRoot, consumerRoot,
+    const activation = await activate({
+      candidateRoot, consumerRoot, stamp,
       pkg: canonicalContext.pkg,
       preview: canonicalContext.preview,
       consumerManifestBefore,
     });
+    preview.backups = activation?.backups ?? [];
     return { ...await terminal(preview, 'applied', history, transition), status: 'updated' };
   } catch (error) {
     return {
@@ -307,17 +334,18 @@ function reportOf(result) {
     added: result.added.length,
     updated: result.updated.length,
     deleted: result.deleted.length,
-    localModified: result.userModified.length,
+    overwritten: result.overwritten.length,
     conflicts: result.conflicts.length,
     keptDeleted: result.keptDeleted.length,
     paths: {
       added: result.added,
       updated: result.updated,
       deleted: result.deleted,
-      localModified: result.userModified,
+      overwritten: result.overwritten.map(({ path }) => path),
       conflicts: result.conflicts.map(({ path }) => path),
       keptDeleted: result.keptDeleted,
     },
+    backups: result.backups ?? [],
     recommendation: updateRecommendation(result),
     requiredMigrations: result.requiredMigrations ?? [],
     advisories: result.advisories ?? [],

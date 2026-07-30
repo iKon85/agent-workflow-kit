@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Pure rendering for a lean Tier-2 anchor and its full PRD archive."""
+"""Pure rendering of the one Tier-2 anchor body a publish run writes.
+
+One document, one write: the filled anchor template with the full PRD folded
+into a collapsed `<details>` section underneath it. The PRD is not moved into a
+separate archive comment — a second remote artifact would need its own
+existence classification on every resume, which is exactly the machinery the
+publish reconciler replaces.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +14,6 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import NamedTuple
 
 from marker_lib import marker_value
 
@@ -20,13 +26,6 @@ HTML_MARKER_RE = re.compile(
     r"^\s*<!--\s*(prd-source-id|prd-content-fp|prd):\s*([^>\r\n]+?)\s*-->\s*$"
 )
 HTML_COMMENT_RE = re.compile(r"^\s*<!--.*-->\s*$")
-
-
-class RenderedDocuments(NamedTuple):
-    """The two byte-stable documents produced by one render."""
-
-    anchor_body: str
-    archive_body: str
 
 
 def _canonical_marker(line: str) -> tuple[str, str] | None:
@@ -71,39 +70,38 @@ def _strip_head_markers(source: str) -> tuple[list[str], str]:
     return revisions, "".join(kept) + source[end:]
 
 
-def render_documents(anchor_template: str, prd_body: str) -> RenderedDocuments:
-    """Return the filled anchor template and marker-free PRD archive."""
-    revisions, archive_source = _strip_head_markers(prd_body)
+def render_anchor_body(anchor_template: str, prd_body: str) -> str:
+    """The single anchor body: filled template + the marker-free PRD, folded."""
+    revisions, prd_source = _strip_head_markers(prd_body)
     if len(revisions) != 1:
         raise ValueError("source PRD head must have exactly one canonical plan_revision")
-    revision = revisions[0]
-    archive_header = (
-        f"📄 Full PRD (archive, {revision}) — "
-        "the body carries navigation/decisions only\n\n"
+    summary = (
+        f"📄 Full PRD ({revisions[0]}) — "
+        "the anchor above carries navigation/decisions only"
     )
-    return RenderedDocuments(anchor_template, archive_header + archive_source)
+    return (
+        f"{anchor_template.rstrip(chr(10))}\n\n"
+        f"<details>\n<summary>{summary}</summary>\n\n"
+        f"{prd_source.rstrip(chr(10))}\n\n</details>\n"
+    )
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Render one filled Tier-2 anchor or its marker-free PRD archive."
+        description="Render the one anchor body a publish run writes."
     )
     parser.add_argument("--template", type=Path, required=True)
     parser.add_argument("--prd", type=Path, required=True)
-    parser.add_argument("--document", choices=("anchor", "archive"), required=True)
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
-    rendered = render_documents(
+    body = render_anchor_body(
         args.template.read_bytes().decode("utf-8"),
         args.prd.read_bytes().decode("utf-8"),
     )
-    output = (
-        rendered.anchor_body if args.document == "anchor" else rendered.archive_body
-    )
-    sys.stdout.buffer.write(output.encode("utf-8"))
+    sys.stdout.buffer.write(body.encode("utf-8"))
     return 0
 
 

@@ -1,0 +1,5 @@
+# Source-Anker für skill-drift-hint.py. Repo-relative Pfade, einer pro Zeile.
+# Bewegt sich eine Quelle in git nach dem letzten SKILL.md-Commit → Freshness-Warnung.
+scripts/wrapup-land.py
+scripts/pr-body-check.py
+scripts/board_config.py

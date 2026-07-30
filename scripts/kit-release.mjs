@@ -1,4 +1,4 @@
-/** Deterministic release preparation; landing remains owned by wrapup. */
+/** Deterministic release preparation; landing remains owned by make-landable + land. */
 import { execFile, execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -153,7 +153,7 @@ async function main() {
     throw new Error(`target ${targetVersion} is not one Semver bump from ${releasedVersion}`);
   }
   const result = await prepareRelease({ repoRoot, targetVersion, delta: plan.delta });
-  console.log(`release prepared at ${result.targetVersion} (${result.status}); hand off to wrapup`);
+  console.log(`release prepared at ${result.targetVersion} (${result.status}); hand off to make-landable + land`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

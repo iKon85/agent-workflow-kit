@@ -71,15 +71,21 @@ server-side backstop, not a replacement.
 ## Consumer contract — never break
 
 `init` records a sha256 manifest of every installed file; `update` is a
-three-way reconcile against it: untouched files fast-forward, consumer-edited
-files are backed up and diffed, **never silently overwritten**; the consumer's
-project layer (`docs/agents/*`, board profile, `CLAUDE.md`, `AGENTS.md`) is
-written once and never overwritten by ordinary reconciliation. The only
-allowed update-time project-layer writes are explicit, schema-driven,
-idempotent migrations that preserve existing evidence, are previewed and
-destination-race checked, and activate or roll back with the verified update
-candidate. Every change to shipped files must preserve this contract and the
-manifest mechanism.
+three-way reconcile against it that **always activates the full new version**.
+An untouched file fast-forwards. A consumer-edited `origin=kit` file that the
+ledger declares no ownership for is overwritten — with a non-clobbering backup
+and a diff, and named in the end-of-update summary, so **nothing is lost and
+nothing is silent**. The silent in-place fork and its conflict-blocking state
+are gone: **ownership is what scopes the overwrite.** A ledger-declared consumer
+state (`project-extension`, `contribution-bridge`, `explicit-fork` via `own`) is
+never overwritten, and the summary *offers* those routes for every backed-up
+path without ever assigning one. The consumer's project layer (`docs/agents/*`,
+board profile, `CLAUDE.md`, `AGENTS.md`) is written once and never overwritten
+by ordinary reconciliation. The only allowed update-time project-layer writes
+are explicit, schema-driven, idempotent migrations that preserve existing
+evidence, are previewed and destination-race checked, and activate or roll back
+with the verified update candidate. Every change to shipped files must preserve
+this contract and the manifest mechanism.
 
 **Release — merge integrates; an annotated version tag publishes.** Version
 bump in the kit metadata + release-notes section in `README.md` land in the
@@ -177,8 +183,8 @@ Before adding a rule, guard or gate:
   (`gh pr list --head <branch>`). Plan/grill sessions create **none**: they run
   in the main checkout, their `PLAN.md` and review log stay gitignored on disk,
   and their durable output (`CONTEXT.md`, ADRs, research notes) lands through
-  `/wrapup`'s Content route as ordinary work. The implementing session creates
-  the worktree when the build starts.
+  `/make-landable`'s confirmed file claim as ordinary work. The implementing
+  session creates the worktree when the build starts.
 
 ### Diagnosis & verification
 
@@ -232,7 +238,8 @@ Smallest route with a clear next action. Unclear terms → `grill-with-docs` →
 reports → `triage`; huge and foggy → `wayfinder`; bug → `diagnose`; open
 fact/option/design → `verify-spike`/`decision-gate`/`prototype`; file-disjoint
 wave → `orchestrate-wave`; any build, tiny fixes self-routed → `implement`
-(RED→GREEN); done → `wrapup`; missing project context → `setup-workflow`.
+(RED→GREEN); built → `make-landable`; accepted → `land`; missing project
+context → `setup-workflow`.
 
 ## Backlog workflow (GitHub Projects v2)
 
@@ -264,7 +271,7 @@ bare `gh issue create` + `gh project item-*`.
 - **Cross-slice writeback.** (a) A plan decision that touches a sibling
   slice's contract is written into **that** sibling's body immediately.
   (b) A build-time toppled assumption carried by an unbuilt sibling goes into
-  the worktree's gitignored `ANNAHMEN.md` (wrapup propagates it). (c) "Phase
+  the worktree's gitignored `ANNAHMEN.md` (`land` propagates it). (c) "Phase
   comes in a later slice" → a tracking issue in the **same** PR — a code
   comment is not a board item.
 - **Retro:** voluntary — `/retro` is available whenever a session earned one,

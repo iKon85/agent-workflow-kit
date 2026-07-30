@@ -189,7 +189,7 @@ How it is published depends on the decomposition test (applies to **every** sour
 - **≥2 independently mergeable slices → PROMOTE.** The source issue *becomes the anchor*.
 - **exactly 1 slice → ATOMIC.** The source issue *stays a leaf*; the single PR `closes` it. *(A mechanical bundle with only one sensible slice does **not** become an anchor.)*
 
-**`wave-stub` strip is automatic — no manual edit.** If the source was a `board-to-waves` candidate stub (`label:wave-stub`), **both** publish mechanics remove the label idempotently: `promote` (§5a) **and** `add --bucket` (§5b atomic). This takes it off the "awaiting planning" list (`is:open label:wave-stub`), regardless of whether it becomes a wave or an atomic leaf. Never help it along with a bare `gh issue edit --remove-label wave-stub` — the helper is the only label writer (see box below).
+**`wave-stub` strip is automatic — no manual edit.** If the source was a `board-to-waves` candidate stub (`label:wave-stub`), **both** publish mechanics remove the label idempotently: `publish-anchor` (§5a) **and** `add --bucket` (§5b atomic). This takes it off the "awaiting planning" list (`is:open label:wave-stub`), regardless of whether it becomes a wave or an atomic leaf. Never help it along with a bare `gh issue edit --remove-label wave-stub` — the helper is the only label writer (see box below).
 
 **Lane D — mechanical bundle (file list/refactor).** It may **skip** the domain grill — **only** if: blast radius is *estimable* **and** `<10 files` **and** *no* seam is replaced (§3b Seam Ownership/Blast Radius still apply). Otherwise → **HITL** with the `headings.vorBau` heading (structural questions / why-indivisible), as §3b/§5c require. No `headings.vorBau` heading needed if nothing is open.
 
@@ -215,103 +215,59 @@ fi
 #    unchanged source PRD body as /tmp/source-prd.md. The renderer reads only those
 #    two files and writes only stdout: no GitHub/network call and no mutation.
 python3 scripts/render-anchor.py --template /tmp/anchor-template.md \
-  --prd /tmp/source-prd.md --document anchor > /tmp/anchor.md
-python3 scripts/render-anchor.py --template /tmp/anchor-template.md \
-  --prd /tmp/source-prd.md --document archive > /tmp/prd-archive.md
+  --prd /tmp/source-prd.md > /tmp/anchor.md
 ```
 
-The anchor output is the filled template byte-for-byte. The archive starts with
-the stable `📄 Full PRD` marker and strips every canonical marker line
-(`plan_revision`, `prd-source-id`, `prd-content-fp`, `<!-- prd: … -->`) only
-from the source body's head block. Marker-looking text in a quote, fence, or
-later section is content and remains untouched.
+One render, one document: the filled template with the full PRD folded
+underneath it into a collapsed `<details>` block behind the stable `📄 Full PRD`
+summary. Every canonical marker line (`plan_revision`, `prd-source-id`,
+`prd-content-fp`, `<!-- prd: … -->`) is stripped from the source body's head
+block only — marker-looking text in a quote, fence, or later section is content
+and remains untouched. The PRD never becomes a second remote artefact: one
+publish writes one body, so a resume has nothing extra to classify.
 
-Promotion uses the remote issue itself as its journal. Classify four
-observations before every resume. Before transition 1, `S=yes|no` compares a
-freshly fetched remote body byte-for-byte with `/tmp/source-prd.md`, the source
-snapshot that produced both rendered outputs. Once `B=yes`, that source
-snapshot is no longer active and `S=n/a`. `B=yes|no` says whether the fetched
-issue body is byte-identical to `/tmp/anchor.md`.
-`C=0|exact-1|wrong-1|duplicates(<ids>)` classifies stable-marker comments:
-none; exactly one whose whole body is byte-identical to
-`/tmp/prd-archive.md`; exactly one with different bytes; or multiple matches
-with every comment ID retained. `P=absent|complete|partial` classifies only
-promotion-owned board state. `P=absent` accepts either an
-ordinary pre-state (no `type:cluster`, Wave unset, no `Welle` title prefix) or a
-valid Stufe-1p pre-state (`wave-stub` present, no `type:cluster`, and the
-pre-stamped Wave/title match `$WAVE`). `P=complete` requires `type:cluster`, the
-expected Wave/title, and no remaining `wave-stub`. Every other combination —
-including a different Wave — is `P=partial`. Fetch comments with the paginated
-API, never the first page alone:
+**Author every published body unwrapped.** GitHub renders each single newline in
+an issue body as a hard break, so this repo's 80-column wrap is a convention for
+files in git only — never for a rendered anchor or slice body.
 
 ```bash
-gh api --paginate --slurp \
-  "repos/<owner>/<repo>/issues/<prd#>/comments?per_page=100"
+# 3. preview the whole publish, get the approval, then run it. The preview is
+#    the artefact the approval rests on; the run reports its own result.
+python3 scripts/board-sync.py publish-anchor --issue <prd#> --wave "$WAVE" \
+  --body-file /tmp/anchor.md --dry-run
+python3 scripts/board-sync.py publish-anchor --issue <prd#> --wave "$WAVE" \
+  --body-file /tmp/anchor.md
 ```
 
-Flatten every returned page, retain the comment `id`, and exact-match the
-start-of-body marker. The four valid states and their sole resume action are:
+`publish-anchor` is an **idempotent reconciler**, not a transaction — a remote
+multi-write cannot be atomic, so the anchor's present board state is the
+journal. One run reads that state, writes only what is missing, and prints what
+it found and what it created:
 
-<!-- promotion-board-observation-table:start -->
-| Scenario | Observable board facts | P classification |
-|---|---|---|
-| `ordinary-prestate` | no cluster; Wave unset; no Wave title | `absent` |
-| `stufe-1p-prestate` | wave-stub; no cluster; expected Wave/title | `absent` |
-| `promoted` | cluster; expected Wave/title; no wave-stub | `complete` |
-| `cluster-only` | cluster; Wave/title missing | `partial` |
-| `wrong-wave` | any different Wave value | `partial` |
-<!-- promotion-board-observation-table:end -->
+```
+publish-anchor #<prd#>: wave=<N> body=<write|written|current> board=<promote|promoted|current>
+```
 
-<!-- promotion-state-table:start -->
-| State | Observable predicates | Resume action |
-|---|---|---|
-| `initial` | `S=yes`, `B=no`, `C=0`, `P=absent` | render + write body |
-| `body-written` | `S=n/a`, `B=yes`, `C=0`, `P=absent` | reconcile + write archive comment |
-| `comment-written` | `S=n/a`, `B=yes`, `C=exact-1`, `P=absent` | promote board state |
-| `promoted` | `S=n/a`, `B=yes`, `C=exact-1`, `P=complete` | no-op; continue publish audit |
-<!-- promotion-state-table:end -->
+`current` means the anchor already carries the published state — the cluster
+type label, the expected Wave, and the Wave title prefix — and this run wrote
+nothing at all, body included. The body write is the transition **into** that
+state: it happens at most once per run, never repeats on an already published
+anchor, and is never fetched back to confirm itself. `--no-rename` keeps the
+existing title and takes the title out of that predicate.
 
-Each transition is idempotent and has an explicit contract:
+**Re-run it only after an interruption or a reported partial failure.** A failed
+run names what it already wrote and prints the exact repair command — the same
+invocation again, which then completes only the missing writes. A successful
+publish is never run twice, and no local operation journal is kept.
 
-1. **Write body (`initial → body-written`).** Pre: `S=yes`, `B=no`, `C=0`,
-   `P=absent`. Fetch the remote body again immediately before the command and
-   recompute `S`; a prior fetch is not sufficient.
-   Run `gh issue edit <prd#> --body-file /tmp/anchor.md`, refetch the body, and
-   require a byte match. Post: `S=n/a`, `B=yes`, `C=0`, `P=absent`.
-2. **Write archive (`body-written → comment-written`).** Pre: `S=n/a`, `B=yes`,
-   `C=0`, `P=absent`. Re-run the pagination-aware lookup immediately before
-   create; if it now yields `C=exact-1`, classify as `comment-written` and do
-   not create. `C=wrong-1` or `C=duplicates(<ids>)` is drift and enters repair,
-   never create. Only `C=0` runs `gh issue comment <prd#> --body-file
-   /tmp/prd-archive.md`, then immediately paginate and reconcile again. Post:
-   `S=n/a`, `B=yes`, `C=exact-1`, `P=absent`.
-3. **Promote (`comment-written → promoted`).** Pre: `S=n/a`, `B=yes`,
-   `C=exact-1`, `P=absent`. Run `python3 scripts/board-sync.py promote --issue <prd#> --wave
-   "$WAVE"`, refetch body, comments, labels, Wave, and title. Post: `S=n/a`,
-   `B=yes`, `C=exact-1`, `P=complete`. Re-running `promote` with the same Wave
-   is the repair for `P=partial`; a different Wave remains a hard stop.
-
-Any other predicate combination is drift, not a fifth state. Repair it
-explicitly, then reclassify. `S=no` before transition 1 means **STOP**: report
-the diff between the fresh remote body and `/tmp/source-prd.md`, never write the
-stale render, re-fetch the remote body into a reviewed source snapshot, and
-rerender both outputs before recomputing `S`. `B=no` outside the valid `initial` tuple
-means **STOP**, report the body diff against `/tmp/anchor.md`, and require
-an explicit operator decision to restore the rendered anchor or adopt the remote
-edit and rerender both outputs; never overwrite remote journal evidence automatically.
-Only transition 1 performs the approved source-to-anchor body write without
-this drift gate. `C=wrong-1` → report its ID and explicitly update it to the
-rendered archive; `P=complete` with `C=0` → create/reconcile the archive without
-demoting. For `P=partial`, a different Wave is a hard stop; otherwise rerun
-same-Wave `promote`. `C=duplicates(<ids>)` always means **STOP and report every
-comment ID**. An operator must choose and explicitly delete/update the
-duplicates, then rerun the paginated lookup; never select the first match or
-silently discard one. No local operation journal is written: these
-observations are the journal.
+The refusals are the ones `promote` already owns, evaluated from the same reads
+before any write: a Program-PRD is rejected outright, an anchor already stamped
+with a **different** Wave is a hard stop, and a Wave number held by another
+anchor is a hard stop (re-read `next-wave`, then retry). Fix the input, never
+the guard. The `wave-stub` strip happens inside the same run — never as a
+separate label edit.
 
 ```bash
-# 3. Continue only from the `promoted` state.
-
 # 4. create each child (dependency order), then link it under the anchor — BEFORE the §7 exit audit,
 #    so the checker sees the anchor's children (a childless type:cluster anchor mis-reads as a leaf)
 python3 scripts/board-sync.py create --title "Welle $WAVE / Slice 1a — <outcome>" \
@@ -329,7 +285,7 @@ python3 scripts/board-sync.py dep-add --issue <blocked#> --blocked-by <blocker#>
 # → the promoted anchor graph is audited at exit (§7, execute-ready --mode audit, non-blocking)
 ```
 
-- The anchor body comes from **`docs/agents/wave-anchor-template.md` (Tier 2)** — lean: filled Slices table (`# | Status | Slice | Sub-Issue | Gate | closes/refs`), NO embedded PRD, NO per-slice handoff blocks. The full PRD (markers stripped: `plan_revision`/`prd-source-id`/`prd-content-fp`/`awaiting-decomposition`) is **issue comment #1**; each slice's paste-ready handoff is **self-contained in its leaf** (§5d).
+- The anchor body comes from **`docs/agents/wave-anchor-template.md` (Tier 2)** — lean above the fold: filled Slices table (`# | Status | Slice | Sub-Issue | Gate | closes/refs`), NO per-slice handoff blocks. The full PRD (markers stripped: `plan_revision`/`prd-source-id`/`prd-content-fp`/`awaiting-decomposition`) is folded into the **same body** behind the collapsed `📄 Full PRD` summary — never a second remote artefact; each slice's paste-ready handoff is **self-contained in its leaf** (§5d).
 - Promoted children carry the title prefix **`Welle N / Slice X — <outcome>`**.
 - Fresh children each have exactly one parent → the one-parent constraint is never violated. `link` refuses a foreign-parent re-parent (exits non-zero — drift, never silent).
 - **Member reconcile when promoting a stub (mandatory — Retro, corrected by; extended to the top-down origin).** The pipeline never runs directly `board-to-waves → to-issues` — it always goes through the intermediate step `board-to-waves` (stub) → [optional grill] → `to-prd` (Draft-PRD) → `to-issues` (publish); the top-down origin is `scale-check → grill → to-prd (program mode) → to-waves` (stub) → `to-issues` (publish). **The reconcile input is the union of the member issues listed in the stub-body `#…` list AND `children-of <stub#>`** (read the body, e.g. `gh issue view <anchor#> --json body`, plus `python3 scripts/board-sync.py children-of <stub#>`) — covering both origins: a bottom-up `board-to-waves` stub sets **no** native sub-issue link at clustering time, so `children-of` finds nothing before this promotion and only the body list matters; a top-down Stufe-1p Program-stub **already** has native children — the slice leaves `to-waves` pre-created at publish (`to-waves` SKILL.md §4) — which `children-of` returns even before this promotion, on top of any body-listed **adopted** references (`to-waves`'s Adopt Path). These members MUST be reconciled during the publish pass, or they end up sitting next to the fresh slices → **duplicates + execute-ready `DENY`** (the anchor's child set must equal the slice set; a legacy member without `plan_revision`/bucket denies the §7 audit). Rule per member:
@@ -531,7 +487,7 @@ Do NOT close or modify any parent issue beyond the promote stamp.
 
 Publication is not the end of the session. `to-issues` **never deletes** what it
 leaves behind — the locked plan is the implementing session's input and the
-assumption log is `$wrapup`'s. Classify, report, hand over.
+assumption log is `$make-landable`'s. Classify, report, hand over.
 
 Read the classes from the repository itself, never from a pattern list — git's
 own taxonomy is the classification:
@@ -549,7 +505,7 @@ git status --short --ignored   # the same, plus the ignored paths, marked `!!`
   its review log, the assumption log. The repository has already declared them
   not-work, so they are deletable at teardown and die with the checkout they
   were written in. Leave them here — the implementing session reads the plan and
-  `$wrapup` reads the assumption log.
+  `$make-landable` reads the assumption log.
 - **Nothing** — neither class present. Report it. An empty end state is a
   result, not silence.
 
@@ -557,15 +513,15 @@ Then emit the state report — exactly two lines, on every run:
 
 ```
 end state: durable=<n file(s) | none> · scratch=<n file(s) | none>
-next: <$wrapup — lands the durable content | nothing to land — this session is done>
+next: <$make-landable — commits the durable content, then $land merges it | nothing to land — this session is done>
 ```
 
-`$wrapup` is **user-invoked only**: name it as the next step, never call it from
-here.
+`$make-landable` is **user-invoked only**: name it as the next step, never call it
+from here.
 
 **A project with no worktree helper changes nothing about this.** The
-classification is git's, not the worktree layout's, and `$wrapup` lands durable
-content from whichever checkout it runs in — its Content route exists precisely
-for a session that has no worktree and no slice. Report the situation as
+classification is git's, not the worktree layout's, and `$make-landable` commits
+durable content from whichever checkout it runs in — its confirmed file claim
+exists precisely for a session that has no worktree and no slice. Report the situation as
 observed instead of assuming a worktree convention the project may not have, and
 never propose creating one just to have something to land through.

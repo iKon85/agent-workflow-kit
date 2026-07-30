@@ -145,22 +145,31 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
     const upstreamChanged = file.sha256 !== prior.installedSha256
       || currentMode !== file.mode
       || packageMetadataChanged(file, prior);
-    if (!userEdited && upstreamChanged) {
+    if (userEdited) {
+      // An in-place edit of an `origin=kit` path is not a fork: the ledger
+      // records no ownership for it, so the full new version activates here and
+      // the local bytes survive as a backup the summary names. `own` (and the
+      // other explicit ownership states, handled above) is how a Consumer holds
+      // a fork; an undeclared edit is a change the Consumer is offered a route
+      // for, never a silent one and never a blocked update. The record is also
+      // what activation's destination-race check reads, so it is written for
+      // every edited path — including one whose bytes already match the
+      // incoming version, where activation then needs no backup at all.
+      const incoming = await readFile(join(kitRoot, file.path));
+      const localText = await readFile(dest, 'utf8');
+      if (!dryRun) await writeAtomic(dest, incoming, file.mode);
+      nextInstalled.push(entry(file, file.sha256));
+      result.updated.push(file.path);
+      result.overwritten.push({
+        path: file.path,
+        localSha256: current,
+        mode: currentMode,
+        diff: lineDiff(localText, incoming.toString('utf8')),
+      });
+    } else if (upstreamChanged) {
       if (!dryRun) await writeAtomic(dest, await readFile(join(kitRoot, file.path)), file.mode);
       nextInstalled.push(entry(file, file.sha256));
       result.updated.push(file.path);
-    } else if (userEdited && upstreamChanged) {
-      const incoming = await readFile(join(kitRoot, file.path), 'utf8');
-      result.conflicts.push({ path: file.path, diff: lineDiff(await readFile(dest, 'utf8'), incoming) });
-      nextInstalled.push(withInstallRole(prior));
-    } else if (userEdited) {
-      nextInstalled.push(withInstallRole(prior));
-      result.userModified.push(file.path);
-      result.userModifiedSnapshots.push({
-        path: file.path,
-        sha256: current,
-        mode: currentMode,
-      });
     } else {
       nextInstalled.push(withInstallRole(prior));
       result.unchanged.push(file.path);
@@ -206,8 +215,8 @@ export async function reconcile({ kitRoot, consumerRoot, decide = () => false, d
 
 function emptyResult() {
   return {
-    unchanged: [], updated: [], conflicts: [], collisions: [], collisionResolutions: [], userModified: [],
-    userModifiedSnapshots: [],
+    unchanged: [], updated: [], conflicts: [], collisions: [], collisionResolutions: [],
+    overwritten: [],
     ownershipStates: [],
     bridgeRetired: [],
     added: [], deleted: [], keptDeleted: [], consumerOwned: [], manifestChanged: false,

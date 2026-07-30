@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import * as p from '@clack/prompts';
 import { init } from './commands/init.mjs';
-import { renderUpdateFailure, update } from './commands/update.mjs';
+import { renderBackupSummary, renderUpdateFailure, update } from './commands/update.mjs';
 import { diff } from './commands/diff.mjs';
 import { uninstall } from './commands/uninstall.mjs';
 import { setOwnership } from './commands/own.mjs';
@@ -20,6 +20,7 @@ import {
 import {
   inspectContributionRouting,
 } from './lib/contributionRouting.mjs';
+import { backupStamp } from './lib/atomicWrite.mjs';
 import { CONSUMER_ORIGIN, KIT_ORIGIN } from './lib/manifest.mjs';
 import { nonInteractiveUpdateDecision } from './lib/updateDecisions.mjs';
 import { sanitizeReadinessText } from './lib/updateCandidate.mjs';
@@ -100,11 +101,6 @@ const ROUTING_PAYLOADS = {
   reconcile: reconcilePayload,
 };
 
-function stamp() {
-  // backup suffix: YYYYMMDDTHHMMSS (no separators that collide with shells)
-  return new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '');
-}
-
 export async function runCli({
   argv = process.argv.slice(2),
   kitRoot = KIT_ROOT,
@@ -174,7 +170,7 @@ export async function runCli({
     const r = await updateCommand({
       kitRoot,
       consumerRoot,
-      now: stamp(),
+      now: backupStamp(),
       decide,
       releaseIdentities,
       routingProfile: routingProfileOptions(yes),
@@ -188,6 +184,11 @@ export async function runCli({
     printRoutingProfile(r.routingProfile, consumerRoot);
     const updateReadiness = renderReadinessSummary(r.readiness);
     if (updateReadiness.length) p.note(updateReadiness.join('\n'), 'readiness');
+    for (const o of r.overwritten ?? []) {
+      p.note(o.diff || '(binary/!text)', `overwritten (backed up): ${o.path}`);
+    }
+    const backupSummary = renderBackupSummary(r.report);
+    if (backupSummary.length) p.note(backupSummary.join('\n'), 'backups');
     for (const c of r.conflicts) p.note(c.diff || '(binary/!text)', `conflict (not applied): ${c.path}`);
     if (r.state === 'failed') throw new Error(renderUpdateFailure(r));
     if (r.state === 'conflicted') {
@@ -198,9 +199,11 @@ export async function runCli({
       );
       exitCode = 2;
     } else if (r.status === 'current') {
-      p.outro(`aktuell · unchanged ${r.unchanged.length} · local modifications ${r.userModified.length}`);
+      p.outro(`aktuell · unchanged ${r.unchanged.length}`);
     } else {
-      p.outro(`updated ${r.updated.length} · added ${r.added.length} · migrated ${r.migrated?.length ?? 0} · deleted ${r.deleted.length}`);
+      p.outro(`updated ${r.updated.length} · added ${r.added.length} · ` +
+        `backed up ${r.overwritten?.length ?? 0} · ` +
+        `migrated ${r.migrated?.length ?? 0} · deleted ${r.deleted.length}`);
     }
   } else if (cmd === 'uninstall') {
     const ok = yes || (await p.confirm({ message: 'Remove kit-installed files?' })) === true;
@@ -341,7 +344,7 @@ if (invokedPath === fileURLToPath(import.meta.url)) {
 function printPlan(r) {
   const lines = [];
   for (const k of [
-    'added', 'updated', 'userModified', 'consumerOwned', 'unchanged',
+    'added', 'updated', 'overwritten', 'consumerOwned', 'unchanged',
     'deleted', 'keptDeleted', 'collisions', 'migrated',
     'bridgeRetired',
   ])

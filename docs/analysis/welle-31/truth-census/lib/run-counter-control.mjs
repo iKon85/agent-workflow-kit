@@ -11,6 +11,17 @@
 //   C3 project layer is never overwritten by ordinary reconciliation
 //   C4 byte-stable manifest — a second update over the same inputs is a no-op
 //
+// SUPERSEDED CONTRACT (2026-07-30, #414 / #433): C2 above states the pre-option-(c)
+// contract, and this file is kept as the recorded measurement of that contract at
+// the pinned `srcTree` — it is deliberately NOT rewritten. Since #433 an
+// undeclared `origin=kit` edit is overwritten with a non-clobbering backup and
+// named in the end-of-update summary; ledger-declared consumer ownership
+// (`project-extension`/`contribution-bridge`/`explicit-fork`) is what is never
+// overwritten. A re-run against current `src/` therefore reports C2 red for the
+// old predicate, not a regression. Re-deriving C2 as "nothing lost (a backup
+// holds the replaced bytes) and nothing silent (the summary names it)" is a
+// precondition of re-running this control, not a repair of this record.
+//
 // Two arms, per §7 "positive control first":
 //
 //   positive-control  the same harness against a deliberately defective

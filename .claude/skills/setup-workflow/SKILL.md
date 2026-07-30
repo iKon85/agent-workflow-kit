@@ -14,7 +14,7 @@ Project extensions may specialize Project details, but cannot weaken Core user g
 
 # Setup Workflow
 
-Scaffold the **project layer** the portable workflow skills (`to-prd`, `to-issues`, `triage`, `spec-self-critique`, `retro`, `wrapup`, …) read at runtime. The generic skills ship the *how*; this skill writes the project-specific *what* into the consumer repo, where `retro`/`wrapup` then grow it over time.
+Scaffold the **project layer** the portable workflow skills (`to-prd`, `to-issues`, `triage`, `spec-self-critique`, `retro`, `land`, …) read at runtime. The generic skills ship the *how*; this skill writes the project-specific *what* into the consumer repo, where `retro`/`land` then grow it over time.
 
 This is a prompt-driven skill, not a deterministic script. Explore, present what you found, confirm with the user, then write — **one section at a time**, never dump everything at once. Assume the user does not know what these terms mean; each section opens with a short plain explainer.
 
@@ -536,9 +536,9 @@ Seed `## Workflow` from [workflow-overview.md](./workflow-overview.md) when the 
 
 ### 8. Section G — Deploy target
 
-> `wrapup` and live-verify reference where this project deploys (host, command, URL). It lives in the `## Prod` block of CLAUDE.md/AGENTS.md, not a separate file.
+> `land` and live-verify reference where this project deploys (host, command, URL). It lives in the `## Prod` block of CLAUDE.md/AGENTS.md, not a separate file.
 
-First run `node scripts/readiness.mjs check --skill wrapup --json`. If
+First run `node scripts/readiness.mjs check --skill land --json`. If
 `prodTarget` is `ready`, adopt the evidence, clear any superseded pending
 decision with `node scripts/readiness.mjs decision clear prodTarget`, and do
 not ask again. Malformed or divergent `## Prod` evidence is `invalid`: leave
@@ -558,7 +558,7 @@ catalog:
 - **Configure later** — run
   `node scripts/readiness.mjs decision set prodTarget pending`; create or alter
   no `## Prod` block, and report exactly:
-  `wrapup.deployReport omitted (prodTarget pending)`.
+  `land.deployReport omitted (prodTarget pending)`.
 - **Not applicable** — offer only when the manifest catalog entry has
   `allowNotApplicable: true`; record it with `readiness.mjs decision set` and
   deactivate the dependent block (or the whole skill when the declaration
@@ -634,7 +634,7 @@ For the **`## Workflow`**, **`## Agent skills`**, and **`## Prod`** blocks, reco
   existing surface as one coherent local change. Preserve each file's
   `## Workflow` and `## Agent skills` blocks byte-for-byte, including spacing,
   and leave all unrelated setup blocks untouched. Re-read every written Prod
-  body and run `node scripts/readiness.mjs check --skill wrapup --json`; all
+  body and run `node scripts/readiness.mjs check --skill land --json`; all
   surfaces must agree and `activeBlocks` must be exactly `["deployReport"]`.
   Only then clear a prior `prodTarget` decision. A partial write is not ready:
   restore the previewed surface set before reporting the section complete.

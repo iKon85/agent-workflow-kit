@@ -121,7 +121,7 @@ export async function init({ kitRoot, consumerRoot, force = false, routingProfil
         }));
   }
 
-  // Read-only report, never a gate: the same evaluator `wrapup`/`update` use,
+  // Read-only report, never a gate: the same evaluator `land`/`update` use,
   // rendered once at the end of install so a fresh consumer sees current
   // readiness without a separate command. Only meaningful once the readiness
   // manifest itself is installed — absent in a minimal/legacy kit.

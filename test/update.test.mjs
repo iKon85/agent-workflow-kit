@@ -5,7 +5,8 @@ import {
 } from 'node:fs/promises';
 import { join, win32 } from 'node:path';
 import { init } from '../src/commands/init.mjs';
-import { renderUpdateFailure, update } from '../src/commands/update.mjs';
+import { renderBackupSummary, renderUpdateFailure, update } from '../src/commands/update.mjs';
+import { setOwnership } from '../src/commands/own.mjs';
 import {
   activateCandidate, materializeUpdateCandidate, validateCandidateManifestPath,
 } from '../src/lib/updateCandidate.mjs';
@@ -538,7 +539,7 @@ test('update transactionally adopts new safe stubs and reports behavior availabi
     readiness: { contractVersion: 1, capabilities: {
       prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md'] } },
     } },
-    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+    skills: { land: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
   };
   const nextReadiness = structuredClone(oldReadiness);
   nextReadiness.readiness.capabilities.orchestrateWaveRecipe = {
@@ -747,7 +748,7 @@ test('update mirrors one existing Prod section across Claude and Codex surfaces 
     readiness: { contractVersion: 1, capabilities: {
       prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
     } },
-    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+    skills: { land: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
   };
   for (const [source, destination, destinationExists] of [
     ['CLAUDE.md', 'AGENTS.md', false],
@@ -794,7 +795,7 @@ test('update refuses divergent Prod sections without touching consumer files', a
     readiness: { contractVersion: 1, capabilities: {
       prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
     } },
-    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+    skills: { land: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
   };
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();
@@ -827,7 +828,7 @@ test('a Prod migration destination race fails without overwriting the late consu
     readiness: { contractVersion: 1, capabilities: {
       prodTarget: { evidence: { type: 'prod-section', paths: ['CLAUDE.md', 'AGENTS.md'] } },
     } },
-    skills: { wrapup: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
+    skills: { land: { readiness: { optionalBlocks: { deployReport: 'prodTarget' } } } },
   };
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();
@@ -1714,7 +1715,7 @@ test('update preserves an edited legacy maintainer file and records its role', a
   }
 });
 
-test('update preserves a local modification when upstream is unchanged', async () => {
+test('an undeclared local edit is overwritten by the new version even when upstream is unchanged', async () => {
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();
   try {
@@ -1723,9 +1724,10 @@ test('update preserves a local modification when upstream is unchanged', async (
     const r = await update({
       kitRoot: kit, consumerRoot: consumer, now: 'T', releaseIdentities: releaseIdentities(), verify,
     });
-    assert.equal(r.status, 'current');
-    assert.deepEqual(r.userModified, [P]);
-    assert.equal(await readFile(join(consumer, P), 'utf8'), 'local-only edit\n');
+    assert.equal(r.state, 'applied', r.error);
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'v1\n');
+    assert.equal(await readFile(join(consumer, `${P}.T.bak`), 'utf8'), 'local-only edit\n');
+    assert.deepEqual(r.report.paths.overwritten, [P]);
   } finally {
     await cleanup(kit, consumer);
   }
@@ -1906,23 +1908,160 @@ test('ordinary update preserves readiness decisions and unknown manifest extensi
   }
 });
 
-test('update does NOT mutate or back up a user-edited file when it reports a conflict', async () => {
+test('an edited unowned kit file activates the new version, keeps a backup, and offers routes', async () => {
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();
   try {
     await init({ kitRoot: kit, consumerRoot: consumer });
-    await writeFile(join(consumer, P), 'user edit\n');       // user modifies
+    await writeFile(join(consumer, P), 'user edit\n');       // user modifies, declares nothing
     await bumpKit(kit, P, 'v2\n');                           // upstream also changes
     const r = await update({
       kitRoot: kit, consumerRoot: consumer, now: 'T', releaseIdentities: releaseIdentities(), verify,
     });
-    assert.equal(await readFile(join(consumer, P), 'utf8'), 'user edit\n', 'kept user version');
-    assert.ok(r.conflicts.find((c) => c.path === P), 'reported conflict');
-    assert.equal(r.state, 'conflicted');
-    assert.equal(r.report.conflicts, 1);
-    assert.deepEqual(r.report.paths.conflicts, [P]);
-    assert.match(r.report.recommendation, /manually/);
-    assert.equal(await exists(join(consumer, P + '.T.bak')), false, 'consumer tree was not mutated');
+
+    assert.equal(r.state, 'applied', r.error);
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'v2\n', 'new version active');
+    assert.equal(
+      await readFile(join(consumer, `${P}.T.bak`), 'utf8'), 'user edit\n', 'nothing lost',
+    );
+    assert.deepEqual(r.conflicts, [], 'an undeclared edit no longer blocks the update');
+    assert.equal(r.report.conflicts, 0);
+    assert.deepEqual(r.report.paths.overwritten, [P]);
+    assert.deepEqual(r.report.backups, [{ path: P, backupPath: `${P}.T.bak` }]);
+    const ledger = await readManifest(join(consumer, 'agent-workflow-kit.json'));
+    assert.equal(
+      ledger.installed.find(({ path }) => path === P).installedSha256, sha256('v2\n'),
+    );
+
+    const summary = renderBackupSummary(r.report).join('\n');
+    assert.match(summary, /\.T\.bak/, 'nothing silent: the summary names the backup');
+    assert.match(summary, /docs\/agents\/skills/, 'offers the project-extension route');
+    assert.match(summary, /own <path> --as=explicit-fork/, 'offers the own route');
+    assert.match(summary, /contribute start <path>/, 'offers the upstream route');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a rolled-back overwrite restores the local edit and leaves no orphan backup', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, P), 'user edit\n');
+    await bumpKit(kit, P, 'v2\n');
+    const manifestPath = join(consumer, 'agent-workflow-kit.json');
+    const manifestBefore = await readFile(manifestPath);
+
+    const result = await update({
+      kitRoot: kit, consumerRoot: consumer, now: 'T', releaseIdentities: releaseIdentities(), verify,
+      activate: (options) => activateCandidate({
+        ...options,
+        beforeTargetRevalidation: async (path) => {
+          if (path === 'agent-workflow-kit.json') throw new Error('activation interrupted');
+        },
+      }),
+    });
+
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.failure, { phase: 'activation', consumerState: 'rolled-back' });
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'user edit\n', 'local bytes restored');
+    assert.deepEqual(await readFile(manifestPath), manifestBefore);
+    assert.equal(
+      await exists(join(consumer, `${P}.T.bak`)), false,
+      'a fully restored rollback leaves no redundant backup behind',
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a local edit that already matches the incoming version needs no backup', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, P), 'v2\n');   // the consumer reinvented v2
+    await bumpKit(kit, P, 'v2\n');
+
+    const r = await update({
+      kitRoot: kit, consumerRoot: consumer, now: 'T', releaseIdentities: releaseIdentities(), verify,
+    });
+
+    assert.equal(r.state, 'applied', r.error);
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'v2\n');
+    assert.deepEqual(r.report.backups, [], 'no bytes were lost, so no backup was written');
+    assert.deepEqual(renderBackupSummary(r.report), []);
+    assert.equal(await exists(join(consumer, `${P}.T.bak`)), false);
+    const ledger = await readManifest(join(consumer, 'agent-workflow-kit.json'));
+    assert.equal(
+      ledger.installed.find(({ path }) => path === P).installedSha256, sha256('v2\n'),
+    );
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('an explicit-fork file is never overwritten and never backed up by an update', async () => {
+  const kit = await makeKit({ [P]: 'v1\n', [Q]: 'q1\n' });
+  const consumer = await makeEmptyDir();
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await writeFile(join(consumer, P), 'my fork\n');
+    await setOwnership({
+      consumerRoot: consumer, path: P, origin: 'consumer', ownershipState: 'explicit-fork',
+    });
+    await bumpKit(kit, P, 'v2\n');
+    await bumpKit(kit, Q, 'q2\n');
+
+    const r = await update({
+      kitRoot: kit, consumerRoot: consumer, now: 'T', releaseIdentities: releaseIdentities(), verify,
+    });
+
+    assert.equal(r.state, 'applied', r.error);
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'my fork\n', 'declared fork untouched');
+    assert.equal(await exists(join(consumer, `${P}.T.bak`)), false, 'no backup was needed');
+    assert.deepEqual(r.consumerOwned, [P]);
+    assert.deepEqual(r.report.paths.overwritten, []);
+    assert.deepEqual(r.report.backups, []);
+    assert.equal(await readFile(join(consumer, Q), 'utf8'), 'q2\n', 'the rest still updates');
+  } finally {
+    await cleanup(kit, consumer);
+  }
+});
+
+test('a repeated update over an overwritten edit is byte-stable and leaves the project layer alone', async () => {
+  const kit = await makeKit({ [P]: 'v1\n' });
+  const consumer = await makeEmptyDir();
+  const projectLayer = 'docs/agents/issue-tracker.md';
+  try {
+    await init({ kitRoot: kit, consumerRoot: consumer });
+    await mkdir(join(consumer, 'docs/agents'), { recursive: true });
+    await writeFile(join(consumer, projectLayer), '# Issue tracker\n\nOur board is elsewhere.\n');
+    await writeFile(join(consumer, P), 'user edit\n');
+    await bumpKit(kit, P, 'v2\n');
+
+    const first = await update({
+      kitRoot: kit, consumerRoot: consumer, now: 'T1', releaseIdentities: releaseIdentities(), verify,
+    });
+    assert.equal(first.state, 'applied', first.error);
+    const ledgerAfterFirst = await readFile(join(consumer, 'agent-workflow-kit.json'));
+
+    const second = await update({
+      kitRoot: kit, consumerRoot: consumer, now: 'T2', releaseIdentities: releaseIdentities(), verify,
+    });
+
+    assert.equal(second.status, 'current');
+    assert.deepEqual(second.report.paths.overwritten, []);
+    assert.deepEqual(second.report.backups, []);
+    assert.deepEqual(await readFile(join(consumer, 'agent-workflow-kit.json')), ledgerAfterFirst);
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'v2\n');
+    assert.equal(await exists(join(consumer, `${P}.T2.bak`)), false, 'no second backup');
+    assert.equal(
+      await readFile(join(consumer, projectLayer), 'utf8'),
+      '# Issue tracker\n\nOur board is elsewhere.\n',
+      'ordinary reconciliation never touches the project layer',
+    );
   } finally {
     await cleanup(kit, consumer);
   }

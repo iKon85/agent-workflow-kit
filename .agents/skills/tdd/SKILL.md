@@ -175,7 +175,7 @@ After all tests pass, look for [refactor candidates](refactoring.md):
 [ ] NEW names the distinct plausible defect; a new file has a justified owner boundary
 [ ] Code is minimal for this test
 [ ] No speculative features added
-[ ] Wave slice: a flipped/new assumption affecting an unbuilt sibling issue → log it to ANNAHMEN.md (worktree root; wrapup Step 0c reads it)
+[ ] Wave slice: a flipped/new assumption affecting an unbuilt sibling issue → log it to ANNAHMEN.md (worktree root; `make-landable` reads it when it authors the PR body)
 ```
 
 At handoff, list every behavior and its one decision, then report the counted

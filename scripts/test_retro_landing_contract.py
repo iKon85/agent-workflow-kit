@@ -1,4 +1,11 @@
-"""Contract tests for retro enforcement and safe wrapup workflow chaining."""
+"""Contract tests for retro enforcement and safe landing-pair workflow chaining.
+
+The single `wrapup` skill was split into the two invocation moments it always
+conflated: `make-landable` (post-implement — local CI, commit, PR body) and
+`land` (post-acceptance — merge, board reconcile, teardown, handoff). Every
+assertion that used to read one combined SKILL.md now reads whichever half owns
+the contract, and the retired name must not survive anywhere it could route.
+"""
 
 from pathlib import Path
 import re
@@ -60,10 +67,39 @@ class RetroEnforcementContract(unittest.TestCase):
                     self.assertIn(phrase, text)
 
 
-class WrapupChainingContract(unittest.TestCase):
+class LandingPairContract(unittest.TestCase):
+    """The split is real: two skills, one invocation moment each."""
+
+    def test_the_combined_skill_is_retired_on_both_surfaces(self):
+        for surface in SURFACES:
+            with self.subTest(surface=surface):
+                self.assertFalse(
+                    (ROOT / surface / "skills" / "wrapup").exists(),
+                    f"{surface}/skills/wrapup must be gone — make-landable + land replace it",
+                )
+                for name in ("make-landable", "land"):
+                    self.assertTrue((ROOT / surface / "skills" / name / "SKILL.md").is_file())
+
+    def test_each_half_names_only_its_own_moment(self):
+        """make-landable stops before the remote; land starts at it."""
+        for surface in SURFACES:
+            with self.subTest(surface=surface):
+                prepare = contract_text(surface, "make-landable")
+                self.assertIn("wrapup-land.py preflight", prepare)
+                self.assertIn("wrapup-land.py commit", prepare)
+                self.assertIn("wrapup-land.py content-claim", prepare)
+                self.assertIn("wrapup-land.py content-commit", prepare)
+                self.assertIn("never pushes, never merges, never tears anything down", prepare)
+                self.assertNotIn("wrapup-land.py land ", prepare)
+
+                landing = contract_text(surface, "land")
+                self.assertIn("wrapup-land.py land ", landing)
+                self.assertNotIn("wrapup-land.py commit", landing)
+                self.assertNotIn("wrapup-land.py content-commit", landing)
+
     def test_prod_readiness_degrades_reporting_without_blocking_landing(self):
         required = (
-            "readiness.mjs check --skill wrapup --json",
+            "readiness.mjs check --skill land --json",
             "Prod readiness is pending or missing; deploy reporting omitted.",
             "landing continues normally",
             "never authorizes the agent to invent or configure a deploy target",
@@ -72,7 +108,7 @@ class WrapupChainingContract(unittest.TestCase):
         )
         for surface in SURFACES:
             with self.subTest(surface=surface):
-                text = skill(surface, "wrapup")
+                text = skill(surface, "land")
                 for phrase in required:
                     self.assertIn(phrase, text)
                 self.assertEqual(text.count("<!-- readiness:block deployReport -->"), 1)
@@ -88,23 +124,24 @@ class WrapupChainingContract(unittest.TestCase):
         """The retro binding is cut: no question, no marker, no second run."""
         forbidden = (
             "land nothing in this run",
-            "fresh explicit `$wrapup` or `/wrapup` invocation",
+            "fresh explicit `$make-landable` or `/make-landable` invocation",
             "Already ran a retro?",
             "Mandatory `Retro:` line",
         )
         for surface in SURFACES:
             with self.subTest(surface=surface):
-                text = contract_text(surface, "wrapup")
+                text = contract_text(surface, "make-landable")
                 self.assertIn("Retro (voluntary — never a gate)", text)
                 self.assertIn("invoke the `retro` skill", text)
                 for phrase in forbidden:
                     self.assertNotIn(phrase, text)
 
-    def test_wrapup_does_not_forbid_its_affirmative_retro_chain(self):
+    def test_the_landing_pair_does_not_forbid_its_affirmative_retro_chain(self):
         for surface in SURFACES:
-            with self.subTest(surface=surface):
-                text = contract_text(surface, "wrapup")
-                self.assertNotIn("never run by this skill", text.lower())
+            for name in ("make-landable", "land"):
+                with self.subTest(surface=surface, skill=name):
+                    text = contract_text(surface, name)
+                    self.assertNotIn("never run by this skill", text.lower())
 
     def test_only_model_invocable_non_deploying_workflows_chain(self):
         required = (
@@ -115,39 +152,57 @@ class WrapupChainingContract(unittest.TestCase):
         )
         for surface in SURFACES:
             with self.subTest(surface=surface):
-                text = contract_text(surface, "wrapup")
+                text = contract_text(surface, "make-landable")
                 for phrase in required:
                     self.assertIn(phrase, text)
+                self.assertIn(
+                    "never carries this run's merge/teardown authorization into another run",
+                    contract_text(surface, "land"),
+                )
 
-    def test_wrapup_remains_manual_and_program_propagation_remains_present(self):
+    def test_landing_remains_manual_and_program_propagation_remains_present(self):
         for surface in SURFACES:
             with self.subTest(surface=surface):
-                text = skill(surface, "wrapup")
+                text = skill(surface, "land")
                 self.assertIn("disable-model-invocation: true", text)
                 self.assertIn(
-                    "user's direct `$wrapup` or `/wrapup` input IS the explicit",
+                    "user's direct `$land` or `/land` input IS the explicit",
                     text,
                 )
                 self.assertIn("program-sync", text)
                 self.assertIn("Phasen-Gates", text)
 
-    def test_wrapup_accepts_only_direct_user_dollar_or_slash_invocations(self):
-        required = (
-            "direct `$wrapup` or `/wrapup`",
+                prepare = skill(surface, "make-landable")
+                self.assertIn("disable-model-invocation: true", prepare)
+                self.assertIn(
+                    "user's direct `$make-landable` or `/make-landable` input IS the explicit",
+                    prepare,
+                )
+
+    def test_both_halves_accept_only_direct_user_dollar_or_slash_invocations(self):
+        shared = (
             "Natural-language requests",
             "indirect skill chaining",
             "autonomous invocation",
         )
         for surface in SURFACES:
-            with self.subTest(surface=surface):
-                text = contract_text(surface, "wrapup")
-                for phrase in required:
-                    self.assertIn(phrase, text)
+            for name, trigger in (
+                ("make-landable", "direct `$make-landable` or `/make-landable`"),
+                ("land", "direct `$land` or `/land`"),
+            ):
+                with self.subTest(surface=surface, skill=name):
+                    text = contract_text(surface, name)
+                    for phrase in (trigger, *shared):
+                        self.assertIn(phrase, text)
 
     def test_new_contract_is_reference_free(self):
         for surface in SURFACES:
             with self.subTest(surface=surface):
-                combined = skill(surface, "retro") + skill(surface, "wrapup")
+                combined = (
+                    skill(surface, "retro")
+                    + skill(surface, "make-landable")
+                    + skill(surface, "land")
+                )
                 self.assertNotIn("testreporter", combined.lower())
                 self.assertIsNone(re.search(r"#[0-9]{3,}", combined))
 

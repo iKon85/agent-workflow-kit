@@ -15,7 +15,8 @@ Project extensions may specialize Project details, but cannot weaken Core user g
 
 Prepare a release deterministically. This skill owns the shipped-delta decision,
 metadata preparation, verification, and the post-merge publication intent. It
-delegates commit, branch push, PR, merge, and cleanup to wrapup. It never
+delegates commit, branch push, PR, merge, and cleanup to the landing pair
+(`make-landable`, then `land`). It never
 publishes to a registry or creates a GitHub release by hand — it records intent
 with the annotated tag and lets the trusted workflow publish.
 
@@ -60,9 +61,9 @@ after it — merge, tag, publish, parity check — is the agent's to carry out.
    prepared tree. Re-running the same target resumes that state without another
    bump or duplicate release notes.
 
-4. Inspect the resulting delta and invoke **`$wrapup`**. Wrapup and
-   `scripts/wrapup-land.py` exclusively own commit, push, PR creation, merge,
-   and cleanup. Do not reproduce those operations here.
+4. Inspect the resulting delta and invoke **`$make-landable`**, then **`$land`**.
+   That pair and `scripts/wrapup-land.py` exclusively own commit, push, PR
+   creation, merge, and cleanup. Do not reproduce those operations here.
 
 5. Publish. Merging integrates the prepared release; only the annotated tag
    starts publication. Verify that the package version on current `origin/main`

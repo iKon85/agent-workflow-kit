@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { init } from '../src/commands/init.mjs';
@@ -107,22 +107,28 @@ test('headless flagged update applies clean changes and restores upstream-delete
   }
 });
 
-test('headless flagged conflict fails closed and preserves consumer bytes', async () => {
+test('headless update activates the new version over an undeclared edit and names the backup', async () => {
   const kit = await makeKit({ [P]: 'v1\n' });
   const consumer = await makeEmptyDir();
   try {
     await init({ kitRoot: kit, consumerRoot: consumer });
     await writeFile(join(consumer, P), 'consumer edit\n');
     await bumpKit(kit, 'v2\n');
-    const manifestPath = join(consumer, CONSUMER_MANIFEST_NAME);
-    const beforeManifest = await readFile(manifestPath);
 
     const result = runHeadless(['update', '--yes', '--keep-deleted'], { kit, consumer });
 
-    assert.notEqual(result.status, 0);
-    assert.match(`${result.stdout}${result.stderr}`, /conflict \(not applied\)/);
-    assert.equal(await readFile(join(consumer, P), 'utf8'), 'consumer edit\n');
-    assert.deepEqual(await readFile(manifestPath), beforeManifest);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(await readFile(join(consumer, P), 'utf8'), 'v2\n');
+    const output = `${result.stdout}${result.stderr}`;
+    assert.match(output, /overwritten \(backed up\)/);
+    assert.match(output, /\.bak/, 'the run names the backup that holds the local bytes');
+    assert.match(output, /--as=explicit-fork/, 'the run offers the ownership routes');
+    const backup = (await readdir(join(consumer, '.claude/skills/to-prd')))
+      .find((name) => name.endsWith('.bak'));
+    assert.ok(backup, 'a backup file exists');
+    assert.equal(
+      await readFile(join(consumer, '.claude/skills/to-prd', backup), 'utf8'), 'consumer edit\n',
+    );
   } finally {
     await cleanup(kit, consumer);
   }

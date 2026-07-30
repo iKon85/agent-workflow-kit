@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, writeFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { writeAtomic, backupFile, lineDiff } from '../src/lib/atomicWrite.mjs';
+import {
+  writeAtomic, backupFile, backupStamp, lineDiff,
+} from '../src/lib/atomicWrite.mjs';
 
 test('writeAtomic writes content and preserves mode', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'awk-aw-'));
@@ -28,6 +30,26 @@ test('backupFile copies the existing file to a timestamped, non-colliding name',
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('backupFile never clobbers an existing backup at the same stamp', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'awk-aw-'));
+  try {
+    const p = join(dir, 'f.txt');
+    await writeFile(p, 'first local edit');
+    const first = await backupFile(p, '20260610T120000');
+    await writeFile(p, 'second local edit');
+    const second = await backupFile(p, '20260610T120000');
+    assert.notEqual(second, first, 'a same-stamp retry reused the backup name');
+    assert.equal(await readFile(first, 'utf8'), 'first local edit');
+    assert.equal(await readFile(second, 'utf8'), 'second local edit');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('backupStamp renders a shell-safe, sortable UTC suffix', () => {
+  assert.equal(backupStamp(new Date('2026-06-10T12:00:00.123Z')), '20260610T120000');
 });
 
 test('lineDiff marks added and removed lines', () => {

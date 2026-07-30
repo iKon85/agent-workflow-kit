@@ -18,7 +18,7 @@ async function readiness(root, ...args) {
   return exec(process.execPath, [join(repo, 'scripts/readiness.mjs'), ...args, '--root', root]);
 }
 
-test('defer then configure later activates only wrapup deploy reporting', async () => {
+test('defer then configure later activates only land deploy reporting', async () => {
   const root = await makeEmptyDir();
   const workflow = '## Workflow\n\nKeep workflow exact.\n';
   const skills = '## Agent skills\n\nKeep agent skills exact.\n';
@@ -32,7 +32,7 @@ test('defer then configure later activates only wrapup deploy reporting', async 
     await write(root, 'AGENTS.md', before);
 
     await readiness(root, 'decision', 'set', 'prodTarget', 'pending');
-    let result = JSON.parse((await readiness(root, 'check', '--skill', 'wrapup', '--json')).stdout);
+    let result = JSON.parse((await readiness(root, 'check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.capabilities.prodTarget.state, 'pending');
     assert.deepEqual(result.inactiveBlocks, ['deployReport']);
     assert.deepEqual(result.activeBlocks, []);
@@ -40,7 +40,7 @@ test('defer then configure later activates only wrapup deploy reporting', async 
     const prod = '## Prod\n\nFly.io, deployed via the release workflow. Live: https://example.test.\n';
     await write(root, 'CLAUDE.md', `${before}\n${prod}`);
     await write(root, 'AGENTS.md', `${before}\n${prod}`);
-    result = JSON.parse((await readiness(root, 'check', '--skill', 'wrapup', '--json')).stdout);
+    result = JSON.parse((await readiness(root, 'check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.capabilities.prodTarget.state, 'ready');
     assert.deepEqual(result.activeBlocks, ['deployReport']);
     assert.deepEqual(result.inactiveBlocks, []);
@@ -48,7 +48,7 @@ test('defer then configure later activates only wrapup deploy reporting', async 
     assert.ok((await readFile(join(root, 'CLAUDE.md'), 'utf8')).includes(skills));
 
     await write(root, 'AGENTS.md', `${before}\n## Prod\n\nA divergent target.\n`);
-    result = JSON.parse((await readiness(root, 'check', '--skill', 'wrapup', '--json')).stdout);
+    result = JSON.parse((await readiness(root, 'check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.capabilities.prodTarget.state, 'invalid');
     assert.deepEqual(result.activeBlocks, []);
     assert.deepEqual(result.inactiveBlocks, ['deployReport']);
@@ -57,27 +57,27 @@ test('defer then configure later activates only wrapup deploy reporting', async 
   }
 });
 
-test('setup and wrapup publish the bounded Prod readiness contract on both surfaces', async () => {
+test('setup and land publish the bounded Prod readiness contract on both surfaces', async () => {
   for (const surface of ['.claude', '.agents']) {
     const setup = await readFile(join(repo, surface, 'skills/setup-workflow/SKILL.md'), 'utf8');
-    const wrapup = await readFile(join(repo, surface, 'skills/wrapup/SKILL.md'), 'utf8');
+    const landing = await readFile(join(repo, surface, 'skills/land/SKILL.md'), 'utf8');
     assert.match(setup, /Configure now/);
     assert.match(setup, /Configure later/);
     assert.match(setup, /decision set prodTarget pending/);
     assert.match(setup, /Workflow.*byte-for-byte/s);
     assert.match(setup, /Agent skills.*byte-for-byte/s);
-    assert.match(wrapup, /readiness\.mjs check --skill wrapup --json/);
-    assert.match(wrapup, /<!-- readiness:block deployReport -->/);
-    assert.match(wrapup, /<!-- readiness:end -->/);
-    assert.match(wrapup, /Prod readiness is pending or missing; deploy reporting omitted\./);
-    assert.match(wrapup, /landing continues/);
-    assert.match(wrapup, /never signals on doubt/);
+    assert.match(landing, /readiness\.mjs check --skill land --json/);
+    assert.match(landing, /<!-- readiness:block deployReport -->/);
+    assert.match(landing, /<!-- readiness:end -->/);
+    assert.match(landing, /Prod readiness is pending or missing; deploy reporting omitted\./);
+    assert.match(landing, /landing continues/);
+    assert.match(landing, /never signals on doubt/);
     // The old assertion pinned the phrase "Teardown always runs", which the
     // resolved-target fix made false: it enforced the documentation of a
     // behaviour the code had stopped having. These two carry the property that
     // literal stood for — teardown is authorized, and it is bounded.
-    assert.match(wrapup, /Teardown runs on the target resolved before the merge/);
-    assert.match(wrapup, /never tears down/);
+    assert.match(landing, /Teardown runs on the target resolved before the merge/);
+    assert.match(landing, /never tears down/);
   }
 });
 
@@ -95,7 +95,7 @@ test('the ## Prod heading tolerates consumer wording but never a different word 
     const wording = '## Prod und Deployment\n\nFly.io, deployed via the release workflow.\n';
     await write(root, 'CLAUDE.md', `${before}\n${wording}`);
     await write(root, 'AGENTS.md', `${before}\n${wording}`);
-    let result = JSON.parse((await readiness(root, 'check', '--skill', 'wrapup', '--json')).stdout);
+    let result = JSON.parse((await readiness(root, 'check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.capabilities.prodTarget.state, 'ready');
     assert.deepEqual(result.activeBlocks, ['deployReport']);
 
@@ -103,7 +103,7 @@ test('the ## Prod heading tolerates consumer wording but never a different word 
     // and reports `heading-mismatch` with a line number, not `missing-section`.
     const production = '## Production\n\nFly.io, deployed via the release workflow.\n';
     await write(root, 'AGENTS.md', `${before}\n${production}`);
-    result = JSON.parse((await readiness(root, 'check', '--skill', 'wrapup', '--json')).stdout);
+    result = JSON.parse((await readiness(root, 'check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.capabilities.prodTarget.state, 'invalid');
     assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
       { path: 'AGENTS.md', problem: 'heading-mismatch', line: 11 },
@@ -113,7 +113,7 @@ test('the ## Prod heading tolerates consumer wording but never a different word 
 
     // A genuinely absent section still reports `missing-section`, no line.
     await write(root, 'AGENTS.md', before);
-    result = JSON.parse((await readiness(root, 'check', '--skill', 'wrapup', '--json')).stdout);
+    result = JSON.parse((await readiness(root, 'check', '--skill', 'land', '--json')).stdout);
     assert.equal(result.capabilities.prodTarget.state, 'invalid');
     assert.deepEqual(result.capabilities.prodTarget.diagnostics, [
       { path: 'AGENTS.md', problem: 'missing-section' },
@@ -123,8 +123,8 @@ test('the ## Prod heading tolerates consumer wording but never a different word 
   }
 });
 
-test('repository instruction surfaces keep wrapup Prod readiness coherent', async () => {
-  const result = JSON.parse((await readiness(repo, 'check', '--skill', 'wrapup', '--json')).stdout);
+test('repository instruction surfaces keep land Prod readiness coherent', async () => {
+  const result = JSON.parse((await readiness(repo, 'check', '--skill', 'land', '--json')).stdout);
 
   assert.equal(result.capabilities.prodTarget.state, 'ready');
   assert.deepEqual(result.activeBlocks, ['deployReport']);

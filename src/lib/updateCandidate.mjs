@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import {
   isAbsolute, join, normalize, posix, relative, sep,
 } from 'node:path';
-import { writeAtomic } from './atomicWrite.mjs';
+import { backupFile, backupStamp, writeAtomic } from './atomicWrite.mjs';
 import { validateConsumerFile } from './consumerPath.mjs';
 import { sha256File } from './hash.mjs';
 import { stubSentinel } from './sentinel.mjs';
@@ -195,6 +195,11 @@ function pathSeparator() {
   return process.platform === 'win32' ? '\\' : '/';
 }
 
+/** A consumer-relative path in the manifest's canonical slash form. */
+function manifestStylePath(path) {
+  return path.split(sep).join('/');
+}
+
 function sameFile(left, right) {
   return left.dev === right.dev && left.ino === right.ino;
 }
@@ -206,11 +211,13 @@ function sameFileSnapshot(left, right) {
 
 /** Activate only verified kit-owned deltas, rolling every touched path back on failure. */
 export async function activateCandidate({
-  candidateRoot, consumerRoot, pkg, preview, consumerManifestBefore,
+  candidateRoot, consumerRoot, pkg, preview, consumerManifestBefore, stamp = backupStamp(),
   afterSnapshot = async () => {}, afterGenerated = async () => {},
   beforeTargetRevalidation = async () => {},
 }) {
   validateManifest(pkg, { kind: 'package', path: 'update package manifest' });
+  const overwritten = new Set((preview.overwritten ?? []).map(({ path }) => path));
+  const backups = [];
   const changed = [...preview.added, ...preview.updated];
   const generated = preview.generated ?? [];
   const migrations = preview.migrations ?? [];
@@ -268,9 +275,23 @@ export async function activateCandidate({
   try {
     for (const path of changed) {
       const bytes = await readFile(join(candidateRoot, path));
-      await applyTarget(path, () => writeAtomic(
-        join(consumerRoot, path), bytes, pkgIdx.get(path)?.mode,
-      ));
+      const target = join(consumerRoot, path);
+      // A backup exists exactly where bytes would otherwise be lost: an
+      // overwritten destination whose content the incoming version does not
+      // already reproduce (a Consumer who reinvented the upstream change loses
+      // nothing and gets no backup).
+      const replacesBytes = overwritten.has(path)
+        && !(rollback.get(path)?.bytes?.equals(bytes) ?? false);
+      await applyTarget(path, async () => {
+        // The backup is written inside the same revalidated step as the
+        // overwrite, so the bytes it preserves are the bytes being replaced.
+        if (replacesBytes) {
+          backups.push({
+            path, backupPath: manifestStylePath(relative(consumerRoot, await backupFile(target, stamp))),
+          });
+        }
+        await writeAtomic(target, bytes, pkgIdx.get(path)?.mode);
+      });
     }
     for (const path of generated) {
       const bytes = await readFile(join(candidateRoot, path));
@@ -288,6 +309,7 @@ export async function activateCandidate({
     await applyTarget(CONSUMER_MANIFEST_NAME, () => writeAtomic(
       join(consumerRoot, CONSUMER_MANIFEST_NAME), manifestBytes,
     ));
+    return { backups };
   } catch (error) {
     const rollbackConflicts = [];
     for (const record of applied.reverse()) {
@@ -303,6 +325,13 @@ export async function activateCandidate({
       rollbackConflicts.sort();
       error.message = `${error.message}; rollback preserved concurrent edits: ` +
         rollbackConflicts.join(', ');
+    } else {
+      // A fully rolled-back transaction restored the original bytes, so its
+      // backups are redundant copies; a rollback that could not restore every
+      // path keeps them, because then they may be the only copy left.
+      for (const { backupPath } of backups) {
+        await rm(join(consumerRoot, backupPath), { force: true });
+      }
     }
     error.consumerState = rollbackConflicts.length
       ? 'rollback-conflicted'
@@ -346,20 +375,27 @@ async function assertConsumerStillMatchesPreview(consumerRoot, preview) {
       throw new Error(`consumer changed during verification: ${migration.path}`);
     }
   }
+  // An overwritten path is an `updated` path whose destination deliberately does
+  // NOT match the ledger — it matches the local edit recorded in the preview, so
+  // the destination-race check runs against those bytes and its mode instead.
+  const overwritten = new Map(
+    (preview.overwritten ?? []).map((record) => [record.path, record]),
+  );
+  for (const [path, record] of overwritten) {
+    const target = join(consumerRoot, path);
+    const current = await exists(target) ? await sha256File(target) : null;
+    const mode = current === null ? null : (await lstat(target)).mode & 0o777;
+    if (!installed.get(path) || current !== record.localSha256 || mode !== record.mode) {
+      throw new Error(`consumer changed during verification: ${path}`);
+    }
+  }
   for (const path of [...preview.updated, ...preview.deleted]) {
+    if (overwritten.has(path)) continue;
     const prior = installed.get(path);
     const current = await exists(join(consumerRoot, path))
       ? await sha256File(join(consumerRoot, path)) : null;
     if (!prior || current !== prior.installedSha256) {
       throw new Error(`consumer changed during verification: ${path}`);
-    }
-  }
-  for (const snapshot of preview.userModifiedSnapshots ?? []) {
-    const target = join(consumerRoot, snapshot.path);
-    const current = await exists(target) ? await sha256File(target) : null;
-    const mode = current === null ? null : (await lstat(target)).mode & 0o777;
-    if (current !== snapshot.sha256 || mode !== snapshot.mode) {
-      throw new Error(`consumer changed during verification: ${snapshot.path}`);
     }
   }
 }

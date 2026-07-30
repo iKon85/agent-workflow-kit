@@ -29,9 +29,9 @@
       "writtenBy": [
         "tdd",
         "orchestrate-wave",
-        "wrapup"
+        "make-landable"
       ],
-      "why": "the build-time assumption-drift log wrapup propagates before teardown"
+      "why": "the build-time assumption-drift log land propagates before teardown"
     }
   ]
 }

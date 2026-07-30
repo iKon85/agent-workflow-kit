@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""wrapup's Content route: a planning session lands durable content (#334).
+"""make-landable's durable-content claim: a planning session commits its output (#334).
 
 A planning session has no worktree and no slice. Its output — an ADR, a
 CONTEXT.md update, a research note — sits dirty in the main checkout on the

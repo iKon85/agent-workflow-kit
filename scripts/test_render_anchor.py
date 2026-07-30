@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Behavior tests for the pure Tier-2 anchor renderer."""
+"""Behavior tests for the anchor renderer and the publish reconciler contract."""
 
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(render_anchor)
 
 
-class RenderDocumentsGoldenTest(unittest.TestCase):
-    def test_filled_template_and_prd_render_both_documents(self):
+class RenderAnchorBodyGoldenTest(unittest.TestCase):
+    def test_template_and_prd_render_one_writable_body(self):
         template = "**Welle 12 — Safer publish.**\n\n## Slices\n| K1 |\n"
         prd = (
             "<!-- prd-source-id: safer-publish -->\n"
@@ -38,13 +38,12 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
             "# Safer publish\n\nFull rationale.\n"
         )
 
-        rendered = render_anchor.render_documents(template, prd)
-
-        self.assertEqual(rendered.anchor_body, template)
         self.assertEqual(
-            rendered.archive_body,
-            "📄 Full PRD (archive, r4) — the body carries navigation/decisions only\n\n"
-            "# Safer publish\n\nFull rationale.\n",
+            render_anchor.render_anchor_body(template, prd),
+            "**Welle 12 — Safer publish.**\n\n## Slices\n| K1 |\n\n"
+            "<details>\n<summary>📄 Full PRD (r4) — "
+            "the anchor above carries navigation/decisions only</summary>\n\n"
+            "# Safer publish\n\nFull rationale.\n\n</details>\n",
         )
 
     def test_only_canonical_markers_in_the_head_block_are_stripped(self):
@@ -60,15 +59,15 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
             "> **plan_revision:** quoted-fake\n"
         )
 
-        rendered = render_anchor.render_documents(template, prd)
-
         self.assertEqual(
-            rendered.archive_body,
-            "📄 Full PRD (archive, r5) — the body carries navigation/decisions only\n\n"
+            render_anchor.render_anchor_body(template, prd),
+            "Lean anchor\n\n"
+            "<details>\n<summary>📄 Full PRD (r5) — "
+            "the anchor above carries navigation/decisions only</summary>\n\n"
             "<!-- wave-stub-source: safer-publish -->\n\n# PRD\n\n"
             "```md\n**plan_revision:** fake\n"
             "<!-- prd-source-id: quoted-example -->\n```\n\n"
-            "> **plan_revision:** quoted-fake\n",
+            "> **plan_revision:** quoted-fake\n\n</details>\n",
         )
 
     def test_duplicate_plan_revisions_fail_closed(self):
@@ -81,21 +80,21 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
                 with self.assertRaisesRegex(
                     ValueError, "exactly one canonical plan_revision"
                 ):
-                    render_anchor.render_documents("Lean anchor\n", prd)
+                    render_anchor.render_anchor_body("Lean anchor\n", prd)
 
     def test_plan_revision_requires_numeric_canonical_value(self):
         for lookalike in ("rfoo", "r5!"):
             with self.subTest(lookalike=lookalike, valid_revision=True):
                 malformed = f"**plan_revision:** {lookalike}"
                 prd = f"{malformed}\n**plan_revision:** r5\n\n# PRD\n"
-                rendered = render_anchor.render_documents("Lean anchor\n", prd)
-                self.assertIn(malformed, rendered.archive_body)
+                rendered = render_anchor.render_anchor_body("Lean anchor\n", prd)
+                self.assertIn(malformed, rendered)
 
             with self.subTest(lookalike=lookalike, valid_revision=False):
                 with self.assertRaisesRegex(
                     ValueError, "exactly one canonical plan_revision"
                 ):
-                    render_anchor.render_documents(
+                    render_anchor.render_anchor_body(
                         "Lean anchor\n", f"**plan_revision:** {lookalike}\n# PRD\n"
                     )
 
@@ -115,20 +114,20 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
                     "<!-- prd: awaiting-decomposition -->\n\n# PRD\n"
                 )
 
-                rendered = render_anchor.render_documents("Lean anchor\n", prd)
+                rendered = render_anchor.render_anchor_body("Lean anchor\n", prd)
 
-                self.assertIn(lookalike, rendered.archive_body)
+                self.assertIn(lookalike, rendered)
                 self.assertNotIn(
-                    "<!-- prd-source-id: canonical -->", rendered.archive_body
+                    "<!-- prd-source-id: canonical -->", rendered
                 )
                 self.assertNotIn(
-                    "<!-- prd-content-fp: abc123 -->", rendered.archive_body
+                    "<!-- prd-content-fp: abc123 -->", rendered
                 )
                 self.assertNotIn(
-                    "<!-- prd: awaiting-decomposition -->", rendered.archive_body
+                    "<!-- prd: awaiting-decomposition -->", rendered
                 )
 
-    def test_cli_emits_each_document_without_mutating_inputs(self):
+    def test_cli_emits_a_stable_body_without_mutating_inputs(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             template = root / "anchor.md"
@@ -139,15 +138,14 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
             )
             original = (template.read_bytes(), prd.read_bytes())
 
-            first = self._run_cli(template, prd, "archive")
-            second = self._run_cli(template, prd, "archive")
-            anchor = self._run_cli(template, prd, "anchor")
+            first = self._run_cli(template, prd)
+            second = self._run_cli(template, prd)
 
             self.assertEqual(first.stdout, second.stdout)
-            self.assertEqual(anchor.stdout, b"Lean anchor\n")
+            self.assertTrue(first.stdout.startswith(b"Lean anchor\n\n<details>"))
             self.assertEqual((template.read_bytes(), prd.read_bytes()), original)
 
-    def test_cli_archive_is_utf8_when_python_io_encoding_is_ascii(self):
+    def test_cli_output_is_utf8_when_python_io_encoding_is_ascii(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             template = root / "anchor.md"
@@ -156,17 +154,12 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
             prd.write_text("**plan_revision:** r2\n\n# PRD\n", encoding="utf-8")
 
             result = self._run_cli(
-                template,
-                prd,
-                "archive",
-                env={**os.environ, "PYTHONIOENCODING": "ascii"},
+                template, prd, env={**os.environ, "PYTHONIOENCODING": "ascii"}
             )
 
-            self.assertTrue(result.stdout.startswith("📄".encode("utf-8")))
+            self.assertIn("📄".encode("utf-8"), result.stdout)
 
-    def _run_cli(
-        self, template: Path, prd: Path, document: str, env: dict | None = None
-    ):
+    def _run_cli(self, template: Path, prd: Path, env: dict | None = None):
         return subprocess.run(
             [
                 sys.executable,
@@ -175,8 +168,6 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
                 str(template),
                 "--prd",
                 str(prd),
-                "--document",
-                document,
             ],
             check=True,
             capture_output=True,
@@ -184,83 +175,35 @@ class RenderDocumentsGoldenTest(unittest.TestCase):
         )
 
 
-class PromotionStateTableTest(unittest.TestCase):
-    EXPECTED_ROWS = {
-        "initial": (
-            "`S=yes`, `B=no`, `C=0`, `P=absent`",
-            "render + write body",
-        ),
-        "body-written": (
-            "`S=n/a`, `B=yes`, `C=0`, `P=absent`",
-            "reconcile + write archive comment",
-        ),
-        "comment-written": (
-            "`S=n/a`, `B=yes`, `C=exact-1`, `P=absent`",
-            "promote board state",
-        ),
-        "promoted": (
-            "`S=n/a`, `B=yes`, `C=exact-1`, `P=complete`",
-            "no-op; continue publish audit",
-        ),
-    }
-    EXPECTED_BOARD_OBSERVATIONS = {
-        "ordinary-prestate": "absent",
-        "stufe-1p-prestate": "absent",
-        "promoted": "complete",
-        "cluster-only": "partial",
-        "wrong-wave": "partial",
-    }
+class PublishReconcilerContractTest(unittest.TestCase):
+    """The publish path is one reconciler run — on both skill surfaces."""
 
-    def test_all_four_observable_states_have_one_resume_action(self):
+    RETIRED = (
+        "promotion-state-table",
+        "promotion-board-observation-table",
+        "byte-identical",
+        "byte-for-byte",
+        "archive comment",
+        "prd-archive",
+        "--document archive",
+        "`S=yes`",
+        "`B=yes`",
+        "`C=exact-1`",
+        "`P=absent`",
+    )
+
+    def test_no_observation_state_or_body_byte_compare_survives(self):
         for path in SKILLS:
             text = path.read_text(encoding="utf-8")
-            start = text.index("<!-- promotion-state-table:start -->")
-            end = text.index("<!-- promotion-state-table:end -->", start)
-            rows = {}
-            for line in text[start:end].splitlines():
-                if line.startswith("| `"):
-                    cells = [cell.strip() for cell in line.strip("|").split("|")]
-                    rows[cells[0].strip("`")] = (cells[1], cells[2])
-            self.assertEqual(rows, self.EXPECTED_ROWS, str(path))
+            for retired in self.RETIRED:
+                self.assertNotIn(retired, text, f"{path}: {retired}")
 
-    def test_corrupt_comments_and_partial_board_writes_are_drift(self):
+    def test_both_surfaces_carry_the_reconciler_invocation(self):
         for path in SKILLS:
             text = path.read_text(encoding="utf-8")
-            self.assertIn("`C=wrong-1`", text, str(path))
-            self.assertIn("`C=duplicates(<ids>)`", text, str(path))
-            self.assertIn("`P=partial`", text, str(path))
-            self.assertIn("drift and enters repair", text, str(path))
-
-    def test_stufe_1p_prestamp_is_not_partial_promotion(self):
-        for path in SKILLS:
-            text = path.read_text(encoding="utf-8")
-            start = text.index("<!-- promotion-board-observation-table:start -->")
-            end = text.index("<!-- promotion-board-observation-table:end -->", start)
-            rows = {}
-            for line in text[start:end].splitlines():
-                if line.startswith("| `"):
-                    cells = [cell.strip() for cell in line.strip("|").split("|")]
-                    rows[cells[0].strip("`")] = cells[2].strip("`")
-            self.assertEqual(rows, self.EXPECTED_BOARD_OBSERVATIONS, str(path))
-
-    def test_post_initial_body_drift_requires_an_operator_decision(self):
-        for path in SKILLS:
-            text = path.read_text(encoding="utf-8")
-            self.assertIn("outside the valid `initial` tuple", text, str(path))
-            self.assertIn("report the body diff", text, str(path))
-            self.assertRegex(text, r"explicit\s+operator decision", str(path))
-            self.assertNotIn(
-                "wrong/missing `B` → rerender and rewrite the body", text, str(path)
-            )
-
-    def test_stale_source_snapshot_stops_before_body_write(self):
-        for path in SKILLS:
-            text = path.read_text(encoding="utf-8")
-            self.assertRegex(text, r"Pre:\s+`S=yes`, `B=no`", str(path))
-            self.assertRegex(text, r"Post:\s+`S=n/a`, `B=yes`", str(path))
-            self.assertIn("`S=no`", text, str(path))
-            self.assertIn("re-fetch the remote body", text, str(path))
-            self.assertRegex(text, r"never\s+write the\s+stale render", str(path))
+            self.assertIn("board-sync.py publish-anchor", text, str(path))
+            self.assertIn("--dry-run", text, str(path))
+            self.assertRegex(text, r"re-run", str(path))
 
 
 if __name__ == "__main__":

@@ -245,7 +245,7 @@ class SeedTemplatesValid(unittest.TestCase):
             for token in (
                 "Configure now", "Configure later",
                 "decision set prodTarget pending",
-                "wrapup.deployReport omitted (prodTarget pending)",
+                "land.deployReport omitted (prodTarget pending)",
                 "`prodTarget` does not permit this choice",
                 "Preview the exact local `## Prod` replacement",
                 "external mutation retains its own separate",

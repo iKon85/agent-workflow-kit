@@ -24,7 +24,8 @@ changes.
 Maintainers prepare releases with `/kit-release`. It derives the shipped delta
 from a fresh manifest, recommends Semver, applies only the confirmed target,
 regenerates the checked-in manifest, and runs the full test and pack gates.
-Landing remains owned by `/wrapup` and only integrates the prepared version.
+Landing remains owned by `/make-landable` + `/land` and only integrates the
+prepared version.
 After a separate publication confirmation, a matching annotated `v<version>`
 tag on canonical `main` starts the trusted publish flow. Manual dispatch
 requires an explicit existing tag and only reconciles an incomplete release.
@@ -51,7 +52,7 @@ npx github:iKon85/agent-workflow-kit init
    config, and — for a GitHub Projects board — discovers the field IDs into a
    board profile. See [Configuration](#configuration).
 3. **Start working.** Trigger skills by name (`/grill-with-docs`, `/tdd`,
-   `/wrapup`, …) — the workflow below explains when each one earns its keep.
+   `/land`, …) — the workflow below explains when each one earns its keep.
    Unsure which one fits? Run **`/ask-matt`** — it routes you to the right skill.
 
 ## The workflow it installs
@@ -168,8 +169,14 @@ enter outside the plan funnel and feed straight into Execute:
 > *The risky part is the merge: half-checked PRs, broken hooks, context lost at
 > handoff.* The land phase puts mechanical gates in front of the commit.
 
-- **`wrapup`** — the land-and-clean closeout: make the branch landable, enforce
-  the PR body contract, merge the PR, reconcile the board, tear the finished
+- **`make-landable`** — the post-implement half: run the local CI gate, judge
+  the secret scan, commit the finished slice, and author the PR body with its
+  close/part-of marker and the build's assumption-drift markers. It stops at a
+  landable branch — nothing is pushed, opened, or merged. A planning session
+  with no worktree lands its durable content the same way, through one confirmed
+  file claim that leaves every bystanding change untouched.
+- **`land`** — the post-acceptance half: push, open or reuse the PR, enforce the
+  PR body contract, merge the PR, reconcile the board, tear the finished
   worktree down, retire the branch, sweep merged branches, and surface anything
   still open. It does not replace live verification; verify the user outcome
   before landing. Interrupted halfway? Re-run it — every step re-reads present
@@ -233,8 +240,8 @@ that explicit identity. It unfolds the plan into named waves after you approve
 a full preview in chat — zero board writes until you say yes. **Bottom-up:**
 `board-to-waves` clusters loose issues into a wave candidate, which earns a
 real number only when you promote it. Either road lands in the *identical*
-wave anchor plus slice sub-issues, built through the same `implement` → `wrapup` →
-`retro` spine as every other wave.
+wave anchor plus slice sub-issues, built through the same `implement` →
+`make-landable` → `land` → `retro` spine as every other wave.
 
 When the slices are file-disjoint and their specs are locked, **`orchestrate-wave`**
 lands the whole anchor end-to-end — often AFK: it dispatches an implementer per
@@ -325,7 +332,7 @@ own `docs/agents/workflow-capabilities.json`. Enabled, it gives each build its
 own linked worktree: `python3 scripts/worktree-lifecycle/setup.py` cuts the
 branch, creates the worktree from your naming templates, and runs your project's
 setup steps; on Claude Code a set of hook adapters keeps edits, verification
-commands, and Git mutations in the checkout they belong to; and `wrapup` tears
+commands, and Git mutations in the checkout they belong to; and `land` tears
 the worktree down after the merge. A worktree belongs to a **build** — a session
 that only plans or grills stays in the main checkout, keeps its scratch on disk,
 and lands its durable output as ordinary content.
@@ -392,9 +399,11 @@ merge, age, and removal facts, nothing removed — run
 ### What's yours vs. the kit's
 
 `init` records a sha256 of every file it installs. That's the line between the
-two: **edit any skill or script freely** — `update` detects your edits and backs
-them up rather than clobbering them. Your **project layer** (`docs/agents/*`, the
-board profile, `CLAUDE.md`, `AGENTS.md`) remains consumer-owned. `update` may
+two: **edit any skill or script freely** — `update` detects your edits, keeps
+your bytes in a backup it names, and activates the new version on top. Say a
+path is yours (`own <path> --as=explicit-fork`) and `update` leaves it alone
+entirely. Your **project layer** (`docs/agents/*`, the board profile,
+`CLAUDE.md`, `AGENTS.md`) remains consumer-owned. `update` may
 only apply a previewed, schema-driven, idempotent compatibility migration that
 fills missing evidence without rewriting an existing value; it verifies and
 rolls that migration back with the rest of the candidate.
@@ -410,14 +419,24 @@ npx github:iKon85/agent-workflow-kit uninstall   # remove kit-installed files
 
 `update` is a three-way reconcile against the hashes `init` recorded:
 
+`update` always activates the **full** new version — there is no half-updated
+installation and no edit that blocks the release:
+
 - a file you **didn't** touch fast-forwards to the new version;
-- a file you **did** edit is kept — the incoming version is backed up with a
-  timestamp and a diff is printed, never silently overwritten;
+- a file you **did** edit, without saying it is yours, is replaced by the new
+  version — but never silently: your bytes are copied to
+  `<path>.<timestamp>.bak` first (an existing backup is never clobbered), the
+  diff is printed, and the end-of-update summary lists every backed-up path and
+  **offers** you the three supported routes — move Project-specific
+  instructions to `docs/agents/skills/<skill>.md`, `own` the path as an
+  explicit fork, or send the improvement upstream with `contribute start`. It
+  offers; it never picks one for you;
 - a file you intentionally fork can be detached with
   `npx github:iKon85/agent-workflow-kit own <path> --as=explicit-fork` and
   returned to kit ownership with
   `npx github:iKon85/agent-workflow-kit disown <path>`; owned files are
-  skipped by updates even after the package stops shipping them;
+  skipped by updates even after the package stops shipping them, and are never
+  overwritten or backed up — a declared fork is a decision, not a drift;
 - a modified declared Core path enters the temporary Contribution Bridge with
   `contribute start <path>`. `contribute prepare <path>
   --output=.agent-workflow-kit/contributions/<name>.json` writes one local,
@@ -460,8 +479,9 @@ locally), `--restore-deleted` (retain files that were deleted upstream), and
 A headless `update` requires `--yes`; otherwise it exits before reading release
 state or touching consumer files. The mutually exclusive deletion flags only
 override the blanket answer for files removed upstream. They never resolve an
-ownership collision or content conflict, so a conflicted headless update still
-prints its report, exits non-zero, and leaves the consumer byte-identical.
+ownership collision, so a headless update that hits one still prints its report,
+exits non-zero, and leaves the consumer byte-identical. An undeclared local edit
+is not such a case: it is backed up, replaced, and reported, headless or not.
 
 The optional Contribution Routing capability is consumer-owned:
 
@@ -584,6 +604,72 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 0.47.0
+
+- added: `.agents/skills/land/SKILL.md`
+- added: `.agents/skills/land/SOURCES.txt`
+- added: `.agents/skills/make-landable/SKILL.md`
+- added: `.agents/skills/make-landable/SOURCES.txt`
+- added: `.claude/skills/land/SKILL.md`
+- added: `.claude/skills/land/SOURCES.txt`
+- added: `.claude/skills/make-landable/SKILL.md`
+- added: `.claude/skills/make-landable/SOURCES.txt`
+- removed: `.agents/skills/wrapup/SKILL.md`
+- removed: `.agents/skills/wrapup/SOURCES.txt`
+- removed: `.claude/skills/wrapup/SKILL.md`
+- removed: `.claude/skills/wrapup/SOURCES.txt`
+- changed: `.agents/skills/ask-matt/SKILL.md`
+- changed: `.agents/skills/grill-me/SKILL.md`
+- changed: `.agents/skills/grill-with-docs/SKILL.md`
+- changed: `.agents/skills/kit-release/SKILL.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/board-sync.md`
+- changed: `.agents/skills/setup-workflow/workflow-overview.md`
+- changed: `.agents/skills/tdd/SKILL.md`
+- changed: `.agents/skills/to-issues/SKILL.md`
+- changed: `.agents/skills/to-prd/PROGRAM-PRD-FORMAT.md`
+- changed: `.agents/skills/to-waves/SKILL.md`
+- changed: `.claude/hooks/kit-origin-edit-hint.py`
+- changed: `.claude/skills/ask-matt/SKILL.md`
+- changed: `.claude/skills/grill-me-codex/SKILL.md`
+- changed: `.claude/skills/grill-me/SKILL.md`
+- changed: `.claude/skills/grill-with-docs-codex/SKILL.md`
+- changed: `.claude/skills/grill-with-docs/SKILL.md`
+- changed: `.claude/skills/kit-release/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/board-sync.md`
+- changed: `.claude/skills/setup-workflow/workflow-overview.md`
+- changed: `.claude/skills/skill-manifest.json`
+- changed: `.claude/skills/tdd/SKILL.md`
+- changed: `.claude/skills/to-issues/SKILL.md`
+- changed: `.claude/skills/to-prd/PROGRAM-PRD-FORMAT.md`
+- changed: `.claude/skills/to-waves/SKILL.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `docs/agents/wave-anchor-template.md`
+- changed: `scripts/board-sync.py`
+- changed: `scripts/execute-ready-check.py`
+- changed: `scripts/kit-release.mjs`
+- changed: `scripts/pr-body-check.py`
+- changed: `scripts/render-anchor.py`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/plan-artifacts.json`
+- changed: `scripts/worktree-lifecycle/profile.py`
+- changed: `scripts/wrapup-land.py`
+- changed: `src/cli.mjs`
+- changed: `src/commands/init.mjs`
+- changed: `src/commands/update.mjs`
+- changed: `src/lib/atomicWrite.mjs`
+- changed: `src/lib/bundle.mjs`
+- changed: `src/lib/updateCandidate.mjs`
+- changed: `src/lib/updateReconcile.mjs`
+- changed: `src/lib/verifyUpdateCandidate.mjs`
+- changed: `src/lib/verifyUpdateCandidateTransaction.mjs`
 
 ### 0.46.4
 

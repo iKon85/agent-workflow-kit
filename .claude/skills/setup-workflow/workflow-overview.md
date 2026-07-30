@@ -13,7 +13,7 @@ its own mechanics.
 - **Build:** any change → `implement` (one behaviour, RED→GREEN→refactor; a
   tiny fix comes straight here, no entry question); file-disjoint wave anchor →
   `orchestrate-wave`; bug or regression → `diagnose`; finished slice →
-  `wrapup`.
+  `make-landable`; accepted slice → `land`.
 - **Maintain:** project-local census → `census-update`; consumer-owned memories
   → `memory-lifecycle`; kit release → `kit-release`; consumer package release →
   `project-release`; kit upgrade → `kit-update`; a skill reporting missing
