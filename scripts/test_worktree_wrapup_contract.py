@@ -160,6 +160,20 @@ class FakeHub:
         return self.real_run(args, cwd=cwd, check=check, env=env)
 
 
+class RejectingPushHub(FakeHub):
+    """A hook writes the actionable failure to stdout before Git adds stderr."""
+
+    def __call__(self, args, cwd=None, check=False, env=None):
+        if list(args)[:2] == ["git", "push"]:
+            return subprocess.CompletedProcess(
+                args,
+                1,
+                "hook: test/diff-owned.test.mjs failed\n",
+                "error: failed to push some refs\n",
+            )
+        return super().__call__(args, cwd=cwd, check=check, env=env)
+
+
 def land_args(branch, **overrides):
     values = {
         "branch": branch,
@@ -324,6 +338,22 @@ class HeadStateContract(unittest.TestCase):
 
 class ExternalWorktreeContract(unittest.TestCase):
     """A worktree an external tool created is first-class (ADR-0009 §5)."""
+
+    def test_rejected_push_reports_git_stderr_and_hook_stdout(self):
+        wrapup = load_wrapup()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            main, _ = make_repo(root)
+            branch = "fix/451-push-diagnostics"
+            add_worktree(main, root / "slice", branch)
+            hub = RejectingPushHub(wrapup.run)
+
+            with self.assertRaises(wrapup.Stop) as stopped:
+                run_land(wrapup, main, land_args(branch), hub=hub)
+
+        self.assertEqual(stopped.exception.step, "0b push")
+        self.assertIn("error: failed to push some refs", stopped.exception.detail)
+        self.assertIn("hook: test/diff-owned.test.mjs failed", stopped.exception.detail)
 
     def test_foreign_path_and_issueless_branch_land_and_tear_down(self):
         wrapup = load_wrapup()
