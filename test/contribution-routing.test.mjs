@@ -231,13 +231,12 @@ test('retro, pre-update, and guard report one shared lifecycle and route decisio
   }
 });
 
-test('setup, update, retro, CLI, and edit guard consume the shared route contract', async () => {
-  const [setup, update, retro, cli, guard, claudeSchema, codexSchema] = await Promise.all([
+test('setup, update, retro, and the CLI consume the shared route contract', async () => {
+  const [setup, update, retro, cli, claudeSchema, codexSchema] = await Promise.all([
     readFile('.claude/skills/setup-workflow/SKILL.md', 'utf8'),
     readFile('.claude/skills/kit-update/SKILL.md', 'utf8'),
     readFile('.claude/skills/retro/SKILL.md', 'utf8'),
     readFile('src/cli.mjs', 'utf8'),
-    readFile('.claude/hooks/kit-origin-edit-hint.py', 'utf8'),
     readFile('.claude/skills/setup-workflow/contribution-routing.md', 'utf8'),
     readFile('.agents/skills/setup-workflow/contribution-routing.md', 'utf8'),
   ]);
@@ -245,7 +244,6 @@ test('setup, update, retro, CLI, and edit guard consume the shared route contrac
   assert.match(update, /contribute status <path> --surface=pre-update/);
   assert.match(retro, /contribute status <path>[\s\S]*--surface=retro/);
   assert.match(cli, /inspectContributionRouting\(/);
-  assert.match(guard, /contribute status.*--surface=guard/);
   assert.equal(claudeSchema, codexSchema);
   assert.doesNotMatch(
     `${setup}\n${update}\n${retro}\n${claudeSchema}`,

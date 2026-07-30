@@ -1,8 +1,8 @@
 # Safety Guardrails setup contract
 
 Safety Guardrails is a counted, opt-in capability group backed by the
-consumer-owned `docs/agents/workflow-capabilities.json` profile. Its seven
-rows are selected independently: four protect agent tool calls and three
+consumer-owned `docs/agents/workflow-capabilities.json` profile. Its four
+rows are selected independently: one protects agent tool calls and three
 bootstrap repository security. No repository name, package manager, hook
 surface, threshold, path, or outage policy is inferred from the kit.
 
@@ -30,15 +30,15 @@ surface, threshold, path, or outage policy is inferred from the kit.
 
 ## Counted capability map
 
-Every historical Safety row maps to one profile decision and one shipped
-artifact. Setup reports the result as `N of 7 enabled`, never as one
-all-or-nothing switch.
+Every current Safety row maps to one profile decision and one shipped
+artifact. Setup reports the result as `N of 4 enabled`, never as one
+all-or-nothing switch. The `secrets`, `packageManager`, and `doubleBackground`
+agent adapters were retired by the 2026-07 hook review (no named incident);
+their profile keys in an existing consumer profile are inert consumer data,
+kept verbatim and never rewired.
 
 ```json safety-guardrails-capabilities
 [
-  {"id":"secrets","profilePath":"safetyGuardrails.secrets.enabled","artifact":".claude/hooks/block-secrets.py"},
-  {"id":"packageManager","profilePath":"safetyGuardrails.packageManager.enabled","artifact":".claude/hooks/block-npm-install-in-pnpm.py"},
-  {"id":"doubleBackground","profilePath":"safetyGuardrails.doubleBackground.enabled","artifact":".claude/hooks/block-bg-double-background.py"},
   {"id":"searchShim","profilePath":"safetyGuardrails.searchShim.enabled","artifact":".claude/hooks/grep-shim-guard.py"},
   {"id":"gitHooks","profilePath":"safetyGuardrails.repositorySecurity.gitHooks.enabled","artifact":"scripts/security/install-git-hooks.mjs"},
   {"id":"gitleaks","profilePath":"safetyGuardrails.repositorySecurity.gitleaks.enabled","artifact":"scripts/security/ensure-gitleaks.mjs"},
@@ -100,18 +100,14 @@ unsupported. Dependency-audit outage policy must be explicit.
 
 ## Agent-hook ownership
 
-Wire only enabled rows, using the exact kit-owned commands:
+Wire only the enabled row, using the exact kit-owned command:
 
-- `secrets` — `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/block-secrets.py"`
-- `packageManager` —
-  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/block-npm-install-in-pnpm.py"`
-- `doubleBackground` —
-  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/block-bg-double-background.py"`
 - `searchShim` —
   `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/grep-shim-guard.py"`
 
-All four are PreToolUse adapters. Preserve unrelated matchers and commands in
-`.claude/settings.json`. Disable removes only these exact commands.
+It is a PreToolUse adapter. Preserve unrelated matchers and commands in
+`.claude/settings.json` — including wiring for retired adapters, which is
+consumer data. Disable removes only this exact command.
 
 ## Repository wiring
 
@@ -136,7 +132,7 @@ outage policy. High/Critical findings block; Low/Moderate findings pass.
 ## Transaction and failure contract
 
 Prepare the next profile and `.claude/settings.json` in same-directory staging
-files. Validate JSON, all selected artifact paths, the seven-row count, the
+files. Validate JSON, all selected artifact paths, the four-row count, the
 configured Git-hook directory, and package-manager facts before mutation.
 Then:
 

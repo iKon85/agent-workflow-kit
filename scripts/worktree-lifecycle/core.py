@@ -17,7 +17,6 @@ PR flow — not a pattern that guesses at a command.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from time import time
@@ -33,10 +32,6 @@ from profile import (
     registered_worktrees,
     run,
 )
-
-_BRANCH_CHANGE_RE = re.compile(r"\b(?:git\s+(?:checkout|switch)|gh\s+pr\s+(?:merge|checkout))\b")
-_BRANCH_CREATE_RE = re.compile(r"\bgit\s+(?:checkout|switch)\s+-[bc]\s+(\S+)")
-
 
 @dataclass(frozen=True)
 class RepoFacts:
@@ -115,21 +110,6 @@ def collect_facts(cwd: Path) -> RepoFacts:
     )
 
 
-def branch_context(profile: WorktreeProfile, facts: RepoFacts) -> Decision:
-    lines = [f"Branch: {facts.branch}", f"Status: {facts.changed_count} uncommitted change(s)"]
-    issue = profile.issue_from_branch(facts.branch)
-    if issue:
-        lines.insert(1, f"Issue: #{issue}")
-    elif facts.branch in profile.protected_branches:
-        lines.insert(1, "Warning: direct work on a protected branch")
-    else:
-        lines.insert(1, "Warning: branch has no issue according to the consumer profile")
-    if len(facts.worktrees) > 1:
-        lines.append(f"Worktrees: {len(facts.worktrees)} active")
-        lines.append(f"Setup entry: {profile.setup_entry}")
-    return Decision("emit", "\n".join(lines), "SessionStart")
-
-
 def repo_relative(target: str, root: Path) -> str | None:
     if not target:
         return None
@@ -151,13 +131,6 @@ def is_ignored(root: Path, relative: str) -> bool:
     return result.returncode == 0
 
 
-def is_tracked(root: Path, relative: str) -> bool:
-    result = run(
-        ["git", "ls-files", "--error-unmatch", "--", relative],
-        cwd=root,
-        check=False,
-    )
-    return result.returncode == 0
 
 
 def collect_cleanup_facts(
@@ -482,38 +455,6 @@ def collect_sweep(
     return classify_sweep(profile, collect_sweep_facts(profile, main, pr_lookup, now=now))
 
 
-def edit_decision(
-    profile: WorktreeProfile,
-    facts: RepoFacts,
-    payload: dict[str, Any],
-) -> Decision:
-    if payload.get("tool_name") not in {"Edit", "Write", "MultiEdit"}:
-        return Decision("skip")
-    target = str((payload.get("tool_input") or {}).get("file_path") or "")
-    if facts.is_main_worktree and facts.branch in profile.protected_branches:
-        relative = repo_relative(target, facts.root)
-        if relative is not None and not is_ignored(facts.root, relative):
-            return Decision(
-                "block",
-                f"Worktree Lifecycle blocked an edit to {relative} on protected branch "
-                f"{facts.branch}. Use `{profile.setup_entry}` first.",
-            )
-    if not facts.is_main_worktree and Path(target).is_absolute():
-        relative = repo_relative(target, facts.main_root)
-        if (
-            relative is not None
-            and facts.main_branch in profile.protected_branches
-            and is_tracked(facts.main_root, relative)
-            and not is_ignored(facts.main_root, relative)
-        ):
-            return Decision(
-                "block",
-                f"Worktree Lifecycle blocked a cross-worktree edit to {relative} in "
-                f"the protected main checkout. Edit the linked worktree copy instead.",
-            )
-    return Decision("allow")
-
-
 def write_target_decision(
     profile: WorktreeProfile,
     facts: RepoFacts,
@@ -558,68 +499,12 @@ def write_target_decision(
     )
 
 
-def branch_create_decision(
-    profile: WorktreeProfile,
-    facts: RepoFacts,
-    payload: dict[str, Any],
-) -> Decision:
-    if payload.get("tool_name") != "Bash":
-        return Decision("skip")
-    command = str((payload.get("tool_input") or {}).get("command") or "")
-    match = _BRANCH_CREATE_RE.search(command)
-    if match is None or profile.issue_from_branch(match.group(1)) is None:
-        return Decision("allow")
-    if facts.is_main_worktree and len(facts.worktrees) > 1:
-        return Decision(
-            "block",
-            f"Worktree Lifecycle blocked branch creation `{match.group(1)}` in the main "
-            f"checkout while linked worktrees are active. Use `{profile.setup_entry}`.",
-        )
-    return Decision("allow")
-
-
-def handoff_decision(
-    profile: WorktreeProfile,
-    facts: RepoFacts,
-    payload: dict[str, Any],
-) -> Decision:
-    prompt = str(payload.get("prompt") or "")
-    pattern = re.compile(
-        rf"{re.escape(profile.setup_entry)}\s+(\d+)\s+(\S+)"
-    )
-    match = pattern.search(prompt)
-    if match is None or not facts.is_main_worktree:
-        return Decision("skip")
-    issue, slug = match.groups()
-    command = f"{profile.setup_entry} {issue} {slug}"
-    return Decision(
-        "emit",
-        f"Defined slice detected: create its isolated worktree first with `{command}`, "
-        "then perform repository reads from that worktree.",
-        "UserPromptSubmit",
-    )
-
-
 def evaluate(
     profile: WorktreeProfile,
     facts: RepoFacts,
     event: str,
     payload: dict[str, Any],
 ) -> Decision:
-    if event == "session-start":
-        return branch_context(profile, facts)
-    if event == "branch-watch":
-        command = str((payload.get("tool_input") or {}).get("command") or "")
-        if payload.get("tool_name") != "Bash" or not _BRANCH_CHANGE_RE.search(command):
-            return Decision("skip")
-        context = branch_context(profile, facts)
-        return Decision("emit", context.message, "PostToolUse")
-    if event == "edit":
-        return edit_decision(profile, facts, payload)
     if event == "write-target":
         return write_target_decision(profile, facts, payload)
-    if event == "branch-create":
-        return branch_create_decision(profile, facts, payload)
-    if event == "handoff":
-        return handoff_decision(profile, facts, payload)
     return Decision("skip")

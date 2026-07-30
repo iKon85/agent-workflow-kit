@@ -161,9 +161,12 @@ test('an externally created worktree is adopted unchanged', async (t) => {
   await assert.rejects(readFile(join(worktree, '.dev-ports'), 'utf8'));
 });
 
-test('shipped Worktree Lifecycle census accounts for all eight historical rows', async () => {
+test('shipped Worktree Lifecycle census accounts for the kept rows', async () => {
+  // The 2026-07 hook review retired five of the eight historical rows (the
+  // adapters without a named incident); setup, cleanup, and the write-target
+  // guard remain.
   const census = JSON.parse(await readFile(CAPABILITY_CENSUS, 'utf8'));
-  assert.equal(census.capabilities.length, 8);
+  assert.equal(census.capabilities.length, 3);
   for (const capability of census.capabilities) {
     assert.ok(
       capability.primitives?.length > 0 || capability.naReason,

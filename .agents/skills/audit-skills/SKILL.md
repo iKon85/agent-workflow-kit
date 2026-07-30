@@ -23,8 +23,9 @@ skills the other steps rely on drift, and nothing fixes them unless a recipe doe
 ## When to run
 
 - At `/retro` (a periodic hygiene point).
-- When the SessionStart drift-hint hook (`.claude/hooks/skill-drift-hint.py`)
-  warns that a declared source moved in git since the skill's last touch.
+- When a skill's declared sources (its `SOURCES.txt`) moved in git since the
+  skill's last touch — compare `git log -1 --format=%ct` per source against the
+  SKILL.md.
 - Ad-hoc, when a skill you just reached for points at a dead path or a renamed
   symbol.
 
@@ -69,9 +70,10 @@ recipe complements them, it does not replace them:
    status→bucket map, a design-token list), a test parses the value out of the
    SKILL.md and asserts equality with the code constant. Drift breaks the build.
    Run the concrete tests available in the repository.
-2. **The drift-hint hook** (`.claude/hooks/skill-drift-hint.py`) + a per-skill
-   `SOURCES.txt`: at SessionStart it flags any skill whose declared source file
-   is newer in git than its SKILL.md.
+2. **A per-skill `SOURCES.txt`** declaring the skill's code/doc anchors: any
+   skill whose declared source file is newer in git than its SKILL.md is a
+   freshness candidate (the convention survives the 2026-07 retirement of the
+   SessionStart drift-hint hook).
 
 **Core insight:** test-covered values do NOT drift silently — only un-tested
 prose refs (paths, line numbers, cross-refs, memory keys) rot. So: test-cover the

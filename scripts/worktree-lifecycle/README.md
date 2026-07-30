@@ -101,12 +101,12 @@ no half-built checkout survives the command.
 
 | Adapter | Event | Outcome |
 |---|---|---|
-| `branch-context.py` | SessionStart | emits branch, issue, status, and active-worktree facts |
-| `branch-watch.py` | PostToolUse | emits the same facts after a branch-changing command |
-| `enforce-worktree.py` | PreToolUse | blocks tracked main-checkout edits and cross-worktree leaks |
 | `enforce-worktree-cwd.py` | PreToolUse | blocks a write whose target lands in the protected main checkout while linked worktrees are active |
-| `enforce-worktree-discipline.py` | PreToolUse | routes issue-branch creation through the configured setup entry |
-| `slice-handoff-hint.py` | UserPromptSubmit | names the configured setup entry for a defined slice |
+
+The 2026-07 hook review retired the other five adapters (branch-context,
+branch-watch, enforce-worktree, enforce-worktree-discipline,
+slice-handoff-hint): none carried a named incident. The kept adapter's
+incident is repository issue 373.
 
 ## Planning-artifact ignore rules
 
@@ -196,4 +196,7 @@ worktree or branch.
 
 Claude hook wiring and any Codex adaptation consume this same profile and core.
 An adapter may change only the surface event envelope; it must preserve the
-core verdict and message.
+core verdict and message. Since the 2026-07 hook review, the one shipped
+adapter is `enforce-worktree-cwd.py` (write-target guard — named incident:
+repository issue 373); the setup and cleanup CLIs are invoked directly and are
+not hook-wired.

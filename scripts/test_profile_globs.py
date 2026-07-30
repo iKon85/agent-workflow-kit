@@ -11,7 +11,6 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 DIALECT_MODULE = REPO / "scripts/profile_globs.py"
-ADVISORIES_CORE = REPO / "scripts/workflow-advisories/core.py"
 LIFECYCLE_CORE = REPO / "scripts/worktree-lifecycle/core.py"
 
 
@@ -75,19 +74,17 @@ class MatcherContract(unittest.TestCase):
 
 
 class SharedMatcherContract(unittest.TestCase):
-    """The one shipped matcher lives in the dialect module, never in a copy."""
+    """The one shipped matcher lives in the dialect module, never in a copy.
 
-    def test_the_shared_matcher_comes_from_the_shipped_dialect_module(self):
-        advisories = load("profile_globs_advisories_core", ADVISORIES_CORE)
-        shared = advisories.load_profile_globs()
-        self.assertEqual(Path(shared.__file__).resolve(), DIALECT_MODULE.resolve())
-        self.assertIs(advisories.path_glob_matches, shared.path_glob_matches)
+    The Workflow Advisories core — formerly the second consumer of the shared
+    matcher — was retired with its hook set by the 2026-07 hook review; the
+    dialect module remains the single matcher surface.
+    """
 
-    def test_neither_core_keeps_a_second_matcher(self):
-        for core in (ADVISORIES_CORE, LIFECYCLE_CORE):
-            body = core.read_text(encoding="utf-8")
-            self.assertNotIn("fnmatch.fnmatch(", body)
-            self.assertNotIn("def path_glob_matches", body)
+    def test_no_core_keeps_a_second_matcher(self):
+        body = LIFECYCLE_CORE.read_text(encoding="utf-8")
+        self.assertNotIn("fnmatch.fnmatch(", body)
+        self.assertNotIn("def path_glob_matches", body)
 
     def test_the_lifecycle_core_matches_no_glob_at_all(self):
         """Deletion policy has one surface, the ignore mechanism — so the
@@ -95,39 +92,6 @@ class SharedMatcherContract(unittest.TestCase):
         lifecycle = load_lifecycle_core()
         self.assertFalse(hasattr(lifecycle, "path_glob_matches"))
         self.assertNotIn("glob", LIFECYCLE_CORE.read_text(encoding="utf-8"))
-
-
-class AdvisorySurfaceContract(unittest.TestCase):
-    """Advisory globs select the same paths the lifecycle globs would."""
-
-    def decision_for(self, globs, changed):
-        core = load("profile_globs_advisories_surface", ADVISORIES_CORE)
-        profile = {
-            "stopChecks": {
-                "surfaces": [{"globs": globs, "command": ["python3", "-c", "pass"]}],
-                "timeoutSeconds": 3,
-                "outputBudget": 300,
-            },
-        }
-        with tempfile.TemporaryDirectory() as root:
-            return core.stop_check_decision(
-                profile, {"changed_files": changed}, Path(root),
-            )
-
-    def test_single_segment_glob_no_longer_crosses_a_directory(self):
-        self.assertIsNone(self.decision_for(["*.py"], ["pkg/mod.py"]).context)
-        self.assertIsNotNone(self.decision_for(["*.py"], ["mod.py"]).context)
-
-    def test_globstar_covers_root_and_nested_paths(self):
-        self.assertIsNotNone(self.decision_for(["**/*.py"], ["pkg/mod.py"]).context)
-        self.assertIsNotNone(self.decision_for(["**/*.py"], ["mod.py"]).context)
-
-    def test_directory_root_glob_covers_every_depth(self):
-        self.assertIsNotNone(self.decision_for(["src/**"], ["src/a/b.mjs"]).context)
-        self.assertIsNone(self.decision_for(["src/*"], ["src/a/b.mjs"]).context)
-
-    def test_advisory_matching_is_case_sensitive(self):
-        self.assertIsNone(self.decision_for(["src/**"], ["SRC/a.mjs"]).context)
 
 
 class MigrationClassifier(unittest.TestCase):

@@ -27,7 +27,7 @@
       "ownerSkill": "audit-skills",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "242ef78e4507da01dcaa295ac4091160987381478999c77740fa8acc37738849",
+      "sha256": "e1b484c4e4dc215d13599445b2482689bf32739030980490a172daa2d58ff688",
       "mode": 420,
       "origin": "kit"
     },
@@ -717,7 +717,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "8e223f625dcf941142005cbd9a4b6214358f68e3fd63cbee7bffef35b8b14ec8",
+      "sha256": "33e0d4d64c0456bccefefa5c8e0141d850fc56001cd4761167fd6bf6fc923fee",
       "mode": 420,
       "origin": "kit"
     },
@@ -727,7 +727,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "7fa6dceaecd5c2efeb3bdb934dba673295382956bac76d51717746ad228297cd",
+      "sha256": "24f9c9756a3386d1584bd7a1952ad2fca0e6307cb1eb2cd602041fadc953f15e",
       "mode": 420,
       "origin": "kit"
     },
@@ -772,16 +772,6 @@
       "origin": "kit"
     },
     {
-      "path": ".agents/skills/setup-workflow/workflow-advisories.md",
-      "kind": "skill",
-      "ownerSkill": "setup-workflow",
-      "surface": "codex",
-      "installRole": "consumer",
-      "sha256": "b6c62eff8a5bada4f322d9b7dc7df2ff5e695b2c509f9e532ee4bc7411de166f",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
       "path": ".agents/skills/setup-workflow/workflow-overview.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
@@ -797,7 +787,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "d8a6f32243930464b882446e429ce61101edba5ed893ffea04c8f3c5d2f3d854",
+      "sha256": "c53c8588593dc941ea46d8ef7708f408a4e408d1434462f0bc8a64f1021abe6a",
       "mode": 420,
       "origin": "kit"
     },
@@ -867,7 +857,7 @@
       "ownerSkill": "tdd",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "774c6d307c801c26f8d30ff21377442a7100759b9837e7e7f345517c1ac89dc7",
+      "sha256": "39c765121da3b28e35e8d145c36902f72d4cf241e99f9326cb29e9ac241f8642",
       "mode": 420,
       "origin": "kit"
     },
@@ -1035,7 +1025,7 @@
       "path": ".claude/hooks/_hook_utils.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "9ad70fa80a57c7712df78718c578b58295f446c13a0f1863c69680f3889dd387",
+      "sha256": "58a7a8ad6cd4f1660e95343d7a0c637cf8aee92948a9c554befa5851723b3f48",
       "mode": 420,
       "origin": "kit"
     },
@@ -1048,66 +1038,10 @@
       "origin": "kit"
     },
     {
-      "path": ".claude/hooks/baseline-capture-hint.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "8f5cddfbb567afc677cf51f39d37e10804bf03e93d7d2fac7793cb5a42473ed3",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/block-bg-double-background.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "ad0c763e3afbb25685f91eea2c39fc3ee58c765536a961810a49bd0c7bbd47b8",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/block-npm-install-in-pnpm.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "54da075f8e63e5e927cb752c26c47880da49eb1f730f078558f3f5eec9377c82",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/block-secrets.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "962c4f7f035c5cb4c322ee7c76b707a148526000427f4ebd49bfcac50af003b4",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/branch-context.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "96bbe56a292a89cdb76db0670c2c214678fa60c08e3de5b8db507149ba24c018",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/branch-watch.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "15c7565790e0b108c44175b7527a4bc2b8b244737d5598081e938d2dea032424",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/convention-drift-hint.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "f89fc3f3f9d9b7508e3cdeeedd0e522af11ae10e638457da3910bfe4e43579f2",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
       "path": ".claude/hooks/drift-guard.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "1480bd322d988a546ed589a2420796b38bbf0f52300598a1dd9aa9ddbeb3ea1d",
+      "sha256": "bdb6bf794b5ee09e35c7e1e9f68c6ebeccbefd4e69120b6029ef85fc829c07c6",
       "mode": 493,
       "origin": "kit"
     },
@@ -1115,23 +1049,7 @@
       "path": ".claude/hooks/enforce-worktree-cwd.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "33e64870ca8588beadfb93791dabf784eff8040fa6c7f3a962884d9765b7c819",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/enforce-worktree-discipline.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "5bd9fc7a7eea5e8b0778e8272e02b5d8c6c121ea3a168ef11a9c39344085e666",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/enforce-worktree.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "4a5d0247d89049dde0475680595fd785bfbd1b108cdd9c9697fd74e944f52c8b",
+      "sha256": "b3dc802a5b9fe726f2b56ccf06bee48f56e5723bf5de8a95ab2a8e3b7dfb5b4d",
       "mode": 493,
       "origin": "kit"
     },
@@ -1139,87 +1057,7 @@
       "path": ".claude/hooks/grep-shim-guard.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "9f69541c60c795bd5ec2a4f5d155f6fd3ced4f2ac6a28ed0c55c9a57772dd0d2",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/kit-origin-edit-hint.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "041c60b7bab6e40527b592429e4c2fd5476c1e72afb7b5ba6fc92707d02deb86",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/loc-offender-forewarn.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "28ba5edb1898345fd852d1f420bb64c5a2e0dfd66aa8d2b752899fc28a6f80dd",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/migration-snapshot-reminder.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "0cf691143fc4dbac210f45be35e037686adf678f6f521cfd80d9100bcfbb7e02",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/pre-refactor-sweep.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "24e8554da18b00f2dbbcf6a3e186f9fb675a4b18471ce60e0ac63000f95a4906",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/recon-size-hint.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "3fd702d8875552ce3b79b5db1dda51403031bcacc80901a13553d2f60a2deb9b",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/skill-drift-hint.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "2ce5c8cfc85dc76cf93abf1cd061440b8030109231a45a0920e36a5f1c06694a",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/slice-handoff-hint.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "664ca09a7e86c267ce7d49bf6b2529ebb9e75a4fd3443548f36f6eb9d4665abf",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/sync-board-status.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "98ac3afb9212e40985d319899bcb0582973b8ed7397bb95bde5fdb764c105dbf",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/typecheck-on-stop.py",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "459e5f25f5fe97c62687eff1d3e7e76051ba8390e2b2908fc50c16ea53a95250",
-      "mode": 493,
-      "origin": "kit"
-    },
-    {
-      "path": ".claude/hooks/typecheck-on-stop.sh",
-      "kind": "hook",
-      "installRole": "consumer",
-      "sha256": "1bb57f53d53d18af92a8c7ce63f46be0658ae7d675a95d387646b4232001f1bc",
+      "sha256": "198015421902ab7876458ac5fe0bea987eac3abf1c47f71f49afc2c1afc7cc47",
       "mode": 493,
       "origin": "kit"
     },
@@ -1249,7 +1087,7 @@
       "ownerSkill": "audit-skills",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "24ffe75944543b55185543dedbbf23d22c8dd4c8977a81759801219b5ff66c36",
+      "sha256": "a922fbd988e8c99c5540f48371851a37df7afd8833d1739150461d282a475a1a",
       "mode": 420,
       "origin": "kit"
     },
@@ -2079,7 +1917,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "8e223f625dcf941142005cbd9a4b6214358f68e3fd63cbee7bffef35b8b14ec8",
+      "sha256": "33e0d4d64c0456bccefefa5c8e0141d850fc56001cd4761167fd6bf6fc923fee",
       "mode": 420,
       "origin": "kit"
     },
@@ -2089,7 +1927,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "7fa6dceaecd5c2efeb3bdb934dba673295382956bac76d51717746ad228297cd",
+      "sha256": "24f9c9756a3386d1584bd7a1952ad2fca0e6307cb1eb2cd602041fadc953f15e",
       "mode": 420,
       "origin": "kit"
     },
@@ -2134,16 +1972,6 @@
       "origin": "kit"
     },
     {
-      "path": ".claude/skills/setup-workflow/workflow-advisories.md",
-      "kind": "skill",
-      "ownerSkill": "setup-workflow",
-      "surface": "claude",
-      "installRole": "consumer",
-      "sha256": "b6c62eff8a5bada4f322d9b7dc7df2ff5e695b2c509f9e532ee4bc7411de166f",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
       "path": ".claude/skills/setup-workflow/workflow-overview.md",
       "kind": "skill",
       "ownerSkill": "setup-workflow",
@@ -2159,7 +1987,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "d8a6f32243930464b882446e429ce61101edba5ed893ffea04c8f3c5d2f3d854",
+      "sha256": "c53c8588593dc941ea46d8ef7708f408a4e408d1434462f0bc8a64f1021abe6a",
       "mode": 420,
       "origin": "kit"
     },
@@ -2237,7 +2065,7 @@
       "ownerSkill": "tdd",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "77be642b83ac1e59362af2acedfd8c1e39c05020e30457939e9d803462fd3a5c",
+      "sha256": "805f4a509951f7630e5a3cf4430e9c7d66f98a2093088489d909e0ba732d9224",
       "mode": 420,
       "origin": "kit"
     },
@@ -2816,26 +2644,10 @@
       "origin": "kit"
     },
     {
-      "path": "scripts/workflow-advisories/capabilities.json",
-      "kind": "doc",
-      "installRole": "consumer",
-      "sha256": "04c731394fa458c141870fb89f2432092b3749955eccbda9b9b8db09636526c9",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
-      "path": "scripts/workflow-advisories/core.py",
-      "kind": "script",
-      "installRole": "consumer",
-      "sha256": "fcc13d24944a9b1534529e62cc1437617e394f6fe3402647c17cee4ea96aade5",
-      "mode": 420,
-      "origin": "kit"
-    },
-    {
       "path": "scripts/worktree-lifecycle/capabilities.json",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "761512ca2983240ad10c7b7a5e08f41a6316227284056e2b156deeb47109a544",
+      "sha256": "f07a3e28ae7b15de8005597ce1a3a25b314ad13c9a6e3189dff7ba9d6106616c",
       "mode": 420,
       "origin": "kit"
     },
@@ -2859,7 +2671,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "7e32facc1c36be31b82ac0e13caf75340722dba23a0d8dcc35914b31503e1937",
+      "sha256": "dde4dd320361e5e8e1f07b67dbe3b0161dd13204618dc16fb6a728c356658b60",
       "mode": 420,
       "origin": "kit"
     },
@@ -2891,7 +2703,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "2d1016cbe68d6f92867e272968b1b7615d0b3b53ac9c6091ad706ba42d0f962a",
+      "sha256": "88d3cc00e84bdb95f5cb5aff7b79d9beebd63848c315f8b17c3db0fd33823090",
       "mode": 420,
       "origin": "kit"
     },
