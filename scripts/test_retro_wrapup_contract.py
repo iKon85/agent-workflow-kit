@@ -84,17 +84,21 @@ class WrapupChainingContract(unittest.TestCase):
                 frontmatter = skill(surface, "retro").split("---", 2)[1]
                 self.assertIn("disable-model-invocation: false", frontmatter)
 
-    def test_affirmative_retro_gate_chains_without_landing(self):
-        required = (
-            "invoke the `retro` skill immediately in this run",
+    def test_retro_is_voluntary_and_never_blocks_landing(self):
+        """The retro binding is cut: no question, no marker, no second run."""
+        forbidden = (
             "land nothing in this run",
             "fresh explicit `$wrapup` or `/wrapup` invocation",
+            "Already ran a retro?",
+            "Mandatory `Retro:` line",
         )
         for surface in SURFACES:
             with self.subTest(surface=surface):
                 text = contract_text(surface, "wrapup")
-                for phrase in required:
-                    self.assertIn(phrase, text)
+                self.assertIn("Retro (voluntary — never a gate)", text)
+                self.assertIn("invoke the `retro` skill", text)
+                for phrase in forbidden:
+                    self.assertNotIn(phrase, text)
 
     def test_wrapup_does_not_forbid_its_affirmative_retro_chain(self):
         for surface in SURFACES:
@@ -133,7 +137,6 @@ class WrapupChainingContract(unittest.TestCase):
             "Natural-language requests",
             "indirect skill chaining",
             "autonomous invocation",
-            "fresh explicit `$wrapup` or `/wrapup` invocation",
         )
         for surface in SURFACES:
             with self.subTest(surface=surface):

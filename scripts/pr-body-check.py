@@ -4,7 +4,7 @@ pr-body-check.py — mechanical guard for the PR-body conventions that were unti
 now prose-only.
 
 Called by `wrapup` Step 0c AFTER the PR has been created/reused, BEFORE the
-merge gate. Turns four instruction-only rules into a check that actually fires:
+merge gate. Turns three instruction-only rules into a check that actually fires:
 
   1. Anker-Slice (Issue HAS a parent) → body MUST contain `Part of #<parent>`
      and MUST NOT contain a close-keyword on the **parent anchor** number
@@ -14,14 +14,15 @@ merge gate. Turns four instruction-only rules into a check that actually fires:
   2. Atomar Leaf (Issue has NO parent / FREI) → body MUST contain an ACTIVE
      `closes #<issue>` — not inside a code span / backticks (else GitHub's
      auto-close never fires, wrapup Step 5b lesson).
-  3. `**Retro:**`-Pflichtzeile present in one of the Slice-7 forms
-     (`gefahren …` | `übersprungen …`), with a space after the marker.
-  4. Exactly one valid `E2E-NA: <reason>` trailer in the immutable pull-request
+  3. Exactly one valid `E2E-NA: <reason>` trailer in the immutable pull-request
      range requires active `E2E: n/a — <reason>` PR-body evidence.
 
-Scope: this script checks ONLY the closes/Part-of anchor rule, the
-`**Retro:**` line, and E2E exemption evidence. It does NOT parse or validate
-`annahme-drift` markers
+A retro marker is NOT checked: `/retro` is a voluntary offer, so its marker
+carries no landing duty — measured over 135 landings, the artifact the duty
+promised existed in exactly one.
+
+Scope: this script checks ONLY the closes/Part-of anchor rule and E2E exemption
+evidence. It does NOT parse or validate `annahme-drift` markers
 (those are prose-/judgment-driven in wrapup Step 0c + 5e, deliberately not
 mechanised — R2-F6). The annahme-drift block therefore runs BEFORE this
 check in wrapup Step 0c so the body the script sees is final.
@@ -71,17 +72,13 @@ def _spaced(marker: str) -> str:
 LOG_DIR = Path(".claude/logs")
 LOG_NAME = "pr-body-check"
 
-# Branch prefixes + the `Part of` / `**Retro:**` markers are PROJECT conventions
+# Branch prefixes + the `Part of` marker are PROJECT conventions
 # → read from the board profile. GitHub's auto-close keywords are a PLATFORM
 # constant (GitHub only auto-closes on exactly this set), so they stay hardcoded
 # here — configuring them would be a footgun, not a portability win.
 BRANCH_ISSUE_RE = re.compile(
     r"^(?:" + "|".join(re.escape(p) for p in _CFG["branchPrefixes"]) + r")/(\d+)-")
 CLOSE_KEYWORDS = r"close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved"
-RETRO_RE = re.compile(
-    re.escape(_CFG["prMarkers"]["retroMarker"]) + r"\s+("
-    + "|".join(re.escape(v) for v in _CFG["prMarkers"]["retroValues"]) + r")\b",
-    re.IGNORECASE)
 PART_OF_RE_SRC = _spaced(_CFG["prMarkers"]["partOf"])
 INLINE_CODE_RE = re.compile(r"`[^`]*`")
 FENCED_CODE_RE = re.compile(r"```.*?```", re.DOTALL)
@@ -183,11 +180,6 @@ def check_pr_body(body: str, issue: int, parent, is_anchor: bool = False,
             violations.append(
                 f"Leaf-PR: aktives `closes #{issue}` fehlt (oder steht in "
                 f"Backticks → GitHub-Auto-Close greift dann nicht).")
-
-    if not RETRO_RE.search(body):
-        violations.append(
-            "Pflichtzeile `**Retro:** gefahren — …` oder "
-            "`**Retro:** übersprungen — <Grund>` fehlt.")
 
     violations.extend(check_e2e_na_line(body, has_e2e_na_trailer))
     return violations
