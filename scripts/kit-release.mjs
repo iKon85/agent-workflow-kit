@@ -13,6 +13,7 @@ import { buildKit } from './build-kit.mjs';
 import { checkReleaseDelta } from './release-delta-guard.mjs';
 
 const exec = promisify(execFile);
+const MAX_RELEASE_COMMAND_DETAIL = 4000;
 
 export { nextVersion };
 
@@ -101,8 +102,32 @@ function assertVerified(report) {
   throw new Error(`bundle verification failed:\n${detail}`);
 }
 
+function compactCommandDetail(text) {
+  return text
+    .replace(/[\u0000-\u001f\u007f]+/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+export async function runReleaseCommand(command, args, repoRoot, executor = exec) {
+  try {
+    await executor(command, args, { cwd: repoRoot });
+  } catch (error) {
+    const detail = compactCommandDetail(
+      [error?.stderr, error?.stdout]
+        .filter((stream) => typeof stream === 'string' && stream.trim())
+        .join('\n'),
+    ).slice(-MAX_RELEASE_COMMAND_DETAIL);
+    const fallback = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${[command, ...args].join(' ')} failed: ${detail || fallback}`,
+      { cause: error },
+    );
+  }
+}
+
 async function defaultRun(command, args, repoRoot) {
-  await exec(command, args, { cwd: repoRoot });
+  await runReleaseCommand(command, args, repoRoot);
 }
 
 export async function prepareRelease(options) {
