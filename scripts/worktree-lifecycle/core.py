@@ -79,6 +79,13 @@ class CleanupAssessment:
             return ()
         return tuple(entry.path for entry in self.classification.scratch)
 
+    @property
+    def declared_deletions(self) -> tuple[str, ...]:
+        """The deletions the consumer's seed declaration authorized by consent."""
+        if self.classification is None:
+            return ()
+        return tuple(self.classification.declared_deletions)
+
 
 def collect_facts(cwd: Path) -> RepoFacts:
     root = Path(run(["git", "rev-parse", "--show-toplevel"], cwd=cwd).stdout.strip()).resolve()
@@ -152,11 +159,17 @@ def collect_cleanup_facts(
     *,
     merge_target: str | None = None,
     pr_state: str = "none",
+    declared_paths: tuple[str, ...] = (),
 ) -> CleanupFacts:
     """Read every fact a removal verdict needs, deciding nothing.
 
     The file taxonomy comes from `classify.assess`, which is also the object the
     removal step consumes — preview and action can never disagree.
+
+    `declared_paths` is the consumer's seed declaration, resolved here because
+    the classifier reads no profile: the paths a consumer declares as what a
+    fresh worktree carries are the paths its own declaration clears for
+    deletion.
     """
     worktree = target.resolve()
     branch = run(
@@ -165,7 +178,7 @@ def collect_cleanup_facts(
         check=False,
     ).stdout.strip()
     try:
-        classification = assess(worktree, main)
+        classification = assess(worktree, main, declared_paths)
     except ClassificationError as error:
         raise LifecycleError(str(error)) from error
     merged = False
@@ -295,11 +308,16 @@ def _cleanup_facts_or_error(
     *,
     merge_target: str,
     pr_state: str,
+    declared_paths: tuple[str, ...] = (),
 ) -> tuple[CleanupFacts | None, str]:
     """A single unreadable worktree must not abort the read-only inventory."""
     try:
         facts = collect_cleanup_facts(
-            main, path, merge_target=merge_target, pr_state=pr_state
+            main,
+            path,
+            merge_target=merge_target,
+            pr_state=pr_state,
+            declared_paths=declared_paths,
         )
     except LifecycleError as error:
         return None, str(error)
@@ -340,7 +358,11 @@ def collect_sweep_facts(
         ).returncode == 0
         cleanup, cleanup_error = (
             _cleanup_facts_or_error(
-                main, path, merge_target=main_branch, pr_state=pr_state
+                main,
+                path,
+                merge_target=main_branch,
+                pr_state=pr_state,
+                declared_paths=profile.seed.paths,
             )
             if path is not None
             else (None, "")

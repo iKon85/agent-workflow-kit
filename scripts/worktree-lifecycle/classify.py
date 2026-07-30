@@ -9,9 +9,22 @@ moment of action, and from nothing else. Four rules decide it:
 3. An untracked, non-ignored file (record `?`) blocks with a bounded report:
    the exact file count plus the top directories, never a path dump.
 4. An ignored entry (record `!`) is Scratch and is deletable — with one
-   hardcoded carve-out, `.env*` by basename glob, which is deletable only when
-   it is byte-identical to its counterpart at the same relative path in the
-   main checkout, both opened no-follow.
+   carve-out, `.env*` by basename glob, which has two arms. A regular file the
+   consumer's own seed profile declares is deletable **by that declaration**:
+   the consumer said this file is what a fresh worktree carries, which is the
+   same declaration-based authority `.gitignore` already carries ("the
+   repository declared it not-work"). An **undeclared** `.env*` is deletable
+   only when it is byte-identical to its counterpart at the same relative path
+   in the main checkout, both opened no-follow — a hand-written secret has no
+   floor beneath it, so it keeps the conservative comparison.
+
+The declaration arrives as an argument (`declared_paths`), never by reading a
+profile here: this module classifies, and resolving consumer configuration
+stays the caller's business. A declaration names one exact path — it is not a
+glob and never a prefix, because consent that widens itself is no longer the
+consumer's declaration. It also waives nothing for anything but a regular
+file: a directory or a symlink standing at a declared path is not the file the
+declaration describes, so it keeps the comparison and its block.
 
 An ignored symlink is deletable only when its target resolves inside the
 assessed worktree; the link itself is unlinked and never followed. Absolute
@@ -27,14 +40,18 @@ renders it with `render_report()`, and the action consumes exactly that object
 in `remove_scratch()`. There is no second formatter and no persisted evidence —
 idempotency comes from re-running the assessment, not from a journal.
 
-Deletion policy has exactly one configuration surface, the ignore mechanism:
-this module reads no consumer-profile pattern list.
+Deletion policy is configured by declaration only — the ignore mechanism plus
+the seed declaration a consumer already writes to say what a worktree carries.
+This module reads no consumer-profile pattern list.
 
 ## Residual risks — accepted deliberately
 
 - Between assessment and deletion a file could in principle be replaced.
 - A valuable file a consumer keeps gitignored outside `.env*` is deletable at
   teardown.
+- A declared `.env*` file is deleted without any comparison against the main
+  checkout. That is exactly the consent its declaration grants, so every such
+  deletion is named in the report.
 """
 
 from __future__ import annotations
@@ -73,11 +90,16 @@ class ClassificationError(RuntimeError):
 
 @dataclass(frozen=True)
 class Scratch:
-    """One ignored entry cleared for deletion."""
+    """One ignored entry cleared for deletion.
+
+    `declared` records *why* it was cleared: this is a `.env*` file the
+    consumer's seed profile names, so the comparison was waived by consent.
+    """
 
     path: str
     kind: str  # "file" | "directory" | "symlink"
     link_target: str | None = None
+    declared: bool = False
 
 
 @dataclass(frozen=True)
@@ -93,7 +115,12 @@ class Block:
 
 @dataclass(frozen=True)
 class Assessment:
-    """The single report object shared by preview and action."""
+    """The single report object shared by preview and action.
+
+    `declared_deletions` names the `.env*` files the consumer's own declaration
+    cleared without any main-checkout comparison, so consent stays visible
+    exactly where it is used.
+    """
 
     worktree: str
     main_checkout: str
@@ -101,14 +128,20 @@ class Assessment:
     root_inode: int
     scratch: tuple[Scratch, ...]
     blocks: tuple[Block, ...]
+    declared_deletions: tuple[str, ...] = ()
 
     @property
     def removable(self) -> bool:
         return not self.blocks
 
 
-def assess(worktree, main_checkout) -> Assessment:
-    """Classify the worktree's current state into scratch plus blocking rules."""
+def assess(worktree, main_checkout, declared_paths=()) -> Assessment:
+    """Classify the worktree's current state into scratch plus blocking rules.
+
+    `declared_paths` are the repository-relative paths the consumer's seed
+    profile declares. They waive the `.env*` comparison for exactly those
+    paths and nothing else; every other rule applies unchanged.
+    """
     worktree = Path(worktree)
     main_checkout = Path(main_checkout)
     metadata = os.lstat(worktree)
@@ -117,9 +150,10 @@ def assess(worktree, main_checkout) -> Assessment:
     buckets: dict[str, list[str]] = {"1": [], "u": [], "?": [], "!": []}
     for kind, paths in _status_records(worktree):
         buckets["1" if kind == "2" else kind].extend(paths)
-    scratch, env_offenders, link_offenders = _classify_ignored(
-        worktree, main_checkout, buckets["!"]
+    scratch, env_offenders, link_offenders, nested_consented = _classify_ignored(
+        worktree, main_checkout, buckets["!"], _declared_set(declared_paths)
     )
+    consented = [entry.path for entry in scratch if entry.declared] + nested_consented
     blocks = [
         block
         for block in (
@@ -138,7 +172,18 @@ def assess(worktree, main_checkout) -> Assessment:
         metadata.st_ino,
         tuple(sorted(scratch, key=lambda entry: entry.path)),
         tuple(blocks),
+        tuple(sorted(consented)),
     )
+
+
+def _declared_set(declared_paths) -> frozenset[str]:
+    """Normalize the consumer's declared paths into exact repository-relative keys."""
+    normalized = set()
+    for declared in declared_paths or ():
+        text = str(declared).strip()
+        if text:
+            normalized.add(str(PurePosixPath(text)))
+    return frozenset(normalized)
 
 
 _ENV_FIX = (
@@ -190,15 +235,26 @@ def _parse_status(payload: bytes):
     return records
 
 
-def _classify_ignored(worktree: Path, main_checkout: Path, ignored: list[str]):
-    """Split ignored entries into scratch, `.env*` offenders and link offenders."""
+def _classify_ignored(
+    worktree: Path,
+    main_checkout: Path,
+    ignored: list[str],
+    declared: frozenset[str] = frozenset(),
+):
+    """Split ignored entries into scratch, `.env*` offenders and link offenders.
+
+    A waived `.env*` file skips the comparison and is classified as the ordinary
+    ignored regular file it is; every other rule keeps applying unchanged.
+    """
     scratch: list[Scratch] = []
     env_offenders: list[str] = []
     link_offenders: list[str] = []
+    nested_consented: list[str] = []
     for entry in ignored:
         relative = entry[:-1] if entry.endswith("/") else entry
         metadata = _lstat(worktree, relative)
-        if _is_env(relative):
+        waived = _is_waived(relative, metadata, declared)
+        if _is_env(relative) and not waived:
             problem = _env_problem(worktree, main_checkout, relative, metadata)
             if problem is None:
                 scratch.append(Scratch(relative, "file"))
@@ -211,13 +267,30 @@ def _classify_ignored(worktree: Path, main_checkout: Path, ignored: list[str]):
             else:
                 link_offenders.append(f"{relative} — {problem}")
         elif stat.S_ISDIR(metadata.st_mode):
-            nested = _nested_env_problems(worktree, main_checkout, relative)
+            nested, cleared = _nested_env_problems(
+                worktree, main_checkout, relative, declared
+            )
             env_offenders.extend(nested)
             if not nested:
+                nested_consented.extend(cleared)
                 scratch.append(Scratch(relative, "directory"))
         else:
-            scratch.append(Scratch(relative, "file"))
-    return scratch, env_offenders, link_offenders
+            scratch.append(Scratch(relative, "file", None, waived))
+    return scratch, env_offenders, link_offenders, nested_consented
+
+
+def _is_waived(relative: str, metadata, declared: frozenset[str]) -> bool:
+    """Does the consumer's own declaration clear this `.env*` file for deletion?
+
+    Only an exact declared path, and only a regular file: a directory or a
+    symlink standing at a declared path is not the file the declaration
+    describes, so it keeps the conservative comparison and its block.
+    """
+    return (
+        _is_env(relative)
+        and relative in declared
+        and stat.S_ISREG(metadata.st_mode)
+    )
 
 
 def _lstat(root: Path, relative: str):
@@ -231,23 +304,35 @@ def _is_env(relative: str) -> bool:
     return fnmatch.fnmatchcase(PurePosixPath(relative).name, ENV_BASENAME_GLOB)
 
 
-def _nested_env_problems(worktree: Path, main_checkout: Path, relative: str):
-    """Find `.env*` files inside an ignored directory git reported as one entry."""
+def _nested_env_problems(
+    worktree: Path,
+    main_checkout: Path,
+    relative: str,
+    declared: frozenset[str] = frozenset(),
+):
+    """Find `.env*` files inside an ignored directory git reported as one entry.
+
+    Returns the blocking problems plus the declared paths whose comparison this
+    consumer waived, so a consented nested deletion can be named in the report.
+    """
     problems = []
+    consented = []
     base = worktree / relative
     for directory, _subdirectories, names in os.walk(base, followlinks=False):
         for name in names:
             if not fnmatch.fnmatchcase(name, ENV_BASENAME_GLOB):
                 continue
-            nested = PurePosixPath(relative) / os.path.relpath(
+            nested = str(PurePosixPath(relative) / os.path.relpath(
                 os.path.join(directory, name), base
-            )
-            problem = _env_problem(
-                worktree, main_checkout, str(nested), _lstat(worktree, str(nested))
-            )
+            ))
+            metadata = _lstat(worktree, nested)
+            if _is_waived(nested, metadata, declared):
+                consented.append(nested)
+                continue
+            problem = _env_problem(worktree, main_checkout, nested, metadata)
             if problem is not None:
                 problems.append(f"{nested} — {problem}")
-    return sorted(problems)
+    return sorted(problems), sorted(consented)
 
 
 def _env_problem(worktree: Path, main_checkout: Path, relative: str, metadata):
@@ -365,6 +450,26 @@ def _shorten(text: str) -> str:
     return printable if len(printable) <= _ITEM_LIMIT else f"{printable[:_ITEM_LIMIT]}…"
 
 
+def _declared_lines(declared: tuple[str, ...]) -> list[str]:
+    """Name the deletions the consumer's own declaration authorized.
+
+    Consent is only consent while it is visible where it is used, so a `.env*`
+    file deleted without any main-checkout comparison is named in the same
+    bounded report that lists the ordinary scratch.
+    """
+    if not declared:
+        return []
+    shown = declared[:EXAMPLE_LIMIT]
+    lines = [
+        f"Deletable by your own seed declaration: {len(declared)} "
+        "(no main-checkout comparison)."
+    ]
+    lines.extend(f"  - {_shorten(path)}" for path in shown)
+    if len(declared) > len(shown):
+        lines.append(f"  … {len(declared) - len(shown)} more (not listed)")
+    return lines
+
+
 def render_report(assessment: Assessment) -> str:
     """Render the one assessment object — always bounded, never a path dump."""
     if assessment.removable:
@@ -373,6 +478,7 @@ def render_report(assessment: Assessment) -> str:
         lines.extend(f"  - {_shorten(path)}" for path in preview)
         if len(assessment.scratch) > len(preview):
             lines.append(f"  … {len(assessment.scratch) - len(preview)} more (not listed)")
+        lines.extend(_declared_lines(assessment.declared_deletions))
         return "\n".join(lines)
     lines = []
     for block in assessment.blocks:

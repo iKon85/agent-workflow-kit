@@ -208,8 +208,12 @@ _Avoid_: Teardown provenance, Ownership proof, Lifecycle receipt
 A file git's standard exclude sources (repository ignore files,
 `.git/info/exclude`, the global excludes file) classify as ignored. By the
 repository's own declaration it is not work, and it is therefore deletable at
-teardown. The single exception class is `.env*`, which is compared against the
-main checkout before removal.
+teardown. The single exception class is `.env*`, and it has two arms: a file the
+consumer's own seed declaration names is deletable **by that declaration** and
+is listed in the teardown report; an undeclared one is compared against the main
+checkout before removal and blocks unless it is byte-identical. Declaration and
+ignore rule are the same kind of authority — the repository saying what is not
+work — never a pattern list the kit interprets.
 _Avoid_: Scratch pattern, Cleanup allowlist
 
 ## Durable content
