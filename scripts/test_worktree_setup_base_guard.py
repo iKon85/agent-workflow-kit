@@ -26,8 +26,7 @@ PROFILE = """{
     "enabled": true,
     "worktreeRoot": ".worktrees",
     "branchTemplate": "{type}/{issue}-{slug}",
-    "pathTemplate": "{issue}-{slug}",
-    "setupSteps": []
+    "pathTemplate": "{issue}-{slug}"
   }
 }
 """

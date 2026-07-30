@@ -350,10 +350,16 @@ files, `.git/info/exclude`, and your global excludes file:
 | an ignored entry | scratch: deleted together with the worktree |
 
 Two rules sit on top of that taxonomy. An `.env*` file (basename glob) is the
-single hardcoded exception — ignored, yet potentially irreplaceable — so it is
-removed only when it is byte-identical to the file at the same relative path in
-your main checkout; divergent, missing there, or not a plain file stops teardown
-and names the exact file. An ignored symlink is unlinked, never followed, and
+single exception — ignored, yet potentially irreplaceable — and it has two arms.
+A path your own `seed.paths` declares is removed **because you declared it**:
+you said this file is what a fresh worktree carries, which is the same kind of
+statement your `.gitignore` makes, and every such deletion is named in the
+teardown report. An `.env*` file you did **not** declare is removed only when it
+is byte-identical to the file at the same relative path in your main checkout;
+divergent, missing there, or not a plain file stops teardown and names the exact
+file. That is why a worktree carrying its own port needs one line of profile:
+undeclared, it is byte-different from your main checkout by construction and
+blocks. An ignored symlink is unlinked, never followed, and
 only while its target stays inside the worktree: an absolute, escaping, dangling,
 or since-changed target keeps the worktree and names the link.
 
@@ -578,6 +584,26 @@ the old way. Decision record:
   waiting silently.
 
 ## Release notes
+
+### 0.46.4
+
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.agents/skills/wrapup/SKILL.md`
+- changed: `.claude/hooks/enforce-worktree-cwd.py`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/worktree-lifecycle.md`
+- changed: `.claude/skills/wrapup/SKILL.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/classify.py`
+- changed: `scripts/worktree-lifecycle/cleanup.py`
+- changed: `scripts/worktree-lifecycle/core.py`
+- changed: `scripts/worktree-lifecycle/ignore_seed.py`
+- changed: `scripts/worktree-lifecycle/profile.py`
+- changed: `scripts/worktree-lifecycle/setup.py`
+- changed: `scripts/wrapup-land.py`
 
 ### 0.46.3
 

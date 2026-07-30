@@ -5,10 +5,18 @@ Builds a throwaway git main checkout plus one linked worktree under a temp
 root (fixture only — never the repository under review), then asks the shipped
 classifier `scripts/worktree-lifecycle/classify.py` to assess the worktree.
 
-Two arms:
+Three arms:
   identical  — the worktree's `.env` is byte-identical to the main checkout's
   per-port   — the worktree's `.env` differs in one line (`PORT=`), which is
-               what a correct per-worktree setup produces
+               what a correct per-worktree setup produces, and which the
+               consumer's seed profile does not declare
+  declared   — the same per-worktree `.env`, declared in the consumer's own seed
+               profile: the declaration is the consent, so teardown clears it
+
+`identical` and `per-port` are the pinned v1 reproduction of R1 and still report
+it in `reproduced` — an undeclared divergent `.env*` blocks by design (#430).
+`declared` is the v2 acceptance arm: `v2` is the whole ADR-0009 §4 expectation,
+and it is also this probe's exit code, so "green" is mechanical.
 
 Prints one JSON object. Deterministic; no network.
 """
@@ -61,9 +69,9 @@ def build(root: Path, worktree_env: str) -> tuple[Path, Path]:
     return main, worktree
 
 
-def arm(root: Path, name: str, worktree_env: str) -> dict:
+def arm(root: Path, name: str, worktree_env: str, declared=()) -> dict:
     main, worktree = build(root / name, worktree_env)
-    assessment = classify.assess(worktree, main)
+    assessment = classify.assess(worktree, main, declared)
     blocks = [
         {"rule": block.rule, "items": list(block.items)} for block in assessment.blocks
     ]
@@ -71,9 +79,11 @@ def arm(root: Path, name: str, worktree_env: str) -> dict:
     return {
         "arm": name,
         "worktreeEnv": worktree_env,
+        "declared": list(declared),
         "blocked": bool(env_blocks),
         "blocks": blocks,
         "scratchCount": len(assessment.scratch),
+        "declaredDeletions": list(assessment.declared_deletions),
     }
 
 
@@ -86,12 +96,18 @@ def main() -> int:
             "arms": [
                 arm(root, "identical", "PORT=3000\nTOKEN=shared\n"),
                 arm(root, "per-port", "PORT=3101\nTOKEN=shared\n"),
+                arm(root, "declared", "PORT=3101\nTOKEN=shared\n", declared=(".env",)),
             ],
         }
-    identical, per_port = result["arms"]
+    identical, per_port, declared = result["arms"]
     result["reproduced"] = (not identical["blocked"]) and per_port["blocked"]
+    result["v2"] = (
+        result["reproduced"]
+        and not declared["blocked"]
+        and declared["declaredDeletions"] == [".env"]
+    )
     print(json.dumps(result, sort_keys=True))
-    return 0
+    return 0 if result["v2"] else 1
 
 
 if __name__ == "__main__":

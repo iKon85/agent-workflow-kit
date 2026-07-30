@@ -215,10 +215,11 @@ Worktree Lifecycle for this repository?"* Offer exactly **Yes**, **Later**, and
 - **Disable** — remove only the exact kit-owned hook commands first, then set
   `enabled: false`; retain the profile, setup policy, and unknown keys.
 
-Reconcile no deletion-pattern list at any state. Deletion policy has exactly
-one configuration surface, the ignore mechanism, so a profile that still
-carries a pattern key from an older kit keeps it verbatim as consumer data: it
-is ignored in silence, never rewritten and never reported.
+Reconcile no deletion-pattern list at any state. Deletion policy is configured
+by declaration only — the ignore mechanism, plus the seed declaration for a
+`.env*` the consumer itself named — and never by a pattern list, so a profile
+that still carries a pattern key from an older kit keeps it verbatim as consumer
+data: it is ignored in silence, never rewritten and never reported.
 
 Whenever a profile already carries Workflow Advisories globs — on **Yes** over
 an existing section and on **Existing** — run

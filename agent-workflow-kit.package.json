@@ -1,5 +1,5 @@
 {
-  "kitVersion": "0.46.3",
+  "kitVersion": "0.46.4",
   "files": [
     {
       "path": ".agents/skills/ask-matt/SKILL.md",
@@ -687,7 +687,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "bb9c0fed0a1b7bfe211cf55f2fd352447e88f9078002ec289f41c2878d1510da",
+      "sha256": "51329a333eed4e6f71d5e908bcc4990e17aa803141f441d72429174f5490f4b3",
       "mode": 420,
       "origin": "kit"
     },
@@ -757,7 +757,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "3f22e152083353e4adf143044a4ede56563f85968432420ab04260abe98b82f9",
+      "sha256": "d8a6f32243930464b882446e429ce61101edba5ed893ffea04c8f3c5d2f3d854",
       "mode": 420,
       "origin": "kit"
     },
@@ -997,7 +997,7 @@
       "ownerSkill": "wrapup",
       "surface": "codex",
       "installRole": "consumer",
-      "sha256": "2d9d39833787f12f4b4f4e02fe852a531c2961f54251f1541e1118e45fdedcf1",
+      "sha256": "16531465e91a04c2a4a07145df28a52d1c48849d94ac1a7a55c14a4bdf063b19",
       "mode": 420,
       "origin": "kit"
     },
@@ -1095,7 +1095,7 @@
       "path": ".claude/hooks/enforce-worktree-cwd.py",
       "kind": "hook",
       "installRole": "consumer",
-      "sha256": "14086536ceb3368a03b84ff550ba5e3db83d6c5198c41c80312507bf6640bb9f",
+      "sha256": "33e64870ca8588beadfb93791dabf784eff8040fa6c7f3a962884d9765b7c819",
       "mode": 493,
       "origin": "kit"
     },
@@ -2029,7 +2029,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "bb9c0fed0a1b7bfe211cf55f2fd352447e88f9078002ec289f41c2878d1510da",
+      "sha256": "51329a333eed4e6f71d5e908bcc4990e17aa803141f441d72429174f5490f4b3",
       "mode": 420,
       "origin": "kit"
     },
@@ -2099,7 +2099,7 @@
       "ownerSkill": "setup-workflow",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "3f22e152083353e4adf143044a4ede56563f85968432420ab04260abe98b82f9",
+      "sha256": "d8a6f32243930464b882446e429ce61101edba5ed893ffea04c8f3c5d2f3d854",
       "mode": 420,
       "origin": "kit"
     },
@@ -2347,7 +2347,7 @@
       "ownerSkill": "wrapup",
       "surface": "claude",
       "installRole": "consumer",
-      "sha256": "2d9d39833787f12f4b4f4e02fe852a531c2961f54251f1541e1118e45fdedcf1",
+      "sha256": "16531465e91a04c2a4a07145df28a52d1c48849d94ac1a7a55c14a4bdf063b19",
       "mode": 420,
       "origin": "kit"
     },
@@ -2803,7 +2803,7 @@
       "path": "scripts/worktree-lifecycle/classify.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "1591e0980193c6053aac722466c8325a2167c005ee282dbe806f0072527bdec8",
+      "sha256": "ef14bac2b74d0d3112e7b2d584e36707c452f74de335c2a4931d85e04cb88686",
       "mode": 420,
       "origin": "kit"
     },
@@ -2811,7 +2811,7 @@
       "path": "scripts/worktree-lifecycle/cleanup.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "c8b8bbdca98dc215ed87c4b928f7c26ea392d125d6960500a4f30d6a452a42f4",
+      "sha256": "e89b8d0f301327bad921d4e6831cc2cb6af36d0d69bde96ad4a6b83b6bf04c05",
       "mode": 493,
       "origin": "kit"
     },
@@ -2819,7 +2819,7 @@
       "path": "scripts/worktree-lifecycle/core.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "2429325f411be1df335f77fa600765821397d6f33fcb99d328d0fe2e5dfefbc7",
+      "sha256": "7e32facc1c36be31b82ac0e13caf75340722dba23a0d8dcc35914b31503e1937",
       "mode": 420,
       "origin": "kit"
     },
@@ -2827,7 +2827,7 @@
       "path": "scripts/worktree-lifecycle/ignore_seed.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "f8792c358fcc6506146aa45c7fc9defb5fc57cfdee7cd7a51c073a6573515dd5",
+      "sha256": "6abbb406ccf27ea2a9bf2c8442b1b32e2499e9ae4d809ef35566efb10ac82598",
       "mode": 493,
       "origin": "kit"
     },
@@ -2843,7 +2843,7 @@
       "path": "scripts/worktree-lifecycle/profile.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "7a5d03985430aa4d3256a045aa9092e13e45cd11f0840342015695b427875260",
+      "sha256": "c8d1957d73082de2d96aa7ee3c1cf12c67c8d81f2053e501deb70d045aa79f5b",
       "mode": 420,
       "origin": "kit"
     },
@@ -2851,7 +2851,7 @@
       "path": "scripts/worktree-lifecycle/README.md",
       "kind": "doc",
       "installRole": "consumer",
-      "sha256": "59049afc06aa71a16a1422e3a6c6a93c21ef85dbaca016b99df15918ac268873",
+      "sha256": "faa5826a7801ab3b772118aae33463a2e949857b5531cd020712cfa6925baaab",
       "mode": 420,
       "origin": "kit"
     },
@@ -2859,7 +2859,7 @@
       "path": "scripts/worktree-lifecycle/setup.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "d429343da97ebb12ff0e5ce087c8dca41edb3e2592bf32ddb43321c34c787600",
+      "sha256": "5130273dee7aafa10129a3cc392c357f0eafbdcf839b683ae1d769d1ef24705b",
       "mode": 493,
       "origin": "kit"
     },
@@ -2867,7 +2867,7 @@
       "path": "scripts/wrapup-land.py",
       "kind": "script",
       "installRole": "consumer",
-      "sha256": "5c07099022f089704e8ac23cdfe0e4fcb8826769cf16ec1e0260e031b5d14971",
+      "sha256": "0a8b4e05a6e2e0b3459a15a5c11f6905aa44fbedd2277061a37c1ae435fae60a",
       "mode": 493,
       "origin": "kit"
     },

@@ -119,12 +119,15 @@ there, while nothing has been removed yet. Teardown authority is
 the repository's current state, nothing else: a tracked change or an unmerged
 path blocks, an untracked non-ignored file blocks with a bounded report (count
 plus top directories, never a path dump), and an ignored entry is deletable
-scratch. One hardcoded exception: an `.env*` file is deletable only when it is
-byte-identical to the main checkout's copy at the same path — otherwise the
-refusal names the exact file. An ignored symlink is unlinked, never followed,
+scratch. One exception with two arms: an `.env*` file the profile's `seed.paths`
+declares is deletable **by that declaration** and the report names the deletion;
+an undeclared one is deletable only when it is byte-identical to the main
+checkout's copy at the same path — otherwise the refusal names the exact file.
+An ignored symlink is unlinked, never followed,
 and only while its target stays inside the worktree: an absolute, escaping,
 dangling, or since-changed target keeps the worktree and names the link. Make
-something deletable by ignoring it; there is no pattern list to configure.
+something deletable by ignoring it, or — for a `.env*` your worktree owns — by
+declaring it in the seed; there is no pattern list to configure.
 
 Branch retirement is authorized, never assumed. A branch that is an ancestor of
 the **freshly fetched** integration branch is deleted with `-d`; a fetch that

@@ -1,7 +1,8 @@
 # Teardown authority is stateless repository classification
 
 Status: accepted (2026-07-27, #320) — supersedes
-[ADR-0007](./0007-session-teardown-requires-provenance-bound-ownership.md)
+[ADR-0007](./0007-session-teardown-requires-provenance-bound-ownership.md) ·
+amended 2026-07-30 (#430: §2 and §6, see [Amendment](#amendment--2026-07-30-430))
 
 ADR-0007 derived teardown authority from persisted lifecycle evidence:
 ownership-proof refs acquired in atomic git transactions, frozen
@@ -25,13 +26,27 @@ state**, read at the moment of action, and from nothing else:
    (`--exclude-standard`: repository `.gitignore` files, `.git/info/exclude`,
    the global excludes file) — whatever the repository's own tooling treats as
    ignored is deletion authority here too.
-2. **One hardcoded exception: `.env*` (basename glob).** Ignored yet
-   potentially irreplaceable. Before removal each `.env*` regular file is
-   compared byte-wise with its counterpart at the same relative path in the
-   main checkout, both opened no-follow: identical → derived copy, deletable;
-   divergent, absent in the main checkout, or either side not a regular file →
-   block with the exact files named. The check is a present-state comparison,
-   not a receipt.
+2. **One exception: `.env*` (basename glob) — with two arms** (amended #430).
+   Ignored yet potentially irreplaceable, so who may delete it depends on
+   whether the consumer declared it:
+   - **Declared.** The seed declaration (`worktreeLifecycle.seed.paths`) names
+     this exact repository-relative path. The consumer said this file is what a
+     fresh worktree carries, and that declaration grants deletion authority the
+     same way `.gitignore` does — "the repository declared it not-work". No
+     comparison runs, and every waived deletion is named in the teardown
+     report, because consent is only consent while it stays visible where it is
+     used. Consent is exact: never a glob, never a prefix, and never a
+     directory or symlink standing at the declared path.
+   - **Undeclared.** Unchanged. Each `.env*` regular file is compared byte-wise
+     with its counterpart at the same relative path in the main checkout, both
+     opened no-follow: identical → derived copy, deletable; divergent, absent
+     in the main checkout, or either side not a regular file → block with the
+     exact files named. A hand-written secret is the class with no floor
+     beneath it, so it keeps the conservative comparison.
+
+   Both arms stay present-state reads: the declaration is present
+   configuration, not evidence of a past action, and the classifier receives it
+   as an argument rather than reading a profile itself.
 3. **The platform PR record authorizes branch deletion.** Force-deletion
    requires exactly one PR matching the full tuple — this repository as base
    repo, head repository equal to the base repo (no fork heads), head ref
@@ -52,9 +67,13 @@ state**, read at the moment of action, and from nothing else:
    external tools under foreign names and paths. The kit never conditions
    teardown on its own naming or location conventions; the four classification
    rules above are the only protection.
-6. **Deletion policy has exactly one configuration surface: the ignore
-   mechanism.** The consumer profile keeps structural facts only (worktree
-   root, templates, protected branches, sweep opt-in). `scratchPatterns` and
+6. **Deletion policy is configured by declaration only** (amended #430). The
+   ignore mechanism decides what is Scratch at all; the seed declaration
+   decides one thing and nothing more — whether a `.env*` file the consumer
+   itself declared still needs the comparison. Neither is a pattern list, no
+   glob widens cleanup authority, and there is still no third surface. The
+   consumer profile keeps structural facts only (worktree
+   root, templates, protected branches, seed, sweep opt-in). `scratchPatterns` and
    `landingGeneratedArtifactPatterns` are removed without migration —
    including the shipped consumer migration that seeded them; making a file
    deletable means ignoring it (ADR-0008's offered seeding remains the
@@ -99,3 +118,28 @@ state**, read at the moment of action, and from nothing else:
 - The lifecycle implementation shrinks from a transaction protocol to a
   classification function plus plumbing; its tests shift from race
   choreography to classification truth tables.
+- A consumer that declares its per-worktree config can land again (#430); one
+  that declares nothing keeps the conservative block, so the amendment adds no
+  new exposure to anybody who did not ask for it.
+
+## Amendment — 2026-07-30 (#430)
+
+The observed incident (Welle 31 truth census, R1, reproduced by
+`docs/analysis/welle-31/truth-census/fixtures/probe-env-proxy.py`): the
+byte-comparison of §2 was a proxy for the wrong question. The decision teardown
+has to make is "is this file work or scratch"; the comparison asked "is it
+identical to the main checkout's copy". A worktree that correctly carries its
+own port is byte-different by construction, so **every correctly configured
+worktree was blocked at teardown** — the fix visible to the user being to make
+the file wrong.
+
+Slice #429 had meanwhile given the profile a flat seed declaration: the exact
+paths a consumer says a fresh worktree carries. That declaration answers the
+right question directly, and it is the consumer's own statement rather than a
+kit heuristic — so it, not a byte comparison, is what grants deletion authority
+for the files it names. §2 keeps the comparison for everything undeclared,
+which is where the irreplaceable hand-written secret actually lives.
+
+What did **not** change: the classification model, the four rules, the absence
+of persisted evidence, and the rule that a guard reads present repository state
+and declarative configuration rather than reconstructing intent from bytes.

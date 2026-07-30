@@ -82,8 +82,9 @@ class Fixture(unittest.TestCase):
         path.write_text(body, encoding="utf-8")
         return path
 
-    def assess(self):
-        return classify.assess(self.worktree, self.main)
+    def assess(self, *declared):
+        """Assess the worktree, optionally with the consumer's declared seed paths."""
+        return classify.assess(self.worktree, self.main, declared)
 
 
 class PorcelainTruthTable(Fixture):
@@ -191,7 +192,7 @@ class PorcelainTruthTable(Fixture):
 
 
 class EnvMatrix(Fixture):
-    """`.env*` is the one hardcoded carve-out inside "ignored"."""
+    """`.env*` is the one carve-out inside "ignored" — here its undeclared arm."""
 
     def seed_env(self, worktree_body, main_body=None, ignore=".env*\n"):
         self.seed(ignore=ignore)
@@ -261,6 +262,103 @@ class EnvMatrix(Fixture):
         cleared = self.assess()
         self.assertTrue(cleared.removable)
         self.assertEqual([entry.path for entry in cleared.scratch], ["cache"])
+
+
+class DeclaredEnv(Fixture):
+    """The second `.env*` arm: the consumer's own declaration grants deletion.
+
+    A seed-declared path is what the consumer says a fresh worktree carries, so
+    the declaration is the same kind of authority `.gitignore` already carries.
+    It waives the main-checkout comparison for exactly the declared file — never
+    a sibling, a prefix, a glob, or anything that is not a regular file — and
+    every waived deletion is named in the report.
+    """
+
+    def seed_env(self, worktree_body, main_body=None, ignore=".env*\n"):
+        self.seed(ignore=ignore)
+        self.write(".env", worktree_body)
+        if main_body is not None:
+            self.write(".env", main_body, where=self.main)
+
+    def test_declared_divergent_env_is_deletable_and_named_in_the_report(self):
+        self.seed_env("PORT=3101\n", "PORT=3000\n")
+        assessment = self.assess(".env")
+        self.assertTrue(assessment.removable)
+        self.assertEqual([entry.path for entry in assessment.scratch], [".env"])
+        self.assertEqual(assessment.declared_deletions, (".env",))
+        report = classify.render_report(assessment)
+        self.assertIn("declaration", report)
+        self.assertIn(".env", report)
+        self.assertEqual(classify.remove_scratch(assessment), (".env",))
+        self.assertFalse((self.worktree / ".env").exists())
+        self.assertEqual((self.main / ".env").read_text(encoding="utf-8"), "PORT=3000\n")
+
+    def test_declared_env_absent_from_the_main_checkout_is_deletable(self):
+        self.seed_env("PORT=3101\n")
+        assessment = self.assess(".env")
+        self.assertTrue(assessment.removable)
+        self.assertEqual(assessment.declared_deletions, (".env",))
+
+    def test_an_undeclared_divergent_env_still_blocks_and_names_it(self):
+        self.seed_env("PORT=3101\n", "PORT=3000\n")
+        assessment = self.assess("config/local.json")
+        block = block_of(assessment, classify.RULE_ENV)
+        self.assertEqual(len(block.items), 1)
+        self.assertTrue(block.items[0].startswith(".env"))
+        self.assertEqual(assessment.declared_deletions, ())
+
+    def test_a_declaration_is_neither_a_prefix_nor_a_glob(self):
+        self.seed(ignore=".env*\n")
+        self.write(".env.local", "PORT=3101\n")
+        for declaration in (".env", ".env*", ".env.local.bak", "."):
+            assessment = self.assess(declaration)
+            self.assertIn(
+                classify.RULE_ENV, rules(assessment), f"{declaration} widened consent"
+            )
+            self.assertEqual(assessment.declared_deletions, ())
+        self.assertTrue(self.assess(".env.local").removable)
+
+    def test_a_declared_path_that_is_not_a_regular_file_still_blocks(self):
+        self.seed(ignore=".env*\n")
+        (self.worktree / ".env").mkdir()
+        self.assertIn(classify.RULE_ENV, rules(self.assess(".env")))
+        (self.worktree / ".env").rmdir()
+        (self.worktree / ".env").symlink_to(self.worktree / "tracked.txt")
+        self.assertIn(classify.RULE_ENV, rules(self.assess(".env")))
+        self.assertTrue((self.worktree / ".env").is_symlink())
+
+    def test_a_declaration_cannot_make_unignored_work_deletable(self):
+        self.seed(ignore="")
+        self.write(".env", "PORT=3101\n")
+        assessment = self.assess(".env")
+        self.assertEqual(rules(assessment), [classify.RULE_UNTRACKED])
+        self.assertEqual(assessment.declared_deletions, ())
+        self.assertEqual(assessment.scratch, ())
+
+    def test_a_declared_env_below_an_ignored_directory_is_waived_and_named(self):
+        self.seed(ignore="cache/\n")
+        self.write("cache/.env", "PORT=3101\n")
+        self.write("cache/x.bin")
+        self.assertIn(classify.RULE_ENV, rules(self.assess()))
+        assessment = self.assess("cache/.env")
+        self.assertTrue(assessment.removable)
+        self.assertEqual([entry.path for entry in assessment.scratch], ["cache"])
+        self.assertEqual(assessment.declared_deletions, ("cache/.env",))
+        self.assertIn("cache/.env", classify.render_report(assessment))
+        classify.remove_scratch(assessment)
+        self.assertFalse((self.worktree / "cache").exists())
+
+    def test_the_declared_list_in_the_report_stays_bounded(self):
+        self.seed(ignore=".env*\n")
+        declared = [f".env.slot{index}" for index in range(9)]
+        for name in declared:
+            self.write(name, "PORT=3101\n")
+        assessment = self.assess(*declared)
+        self.assertTrue(assessment.removable)
+        self.assertEqual(len(assessment.declared_deletions), 9)
+        report = classify.render_report(assessment)
+        self.assertIn("4 more", report)
+        self.assertLess(len(report), 1000)
 
 
 class SymlinkContainment(Fixture):
@@ -388,6 +486,9 @@ class ModuleContract(unittest.TestCase):
         docstring = classify.__doc__ or ""
         self.assertIn("between assessment and deletion", docstring.lower())
         self.assertIn("gitignored outside `.env*`", docstring)
+        # The declared arm deletes without comparing: an accepted risk is only
+        # accepted while it is written down next to the others.
+        self.assertIn("A declared `.env*` file is deleted", docstring)
 
     def test_no_profile_pattern_dependency(self):
         for forbidden in (

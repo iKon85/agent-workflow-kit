@@ -71,6 +71,7 @@ def collect_assessment(profile, main: Path, worktree: Path, gh_command: str):
     facts = collect_cleanup_facts(
         main,
         worktree,
+        declared_paths=profile.seed.paths,
     )
     state = pr_state(gh_command, main, facts.branch)
     return classify_cleanup(profile, replace(facts, pr_state=state))
@@ -93,6 +94,7 @@ def execute(args: argparse.Namespace) -> dict:
         "reasons": list(assessment.reasons),
         "assumptions": assessment.assumptions,
         "scratchFiles": list(assessment.scratch_files),
+        "declaredDeletions": list(assessment.declared_deletions),
         "classification": render_report(assessment.classification),
         "removed": False,
     }
