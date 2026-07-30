@@ -605,6 +605,72 @@ the old way. Decision record:
 
 ## Release notes
 
+### 0.47.0
+
+- added: `.agents/skills/land/SKILL.md`
+- added: `.agents/skills/land/SOURCES.txt`
+- added: `.agents/skills/make-landable/SKILL.md`
+- added: `.agents/skills/make-landable/SOURCES.txt`
+- added: `.claude/skills/land/SKILL.md`
+- added: `.claude/skills/land/SOURCES.txt`
+- added: `.claude/skills/make-landable/SKILL.md`
+- added: `.claude/skills/make-landable/SOURCES.txt`
+- removed: `.agents/skills/wrapup/SKILL.md`
+- removed: `.agents/skills/wrapup/SOURCES.txt`
+- removed: `.claude/skills/wrapup/SKILL.md`
+- removed: `.claude/skills/wrapup/SOURCES.txt`
+- changed: `.agents/skills/ask-matt/SKILL.md`
+- changed: `.agents/skills/grill-me/SKILL.md`
+- changed: `.agents/skills/grill-with-docs/SKILL.md`
+- changed: `.agents/skills/kit-release/SKILL.md`
+- changed: `.agents/skills/kit-update/SKILL.md`
+- changed: `.agents/skills/orchestrate-wave/SKILL.md`
+- changed: `.agents/skills/setup-workflow/SKILL.md`
+- changed: `.agents/skills/setup-workflow/board-sync.md`
+- changed: `.agents/skills/setup-workflow/workflow-overview.md`
+- changed: `.agents/skills/tdd/SKILL.md`
+- changed: `.agents/skills/to-issues/SKILL.md`
+- changed: `.agents/skills/to-prd/PROGRAM-PRD-FORMAT.md`
+- changed: `.agents/skills/to-waves/SKILL.md`
+- changed: `.claude/hooks/kit-origin-edit-hint.py`
+- changed: `.claude/skills/ask-matt/SKILL.md`
+- changed: `.claude/skills/grill-me-codex/SKILL.md`
+- changed: `.claude/skills/grill-me/SKILL.md`
+- changed: `.claude/skills/grill-with-docs-codex/SKILL.md`
+- changed: `.claude/skills/grill-with-docs/SKILL.md`
+- changed: `.claude/skills/kit-release/SKILL.md`
+- changed: `.claude/skills/kit-update/SKILL.md`
+- changed: `.claude/skills/orchestrate-wave/SKILL.md`
+- changed: `.claude/skills/setup-workflow/SKILL.md`
+- changed: `.claude/skills/setup-workflow/board-sync.md`
+- changed: `.claude/skills/setup-workflow/workflow-overview.md`
+- changed: `.claude/skills/skill-manifest.json`
+- changed: `.claude/skills/tdd/SKILL.md`
+- changed: `.claude/skills/to-issues/SKILL.md`
+- changed: `.claude/skills/to-prd/PROGRAM-PRD-FORMAT.md`
+- changed: `.claude/skills/to-waves/SKILL.md`
+- changed: `README.md`
+- changed: `agent-workflow-kit.package.json`
+- changed: `docs/agents/wave-anchor-template.md`
+- changed: `scripts/board-sync.py`
+- changed: `scripts/execute-ready-check.py`
+- changed: `scripts/kit-release.mjs`
+- changed: `scripts/pr-body-check.py`
+- changed: `scripts/render-anchor.py`
+- changed: `scripts/worktree-lifecycle/README.md`
+- changed: `scripts/worktree-lifecycle/plan-artifacts.json`
+- changed: `scripts/worktree-lifecycle/profile.py`
+- changed: `scripts/wrapup-land.py`
+- changed: `src/cli.mjs`
+- changed: `src/commands/init.mjs`
+- changed: `src/commands/update.mjs`
+- changed: `src/lib/atomicWrite.mjs`
+- changed: `src/lib/bundle.mjs`
+- changed: `src/lib/updateCandidate.mjs`
+- changed: `src/lib/updateReconcile.mjs`
+- changed: `src/lib/verifyUpdateCandidate.mjs`
+- changed: `src/lib/verifyUpdateCandidateTransaction.mjs`
+
 ### 0.46.4
 
 - changed: `.agents/skills/setup-workflow/SKILL.md`
